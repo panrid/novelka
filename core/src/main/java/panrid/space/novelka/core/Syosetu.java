@@ -3,6 +3,9 @@ package panrid.space.novelka.core;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import panrid.space.novelka.core.model.Block;
+import panrid.space.novelka.core.model.Chapter;
+import panrid.space.novelka.core.model.Novel;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -12,8 +15,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-
-import panrid.space.novelka.core.model.*;
 
 public final class Syosetu implements NovelSource {
     private final HttpClient http =

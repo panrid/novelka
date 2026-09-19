@@ -4,24 +4,21 @@ NOVELKA_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 NOVELKA_BIN="$NOVELKA_ROOT/cli/build/install/novelka/bin/novelka"
 
 NOVELKA_ENV=${NOVELKA_ENV_FILE:-"$NOVELKA_ROOT/.env.local"}
+case "$NOVELKA_ENV" in
+    /*) ;;
+    *) NOVELKA_ENV="$PWD/$NOVELKA_ENV" ;;
+esac
+if [ -n "${NOVELKA_ENV_FILE:-}" ] && [ ! -f "$NOVELKA_ENV" ]; then
+    echo "Environment file not found: $NOVELKA_ENV" >&2
+    exit 1
+fi
 if [ -f "$NOVELKA_ENV" ]; then
-  set -a
-  . "$NOVELKA_ENV"
-  set +a
+    set -a
+    . "$NOVELKA_ENV"
+    set +a
 fi
 
-NOVELKA_BUILD=0
-if [ ! -x "$NOVELKA_BIN" ]; then
-  NOVELKA_BUILD=1
-elif find "$NOVELKA_ROOT/cli/src/main" "$NOVELKA_ROOT/core/src/main" -type f -newer "$NOVELKA_BIN" -print -quit | grep -q .; then
-  NOVELKA_BUILD=1
-elif [ "$NOVELKA_ROOT/build.gradle" -nt "$NOVELKA_BIN" ] || [ "$NOVELKA_ROOT/settings.gradle" -nt "$NOVELKA_BIN" ]; then
-  NOVELKA_BUILD=1
-elif [ "$NOVELKA_ROOT/cli/build.gradle" -nt "$NOVELKA_BIN" ] || [ "$NOVELKA_ROOT/core/build.gradle" -nt "$NOVELKA_BIN" ]; then
-  NOVELKA_BUILD=1
-fi
-
-if [ "$NOVELKA_BUILD" -eq 1 ]; then
-  "$NOVELKA_ROOT/gradlew" -q :cli:installDist
-fi
+# Gradle tracks deleted files, resources and build settings as well as changed sources.
+# Keep the caller's directory for --file/--output, and build output out of CLI stdout.
+"$NOVELKA_ROOT/gradlew" -p "$NOVELKA_ROOT" -q :cli:installDist >&2
 exec "$NOVELKA_BIN" "$@"
