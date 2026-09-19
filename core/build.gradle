@@ -1,0 +1,30 @@
+plugins { id 'java-library' }
+dependencies {
+    implementation 'com.knuddels:jtokkit:1.1.0'
+    implementation 'org.jsoup:jsoup:1.21.1'
+    api 'com.fasterxml.jackson.core:jackson-databind:2.20.0'
+    runtimeOnly 'org.postgresql:postgresql:42.7.13'
+    testImplementation 'org.mockito:mockito-core:5.23.0'
+    testImplementation 'io.zonky.test:embedded-postgres:2.2.2'
+    testRuntimeOnly 'io.zonky.test.postgres:embedded-postgres-binaries-darwin-arm64v8:14.22.0'
+}
+
+tasks.named('test') { exclude '**/*IntegrationTest.class', '**/LiveSourceTest.class' }
+tasks.register('integrationTest', Test) {
+    description = 'Run real PostgreSQL and mock HTTP integration tests (requires OS shared memory support)'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform()
+    include '**/*IntegrationTest.class'
+    shouldRunAfter tasks.named('test')
+}
+
+tasks.register('liveSourceTest', Test) {
+    description = 'Read one public Syosetu chapter; no paid AI calls'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform()
+    include '**/LiveSourceTest.class'
+}

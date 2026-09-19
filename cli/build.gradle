@@ -1,0 +1,10 @@
+plugins { id 'application' }
+dependencies {
+    implementation project(':core')
+    implementation 'info.picocli:picocli:4.7.7'
+}
+application {
+    applicationDefaultJvmArgs = ['-Duser.timezone=UTC']
+    mainClass = 'panrid.space.novelka.cli.Novelka'
+    applicationName = 'novelka'
+}

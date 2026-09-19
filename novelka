@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+NOVELKA_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+NOVELKA_BIN="$NOVELKA_ROOT/cli/build/install/novelka/bin/novelka"
+if [ ! -x "$NOVELKA_BIN" ]; then
+  echo 'Run ./gradlew :cli:installDist first.' >&2
+  exit 1
+fi
+exec "$NOVELKA_BIN" "$@"
