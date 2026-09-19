@@ -3,13 +3,13 @@ package panrid.space.novelka.core;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import static panrid.space.novelka.core.Domain.*;
 
 import com.sun.net.httpserver.HttpServer;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.*;
+import panrid.space.novelka.core.model.*;
 
 class OpenRouterTest {
   Store store;
@@ -24,7 +24,7 @@ class OpenRouterTest {
     work = new Work("job", "novel", 1, "hash", 1, List.of(), "pending", "");
     doAnswer(
             a -> {
-              Call c = a.getArgument(0);
+              AiCall c = a.getArgument(0);
               Map<String, Object> row = new HashMap<>();
               row.put("id", c.id());
               row.put("job_id", c.jobId());

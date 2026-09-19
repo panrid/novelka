@@ -1,9 +1,10 @@
 package panrid.space.novelka.core;
 
-import static panrid.space.novelka.core.Domain.*;
+import static panrid.space.novelka.core.Hashes.hash;
 
 import java.sql.*;
 import java.util.*;
+import panrid.space.novelka.core.model.*;
 
 public final class Store implements AutoCloseable {
   private final Connection c;
@@ -18,15 +19,11 @@ public final class Store implements AutoCloseable {
     try {
       exec("SELECT pg_advisory_xact_lock(728615)");
       exec("CREATE TABLE IF NOT EXISTS schema_versions(version integer PRIMARY KEY)");
-      if (rows("SELECT version FROM schema_versions WHERE version=1").isEmpty()) {
-        var in = Store.class.getResourceAsStream("/db/V1.sql");
-        if (in == null) throw new IllegalStateException("Missing migration");
-        try (in) {
-          for (String sql :
-              new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).split(";"))
-            if (!sql.isBlank()) exec(sql);
+      for (int version = 1; version <= 2; version++) {
+        if (rows("SELECT version FROM schema_versions WHERE version=?", version).isEmpty()) {
+          applyMigration(version);
+          exec("INSERT INTO schema_versions VALUES(?)", version);
         }
-        exec("INSERT INTO schema_versions VALUES(1)");
       }
       c.commit();
     } catch (Exception e) {
@@ -34,6 +31,17 @@ public final class Store implements AutoCloseable {
       throw e;
     } finally {
       c.setAutoCommit(true);
+    }
+  }
+
+  private void applyMigration(int version) throws Exception {
+    var in = Store.class.getResourceAsStream("/db/V" + version + ".sql");
+    if (in == null) throw new IllegalStateException("Missing migration V" + version);
+    try (in) {
+      for (String sql :
+          new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).split(";")) {
+        if (!sql.isBlank()) exec(sql);
+      }
     }
   }
 
@@ -83,6 +91,57 @@ public final class Store implements AutoCloseable {
 
   public Novel novel(String id) throws Exception {
     return one("SELECT data FROM novels WHERE id=?", Novel.class, id);
+  }
+
+  public String resolveNovel(String reference) throws Exception {
+    if (reference == null || reference.isBlank()) {
+      throw new IllegalArgumentException("Novel ID or alias is required");
+    }
+    String value = reference.trim();
+    if (!rows("SELECT id FROM novels WHERE id=?", value).isEmpty()) return value;
+    String alias = normalizeAlias(value);
+    var matches = rows("SELECT novel_id FROM novel_aliases WHERE alias=?", alias);
+    if (matches.isEmpty()) {
+      throw new IllegalArgumentException("Novel or alias not found: " + reference);
+    }
+    return matches.getFirst().get("novel_id").toString();
+  }
+
+  public void saveAlias(String novel, String value) throws Exception {
+    novel(novel);
+    String alias = normalizeAlias(value);
+    var idCollision = rows("SELECT id FROM novels WHERE id=?", alias);
+    if (!idCollision.isEmpty() && !alias.equals(novel)) {
+      throw new IllegalArgumentException("Alias conflicts with novel ID: " + alias);
+    }
+    var existing = rows("SELECT novel_id FROM novel_aliases WHERE alias=?", alias);
+    if (!existing.isEmpty()) {
+      String target = existing.getFirst().get("novel_id").toString();
+      if (target.equals(novel)) return;
+      throw new IllegalArgumentException("Alias already points to " + target + ": " + alias);
+    }
+    exec("INSERT INTO novel_aliases(alias,novel_id) VALUES(?,?)", alias, novel);
+  }
+
+  public boolean removeAlias(String value) throws Exception {
+    return !rows("DELETE FROM novel_aliases WHERE alias=? RETURNING alias", normalizeAlias(value))
+        .isEmpty();
+  }
+
+  public List<Map<String, Object>> aliases(String novel) throws Exception {
+    return novel == null
+        ? rows("SELECT alias,novel_id FROM novel_aliases ORDER BY alias")
+        : rows("SELECT alias,novel_id FROM novel_aliases WHERE novel_id=? ORDER BY alias", novel);
+  }
+
+  public static String normalizeAlias(String value) {
+    if (value == null) throw new IllegalArgumentException("Alias is required");
+    String alias = value.strip().toLowerCase(Locale.ROOT);
+    if (!alias.matches("[\\p{L}\\p{N}][\\p{L}\\p{N}._-]{0,63}")) {
+      throw new IllegalArgumentException(
+          "Alias must be 1-64 letters or digits and may contain '.', '_' or '-'");
+    }
+    return alias;
   }
 
   public void save(String novel, Chapter ch) throws Exception {
@@ -248,7 +307,7 @@ public final class Store implements AutoCloseable {
     return result;
   }
 
-  public void start(Call a) throws Exception {
+  public void start(AiCall a) throws Exception {
     exec(
         "INSERT INTO"
             + " ai_calls(id,job_id,stage,segment,model,prompt_version,glossary_revision,context,estimated_usd,state)"

@@ -2,20 +2,24 @@
 
 Консольний клієнт для перекладу японських новел українською: Syosetu → аналіз словника → переклад → повна вичитка → HTML / EPUB. Java 25, Gradle, PostgreSQL, OpenRouter. `core` містить прикладний процес; `cli` — Picocli-інтерфейс. Майбутні `server` і React `frontend` залишаться в цьому репозиторії.
 
+Короткий опис створеного коду, станів процесу та схеми даних: [документація розробника](doc/README.md).
+
 ## Швидкий старт
 
 Потрібні JDK 25, запущений Docker Engine / Docker Desktop та ключ OpenRouter. CLI не запускає вебсервер. Команди нижче виконуються з кореня репозиторію.
 
 ```sh
 docker compose -f infra/compose.yaml up -d --wait
-./gradlew test :cli:installDist
-export OPENROUTER_API_KEY='ваш-ключ'
+cp .env.example .env.local
+# Додайте OPENROUTER_API_KEY у .env.local
+./gradlew test
 ./novelka init
-./novelka import https://ncode.syosetu.com/n2267be/ --chapter 1
-./novelka translate n2267be --chapter 1 --budget-usd 0.10
-./novelka export n2267be --format html --output exports/book.html
-./novelka export n2267be --format epub --output exports/book.epub
+./novelka import https://ncode.syosetu.com/n0022gd/ --alias water-magician --chapter 1
+./novelka translate water-magician --chapter 1 --budget-usd 0.10
+./novelka export water-magician --format html --output exports/book.html
 ```
+
+Скрипт `./novelka` автоматично збирає CLI під час першого запуску та після змін у коді. Він також завантажує `.env.local`. Інший файл можна вибрати так: `NOVELKA_ENV_FILE=.env.translation.local ./novelka …`.
 
 `import` без діапазону зберігає лише метадані. Під час `translate` відсутні оригінали завантажуються автоматично. Оновити вже збережений оригінал можна повторним `import` із главою або діапазоном. Адреса має бути `https://ncode.syosetu.com/n…/`; сторінка `syosetu.com` є порталом, а тексти розташовані на `ncode.syosetu.com`.
 
@@ -30,11 +34,22 @@ export OPENROUTER_API_KEY='ваш-ключ'
 ./novelka --help
 ```
 
+Замість технічного ID можна створити короткий аліас і використовувати його в усіх командах:
+
+```sh
+./novelka alias add n0022gd water
+./novelka alias list
+./novelka translate water --chapters 1-10
+./novelka alias remove water
+```
+
+Аліас також можна додати одразу під час імпорту через `import URL --alias water`. Він нечутливий до регістру; дозволені літери, цифри, `.`, `_` та `-`.
+
 Готові глави повторно не перекладаються. `translate --force` створює нову версію. `proofread` створює окрему версію редактури зі збереженням попередньої. Експорт включає лише актуальні завершені версії, які відповідають поточному оригіналу й не позначені для повторної перевірки. Неперекладені глави не домішуються до книги.
 
 ## Конфігурація
 
-Параметри читаються зі змінних середовища; файл `.env` CLI автоматично **не** завантажує. Приклад — `.env.example`. Реальні ключі не зберігайте в Git.
+Параметри читаються зі змінних середовища. Скрипт запуску автоматично завантажує `.env.local`; приклад — `.env.example`. Передані ззовні змінні можна перевизначити у вибраному env-файлі. Реальні ключі не зберігайте в Git.
 
 | Змінна | Типове значення / призначення |
 |---|---|

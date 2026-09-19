@@ -3,12 +3,12 @@ package panrid.space.novelka.core;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import static panrid.space.novelka.core.Domain.*;
 
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.*;
+import panrid.space.novelka.core.model.*;
 
 class PipelineTest {
   Store store;

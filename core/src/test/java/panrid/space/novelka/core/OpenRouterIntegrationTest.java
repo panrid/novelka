@@ -1,7 +1,6 @@
 package panrid.space.novelka.core;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static panrid.space.novelka.core.Domain.*;
 
 import com.sun.net.httpserver.HttpServer;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
@@ -9,6 +8,7 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.*;
+import panrid.space.novelka.core.model.*;
 
 class OpenRouterIntegrationTest {
   static EmbeddedPostgres postgres;

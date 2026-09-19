@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import static panrid.space.novelka.core.Domain.*;
+import panrid.space.novelka.core.model.*;
 
 public final class Syosetu implements NovelSource {
     private final HttpClient http =

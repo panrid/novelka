@@ -1,7 +1,6 @@
 package panrid.space.novelka.core;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static panrid.space.novelka.core.Domain.*;
 
 import java.nio.file.*;
 import java.util.*;
@@ -9,9 +8,18 @@ import java.util.zip.*;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
+import panrid.space.novelka.core.model.*;
 
 class ContentTest {
   @TempDir Path temp;
+
+  @Test
+  void normalizesAndValidatesNovelAliases() {
+    assertEquals("водний-маг", Store.normalizeAlias(" Водний-Маг "));
+    assertEquals("water.mag_2", Store.normalizeAlias("Water.Mag_2"));
+    assertThrows(IllegalArgumentException.class, () -> Store.normalizeAlias("two words"));
+    assertThrows(IllegalArgumentException.class, () -> Store.normalizeAlias("-starts-with-dash"));
+  }
 
   @Test
   void requestJsonIsStableAcrossMapInsertionOrders() {

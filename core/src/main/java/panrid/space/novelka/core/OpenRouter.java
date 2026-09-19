@@ -1,6 +1,6 @@
 package panrid.space.novelka.core;
 
-import static panrid.space.novelka.core.Domain.*;
+import static panrid.space.novelka.core.Hashes.hash;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.net.*;
@@ -8,6 +8,7 @@ import java.net.http.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
+import panrid.space.novelka.core.model.*;
 
 public final class OpenRouter implements AiClient {
   private final Store store;
@@ -269,7 +270,7 @@ public final class OpenRouter implements AiClient {
           estimate);
       String id = UUID.randomUUID().toString();
       store.start(
-          new Call(
+          new AiCall(
               id, job.id(), stage, segment, model, version, revision, snapshot, estimate,
               "pending"));
       long start = System.nanoTime();

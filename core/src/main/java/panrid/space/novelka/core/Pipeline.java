@@ -1,9 +1,10 @@
 package panrid.space.novelka.core;
 
-import static panrid.space.novelka.core.Domain.*;
+import static panrid.space.novelka.core.Hashes.hash;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.*;
+import panrid.space.novelka.core.model.*;
 
 public final class Pipeline {
   private final Store store;

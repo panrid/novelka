@@ -1,6 +1,6 @@
 package panrid.space.novelka.core;
 
-import static panrid.space.novelka.core.Domain.*;
+import panrid.space.novelka.core.model.Block;
 
 import java.util.*;
 

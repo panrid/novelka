@@ -12,7 +12,7 @@ public final class Tokens {
     return ENCODING.countTokensOrdinary(text);
   }
 
-  public static int source(java.util.List<Domain.Block> blocks) {
+  public static int source(java.util.List<panrid.space.novelka.core.model.Block> blocks) {
     return blocks.stream().mapToInt(b -> count(b.text())).sum();
   }
 }

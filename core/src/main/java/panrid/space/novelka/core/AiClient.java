@@ -1,6 +1,7 @@
 package panrid.space.novelka.core;
 
-import static panrid.space.novelka.core.Domain.*;
+import panrid.space.novelka.core.model.Glossary;
+import panrid.space.novelka.core.model.Work;
 
 import com.fasterxml.jackson.databind.JsonNode;
 

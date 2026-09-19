@@ -1,12 +1,12 @@
 package panrid.space.novelka.core;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static panrid.space.novelka.core.Domain.*;
 
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.*;
+import panrid.space.novelka.core.model.*;
 
 class PipelineIntegrationTest {
   static EmbeddedPostgres postgres;
@@ -41,6 +41,19 @@ class PipelineIntegrationTest {
   @AfterEach
   void close() throws Exception {
     store.close();
+  }
+
+  @Test
+  void storesResolvesListsAndRemovesNovelAliases() throws Exception {
+    store.saveAlias(novel, " Водний-Маг ");
+    store.saveAlias(novel, "water");
+
+    assertEquals(novel, store.resolveNovel("ВОДНИЙ-МАГ"));
+    assertEquals(novel, store.resolveNovel(novel));
+    assertEquals(2, store.aliases(novel).size());
+    assertTrue(store.removeAlias("water"));
+    assertFalse(store.removeAlias("water"));
+    assertThrows(IllegalArgumentException.class, () -> store.resolveNovel("water"));
   }
 
   @Test
@@ -85,7 +98,7 @@ class PipelineIntegrationTest {
     var w = p.create(novel, 1, false);
     store.save(new Work(w.id(), novel, 1, w.sourceHash(), 1, w.segments(), "complete", ""));
     store.start(
-        new Call(
+        new AiCall(
             "call" + novel,
             w.id(),
             "translate",
