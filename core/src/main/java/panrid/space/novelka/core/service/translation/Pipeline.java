@@ -24,11 +24,19 @@ public final class Pipeline {
     private final DatabaseSession database;
     private final AiClient ai;
     private final int segmentChars;
+    private final double usdPer5000Tokens;
 
     public Pipeline(DatabaseSession database, AiClient ai, int segmentChars) {
+        this(database, ai, segmentChars, 0.10);
+    }
+
+    public Pipeline(DatabaseSession database, AiClient ai, int segmentChars, double usdPer5000Tokens) {
+        if (!Double.isFinite(usdPer5000Tokens) || usdPer5000Tokens < 0)
+            throw new IllegalArgumentException("Invalid USD rate per 5000 tokens");
         this.database = database;
         this.ai = ai;
         this.segmentChars = segmentChars;
+        this.usdPer5000Tokens = usdPer5000Tokens;
     }
 
     public Work create(String novel, int chapter, boolean force) throws Exception {
@@ -59,7 +67,7 @@ public final class Pipeline {
                 () -> {
                     database.jobs().save(work);
                     int tokens = Tokens.source(ch.blocks());
-                    database.jobs().recordMetrics(work.id(), tokens);
+                    database.jobs().recordMetrics(work.id(), tokens, usdPer5000Tokens);
                     return null;
                 });
         return work;
@@ -238,7 +246,7 @@ public final class Pipeline {
                     database.jobs().save(w);
                     int tokens =
                             w.segments().stream().mapToInt(segment -> Tokens.source(segment.source())).sum();
-                    database.jobs().recordMetrics(w.id(), tokens);
+                    database.jobs().recordMetrics(w.id(), tokens, usdPer5000Tokens);
                     return null;
                 });
         return w;

@@ -39,6 +39,13 @@ public final class ApplicationContext {
                 database,
                 (job, segment, stage, glossary, payload, budget) ->
                         clients.get(stage).generate(job, segment, stage, glossary, payload, budget),
-                Integer.parseInt(environment("NOVELKA_SEGMENT_CHARS", "1500")));
+                Integer.parseInt(environment("NOVELKA_SEGMENT_CHARS", "1500")),
+                rate("NOVELKA_TARGET_USD_PER_5000", 0.10));
+    }
+
+    public static double rate(String name, double fallback) {
+        double value = Double.parseDouble(environment(name, Double.toString(fallback)));
+        if (!Double.isFinite(value) || value < 0) throw new IllegalArgumentException("Invalid " + name);
+        return value;
     }
 }

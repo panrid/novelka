@@ -50,7 +50,7 @@ public final class TranslateCommand extends AiCommand {
                         "Chapter %d: %d source tokens (o200k_base); target $%.4f%n",
                         number,
                         tokens,
-                        tokens / 5000.0 * 0.10);
+                        tokens / 5000.0 * ApplicationContext.rate("NOVELKA_TARGET_USD_PER_5000", 0.10));
                 var work = pipeline.create(id, number, force);
                 double before = database.calls().spent(work.id());
                 if (budget > 0 && consumed >= budget) {

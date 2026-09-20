@@ -55,9 +55,9 @@ public final class JobRepository {
         return result;
     }
 
-    public void recordMetrics(String job, int tokens) throws Exception {
+    public void recordMetrics(String job, int tokens, double usdPer5000Tokens) throws Exception {
         jdbc.exec("INSERT INTO job_metrics(job_id,source_tokens,tokenizer,target_usd) VALUES(?,?,?,?)",
-                job, tokens, "o200k_base", tokens * 0.10 / 5000);
+                job, tokens, "o200k_base", tokens * usdPer5000Tokens / 5000);
     }
 
     public List<Map<String, Object>> status(String novel) throws Exception {

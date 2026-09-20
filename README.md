@@ -96,6 +96,7 @@ docker compose --env-file .env.local -f infra/compose.yaml up -d --wait
 | `NOVELKA_TRANSLATE_MODEL`                                         | Окрема модель перекладу, інакше базова                      |
 | `NOVELKA_PROOFREAD_MODEL`                                         | Окрема модель редактури, інакше базова                      |
 | `NOVELKA_SEGMENT_CHARS`                                           | `1500`, межа сегмента по символах, між абзацами             |
+| `NOVELKA_TARGET_USD_PER_5000`                                    | `0.10`, цільова оцінка всього pipeline на 5000 токенів      |
 | `NOVELKA_ANALYZE_INPUT_USD_M`, `NOVELKA_ANALYZE_OUTPUT_USD_M`     | Ціна мільйона токенів моделі аналізу                        |
 | `NOVELKA_TRANSLATE_INPUT_USD_M`, `NOVELKA_TRANSLATE_OUTPUT_USD_M` | Ціни моделі перекладу                                       |
 | `NOVELKA_PROOFREAD_INPUT_USD_M`, `NOVELKA_PROOFREAD_OUTPUT_USD_M` | Ціни моделі вичитки                                         |
@@ -104,6 +105,9 @@ docker compose --env-file .env.local -f infra/compose.yaml up -d --wait
 ціни необхідно задати явно. Ціни використовуються для оцінювання та резервування бюджету; фактична вартість береться з
 відповіді API. Після зміни тарифів налаштування потрібно оновити. Обрана модель має підтримувати JSON-відповіді й виклик
 інструментів.
+
+`NOVELKA_TARGET_USD_PER_5000` впливає лише на попередню оцінку глави та `job_metrics.target_usd`.
+Воно не підміняє фактичну ціну OpenRouter і не змінює резерв окремих AI-викликів.
 
 Для `resume` використовуйте ті самі налаштування моделей, що й у початковому запуску, якщо не хочете свідомо змінити
 модель незавершених етапів.
