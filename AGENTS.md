@@ -32,5 +32,6 @@
 - Запусти `./gradlew test`; для збереження/міграцій — також `:core:integrationTest`.
 - Зміни launcher перевіряй через `LauncherTest` / `WebLauncherTest` і `sh -n novelka novelka-web`.
 - Зміни API перевіряй через `:server:integrationTest` (тимчасовий PostgreSQL, реальний HTTP).
+- Production-конфігурація описана в `doc/deployment.md`; `.env.production` і SSH-ключі ніколи не коміть.
 - Запусти `git diff --check`. Не заявляй успіх тестів, які не запускались або не пройшли.
 - Збій `initdb` сам по собі не доводить проблему shared memory: прочитай stderr.

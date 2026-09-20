@@ -1,0 +1,73 @@
+name: Deploy production
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+concurrency:
+    group: production
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    verify:
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-java@v4
+              with:
+                  distribution: temurin
+                  java-version: '25'
+                  cache: gradle
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '22.12.0'
+                  cache: npm
+                  cache-dependency-path: frontend/package-lock.json
+            - name: Run tests and build production JAR
+              run: ./gradlew test :core:integrationTest :server:integrationTest :server:bootJar --no-daemon
+
+    deploy:
+        needs: verify
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        environment: production
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-java@v4
+              with:
+                  distribution: temurin
+                  java-version: '25'
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '22.12.0'
+            - name: Build production JAR
+              run: ./gradlew :server:bootJar --no-daemon
+            - name: Configure SSH
+              env:
+                  DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+              run: |
+                  install -m 700 -d ~/.ssh
+                  printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/novelka_deploy
+                  chmod 600 ~/.ssh/novelka_deploy
+                  ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+            - name: Upload release files
+              run: |
+                  ssh -i ~/.ssh/novelka_deploy "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+                      'mkdir -p /opt/novelka/server /opt/novelka/infra'
+                  scp -i ~/.ssh/novelka_deploy server/build/libs/novelka-server.jar \
+                      "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/novelka/server/novelka-server.jar"
+                  scp -i ~/.ssh/novelka_deploy server/Dockerfile \
+                      "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/novelka/server/Dockerfile"
+                  scp -i ~/.ssh/novelka_deploy infra/production.compose.yaml infra/Caddyfile \
+                      "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/novelka/infra/"
+            - name: Restart production
+              run: |
+                  ssh -i ~/.ssh/novelka_deploy "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+                    'cd /opt/novelka && docker compose --env-file .env.production -f infra/production.compose.yaml up -d --build --remove-orphans && docker compose --env-file .env.production -f infra/production.compose.yaml ps'
+            - name: Check public site
+              run: curl --fail --retry 10 --retry-delay 5 --retry-all-errors https://novelka.panrid.space/
