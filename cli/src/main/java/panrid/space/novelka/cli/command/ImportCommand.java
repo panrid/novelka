@@ -26,24 +26,33 @@ public final class ImportCommand extends DatabaseCommand {
     @Option(names = "--alias", description = "Create a convenient alias for the imported novel")
     private String alias;
 
+    @Option(names = "--title-uk", description = "Ukrainian title shown in the web reader")
+    private String titleUk;
+
     @Override
     protected void execute(DatabaseSession database) throws Exception {
         if (alias != null) NovelRepository.normalizeAlias(alias);
         var source = new Syosetu();
         var novel = source.inspect(url);
+        if (titleUk != null && !titleUk.isBlank()) {
+            novel = new panrid.space.novelka.core.model.Novel(
+                    novel.id(), novel.title(), titleUk.strip(), novel.author(), novel.url(),
+                    novel.chapterCount(), novel.shortStory());
+        }
+        var importedNovel = novel;
         var range = chapter == null && chapters == null
                 ? null
                 : ChapterRange.parse(chapter, chapters, novel.chapterCount());
         try (var lock = database.lock(novel.id())) {
             database.transaction(() -> {
-                database.novels().save(novel);
-                if (alias != null) database.novels().saveAlias(novel.id(), alias);
+                database.novels().save(importedNovel);
+                if (alias != null) database.novels().saveAlias(importedNovel.id(), alias);
                 return null;
             });
             Output.json(novel);
             if (range != null) {
                 for (int number = range.first(); number <= range.last(); number++) {
-                    database.chapters().save(novel.id(), source.fetch(novel, number));
+                    database.chapters().save(importedNovel.id(), source.fetch(importedNovel, number));
                     System.out.println("Imported chapter " + number);
                 }
             }

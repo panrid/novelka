@@ -83,7 +83,7 @@ NOVELKA_ENV_FILE=.env.translation.local ./novelka translate water --chapter 1 --
 | Команда | Призначення | AI-витрати |
 |---|---|---|
 | init | Застосувати зареєстровані міграції | Ні |
-| import URL [--alias NAME] [--chapter N або --chapters A-B] | Метадані й опційно оригінали | Ні |
+| import URL [--alias NAME] [--title-uk TITLE] [--chapter N або --chapters A-B] | Метадані й опційно оригінали | Ні |
 | import-text NOVEL --chapter N --file FILE | UTF-8 глава з локального файлу | Ні |
 | chapters NOVEL | Метадані та вже збережені оригінали, не весь віддалений каталог | Ні |
 | translate NOVEL --chapter N або --chapters A-B | Завантажити відсутні оригінали, обробити сегменти | Так |

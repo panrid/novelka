@@ -156,7 +156,7 @@ PostgreSQL зберігає предметні дані переважно у `j
 
 ```sh
 ./novelka init
-./novelka import URL [--alias NAME] [--chapter N | --chapters A-B]
+./novelka import URL [--alias NAME] [--title-uk TITLE] [--chapter N | --chapters A-B]
 ./novelka import-text NOVEL_ID --chapter N --file FILE
 ./novelka chapters NOVEL_ID
 ./novelka translate NOVEL_ID (--chapter N | --chapters A-B) [--budget-usd USD] [--force]
