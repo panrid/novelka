@@ -49,12 +49,18 @@ jobs:
               run: ./gradlew :server:bootJar --no-daemon
             - name: Configure SSH
               env:
+                  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
                   DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
               run: |
+                  test -n "$DEPLOY_HOST" || { echo 'DEPLOY_HOST is empty' >&2; exit 1; }
+                  case "$DEPLOY_HOST" in
+                      *[!A-Za-z0-9.-]*) echo 'DEPLOY_HOST must be a hostname or IPv4 address' >&2; exit 1 ;;
+                  esac
                   install -m 700 -d ~/.ssh
-                  printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/novelka_deploy
+                  printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/novelka_deploy
                   chmod 600 ~/.ssh/novelka_deploy
-                  ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+                  ssh-keyscan -4 -T 15 -H "$DEPLOY_HOST" > ~/.ssh/known_hosts \
+                      || { echo "Could not read SSH host key from $DEPLOY_HOST: check DNS, port 22 and firewall" >&2; exit 1; }
             - name: Upload release files
               run: |
                   ssh -i ~/.ssh/novelka_deploy "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
