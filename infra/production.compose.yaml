@@ -16,7 +16,7 @@ services:
 
   app:
     build:
-      context: .
+      context: ..
       dockerfile: server/Dockerfile
     restart: unless-stopped
     environment:
