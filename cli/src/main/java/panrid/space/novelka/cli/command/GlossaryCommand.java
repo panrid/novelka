@@ -1,11 +1,11 @@
 package panrid.space.novelka.cli.command;
 
 import panrid.space.novelka.cli.support.Output;
-import panrid.space.novelka.core.Dictionary;
-import panrid.space.novelka.core.Json;
-import panrid.space.novelka.core.Store;
 import panrid.space.novelka.core.model.Entry;
 import panrid.space.novelka.core.model.Glossary;
+import panrid.space.novelka.core.persistence.DatabaseSession;
+import panrid.space.novelka.core.service.glossary.Dictionary;
+import panrid.space.novelka.core.support.Json;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -30,15 +30,15 @@ public final class GlossaryCommand extends DatabaseCommand {
     private boolean proposals;
 
     @Override
-    protected void execute(Store store) throws Exception {
-        String id = novelId(store, novel);
-        try (var lock = store.lock(id)) {
+    protected void execute(DatabaseSession database) throws Exception {
+        String id = novelId(database, novel);
+        try (var lock = database.lock(id)) {
             if (file != null) {
                 var node = Json.read(Files.readString(file));
                 if (!node.isArray()) {
                     throw new IllegalArgumentException("Expected JSON array");
                 }
-                var old = store.glossary(id);
+                var old = database.glossaries().glossary(id);
                 var entries = new LinkedHashMap<String, Entry>();
                 old.entries().forEach(entry -> entries.put(entry.key(), entry));
                 for (var item : node) {
@@ -59,14 +59,12 @@ public final class GlossaryCommand extends DatabaseCommand {
                                     entry.sourceChapter(),
                                     true));
                 }
-                store.glossary(id, new Glossary(old.revision() + 1, List.copyOf(entries.values())));
+                database.glossaryService().update(id, new Glossary(old.revision() + 1, List.copyOf(entries.values())));
             }
             Output.json(
                     proposals
-                            ? store.rows(
-                            "SELECT id,job_id,proposal FROM glossary_proposals WHERE novel_id=? ORDER BY id",
-                            id)
-                            : store.glossary(id));
+                            ? database.glossaries().proposals(id)
+                            : database.glossaries().glossary(id));
         }
     }
 }

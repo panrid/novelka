@@ -2,8 +2,9 @@ package panrid.space.novelka.cli.command;
 
 import panrid.space.novelka.cli.support.ChapterRange;
 import panrid.space.novelka.cli.support.Output;
-import panrid.space.novelka.core.Store;
-import panrid.space.novelka.core.Syosetu;
+import panrid.space.novelka.core.integration.source.syosetu.Syosetu;
+import panrid.space.novelka.core.persistence.DatabaseSession;
+import panrid.space.novelka.core.repository.NovelRepository;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -26,23 +27,23 @@ public final class ImportCommand extends DatabaseCommand {
     private String alias;
 
     @Override
-    protected void execute(Store store) throws Exception {
-        if (alias != null) Store.normalizeAlias(alias);
+    protected void execute(DatabaseSession database) throws Exception {
+        if (alias != null) NovelRepository.normalizeAlias(alias);
         var source = new Syosetu();
         var novel = source.inspect(url);
         var range = chapter == null && chapters == null
                 ? null
                 : ChapterRange.parse(chapter, chapters, novel.chapterCount());
-        try (var lock = store.lock(novel.id())) {
-            store.transaction(() -> {
-                store.save(novel);
-                if (alias != null) store.saveAlias(novel.id(), alias);
+        try (var lock = database.lock(novel.id())) {
+            database.transaction(() -> {
+                database.novels().save(novel);
+                if (alias != null) database.novels().saveAlias(novel.id(), alias);
                 return null;
             });
             Output.json(novel);
             if (range != null) {
                 for (int number = range.first(); number <= range.last(); number++) {
-                    store.save(novel.id(), source.fetch(novel, number));
+                    database.chapters().save(novel.id(), source.fetch(novel, number));
                     System.out.println("Imported chapter " + number);
                 }
             }

@@ -1,10 +1,22 @@
-package panrid.space.novelka.core;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import panrid.space.novelka.core.model.*;
+package panrid.space.novelka.core.integration.ai;
 
 import javax.xml.parsers.DocumentBuilderFactory;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import panrid.space.novelka.core.export.BookExporter;
+import panrid.space.novelka.core.integration.source.syosetu.Syosetu;
+import panrid.space.novelka.core.integration.source.text.PlainText;
+import panrid.space.novelka.core.model.Block;
+import panrid.space.novelka.core.model.Entry;
+import panrid.space.novelka.core.model.Glossary;
+import panrid.space.novelka.core.model.Novel;
+import panrid.space.novelka.core.model.Segment;
+import panrid.space.novelka.core.model.Work;
+import panrid.space.novelka.core.repository.NovelRepository;
+import panrid.space.novelka.core.service.glossary.Dictionary;
+import panrid.space.novelka.core.service.translation.Segments;
+import panrid.space.novelka.core.support.Json;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -22,10 +34,10 @@ class ContentTest {
 
     @Test
     void normalizesAndValidatesNovelAliases() {
-        assertEquals("водний-маг", Store.normalizeAlias(" Водний-Маг "));
-        assertEquals("water.mag_2", Store.normalizeAlias("Water.Mag_2"));
-        assertThrows(IllegalArgumentException.class, () -> Store.normalizeAlias("two words"));
-        assertThrows(IllegalArgumentException.class, () -> Store.normalizeAlias("-starts-with-dash"));
+        assertEquals("водний-маг", NovelRepository.normalizeAlias(" Водний-Маг "));
+        assertEquals("water.mag_2", NovelRepository.normalizeAlias("Water.Mag_2"));
+        assertThrows(IllegalArgumentException.class, () -> NovelRepository.normalizeAlias("two words"));
+        assertThrows(IllegalArgumentException.class, () -> NovelRepository.normalizeAlias("-starts-with-dash"));
     }
 
     @Test

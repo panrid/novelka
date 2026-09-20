@@ -1,4 +1,4 @@
-package panrid.space.novelka.core;
+package panrid.space.novelka.core.integration.source.syosetu;
 
 import org.junit.jupiter.api.Test;
 

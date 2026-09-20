@@ -1,53 +1,92 @@
-package panrid.space.novelka.core;
+package panrid.space.novelka.core.integration.ai;
 
 import com.sun.net.httpserver.HttpServer;
-import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
-import org.junit.jupiter.api.*;
-import panrid.space.novelka.core.model.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import panrid.space.novelka.core.model.AiCall;
+import panrid.space.novelka.core.model.Entry;
+import panrid.space.novelka.core.model.Glossary;
+import panrid.space.novelka.core.model.Work;
+import panrid.space.novelka.core.repository.AiCallRepository;
+import panrid.space.novelka.core.support.Json;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
-class OpenRouterIntegrationTest {
-    static EmbeddedPostgres postgres;
-    Store store;
+class OpenRouterTest {
+    AiCallRepository store;
     HttpServer server;
     Work work;
-
-    @BeforeAll
-    static void start() throws Exception {
-        postgres = EmbeddedPostgres.builder()
-                .setErrorRedirector(ProcessBuilder.Redirect.INHERIT)
-                .setOutputRedirector(ProcessBuilder.Redirect.INHERIT)
-                .start();
-    }
-
-    @AfterAll
-    static void stop() throws Exception {
-        if (postgres != null) postgres.close();
-    }
+    List<Map<String, Object>> calls;
 
     @BeforeEach
     void setup() throws Exception {
-        store = new Store(postgres.getJdbcUrl("postgres", "postgres"), "postgres", "");
-        String n = UUID.randomUUID().toString();
-        store.save(new Novel(n, "title", "author", "url", 1, true));
-        store.save(
-                n, new Chapter(1, "url", "title", List.of(new Block("title", "heading", "題")), "html"));
-        work = new Pipeline(store, null, 6000).create(n, 1, false);
+        calls = new ArrayList<>();
+        store = mock(AiCallRepository.class);
+        work = new Work("job", "novel", 1, "hash", 1, List.of(), "pending", "");
+        doAnswer(
+                a -> {
+                    AiCall c = a.getArgument(0);
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("id", c.id());
+                    row.put("job_id", c.jobId());
+                    row.put("stage", c.stage());
+                    row.put("segment", c.segment());
+                    row.put("state", c.state());
+                    row.put("context", Json.read(c.contextJson()));
+                    row.put("estimated_usd", c.estimateUsd());
+                    row.put("prompt_version", c.promptVersion());
+                    calls.add(row);
+                    return null;
+                })
+                .when(store)
+                .start(any());
+        when(store.spent(anyString()))
+                .thenAnswer(
+                        a ->
+                                calls.stream()
+                                        .mapToDouble(
+                                                r ->
+                                                        r.get("actual_usd") instanceof Number n
+                                                                ? n.doubleValue()
+                                                                : ((Number) r.get("estimated_usd")).doubleValue())
+                                        .sum());
+        when(store.hasUncertain(anyString(), anyString(), anyInt()))
+                .thenAnswer(a -> calls.stream().anyMatch(row -> List.of("pending", "uncertain").contains(row.get("state"))));
+        when(store.previous(anyString(), anyString(), anyInt(), anyString()))
+                .thenAnswer(a -> calls.stream()
+                        .filter(row -> row.get("context").equals(Json.read(a.getArgument(3))))
+                        .reduce((first, last) -> last).map(List::of).orElse(List.of()));
+        doAnswer(a -> {
+            var row = calls.stream().filter(value -> value.get("id").equals(a.getArgument(0))).findFirst().orElseThrow();
+            com.fasterxml.jackson.databind.JsonNode body = a.getArgument(3);
+            row.put("state", a.getArgument(1));
+            row.put("actual_usd", body.path("usage").path("cost").isNumber()
+                    ? body.path("usage").path("cost").doubleValue() : null);
+            row.put("response", body);
+            return null;
+        }).when(store).finish(anyString(), anyString(), anyLong(), any());
+        doAnswer(a -> {
+            calls.stream().filter(row -> row.get("id").equals(a.getArgument(0)))
+                    .forEach(row -> row.put("state", "uncertain"));
+            return null;
+        }).when(store).uncertain(anyString(), anyLong());
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     }
 
     @AfterEach
-    void stopServer() throws Exception {
+    void stopServer() {
         server.stop(0);
-        store.close();
     }
 
     OpenRouter client() {
@@ -95,10 +134,7 @@ class OpenRouterIntegrationTest {
         ai.generate(work, 0, "analyze", g, Map.of("source", "text"), 0);
         ai.generate(work, 0, "analyze", g, Map.of("source", "text"), 0);
         assertEquals(1, calls.get());
-        var rows =
-                store.rows(
-                        "SELECT actual_usd,state,prompt_version,context FROM ai_calls WHERE job_id=?",
-                        work.id());
+        var rows = this.calls;
         assertEquals(1, rows.size());
         assertEquals("complete", rows.getFirst().get("state"));
         assertEquals(0.002, store.spent(work.id()), 0.000001);
@@ -157,12 +193,10 @@ class OpenRouterIntegrationTest {
                 .generate(
                         work, 0, "analyze", new Glossary(1, List.of(e)), Map.of("source", "unnamed person"), 0);
         assertEquals(2, calls.get());
-        assertEquals(2, store.rows("SELECT id FROM ai_calls WHERE job_id=?", work.id()).size());
+        assertEquals(2, this.calls.size());
         assertEquals(
                 1,
-                store
-                        .rows("SELECT id FROM ai_calls WHERE job_id=? AND actual_usd IS NULL", work.id())
-                        .size());
+                this.calls.stream().filter(row -> row.get("actual_usd") == null).count());
     }
 
     @Test
@@ -172,7 +206,7 @@ class OpenRouterIntegrationTest {
                 IllegalStateException.class,
                 () ->
                         client().generate(work, 0, "analyze", new Glossary(0, List.of()), Map.of(), 0.000001));
-        assertTrue(store.rows("SELECT id FROM ai_calls WHERE job_id=?", work.id()).isEmpty());
+        assertTrue(this.calls.isEmpty());
     }
 
     @Test
@@ -196,6 +230,6 @@ class OpenRouterIntegrationTest {
         assertEquals(1, calls.get());
         assertEquals(
                 "uncertain",
-                store.rows("SELECT state FROM ai_calls WHERE job_id=?", work.id()).getFirst().get("state"));
+                this.calls.getFirst().get("state"));
     }
 }

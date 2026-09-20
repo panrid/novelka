@@ -1,11 +1,13 @@
-package panrid.space.novelka.core;
+package panrid.space.novelka.core.integration.source.syosetu;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import panrid.space.novelka.core.integration.source.NovelSource;
 import panrid.space.novelka.core.model.Block;
 import panrid.space.novelka.core.model.Chapter;
 import panrid.space.novelka.core.model.Novel;
+import panrid.space.novelka.core.support.Json;
 
 import java.net.URI;
 import java.net.http.HttpClient;

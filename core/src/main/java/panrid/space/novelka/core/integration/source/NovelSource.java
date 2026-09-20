@@ -1,4 +1,4 @@
-package panrid.space.novelka.core;
+package panrid.space.novelka.core.integration.source;
 
 import panrid.space.novelka.core.model.Chapter;
 import panrid.space.novelka.core.model.Novel;

@@ -1,4 +1,4 @@
-package panrid.space.novelka.core;
+package panrid.space.novelka.core.integration.ai;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import panrid.space.novelka.core.model.Glossary;

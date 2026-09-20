@@ -1,4 +1,4 @@
-package panrid.space.novelka.core;
+package panrid.space.novelka.core.service.translation;
 
 import panrid.space.novelka.core.model.Block;
 

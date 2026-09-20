@@ -1,10 +1,13 @@
-package panrid.space.novelka.core;
+package panrid.space.novelka.core.integration.ai;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import panrid.space.novelka.core.model.AiCall;
 import panrid.space.novelka.core.model.Block;
 import panrid.space.novelka.core.model.Glossary;
 import panrid.space.novelka.core.model.Work;
+import panrid.space.novelka.core.repository.AiCallRepository;
+import panrid.space.novelka.core.service.glossary.Dictionary;
+import panrid.space.novelka.core.support.Json;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -14,35 +17,35 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 
-import static panrid.space.novelka.core.Hashes.hash;
+import static panrid.space.novelka.core.support.Hashes.hash;
 
 public final class OpenRouter implements AiClient {
-    private final Store store;
+    private final AiCallRepository calls;
     private final HttpClient http;
     private final URI endpoint;
     private final String key, model;
     private final double inputRate, outputRate;
 
-    public OpenRouter(Store store, String key, String model) {
-        this(store, key, model, URI.create("https://openrouter.ai/api/v1/chat/completions"));
+    public OpenRouter(AiCallRepository calls, String key, String model) {
+        this(calls, key, model, URI.create("https://openrouter.ai/api/v1/chat/completions"));
     }
 
-    public OpenRouter(Store store, String key, String model, String stage) {
+    public OpenRouter(AiCallRepository calls, String key, String model, String stage) {
         this(
-                store,
+                calls,
                 key,
                 model,
                 URI.create("https://openrouter.ai/api/v1/chat/completions"),
                 "NOVELKA_" + stage.toUpperCase(Locale.ROOT) + "_");
     }
 
-    public OpenRouter(Store store, String key, String model, URI endpoint) {
-        this(store, key, model, endpoint, "NOVELKA_");
+    public OpenRouter(AiCallRepository calls, String key, String model, URI endpoint) {
+        this(calls, key, model, endpoint, "NOVELKA_");
     }
 
-    private OpenRouter(Store store, String key, String model, URI endpoint, String ratePrefix) {
+    private OpenRouter(AiCallRepository calls, String key, String model, URI endpoint, String ratePrefix) {
         if (key == null || key.isBlank()) throw new IllegalArgumentException("Set OPENROUTER_API_KEY");
-        this.store = store;
+        this.calls = calls;
         this.key = key;
         this.model = model;
         this.endpoint = endpoint;
@@ -63,14 +66,7 @@ public final class OpenRouter implements AiClient {
     public JsonNode generate(
             Work job, int segment, String stage, Glossary glossary, Object payload, double budget)
             throws Exception {
-        if (!store
-                .rows(
-                        "SELECT id FROM ai_calls WHERE job_id=? AND stage=? AND segment=? AND state IN"
-                                + " ('pending','uncertain')",
-                        job.id(),
-                        stage,
-                        segment)
-                .isEmpty())
+        if (calls.hasUncertain(job.id(), stage, segment))
             throw new IllegalStateException(
                     "Uncertain previous request; inspect costs then resume --retry-uncertain");
         String prompt;
@@ -245,13 +241,7 @@ public final class OpenRouter implements AiClient {
             double budget)
             throws Exception {
         var previous =
-                store.rows(
-                        "SELECT state,response FROM ai_calls WHERE job_id=? AND stage=? AND segment=? AND"
-                                + " context=?::jsonb ORDER BY created_at DESC LIMIT 1",
-                        job.id(),
-                        stage,
-                        segment,
-                        snapshot);
+                calls.previous(job.id(), stage, segment, snapshot);
         if (!previous.isEmpty()) {
             String state = previous.getFirst().get("state").toString();
             if (state.equals("complete"))
@@ -266,7 +256,7 @@ public final class OpenRouter implements AiClient {
                         + 8192 * outputRate)
                         / 1_000_000;
         for (int attempt = 0; attempt < 3; attempt++) {
-            if (budget > 0 && store.spent(job.id()) + estimate > budget)
+            if (budget > 0 && calls.spent(job.id()) + estimate > budget)
                 throw new IllegalStateException("Budget reached before next request; progress saved");
             System.err.printf(
                     java.util.Locale.ROOT,
@@ -275,7 +265,7 @@ public final class OpenRouter implements AiClient {
                     segment + 1,
                     estimate);
             String id = UUID.randomUUID().toString();
-            store.start(
+            calls.start(
                     new AiCall(
                             id, job.id(), stage, segment, model, version, revision, snapshot, estimate,
                             "pending"));
@@ -292,10 +282,7 @@ public final class OpenRouter implements AiClient {
                                         .build(),
                                 HttpResponse.BodyHandlers.ofString());
             } catch (Exception e) {
-                store.exec(
-                        "UPDATE ai_calls SET state='uncertain',duration_ms=? WHERE id=?",
-                        (System.nanoTime() - start) / 1_000_000,
-                        id);
+                calls.uncertain(id, (System.nanoTime() - start) / 1_000_000);
                 throw new IllegalStateException("OpenRouter request outcome unknown; call " + id, e);
             }
             long elapsed = (System.nanoTime() - start) / 1_000_000;
@@ -303,21 +290,9 @@ public final class OpenRouter implements AiClient {
             try {
                 body = Json.read(response.body());
             } catch (Exception e) {
-                store.exec("UPDATE ai_calls SET state='uncertain',duration_ms=? WHERE id=?", elapsed, id);
+                calls.uncertain(id, elapsed);
                 throw new IllegalStateException("Unparseable API response; outcome unknown");
             }
-            var usage = body.path("usage");
-            Object actual = usage.path("cost").isNumber() ? usage.path("cost").decimalValue() : null;
-            Object input =
-                    usage.path("prompt_tokens").isNumber() ? usage.path("prompt_tokens").longValue() : null;
-            Object output =
-                    usage.path("completion_tokens").isNumber()
-                            ? usage.path("completion_tokens").longValue()
-                            : null;
-            Object cached =
-                    usage.path("prompt_tokens_details").path("cached_tokens").isNumber()
-                            ? usage.path("prompt_tokens_details").path("cached_tokens").longValue()
-                            : null;
             boolean success = response.statusCode() == 200 && body.has("choices") && !body.has("error");
             String state =
                     success
@@ -328,21 +303,7 @@ public final class OpenRouter implements AiClient {
                             || response.statusCode() == 402
                             ? "failed"
                             : "uncertain";
-            store.exec(
-                    "UPDATE ai_calls SET"
-                            + " state=?,provider=?,actual_usd=?,cost_source=?,input_tokens=?,output_tokens=?,cached_tokens=?,request_id=?,duration_ms=?,response=?::jsonb"
-                            + " WHERE id=?",
-                    state,
-                    body.path("provider").asText(null),
-                    actual,
-                    actual == null ? "unknown" : "api",
-                    input,
-                    output,
-                    cached,
-                    body.path("id").asText(null),
-                    elapsed,
-                    Json.write(body),
-                    id);
+            calls.finish(id, state, elapsed, body);
             if (success) return body;
             if (response.statusCode() == 429 && attempt < 2) {
                 Thread.sleep(1000L * (attempt + 1));

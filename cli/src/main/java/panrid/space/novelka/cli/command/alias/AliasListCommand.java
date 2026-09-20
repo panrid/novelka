@@ -2,7 +2,7 @@ package panrid.space.novelka.cli.command.alias;
 
 import panrid.space.novelka.cli.command.DatabaseCommand;
 import panrid.space.novelka.cli.support.Output;
-import panrid.space.novelka.core.Store;
+import panrid.space.novelka.core.persistence.DatabaseSession;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
@@ -12,7 +12,7 @@ public final class AliasListCommand extends DatabaseCommand {
     private String novel;
 
     @Override
-    protected void execute(Store store) throws Exception {
-        Output.json(store.aliases(novel == null ? null : novelId(store, novel)));
+    protected void execute(DatabaseSession database) throws Exception {
+        Output.json(database.novels().aliases(novel == null ? null : novelId(database, novel)));
     }
 }

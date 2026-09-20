@@ -1,6 +1,16 @@
 package panrid.space.novelka.cli;
 
-import panrid.space.novelka.cli.command.*;
+import panrid.space.novelka.cli.command.ChaptersCommand;
+import panrid.space.novelka.cli.command.CostsCommand;
+import panrid.space.novelka.cli.command.ExportCommand;
+import panrid.space.novelka.cli.command.GlossaryCommand;
+import panrid.space.novelka.cli.command.ImportCommand;
+import panrid.space.novelka.cli.command.ImportTextCommand;
+import panrid.space.novelka.cli.command.InitCommand;
+import panrid.space.novelka.cli.command.ProofreadCommand;
+import panrid.space.novelka.cli.command.ResumeCommand;
+import panrid.space.novelka.cli.command.StatusCommand;
+import panrid.space.novelka.cli.command.TranslateCommand;
 import panrid.space.novelka.cli.command.alias.AliasCommand;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;

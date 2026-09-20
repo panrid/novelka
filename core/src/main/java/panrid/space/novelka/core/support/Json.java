@@ -1,4 +1,4 @@
-package panrid.space.novelka.core;
+package panrid.space.novelka.core.support;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

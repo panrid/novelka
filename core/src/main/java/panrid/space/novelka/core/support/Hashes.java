@@ -1,4 +1,4 @@
-package panrid.space.novelka.core;
+package panrid.space.novelka.core.support;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

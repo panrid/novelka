@@ -1,7 +1,8 @@
 package panrid.space.novelka.cli.command.alias;
 
 import panrid.space.novelka.cli.command.DatabaseCommand;
-import panrid.space.novelka.core.Store;
+import panrid.space.novelka.core.persistence.DatabaseSession;
+import panrid.space.novelka.core.repository.NovelRepository;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
@@ -14,9 +15,9 @@ public final class AliasAddCommand extends DatabaseCommand {
     private String alias;
 
     @Override
-    protected void execute(Store store) throws Exception {
-        String id = novelId(store, novel);
-        store.saveAlias(id, alias);
-        System.out.printf("Alias '%s' now points to %s%n", Store.normalizeAlias(alias), id);
+    protected void execute(DatabaseSession database) throws Exception {
+        String id = novelId(database, novel);
+        database.novels().saveAlias(id, alias);
+        System.out.printf("Alias '%s' now points to %s%n", NovelRepository.normalizeAlias(alias), id);
     }
 }

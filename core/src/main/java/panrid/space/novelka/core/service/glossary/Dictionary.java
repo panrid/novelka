@@ -1,7 +1,9 @@
-package panrid.space.novelka.core;
+package panrid.space.novelka.core.service.glossary;
 
 import panrid.space.novelka.core.model.Entry;
 import panrid.space.novelka.core.model.Glossary;
+import panrid.space.novelka.core.support.Json;
+import panrid.space.novelka.core.support.Tokens;
 
 import java.util.ArrayList;
 import java.util.List;

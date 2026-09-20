@@ -1,8 +1,8 @@
 package panrid.space.novelka.cli.config;
 
-import panrid.space.novelka.core.OpenRouter;
-import panrid.space.novelka.core.Pipeline;
-import panrid.space.novelka.core.Store;
+import panrid.space.novelka.core.integration.ai.OpenRouter;
+import panrid.space.novelka.core.persistence.DatabaseSession;
+import panrid.space.novelka.core.service.translation.Pipeline;
 
 import java.util.HashMap;
 import java.util.List;
@@ -17,26 +17,26 @@ public final class ApplicationContext {
         return System.getenv().getOrDefault(name, fallback);
     }
 
-    public static Store openStore() throws Exception {
-        return new Store(
+    public static DatabaseSession openDatabase() throws Exception {
+        return new DatabaseSession(
                 environment("NOVELKA_DB_URL", "jdbc:postgresql://localhost:5432/novelka"),
                 environment("NOVELKA_DB_USER", "novelka"),
                 environment("NOVELKA_DB_PASSWORD", "novelka"));
     }
 
-    public static Pipeline pipeline(Store store, String model) {
+    public static Pipeline pipeline(DatabaseSession database, String model) {
         Map<String, OpenRouter> clients = new HashMap<>();
         for (String stage : List.of("analyze", "translate", "proofread")) {
             clients.put(
                     stage,
                     new OpenRouter(
-                            store,
+                            database.calls(),
                             System.getenv("OPENROUTER_API_KEY"),
                             environment("NOVELKA_" + stage.toUpperCase(Locale.ROOT) + "_MODEL", model),
                             stage));
         }
         return new Pipeline(
-                store,
+                database,
                 (job, segment, stage, glossary, payload, budget) ->
                         clients.get(stage).generate(job, segment, stage, glossary, payload, budget),
                 Integer.parseInt(environment("NOVELKA_SEGMENT_CHARS", "1500")));

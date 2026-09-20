@@ -1,7 +1,8 @@
 package panrid.space.novelka.cli.command.alias;
 
 import panrid.space.novelka.cli.command.DatabaseCommand;
-import panrid.space.novelka.core.Store;
+import panrid.space.novelka.core.persistence.DatabaseSession;
+import panrid.space.novelka.core.repository.NovelRepository;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
@@ -11,10 +12,10 @@ public final class AliasRemoveCommand extends DatabaseCommand {
     private String alias;
 
     @Override
-    protected void execute(Store store) throws Exception {
-        if (!store.removeAlias(alias)) {
+    protected void execute(DatabaseSession database) throws Exception {
+        if (!database.novels().removeAlias(alias)) {
             throw new IllegalArgumentException("Alias not found: " + alias);
         }
-        System.out.println("Removed alias '" + Store.normalizeAlias(alias) + "'");
+        System.out.println("Removed alias '" + NovelRepository.normalizeAlias(alias) + "'");
     }
 }

@@ -1,7 +1,7 @@
 package panrid.space.novelka.cli.command;
 
-import panrid.space.novelka.core.BookExporter;
-import panrid.space.novelka.core.Store;
+import panrid.space.novelka.core.export.BookExporter;
+import panrid.space.novelka.core.persistence.DatabaseSession;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -20,9 +20,9 @@ public final class ExportCommand extends DatabaseCommand {
     private Path output;
 
     @Override
-    protected void execute(Store store) throws Exception {
-        String id = novelId(store, novel);
-        new BookExporter().export(store.novel(id), store.completed(id), output, format);
+    protected void execute(DatabaseSession database) throws Exception {
+        String id = novelId(database, novel);
+        new BookExporter().export(database.novels().novel(id), database.jobs().completed(id), output, format);
         System.out.println(output.toAbsolutePath());
     }
 }

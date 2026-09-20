@@ -1,29 +1,39 @@
-package panrid.space.novelka.core;
+package panrid.space.novelka.core.service.translation;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import panrid.space.novelka.core.model.*;
+import panrid.space.novelka.core.integration.ai.AiClient;
+import panrid.space.novelka.core.model.Block;
+import panrid.space.novelka.core.model.Chapter;
+import panrid.space.novelka.core.model.Entry;
+import panrid.space.novelka.core.model.Glossary;
+import panrid.space.novelka.core.model.Segment;
+import panrid.space.novelka.core.model.Work;
+import panrid.space.novelka.core.persistence.DatabaseSession;
+import panrid.space.novelka.core.service.glossary.Dictionary;
+import panrid.space.novelka.core.support.Json;
+import panrid.space.novelka.core.support.Tokens;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static panrid.space.novelka.core.Hashes.hash;
+import static panrid.space.novelka.core.support.Hashes.hash;
 
 public final class Pipeline {
-    private final Store store;
+    private final DatabaseSession database;
     private final AiClient ai;
     private final int segmentChars;
 
-    public Pipeline(Store store, AiClient ai, int segmentChars) {
-        this.store = store;
+    public Pipeline(DatabaseSession database, AiClient ai, int segmentChars) {
+        this.database = database;
         this.ai = ai;
         this.segmentChars = segmentChars;
     }
 
     public Work create(String novel, int chapter, boolean force) throws Exception {
-        Chapter ch = store.chapter(novel, chapter);
-        Work old = store.latest(novel, chapter);
+        Chapter ch = database.chapters().chapter(novel, chapter);
+        Work old = database.jobs().latest(novel, chapter);
         String hash = hash(ch.blocks());
         if (old != null && !force) {
             if (!old.sourceHash().equals(hash))
@@ -45,16 +55,11 @@ public final class Pipeline {
                         segments,
                         "pending",
                         "");
-        store.transaction(
+        database.transaction(
                 () -> {
-                    store.save(work);
+                    database.jobs().save(work);
                     int tokens = Tokens.source(ch.blocks());
-                    store.exec(
-                            "INSERT INTO job_metrics(job_id,source_tokens,tokenizer,target_usd) VALUES(?,?,?,?)",
-                            work.id(),
-                            tokens,
-                            "o200k_base",
-                            tokens * 0.10 / 5000);
+                    database.jobs().recordMetrics(work.id(), tokens);
                     return null;
                 });
         return work;
@@ -66,7 +71,7 @@ public final class Pipeline {
             throw new IllegalStateException("Dictionary changed; run proofread or translate --force");
         var segments = new ArrayList<>(work.segments());
         String previous = "";
-        var prior = store.latest(work.novelId(), work.chapter() - 1);
+        var prior = database.jobs().latest(work.novelId(), work.chapter() - 1);
         if (prior != null && prior.state().equals("complete")) previous = prior.summary();
         for (int i = 0; i < segments.size(); i++) {
             Segment s = segments.get(i);
@@ -85,7 +90,7 @@ public final class Pipeline {
                                             Math.max(0, segments.get(i - 1).source().size() - 2),
                                             segments.get(i - 1).source().size()));
             if (s.state().equals("pending")) {
-                var g = store.glossary(work.novelId());
+                var g = database.glossaries().glossary(work.novelId());
                 JsonNode analysis =
                         ai.generate(
                                 work,
@@ -111,7 +116,7 @@ public final class Pipeline {
                                 work,
                                 i,
                                 "translate",
-                                store.glossary(work.novelId()),
+                                database.glossaries().glossary(work.novelId()),
                                 Map.of("source", s.source(), "context", previous, "adjacent", adjacent),
                                 budget);
                 var draft = blocks(result);
@@ -126,7 +131,7 @@ public final class Pipeline {
                                 work,
                                 i,
                                 "proofread",
-                                store.glossary(work.novelId()),
+                                database.glossaries().glossary(work.novelId()),
                                 Map.of(
                                         "source",
                                         s.source(),
@@ -153,7 +158,7 @@ public final class Pipeline {
     private Work applyAnalysis(
             Work work, int index, List<Segment> segments, Glossary g, JsonNode analysis, String previous)
             throws Exception {
-        return store.transaction(
+        return database.transaction(
                 () -> {
                     if (!analysis.path("entries").isArray() || analysis.path("entries").size() > 30)
                         throw new IllegalArgumentException("Invalid glossary analysis");
@@ -166,11 +171,8 @@ public final class Pipeline {
                             // fact.
                             Dictionary.validate(e);
                         } catch (IllegalArgumentException error) {
-                            store.exec(
-                                    "INSERT INTO glossary_proposals(novel_id,job_id,proposal) VALUES(?,?,?::jsonb)",
-                                    work.novelId(),
-                                    work.id(),
-                                    Json.write(Map.of("rejected", node, "validationError", error.getMessage())));
+                            database.glossaries().propose(work.novelId(), work.id(),
+                                    Map.of("rejected", node, "validationError", error.getMessage()));
                             System.err.println(
                                     "Invalid dictionary proposal retained for review; canonical dictionary"
                                             + " unchanged.");
@@ -189,18 +191,14 @@ public final class Pipeline {
                                         e.certainty(),
                                         work.chapter(),
                                         false);
-                        store.exec(
-                                "INSERT INTO glossary_proposals(novel_id,job_id,proposal) VALUES(?,?,?::jsonb)",
-                                work.novelId(),
-                                work.id(),
-                                Json.write(e));
+                        database.glossaries().propose(work.novelId(), work.id(), e);
                         Entry proposal = e;
                         // Existing facts are never silently overwritten. Conflicting proposals remain
                         // reviewable.
                         if (entries.stream().noneMatch(x -> Dictionary.sameEntity(x, proposal))) entries.add(e);
                     }
                     if (!entries.equals(g.entries()))
-                        store.glossary(work.novelId(), new Glossary(g.revision() + 1, List.copyOf(entries)));
+                        database.glossaryService().update(work.novelId(), new Glossary(g.revision() + 1, List.copyOf(entries)));
                     Segment source = segments.get(index);
                     segments.set(
                             index,
@@ -211,7 +209,7 @@ public final class Pipeline {
     }
 
     public Work proofread(Work old) throws Exception {
-        var latest = store.latest(old.novelId(), old.chapter());
+        var latest = database.jobs().latest(old.novelId(), old.chapter());
         var segments =
                 old.segments().stream()
                         .map(
@@ -235,17 +233,12 @@ public final class Pipeline {
                         segments,
                         "pending",
                         "");
-        store.transaction(
+        database.transaction(
                 () -> {
-                    store.save(w);
+                    database.jobs().save(w);
                     int tokens =
                             w.segments().stream().mapToInt(segment -> Tokens.source(segment.source())).sum();
-                    store.exec(
-                            "INSERT INTO job_metrics(job_id,source_tokens,tokenizer,target_usd) VALUES(?,?,?,?)",
-                            w.id(),
-                            tokens,
-                            "o200k_base",
-                            tokens * 0.10 / 5000);
+                    database.jobs().recordMetrics(w.id(), tokens);
                     return null;
                 });
         return w;
@@ -262,7 +255,7 @@ public final class Pipeline {
                         List.copyOf(s),
                         state,
                         summary);
-        store.save(next);
+        database.jobs().save(next);
         return next;
     }
 

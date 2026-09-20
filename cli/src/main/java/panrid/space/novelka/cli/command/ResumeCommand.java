@@ -2,7 +2,7 @@ package panrid.space.novelka.cli.command;
 
 import panrid.space.novelka.cli.config.ApplicationContext;
 import panrid.space.novelka.cli.support.Output;
-import panrid.space.novelka.core.Store;
+import panrid.space.novelka.core.persistence.DatabaseSession;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -18,19 +18,17 @@ public final class ResumeCommand extends AiCommand {
     private boolean retry;
 
     @Override
-    protected void execute(Store store) throws Exception {
+    protected void execute(DatabaseSession database) throws Exception {
         validateBudget();
-        var work = store.job(job);
-        try (var lock = store.lock(work.novelId())) {
-            work = store.job(job);
+        var work = database.jobs().job(job);
+        try (var lock = database.lock(work.novelId())) {
+            work = database.jobs().job(job);
             if (retry) {
-                store.exec(
-                        "UPDATE ai_calls SET state='retry-authorized' WHERE job_id=? AND state IN ('pending','uncertain')",
-                        job);
+                database.calls().authorizeRetry(job);
             }
             Output.json(
-                    ApplicationContext.pipeline(store, model)
-                            .run(work, budget == 0 ? 0 : store.spent(job) + budget));
+                    ApplicationContext.pipeline(database, model)
+                            .run(work, budget == 0 ? 0 : database.calls().spent(job) + budget));
         }
     }
 }

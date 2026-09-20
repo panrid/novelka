@@ -1,9 +1,9 @@
 package panrid.space.novelka.cli.command;
 
 import panrid.space.novelka.cli.support.Output;
-import panrid.space.novelka.core.PlainText;
-import panrid.space.novelka.core.Store;
-import panrid.space.novelka.core.Tokens;
+import panrid.space.novelka.core.integration.source.text.PlainText;
+import panrid.space.novelka.core.persistence.DatabaseSession;
+import panrid.space.novelka.core.support.Tokens;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -27,17 +27,17 @@ public final class ImportTextCommand extends DatabaseCommand {
     private Path file;
 
     @Override
-    protected void execute(Store store) throws Exception {
-        String id = novelId(store, novel);
-        try (var lock = store.lock(id)) {
-            var metadata = store.novel(id);
+    protected void execute(DatabaseSession database) throws Exception {
+        String id = novelId(database, novel);
+        try (var lock = database.lock(id)) {
+            var metadata = database.novels().novel(id);
             if (chapter < 1 || chapter > metadata.chapterCount()) {
                 throw new IllegalArgumentException("Chapter outside novel range");
             }
             var imported =
                     PlainText.parse(
                             chapter, file.toAbsolutePath().toUri().toString(), Files.readString(file));
-            store.save(id, imported);
+            database.chapters().save(id, imported);
             Output.json(
                     Map.of(
                             "novel", id,

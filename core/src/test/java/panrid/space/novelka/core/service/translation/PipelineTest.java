@@ -1,8 +1,15 @@
-package panrid.space.novelka.core;
+package panrid.space.novelka.core.service.translation;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import panrid.space.novelka.core.model.*;
+import panrid.space.novelka.core.integration.ai.AiClient;
+import panrid.space.novelka.core.model.Block;
+import panrid.space.novelka.core.model.Chapter;
+import panrid.space.novelka.core.model.Entry;
+import panrid.space.novelka.core.model.Glossary;
+import panrid.space.novelka.core.model.Work;
+import panrid.space.novelka.core.persistence.DatabaseSession;
+import panrid.space.novelka.core.support.Json;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,14 +22,18 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class PipelineTest {
-    Store store;
+    DatabaseSession store;
     Map<String, Work> jobs;
     Glossary glossary;
     Chapter chapter;
 
     @BeforeEach
     void setup() throws Exception {
-        store = mock(Store.class);
+        store = mock(DatabaseSession.class);
+        when(store.chapters()).thenReturn(mock(panrid.space.novelka.core.repository.ChapterRepository.class));
+        when(store.jobs()).thenReturn(mock(panrid.space.novelka.core.repository.JobRepository.class));
+        when(store.glossaries()).thenReturn(mock(panrid.space.novelka.core.repository.GlossaryRepository.class));
+        when(store.glossaryService()).thenReturn(mock(panrid.space.novelka.core.service.glossary.GlossaryService.class));
         jobs = new LinkedHashMap<>();
         glossary = new Glossary(0, List.of());
         chapter =
@@ -32,25 +43,27 @@ class PipelineTest {
                         "title",
                         List.of(new Block("title", "heading", "題"), new Block("p1", "paragraph", "本文")),
                         "html");
-        when(store.chapter("novel", 1)).thenAnswer(a -> chapter);
-        when(store.latest("novel", 1))
+        when(store.chapters().chapter("novel", 1)).thenAnswer(a -> chapter);
+        when(store.jobs().latest("novel", 1))
                 .thenAnswer(a -> jobs.values().stream().reduce((x, y) -> y).orElse(null));
-        when(store.job(anyString())).thenAnswer(a -> jobs.get(a.getArgument(0)));
-        when(store.glossary("novel")).thenAnswer(a -> glossary);
+        when(store.jobs().job(anyString())).thenAnswer(a -> jobs.get(a.getArgument(0)));
+        when(store.glossaries().glossary("novel")).thenAnswer(a -> glossary);
+        var glossaryService = store.glossaryService();
+        var jobRepository = store.jobs();
         doAnswer(
                 a -> {
                     glossary = a.getArgument(1);
                     return null;
                 })
-                .when(store)
-                .glossary(eq("novel"), any());
+                .when(glossaryService)
+                .update(eq("novel"), any());
         doAnswer(
                 a -> {
                     Work w = a.getArgument(0);
                     jobs.put(w.id(), w);
                     return null;
                 })
-                .when(store)
+                .when(jobRepository)
                 .save(any(Work.class));
         when(store.transaction(any())).thenAnswer(a -> ((Callable<?>) a.getArgument(0)).call());
     }
@@ -69,9 +82,8 @@ class PipelineTest {
         var pipeline = new Pipeline(store, ai, 6000);
         assertEquals("complete", pipeline.run(pipeline.create("novel", 1, false), 0).state());
         assertTrue(glossary.entries().isEmpty());
-        verify(store)
-                .exec(
-                        contains("glossary_proposals"), eq("novel"), anyString(), contains("validationError"));
+        verify(store.glossaries()).propose(eq("novel"), anyString(),
+                argThat(value -> Json.write(value).contains("validationError")));
     }
 
     @Test
