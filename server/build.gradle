@@ -1,0 +1,41 @@
+plugins {
+    id 'org.springframework.boot' version '4.1.1'
+}
+def frontend = rootProject.layout.projectDirectory.dir('frontend')
+def installFrontend = tasks.register('installFrontend', Exec) {
+    workingDir frontend
+    commandLine 'npm', 'ci', '--no-audit', '--no-fund'
+    inputs.files(frontend.file('package.json'), frontend.file('package-lock.json'))
+    outputs.dir(frontend.dir('node_modules'))
+}
+def buildFrontend = tasks.register('buildFrontend', Exec) {
+    dependsOn installFrontend
+    workingDir frontend
+    commandLine 'npm', 'run', 'build'
+    inputs.dir(frontend.dir('src'))
+    inputs.files(frontend.file('index.html'), frontend.file('vite.config.ts'),
+            frontend.file('tsconfig.json'), frontend.file('package-lock.json'))
+    outputs.dir(frontend.dir('dist'))
+}
+tasks.named('bootJar') {
+    archiveFileName = 'novelka-server.jar'
+    dependsOn buildFrontend
+    from(frontend.dir('dist')) { into 'BOOT-INF/classes/static' }
+}
+dependencies {
+    implementation platform('org.springframework.boot:spring-boot-dependencies:4.1.1')
+    implementation project(':core')
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    testImplementation 'io.zonky.test:embedded-postgres:2.2.2'
+    testRuntimeOnly 'io.zonky.test.postgres:embedded-postgres-binaries-darwin-arm64v8:14.22.0'
+}
+tasks.named('test') { exclude '**/*IntegrationTest.class' }
+tasks.register('integrationTest', Test) {
+    description = 'Reader HTTP API against temporary PostgreSQL'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform()
+    include '**/*IntegrationTest.class'
+    shouldRunAfter tasks.named('test')
+}

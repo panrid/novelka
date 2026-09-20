@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+NOVELKA_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+NOVELKA_ENV=${NOVELKA_ENV_FILE:-"$NOVELKA_ROOT/.env.local"}
+case "$NOVELKA_ENV" in
+    /*) ;;
+    *) NOVELKA_ENV="$PWD/$NOVELKA_ENV" ;;
+esac
+if [ -n "${NOVELKA_ENV_FILE:-}" ] && [ ! -f "$NOVELKA_ENV" ]; then
+    echo "Environment file not found: $NOVELKA_ENV" >&2
+    exit 1
+fi
+if [ -f "$NOVELKA_ENV" ]; then
+    set -a
+    . "$NOVELKA_ENV"
+    set +a
+fi
+"$NOVELKA_ROOT/gradlew" -p "$NOVELKA_ROOT" -q :server:bootJar >&2
+exec java -Duser.timezone=UTC -jar "$NOVELKA_ROOT/server/build/libs/novelka-server.jar" "$@"

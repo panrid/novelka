@@ -18,7 +18,7 @@ EditorConfig керує редактором, але не є CI-перевірк
 
 ```sh
 ./gradlew test
-./gradlew :core:integrationTest
+./gradlew :core:integrationTest :server:integrationTest
 ./gradlew :core:liveSourceTest
 ./gradlew :cli:installDist
 sh -n novelka
@@ -30,6 +30,8 @@ git diff --check
 | core:test | Парсер, словник, сегменти, pipeline, mock OpenRouter, HTML/EPUB | Локальний HTTP для частини тестів |
 | cli:test | Launcher: інша директорія, пробіли у шляхах, env, помилка збірки | Тимчасові shell-фікстури, без БД і реального Gradle |
 | core:integrationTest | SQL, ревізії, словник, аліаси, відновлення з mock HTTP | Embedded PostgreSQL в тимчасовому каталозі |
+| server:integrationTest | HTTP API, аліаси, готові ревізії, зміни оригіналу та відмови | Embedded PostgreSQL та локальний HTTP |
+| frontend: npm test | Каталог, пошук, читалка, налаштування, помилки, mobile | Playwright Chromium, API-фікстури; спочатку npm run build |
 | core:liveSourceTest | Реальний API і HTML Syosetu | Інтернет |
 
 Тести не звертаються до платного OpenRouter. integrationTest та liveSourceTest
@@ -100,8 +102,8 @@ GlossaryService.update: прямий GlossaryRepository.save не виконає
 - Стани Work/Segment/AiCall задані рядками, а не enum; зміна потребує сумісності з JSON/SQL.
 - Resume працює зі збереженим Work і не перевіряє новий sourceHash так, як create.
   Proofread теж зберігає старий sourceHash; за зміненого оригіналу використовуй translate --force.
-- Заголовки/ID блоків можуть повторюватися між главами у HTML; перед розвитком читалки
-  варто зробити глобальні якорі.
+- ID блоків можуть повторюватися між главами в HTML-експорті; варто зробити глобальні якорі.
+  React-читалка рендерить одну главу й не використовує ID блоків як HTML id.
 - Немає редактора пропозицій, dry-run оцінки всього діапазону чи інтерактивного меню.
 - Поточний ключ новели — ID Syosetu; перед другим джерелом потрібна схема ідентичності
   з урахуванням джерела, щоб однакові зовнішні ID не конфліктували.

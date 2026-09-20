@@ -4,13 +4,13 @@
 
 ## Межі проєкту
 
-Novelka зараз є локальним CLI для одного оператора. PostgreSQL зберігає оригінали,
+Novelka зараз має локальний CLI для одного оператора та вебкаталог із читалкою. PostgreSQL зберігає оригінали,
 результати та журнал витрат, OpenRouter виконує аналіз, переклад і вичитку.
-Сайт, облікові записи, бібліотеки, редакторська модерація, оплати й ілюстрації — майбутні етапи.
+Облікові записи, бібліотеки, редакторська модерація, оплати й ілюстрації — майбутні етапи.
 
-`settings.gradle` підключає два модулі: `cli` → `core`. Обидва використовують Java 25.
-Майбутній server зможе залежати від core. SQL уже ізольований у repository/persistence;
-частина оркестрації імпорту та діапазону глав ще належить CLI.
+settings.gradle підключає cli → core та server → core. Усі використовують Java 25.
+Frontend — React + TypeScript із Vite; server — Spring Boot із JDBC-репозиторіями ядра.
+SQL ізольований у repository/persistence; оркестрація імпорту та діапазону глав належить CLI.
 Core не залежить від Picocli, хоча ще друкує деякі повідомлення у stdout/stderr.
 
 ## Карта пакетів
@@ -27,12 +27,16 @@ Core не залежить від Picocli, хоча ще друкує деякі
 | `core.model` | Вісім top-level record-моделей; структура збереженого JSON |
 | `core.service.translation` | Pipeline та Segments: процес перекладу і робота з сегментами |
 | `core.service.glossary` | Dictionary: добір контексту; GlossaryService: зміни словника та інвалідація |
-| `core.repository` | NovelRepository, ChapterRepository, JobRepository, GlossaryRepository, AiCallRepository |
+| `core.repository` | NovelRepository, ChapterRepository, JobRepository, GlossaryRepository, AiCallRepository; ReaderRepository — проєкції для читання |
 | `core.persistence` | JdbcSession, MigrationRunner, DatabaseSession: з'єднання, міграції, складання залежностей |
 | `core.integration.ai` | AiClient та OpenRouter |
 | `core.integration.source` | NovelSource; реалізації в syosetu та text |
 | `core.export` | BookExporter: HTML та EPUB |
 | `core.support` | Json, Hashes, Tokens |
+| `server.controller` | ReaderController: GET endpoints |
+| `server.service` | ReaderService: DTO каталогу, змісту та глави |
+| `server.config` | ReaderDatabase: міграції при старті, нове з’єднання для кожного запиту |
+| `server.dto` | Окремі response-records; внутрішній Work не виходить у браузер |
 
 Файли Java лежать у `<module>/src/main/java`; тести — в `src/test/java`.
 Тести згруповані за відповідними пакетами; інтеграційні сценарії репозиторіїв лежать у core.repository.
@@ -49,6 +53,20 @@ Core не залежить від Picocli, хоча ще друкує деякі
 
 Успішне виконання повертає exit code 0, помилка виконання — 1,
 помилка параметрів Picocli зазвичай — 2. Launcher повертає помилку збірки без запуску старого CLI.
+
+## Шлях вебзапиту
+
+novelka-web → Gradle bootJar → npm ci / Vite build → JAR із React → Spring Boot.
+У браузері hash-маршрути зберігають прямі посилання без серверного SPA fallback.
+
+React → /api/novels → ReaderController → ReaderService → ReaderDatabase.open →
+ReaderRepository / NovelRepository → PostgreSQL. З’єднання закривається після запиту.
+Міграції застосовуються один раз на старті server; спільного singleton Connection немає.
+Frontend показує revised-блоки як текст, без вставляння довільного HTML.
+
+ReaderRepository використовує ту саму умову доступності, що й експорт: остання
+ревізія complete та sourceHash поточного оригіналу. Це перевіряється і для змісту,
+і для прямого запиту глави. Докладніше про структуру UI й API — [web.md](web.md).
 
 ## Відповідальності ядра
 
@@ -111,6 +129,6 @@ JSON не містить імен Java-пакетів, тому перенесе
 | Верстка експорту | BookExporter |
 
 Перед додаванням другого джерела потрібен resolver джерел: зараз CLI безпосередньо
-створює Syosetu. Перед веб API доречно виділити прикладні сервіси імпорту/перекладу
-з CLI, визначити життєвий цикл з'єднань для конкурентних запитів і замінити прямий
-stdout/stderr механізмом повідомлень. Формат збережених даних під час цього рефакторингу не змінено.
+створює Syosetu. Перед запуском перекладу через веб API потрібно виділити прикладні
+сервіси імпорту/перекладу з CLI, додати фонові завдання та замінити прямий stdout/stderr
+механізмом повідомлень. Нинішній server лише читає; схема даних не змінена.
