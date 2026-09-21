@@ -60,6 +60,27 @@ class ReaderIntegrationTest {
     }
 
     @Test
+    void anonymousVisitorCanOpenWelcomePageAndAssetsButNotManagement() throws Exception {
+        String origin = base.substring(0, base.length() - "/api/novels".length());
+        for (String path : List.of("/", "/index.html")) {
+            var page = client.send(HttpRequest.newBuilder(URI.create(origin + path)).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, page.statusCode(), "Anonymous GET " + path);
+            assertTrue(page.body().contains("Novelka public shell"));
+            assertTrue(page.headers().firstValue("content-type").orElse("").startsWith("text/html"));
+        }
+        var asset = client.send(HttpRequest.newBuilder(URI.create(origin + "/assets/public-shell.js")).GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, asset.statusCode());
+        assertTrue(asset.body().contains("public-shell"));
+        for (String path : List.of("/api/tasks", "/api/accounts", "/api/settings")) {
+            var restricted = client.send(HttpRequest.newBuilder(URI.create(origin + path)).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(401, restricted.statusCode(), "Anonymous GET " + path);
+        }
+    }
+
+    @Test
     void servesCatalogAliasContentsAndOnlyTranslatedBlocks() throws Exception {
         String id = seed("complete");
         try (var database = database()) {
