@@ -1,6 +1,7 @@
 plugins {
     id 'org.springframework.boot' version '4.1.1'
 }
+tasks.withType(JavaCompile).configureEach { options.compilerArgs.add('-parameters') }
 def frontend = rootProject.layout.projectDirectory.dir('frontend')
 def installFrontend = tasks.register('installFrontend', Exec) {
     workingDir frontend
@@ -26,6 +27,7 @@ dependencies {
     implementation platform('org.springframework.boot:spring-boot-dependencies:4.1.1')
     implementation project(':core')
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
     testImplementation 'io.zonky.test:embedded-postgres:2.2.2'
     testRuntimeOnly 'io.zonky.test.postgres:embedded-postgres-binaries-darwin-arm64v8:14.22.0'
 }

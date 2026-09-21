@@ -4,8 +4,11 @@ import { useResource } from '../hooks/useResource';
 import { chapterPath, novelPath } from '../lib/routes';
 import { readPreference, savePreference } from '../lib/preferences';
 import { ErrorState, Loading } from '../components/Status';
+import { EditableBlock } from '../components/EditableBlock';
+import { useAuth } from '../auth/AuthContext';
 
 export function ReaderPage({ id, number }: { id: string; number: number }) {
+    const { user } = useAuth();
     const chapter = useResource<ReaderChapter>(chapterPath(id, number));
     const novel = useResource<NovelDetail>(novelPath(id));
     const [theme, setTheme] = useState(() => readPreference('theme') === 'dark' ? 'dark' : 'light');
@@ -44,13 +47,17 @@ export function ReaderPage({ id, number }: { id: string; number: number }) {
             </div>
         </div>
         <article className="reading-sheet" style={{ fontSize }}>
-            <header className="chapter-heading"><p className="eyebrow">Глава {data.number} · Український переклад</p><h1>{data.title}</h1><p className="reading-novel-title">{novel.data.title}</p><div className="chapter-ornament" aria-hidden="true">✦</div></header>
+            <header className="chapter-heading"><p className="eyebrow">Глава {data.number} · Український переклад</p>
+                {data.blocks[0]?.kind === 'heading' && data.blocks[0].text === data.title
+                    ? <EditableBlock key={data.jobId + ':title:' + user?.id} block={data.blocks[0]} index={0} chapter={data} title /> : <h1>{data.title}</h1>}
+                <p className="reading-novel-title">{novel.data.title}</p><div className="chapter-ornament" aria-hidden="true">✦</div>
+                <p className="correction-hint">{user ? 'Виділіть текст або натисніть «Запропонувати правку» під абзацом.' : <a href="#/login">Увійдіть, щоб запропонувати правку</a>}</p>
+            </header>
             <div className="reading-text">{data.blocks.map((block, blockIndex) => {
                 const key = block.id + ':' + blockIndex;
                 if (blockIndex === 0 && block.kind === 'heading' && block.text === data.title) return null;
                 if (block.kind === 'separator') return <hr key={key} />;
-                if (block.kind === 'heading') return <h2 key={key}>{block.text}</h2>;
-                return <p key={key} className={block.kind === 'preface' || block.kind === 'afterword' ? 'author-note' : undefined}>{block.text}</p>;
+                return <EditableBlock key={key + ':' + data.jobId + ':' + user?.id} block={block} index={blockIndex} chapter={data} heading={block.kind === 'heading'} />;
             })}</div>
             <div className="chapter-end" aria-hidden="true">◇</div>
         </article>

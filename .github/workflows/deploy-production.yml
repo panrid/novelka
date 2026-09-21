@@ -30,6 +30,12 @@ jobs:
                   cache-dependency-path: frontend/package-lock.json
             - name: Run tests and build production JAR
               run: ./gradlew test :core:integrationTest :server:integrationTest :server:bootJar --no-daemon
+            - name: Install browser for UI checks
+              working-directory: frontend
+              run: npx playwright install --with-deps chromium
+            - name: Check reader and editorial workspace
+              working-directory: frontend
+              run: npm test
 
     deploy:
         needs: verify

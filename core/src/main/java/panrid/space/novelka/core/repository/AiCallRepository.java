@@ -55,7 +55,12 @@ public final class AiCallRepository {
     }
 
     public List<Map<String, Object>> contexts(String job) throws Exception {
-        return jdbc.rows("SELECT context FROM ai_calls WHERE job_id=?", job);
+        return jdbc.rows("""
+                WITH RECURSIVE lineage(id) AS (
+                    SELECT ?::text UNION
+                    SELECT o.parent_job_id FROM work_origins o JOIN lineage l ON o.child_job_id=l.id
+                ) SELECT context FROM ai_calls WHERE job_id IN (SELECT id FROM lineage)
+                """, job);
     }
 
     public void authorizeRetry(String job) throws Exception {

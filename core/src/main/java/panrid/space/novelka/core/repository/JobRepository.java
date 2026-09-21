@@ -66,8 +66,14 @@ public final class JobRepository {
 
     public List<Work> glossaryConsumers(String novel) throws Exception {
         var result = new ArrayList<Work>();
-        for (var row : jdbc.rows("SELECT DISTINCT j.id,j.data FROM jobs j JOIN ai_calls a ON a.job_id=j.id WHERE"
-                + " j.novel_id=? AND j.state IN ('complete','running','pending')", novel)) {
+        for (var row : jdbc.rows("""
+                WITH RECURSIVE lineage(root,id) AS (
+                    SELECT id,id FROM jobs WHERE novel_id=? UNION
+                    SELECT l.root,o.parent_job_id FROM lineage l JOIN work_origins o ON o.child_job_id=l.id
+                )
+                SELECT DISTINCT j.id,j.data FROM jobs j JOIN lineage l ON l.root=j.id
+                JOIN ai_calls a ON a.job_id=l.id WHERE j.state IN ('complete','running','pending')
+                """, novel)) {
             result.add(Json.decode(row.get("data").toString(), Work.class));
         }
         return result;

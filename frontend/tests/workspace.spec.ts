@@ -1,0 +1,91 @@
+import { expect, test, type Page } from '@playwright/test';
+
+const reader = { id: 'reader', username: 'reader', role: 'READER' };
+const owner = { id: 'owner', username: 'owner', role: 'OWNER' };
+const novel = { id: 'n0022gd', title: 'Водяний маг', author: 'Автор', chapterCount: 10, readyChapters: 1, aliases: [] };
+
+async function session(page: Page, user: typeof reader | null) {
+    await page.route('**/api/auth/me', route => route.fulfill({ json: { user, registrationOpen: true } }));
+    await page.route('**/api/auth/csrf', route => route.fulfill({ json: { token: 'csrf-test', headerName: 'X-CSRF-TOKEN' } }));
+    await page.route('**/api/novels', route => route.fulfill({ json: [novel] }));
+}
+
+test('login uses csrf and exposes only reader navigation', async ({ page }) => {
+    await session(page, null);
+    await page.route('**/api/auth/login', async route => {
+        expect(route.request().headers()['x-csrf-token']).toBe('csrf-test');
+        expect(route.request().postData()).toContain('username=reader');
+        await page.route('**/api/auth/me', request => request.fulfill({ json: { user: reader, registrationOpen: true } }));
+        await route.fulfill({ status: 204 });
+    });
+    await page.goto('/#/login');
+    await page.getByLabel('Логін', { exact: true }).fill('reader');
+    await page.getByLabel('Пароль', { exact: true }).fill('example-password');
+    await page.getByRole('button', { name: 'Увійти', exact: true }).click();
+    await expect(page.getByRole('link', { name: 'Правки', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Майстерня' })).toHaveCount(0);
+    await page.goto('/#/manage');
+    await expect(page.getByRole('heading', { name: 'Потрібен доступ' })).toBeVisible();
+});
+
+test('reader submits a revision-bound private correction without rendering html', async ({ page }) => {
+    await session(page, reader);
+    await page.route('**/api/novels/n0022gd', route => route.fulfill({ json: { ...novel, chapters: [{ number: 1, title: 'Пролог', revision: 1 }] } }));
+    await page.route('**/api/novels/n0022gd/chapters/1', route => route.fulfill({ json: {
+        novelId: novel.id, number: 1, revision: 1, jobId: 'job1', personalReplacements: {}, title: 'Пролог',
+        blocks: [{ id: 'title', kind: 'heading', text: 'Пролог' }, { id: 'p1', kind: 'paragraph', text: 'Він ішов.' }],
+    } }));
+    await page.route('**/api/corrections', route => {
+        expect(route.request().postDataJSON()).toMatchObject({ baseJobId: 'job1', blockIndex: 1, original: 'Він ішов.', replacement: 'Він крокував. <b>Текст</b>' });
+        return route.fulfill({ json: { id: 'correction1' } });
+    });
+    await page.goto('/#/novels/n0022gd/chapters/1');
+    await page.getByRole('button', { name: 'Запропонувати правку' }).nth(1).click();
+    await page.getByLabel('Виправлений абзац').fill('Він крокував. <b>Текст</b>');
+    await page.getByRole('button', { name: 'Надіслати', exact: true }).click();
+    await expect(page.getByText('Ваша версія · очікує перевірки')).toBeVisible();
+    await expect(page.getByText('Він крокував. <b>Текст</b>', { exact: true })).toBeVisible();
+    await expect(page.locator('.reading-text b')).toHaveCount(0);
+});
+
+test('owner launches budgeted translation and sees persisted queue', async ({ page }, testInfo) => {
+    await session(page, owner);
+    const tasks: object[] = [];
+    await page.route('**/api/tasks**', route => {
+        if (route.request().method() === 'POST') {
+            expect(route.request().postDataJSON()).toMatchObject({ operation: 'translate', novelId: novel.id, first: 1, last: 10, budgetUsd: .5 });
+            tasks.push({ id: 'task1', novel_id: novel.id, operation: 'translate', state: 'queued', spent_usd: 0, username: owner.username });
+            return route.fulfill({ json: { id: 'task1' } });
+        }
+        return route.fulfill({ json: tasks });
+    });
+    await page.goto('/#/manage');
+    await page.getByRole('combobox', { name: 'Новела', exact: true }).selectOption(novel.id);
+    await page.getByLabel('Остання глава').fill('10');
+    await page.getByLabel('Додатковий бюджет').fill('.5');
+    await expect(page.getByRole('button', { name: 'Додати в чергу' })).toBeDisabled();
+    await page.getByLabel('Дозволяю платні запити').check();
+    await page.getByRole('button', { name: 'Додати в чергу' }).click();
+    await expect(page.getByText('У черзі', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Налаштування', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('workspace.png'), fullPage: true });
+});
+
+test('editor approves a correction with a reason', async ({ page }) => {
+    await session(page, { id: 'editor', username: 'editor', role: 'EDITOR' });
+    let approved = false;
+    await page.route('**/api/corrections?**', route => route.fulfill({ json: new URL(route.request().url()).searchParams.get('queue') === 'true' ? [{
+        id: 'c1', author_id: 'reader', author: 'reader', novel_id: novel.id, chapter: 1,
+        original: 'Він ішов.', replacement: 'Він крокував.', reason: 'Точніше', state: approved ? 'approved' : 'pending', review_note: '',
+    }] : [] }));
+    await page.route('**/api/corrections/c1/review', route => {
+        expect(route.request().postDataJSON()).toEqual({ approve: true, note: 'Погоджую' }); approved = true;
+        return route.fulfill({ json: { message: 'Збережено' } });
+    });
+    await page.goto('/#/corrections');
+    await page.getByRole('button', { name: 'Черга редактора' }).click();
+    await page.getByLabel('Коментар рішення').fill('Погоджую');
+    await page.getByRole('button', { name: 'Погодити й опублікувати' }).click();
+    await expect(page.getByText('Погоджено', { exact: true })).toBeVisible();
+});

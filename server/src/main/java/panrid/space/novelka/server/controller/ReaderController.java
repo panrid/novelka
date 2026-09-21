@@ -15,9 +15,11 @@ import java.util.List;
 @RequestMapping("/api/novels")
 public final class ReaderController {
     private final ReaderService service;
+    private final panrid.space.novelka.server.account.AccessService access;
 
-    public ReaderController(ReaderService service) {
+    public ReaderController(ReaderService service, panrid.space.novelka.server.account.AccessService access) {
         this.service = service;
+        this.access = access;
     }
 
     @GetMapping
@@ -32,7 +34,8 @@ public final class ReaderController {
 
     @GetMapping("/{novel}/chapters/{chapter}")
     public ReaderChapter chapter(@PathVariable("novel") String novel,
-            @PathVariable("chapter") int chapter) throws Exception {
-        return service.chapter(novel, chapter);
+            @PathVariable("chapter") int chapter, java.security.Principal principal) throws Exception {
+        var account = access.current(principal);
+        return service.chapter(novel, chapter, account == null ? null : account.id());
     }
 }

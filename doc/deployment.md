@@ -71,6 +71,15 @@ chmod 600 /opt/novelka/.env.production
 
 `.env.production` не додається до GitHub і не передається workflow.
 
+Перед деплоєм версії з акаунтами також задайте `NOVELKA_OWNER_USERNAME` і
+`NOVELKA_OWNER_PASSWORD` у цьому файлі, щоб створити власника при запуску.
+Для вебперекладу потрібен `OPENROUTER_API_KEY`. Значення вводьте редактором у
+env-файл на VPS, не в workflow. Деталі й правила видалення bootstrap-пароля:
+[Акаунти та майстерня](accounts-and-management.md#створити-власника).
+Production Compose передає ці змінні app та вмикає Secure session cookie.
+Міграція V3 додає акаунти, правки, налаштування, аудит і чергу. Перед оновленням
+збережіть резервну копію PostgreSQL; відкат JAR не видаляє міграцію чи нові дані.
+
 ## GitHub Actions
 
 У репозиторії `panrid/novelka` створіть GitHub Actions secrets:

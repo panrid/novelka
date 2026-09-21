@@ -27,4 +27,8 @@ public final class ReaderDatabase {
     public JdbcSession open() throws java.sql.SQLException {
         return new JdbcSession(url, user, password);
     }
+
+    public panrid.space.novelka.core.persistence.DatabaseSession openDatabase() throws Exception {
+        return new panrid.space.novelka.core.persistence.DatabaseSession(url, user, password);
+    }
 }

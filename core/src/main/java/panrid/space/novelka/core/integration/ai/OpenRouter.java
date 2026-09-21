@@ -54,6 +54,19 @@ public final class OpenRouter implements AiClient {
         http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build();
     }
 
+    public OpenRouter(AiCallRepository calls, String key, String model, double inputRate, double outputRate) {
+        if (key == null || key.isBlank()) throw new IllegalArgumentException("Set OPENROUTER_API_KEY");
+        if (!Double.isFinite(inputRate) || inputRate < 0 || !Double.isFinite(outputRate) || outputRate < 0)
+            throw new IllegalArgumentException("Invalid rate");
+        this.calls = calls;
+        this.key = key;
+        this.model = model;
+        this.endpoint = URI.create("https://openrouter.ai/api/v1/chat/completions");
+        this.inputRate = inputRate;
+        this.outputRate = outputRate;
+        this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build();
+    }
+
     private double rate(String name, double fallback) {
         String value = System.getenv(name);
         if (value == null && !model.equals("openai/gpt-4o-mini"))

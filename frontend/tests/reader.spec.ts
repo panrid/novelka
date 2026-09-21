@@ -10,6 +10,7 @@ const chapters = [
 ];
 
 async function library(page: Page) {
+    await page.route('**/api/auth/me', route => route.fulfill({ json: { user: null, registrationOpen: true } }));
     await page.route('**/api/novels**', async route => {
         const path = new URL(route.request().url()).pathname;
         let body;

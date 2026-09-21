@@ -61,7 +61,8 @@ novelka-web → Gradle bootJar → npm ci / Vite build → JAR із React → Sp
 
 React → /api/novels → ReaderController → ReaderService → ReaderDatabase.open →
 ReaderRepository / NovelRepository → PostgreSQL. З’єднання закривається після запиту.
-Міграції застосовуються один раз на старті server; спільного singleton Connection немає.
+Міграції застосовуються на старті server; адміністративний DatabaseSession
+також ідемпотентно перевіряє їх. Спільного singleton Connection немає.
 Frontend показує revised-блоки як текст, без вставляння довільного HTML.
 
 ReaderRepository використовує ту саму умову доступності, що й експорт: остання
@@ -128,7 +129,17 @@ JSON не містить імен Java-пакетів, тому перенесе
 | Бюджет і аналітика | AiCommand, TranslateCommand, OpenRouter.invoke, AiCallRepository.spent, CostsCommand |
 | Верстка експорту | BookExporter |
 
-Перед додаванням другого джерела потрібен resolver джерел: зараз CLI безпосередньо
-створює Syosetu. Перед запуском перекладу через веб API потрібно виділити прикладні
-сервіси імпорту/перекладу з CLI, додати фонові завдання та замінити прямий stdout/stderr
-механізмом повідомлень. Нинішній server лише читає; схема даних не змінена.
+Перед додаванням другого джерела потрібен resolver джерел: зараз CLI й вебворкер
+безпосередньо створюють Syosetu. `server.task.TaskService` валідує запит і зберігає
+чергу; `TaskWorker` викликає той самий core Pipeline, ізольовано від CLI.
+`TaskAiFactory` дозволяє перевіряти воркер без платного провайдера. Повідомлення
+стану й витрати читаються з PostgreSQL; технічні повідомлення core лишаються в логах.
+
+## Вебакаунти й редагування
+
+Spring Security керує сесією та CSRF; `AccessService` читає актуальні ролі з БД.
+`CorrectionService` під lock новели створює ручну ревізію та `work_origins`;
+`GlossaryService` враховує цей ланцюжок при пошуку залежних перекладів.
+SQL нових можливостей згрупований у `server.repository`, міграція — `V3.sql`.
+`site_settings` зберігає вебналаштування; кожне завдання отримує їхній знімок.
+Детальна карта та інваріанти — [Акаунти й майстерня](accounts-and-management.md).

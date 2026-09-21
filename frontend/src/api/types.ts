@@ -28,6 +28,8 @@ export interface Block {
 }
 
 export interface ReaderChapter {
+    jobId: string;
+    personalReplacements: Record<number, string>;
     novelId: string;
     number: number;
     revision: number;

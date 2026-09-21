@@ -51,7 +51,7 @@ public final class ReaderService {
         }
     }
 
-    public ReaderChapter chapter(String reference, int number) throws Exception {
+    public ReaderChapter chapter(String reference, int number, String authorId) throws Exception {
         if (number < 1) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         try (var jdbc = database.open()) {
             String id = resolve(new NovelRepository(jdbc), reference);
@@ -62,7 +62,12 @@ public final class ReaderService {
                     .toList();
             String title = blocks.stream().filter(block -> block.kind().equals("heading"))
                     .map(block -> block.text()).findFirst().orElse("Глава " + number);
-            return new ReaderChapter(id, number, work.revision(), title, blocks);
+            var personal = new java.util.LinkedHashMap<Integer, String>();
+            if (authorId != null) {
+                for (var row : new panrid.space.novelka.server.repository.CorrectionRepository(jdbc).pending(authorId, work))
+                    personal.put(((Number) row.get("block_index")).intValue(), (String) row.get("replacement"));
+            }
+            return new ReaderChapter(id, number, work.revision(), title, blocks, work.id(), personal);
         }
     }
 

@@ -46,7 +46,8 @@ class ReaderIntegrationTest {
         // Command-line properties take precedence over application.properties defaults.
         application = spring.run("--server.port=0",
                 "--novelka.database.url=" + postgres.getJdbcUrl("postgres", "postgres"),
-                "--novelka.database.user=postgres", "--novelka.database.password=");
+                "--novelka.database.user=postgres", "--novelka.database.password=", "--novelka.worker.enabled=false",
+                "--novelka.owner.username=", "--novelka.owner.password=");
         base = "http://127.0.0.1:" + application.getEnvironment().getProperty("local.server.port") + "/api/novels";
         client = HttpClient.newHttpClient();
     }
@@ -115,7 +116,7 @@ class ReaderIntegrationTest {
         assertFalse(invalid.body().contains("jdbc:"));
         var post = client.send(HttpRequest.newBuilder(URI.create(base))
                 .POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
-        assertEquals(405, post.statusCode());
+        assertEquals(403, post.statusCode());
     }
 
     private static DatabaseSession database() throws Exception {

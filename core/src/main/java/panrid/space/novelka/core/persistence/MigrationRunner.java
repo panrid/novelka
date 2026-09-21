@@ -2,7 +2,7 @@ package panrid.space.novelka.core.persistence;
 
 /** Explicit migration registry; add a version here when adding its SQL resource. */
 public final class MigrationRunner {
-    private static final int LATEST_VERSION = 2;
+    private static final int LATEST_VERSION = 3;
 
     public void migrate(JdbcSession jdbc) throws Exception {
         jdbc.transaction(() -> {
