@@ -4,6 +4,7 @@ import { useAction } from '../hooks/useAction';
 import { mutate } from '../api/client';
 import { ActionNotice } from '../components/ActionNotice';
 import { ErrorState, Loading } from '../components/Status';
+import { OpenRouterBalance } from '../components/OpenRouterBalance';
 
 export interface Settings {
     revision: number; registrationOpen: boolean; segmentChars: number; targetUsdPer5000: number; maxBudgetUsd: number;
@@ -18,6 +19,7 @@ export function SettingsPage() {
     if (!settings) return <Loading />;
     return <div className="page workspace"><p className="eyebrow">Лише для власника</p><h1>Налаштування сайту й ШІ</h1>
         <p className="muted">Нові завдання отримують знімок цих налаштувань. Ключ OpenRouter задається на сервері.</p>
+        <OpenRouterBalance />
         <form className="stack-form" onSubmit={event => { event.preventDefault(); void action.run(async () => { const saved = await mutate<Settings>('/settings', settings); setSettings(saved); }); }}>
             <label className="check-label"><input type="checkbox" checked={settings.registrationOpen} onChange={event => setSettings({ ...settings, registrationOpen: event.target.checked })} />Дозволити реєстрацію</label>
             <div className="form-grid">

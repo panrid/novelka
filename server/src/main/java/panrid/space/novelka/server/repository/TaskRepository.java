@@ -27,11 +27,13 @@ public final class TaskRepository {
     public List<Map<String, Object>> list(int offset) throws Exception {
         return jdbc.rows("""
                 SELECT t.id,t.operation,t.novel_id,t.state,t.message,t.current_job_id,t.cancel_requested,
+                    current_job.chapter AS current_chapter,
                     t.request,t.created_at,t.updated_at,a.username,
                     COALESCE((SELECT sum(GREATEST(0,COALESCE(j.final_usd,(SELECT sum(COALESCE(c.actual_usd,c.estimated_usd))
                         FROM ai_calls c WHERE c.job_id=j.job_id),0)-j.initial_usd))
                         FROM web_task_jobs j WHERE j.task_id=t.id),0) spent_usd
                 FROM web_tasks t JOIN accounts a ON a.id=t.actor_id
+                    LEFT JOIN jobs current_job ON current_job.id=t.current_job_id
                 ORDER BY t.created_at DESC LIMIT 50 OFFSET ?
                 """, offset);
     }

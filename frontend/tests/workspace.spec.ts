@@ -92,6 +92,7 @@ test('owner edits reader metadata and sees an explained legacy task failure', as
     });
     await page.goto('/#/manage');
     await expect(page.getByText('ШІ потребує уточнення словника')).toBeVisible();
+    await page.getByRole('article', { name: 'Переклад n0022gd' }).getByText('Подробиці').click();
     await expect(page.getByText('до 6 пошуків у словнику')).toBeVisible();
     await page.getByRole('combobox', { name: 'Новела', exact: true }).selectOption(novel.id);
     await page.getByRole('button', { name: 'Дані новели', exact: true }).click();
@@ -99,6 +100,31 @@ test('owner edits reader metadata and sees an explained legacy task failure', as
     await page.getByLabel('Автор українською').fill('Кубо Тадаші');
     await page.getByLabel('Опис українською').fill('Пригода мага води.');
     await page.getByRole('button', { name: 'Зберегти дані' }).click();
+});
+
+test('owner sees account balance and a web action for a changed dictionary', async ({ page }) => {
+    await session(page, owner);
+    await page.route('**/api/settings/openrouter-credits', route => route.fulfill({ json: {
+        configured: true, totalCredits: 100.5, totalUsage: 25.75, remainingUsd: 74.75,
+    } }));
+    await page.route('**/api/settings', route => route.fulfill({ json: {
+        revision: 0, registrationOpen: true, segmentChars: 1500, targetUsdPer5000: .1, maxBudgetUsd: 5,
+        stages: ['analyze', 'translate', 'proofread'].map(stage => ({ stage, model: 'openai/gpt-4o-mini', inputUsdM: .15, outputUsdM: .6 })),
+    } }));
+    await page.route('**/api/tasks**', route => route.fulfill({ json: [{
+        id: 'task2', novel_id: novel.id, operation: 'translate', state: 'failed', spent_usd: .02,
+        username: owner.username, current_job_id: 'job2', message: 'Dictionary changed; run proofread or translate --force',
+        current_chapter: 2, request: { first: 2, last: 2 },
+    }] }));
+    await page.goto('/#/settings');
+    await expect(page.getByText('74,75')).toBeVisible();
+    await page.goto('/#/manage');
+    const task = page.getByRole('article', { name: 'Переклад n0022gd' });
+    await expect(task.getByText('Глава 2')).toBeVisible();
+    await expect(task.getByText('Потрібна нова ревізія перекладу')).toBeVisible();
+    await task.getByText('Подробиці').click();
+    await expect(task.getByText('Повторно вичитати одну главу', { exact: false })).toBeVisible();
+    await expect(task.getByText('job2')).toBeVisible();
 });
 
 test('editor approves a correction with a reason', async ({ page }) => {

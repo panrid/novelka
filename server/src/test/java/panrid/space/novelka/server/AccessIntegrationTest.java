@@ -68,6 +68,7 @@ class AccessIntegrationTest {
             assertEquals(401, get(anonymous, "/accounts").statusCode());
             assertEquals(403, get(reader, "/accounts").statusCode());
             assertEquals(403, get(reader, "/settings").statusCode());
+            assertEquals(403, get(reader, "/settings/openrouter-credits").statusCode());
             assertEquals(403, post(reader, "/tasks", task("novel", UUID.randomUUID().toString(), .1)).statusCode());
             var withoutCsrf = reader.send(HttpRequest.newBuilder(URI.create(base + "/auth/logout"))
                     .POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
@@ -197,6 +198,9 @@ class AccessIntegrationTest {
 
     @Test
     void ownerSettingsUseOptimisticRevisionAndCanCloseRegistration() throws Exception {
+        var credits = body(get(owner, "/settings/openrouter-credits"));
+        assertFalse(credits.path("configured").asBoolean());
+        assertTrue(credits.path("remainingUsd").isNull());
         var original = body(get(owner, "/settings"));
         var updated = original.deepCopy();
         ((com.fasterxml.jackson.databind.node.ObjectNode) updated).put("registrationOpen", false);
