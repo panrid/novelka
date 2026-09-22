@@ -7,16 +7,14 @@ import panrid.space.novelka.core.support.Json;
 import java.util.List;
 import java.util.Map;
 
-/** Read projections. The latest revision must be complete and match the current source. */
+/** Read projections. Keep the last publishable revision visible while a replacement is prepared. */
 public final class ReaderRepository {
     private static final String PUBLISHED = """
-            WITH latest AS (
-                SELECT DISTINCT ON (novel_id, chapter) novel_id, chapter, revision, state, data
-                FROM jobs ORDER BY novel_id, chapter, revision DESC
-            ), published AS (
-                SELECT j.* FROM latest j JOIN chapters c
-                    ON c.novel_id=j.novel_id AND c.number=j.chapter
-                WHERE j.state='complete' AND j.data->>'sourceHash'=c.source_hash
+            WITH published AS (
+                SELECT DISTINCT ON (j.novel_id, j.chapter) j.*
+                FROM jobs j JOIN chapters c ON c.novel_id=j.novel_id AND c.number=j.chapter
+                WHERE j.state IN ('complete', 'needs-review') AND j.data->>'sourceHash'=c.source_hash
+                ORDER BY j.novel_id, j.chapter, j.revision DESC
             )
             """;
     private final JdbcSession jdbc;

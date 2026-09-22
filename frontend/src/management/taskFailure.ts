@@ -23,5 +23,9 @@ export function describeTaskFailure(message: string) {
         title: 'Результат попереднього запиту невідомий',
         detail: 'Він уже міг коштувати грошей. Перегляньте витрати, а потім відновіть job і позначте дозвіл на повтор uncertain-запиту лише за потреби.',
     };
+    if (message.startsWith('Словник змінився після цього перекладу')) return {
+        title: 'Потрібна нова ревізія перекладу',
+        detail: message,
+    };
     return { title: 'Деталі', detail: message };
 }

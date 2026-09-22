@@ -245,7 +245,7 @@ class PipelineIntegrationTest {
         assertEquals(2, edit.get());
         assertEquals(w.id(), p.create(novel, 1, false).id());
         assertEquals(2, p.create(novel, 1, true).revision());
-        assertEquals(0, store.jobs().completed(novel).size());
+        assertEquals(1, store.jobs().completed(novel).size());
     }
 
     @Test
@@ -287,6 +287,8 @@ class PipelineIntegrationTest {
                         true);
         store.glossaryService().update(novel, new Glossary(2, List.of(changed)));
         assertEquals("needs-review", store.jobs().job(w.id()).state());
+        var error = assertThrows(IllegalStateException.class, () -> p.run(store.jobs().job(w.id()), 0));
+        assertTrue(error.getMessage().contains("proofread " + novel + " --chapter 1"));
         assertEquals(
                 2, inspection.rows("SELECT revision FROM glossary_versions WHERE novel_id=?", novel).size());
     }

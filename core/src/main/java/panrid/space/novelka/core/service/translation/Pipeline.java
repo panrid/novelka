@@ -76,7 +76,11 @@ public final class Pipeline {
     public Work run(Work work, double budget) throws Exception {
         if (work.state().equals("complete")) return work;
         if (work.state().equals("needs-review"))
-            throw new IllegalStateException("Dictionary changed; run proofread or translate --force");
+            throw new IllegalStateException(
+                    "Словник змінився після цього перекладу, тому цей job не можна відновити. "
+                            + "Опублікований текст лишається доступним. Запустіть proofread "
+                            + work.novelId() + " --chapter " + work.chapter()
+                            + " або translate " + work.novelId() + " --chapter " + work.chapter() + " --force.");
         var segments = new ArrayList<>(work.segments());
         String previous = "";
         var prior = database.jobs().latest(work.novelId(), work.chapter() - 1);

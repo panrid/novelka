@@ -106,17 +106,17 @@ class ReaderIntegrationTest {
     }
 
     @Test
-    void latestPendingRevisionHidesOlderCompletedTranslation() throws Exception {
+    void latestPendingRevisionKeepsLastPublishedTranslationAvailable() throws Exception {
         String id = seed("complete");
         try (var database = database()) {
             new Pipeline(database, null, 6000).create(id, 1, true);
         }
-        assertEquals(404, get("/" + id + "/chapters/1").statusCode());
-        assertTrue(Json.read(get("/" + id).body()).path("chapters").isEmpty());
+        assertEquals(200, get("/" + id + "/chapters/1").statusCode());
+        assertEquals(1, Json.read(get("/" + id).body()).path("chapters").size());
     }
 
     @Test
-    void sourceChangesAndReviewStateHideTranslations() throws Exception {
+    void sourceChangesHideTranslationsButDictionaryReviewKeepsThemAvailable() throws Exception {
         String stale = seed("complete");
         try (var database = database()) {
             database.chapters().save(stale, new Chapter(1, "url", "changed",
@@ -124,7 +124,7 @@ class ReaderIntegrationTest {
         }
         assertEquals(404, get("/" + stale + "/chapters/1").statusCode());
         String review = seed("needs-review");
-        assertEquals(404, get("/" + review + "/chapters/1").statusCode());
+        assertEquals(200, get("/" + review + "/chapters/1").statusCode());
     }
 
     @Test

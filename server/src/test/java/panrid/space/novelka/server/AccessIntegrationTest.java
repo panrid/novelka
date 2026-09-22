@@ -247,7 +247,7 @@ class AccessIntegrationTest {
     }
 
     @Test
-    void glossaryChangesInvalidateManuallyEditedDescendants() throws Exception {
+    void glossaryChangesMarkManuallyEditedDescendantsForReviewWithoutUnpublishing() throws Exception {
         String novel = seed();
         String path = "/novels/" + novel + "/chapters/1";
         String job = body(get(owner, path)).path("jobId").asText();
@@ -263,7 +263,7 @@ class AccessIntegrationTest {
         }
         var changed = new panrid.space.novelka.core.model.Entry("person", "character", "涼", "", "Рьоу", List.of(), "male", "", "confirmed", 1, true);
         assertEquals(200, post(owner, "/manage/" + novel + "/glossary", Map.of("revision", 1, "entries", List.of(changed))).statusCode());
-        assertEquals(404, get(owner, path).statusCode());
+        assertEquals(200, get(owner, path).statusCode());
         assertEquals(409, post(owner, "/manage/" + novel + "/glossary", Map.of("revision", 1, "entries", List.of(changed))).statusCode());
         try (var db = new DatabaseSession(postgres.getJdbcUrl("postgres", "postgres"), "postgres", "")) {
             assertEquals("needs-review", db.jobs().latest(novel, 1).state());

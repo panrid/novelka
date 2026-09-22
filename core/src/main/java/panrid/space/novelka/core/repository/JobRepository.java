@@ -45,11 +45,11 @@ public final class JobRepository {
         var result = new ArrayList<Work>();
         for (var r :
                 jdbc.rows(
-                        "SELECT latest.data FROM (SELECT DISTINCT ON(chapter) * FROM jobs WHERE novel_id=?"
-                                + " ORDER BY chapter,revision DESC) latest JOIN chapters c ON"
-                                + " c.novel_id=latest.novel_id AND c.number=latest.chapter WHERE"
-                                + " latest.state='complete' AND latest.data->>'sourceHash'=c.source_hash ORDER BY"
-                                + " latest.chapter",
+                        "SELECT published.data FROM (SELECT DISTINCT ON(j.chapter) j.* FROM jobs j JOIN"
+                                + " chapters c ON c.novel_id=j.novel_id AND c.number=j.chapter WHERE j.novel_id=?"
+                                + " AND j.state IN ('complete','needs-review') AND"
+                                + " j.data->>'sourceHash'=c.source_hash ORDER BY j.chapter,j.revision DESC) published"
+                                + " ORDER BY published.chapter",
                         novel))
             result.add(Json.decode(r.get("data").toString(), Work.class));
         return result;
