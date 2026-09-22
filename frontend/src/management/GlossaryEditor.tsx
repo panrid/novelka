@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { mutate } from '../api/client';
 import { ActionNotice } from '../components/ActionNotice';
 import { useAction } from '../hooks/useAction';
+import { SelectField } from '../components/SelectField';
 
 export interface Entry {
     key: string;
@@ -81,19 +82,16 @@ export function GlossaryEditor({ novel, glossary, proposals, refresh }: {
             <form className="stack-form glossary-form" onSubmit={event => { event.preventDefault(); void save(); }}><h3>{entry.key ? 'Редагувати запис' : 'Новий запис'}</h3>
                 <div className="form-grid"><label>Японською<input required maxLength={1000} placeholder="涼" value={entry.japanese} onChange={event => setEntry({ ...entry, japanese: event.target.value })} /></label>
                     <label>Українською<input maxLength={1000} placeholder="Рьо" value={entry.ukrainian} onChange={event => setEntry({ ...entry, ukrainian: event.target.value })} /></label>
-                    <label>Це<select value={entry.kind} onChange={event => setEntry({ ...entry, kind: event.target.value })}>
-                        <option value="character">Персонаж</option><option value="term">Термін</option><option value="place">Місце</option><option value="other">Інше</option>
-                    </select></label>
-                    {isCharacter && <label>Стать<select value={entry.gender} onChange={event => setEntry({ ...entry, gender: event.target.value })}>
-                        <option value="unknown">Невідомо</option><option value="male">Чоловіча</option><option value="female">Жіноча</option><option value="other">Інша</option>
-                    </select></label>}
+                    <SelectField label="Це" value={entry.kind} onChange={kind => setEntry({ ...entry, kind })}
+                        options={[{ value: 'character', label: 'Персонаж' }, { value: 'term', label: 'Термін' }, { value: 'place', label: 'Місце' }, { value: 'other', label: 'Інше' }]} />
+                    {isCharacter && <SelectField label="Стать" value={entry.gender} onChange={gender => setEntry({ ...entry, gender })}
+                        options={[{ value: 'unknown', label: 'Невідомо' }, { value: 'male', label: 'Чоловіча' }, { value: 'female', label: 'Жіноча' }, { value: 'other', label: 'Інша' }]} />}
                 </div>
                 <label>Коротке пояснення для перекладу<textarea rows={3} maxLength={10000} placeholder="Роль, стосунки, важливі деталі сюжету" value={entry.facts} onChange={event => setEntry({ ...entry, facts: event.target.value })} /></label>
                 <details><summary>Додаткові дані</summary><div className="form-grid"><label>Читання<input maxLength={1000} placeholder="りょう" value={entry.reading} onChange={event => setEntry({ ...entry, reading: event.target.value })} /></label>
                     <label>Інші написання<input maxLength={4000} placeholder="через кому" value={entry.aliases.join(', ')} onChange={event => setEntry({ ...entry, aliases: event.target.value.split(',') })} /></label>
-                    <label>Впевненість<select value={entry.certainty} onChange={event => setEntry({ ...entry, certainty: event.target.value })}>
-                        <option value="unknown">Невідомо</option><option value="assumed">Припущення</option><option value="confirmed">Підтверджено</option>
-                    </select></label>
+                    <SelectField label="Впевненість" value={entry.certainty} onChange={certainty => setEntry({ ...entry, certainty })}
+                        options={[{ value: 'unknown', label: 'Невідомо' }, { value: 'assumed', label: 'Припущення' }, { value: 'confirmed', label: 'Підтверджено' }]} />
                     <label>Глава-джерело<input type="number" min="1" required value={entry.sourceChapter} onChange={event => setEntry({ ...entry, sourceChapter: Number(event.target.value) })} /></label>
                     <label>Технічний ключ<input maxLength={1000} placeholder="За замовчуванням — японське написання" value={entry.key} onChange={event => setEntry({ ...entry, key: event.target.value })} /></label>
                 </div><p className="muted">Ключ потрібен лише для стабільного оновлення наявного запису. Для нового запису його можна не заповнювати.</p></details>

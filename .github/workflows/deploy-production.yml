@@ -32,7 +32,7 @@ jobs:
               run: ./gradlew test :core:integrationTest :server:integrationTest :server:bootJar --no-daemon
             - name: Install browser for UI checks
               working-directory: frontend
-              run: npx playwright install --with-deps chromium
+              run: npx playwright install --with-deps chromium webkit
             - name: Check reader and editorial workspace
               working-directory: frontend
               run: npm test

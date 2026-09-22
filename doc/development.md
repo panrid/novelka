@@ -31,7 +31,7 @@ git diff --check
 | cli:test | Launcher: інша директорія, пробіли у шляхах, env, помилка збірки | Тимчасові shell-фікстури, без БД і реального Gradle |
 | core:integrationTest | SQL, ревізії, словник, аліаси, відновлення з mock HTTP | Embedded PostgreSQL в тимчасовому каталозі |
 | server:integrationTest | HTTP API, аліаси, готові ревізії, зміни оригіналу та відмови | Embedded PostgreSQL та локальний HTTP |
-| frontend: npm test | Каталог, пошук, читалка, налаштування, помилки, mobile | Playwright Chromium, API-фікстури; спочатку npm run build |
+| frontend: npm test | Каталог, читалка, правки, сортування витрат, селектори, mobile | Playwright Chromium і WebKit, API-фікстури; спочатку npm run build |
 | core:liveSourceTest | Реальний API і HTML Syosetu | Інтернет |
 
 Тести не звертаються до платного OpenRouter. integrationTest та liveSourceTest

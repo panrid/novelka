@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { mutate } from '../api/client';
 import { ActionNotice } from '../components/ActionNotice';
 import { useAction } from '../hooks/useAction';
+import { SelectField } from '../components/SelectField';
 
 export function TaskForm({ novel, onCreated }: { novel: string; onCreated: () => void }) {
     const [operation, setOperation] = useState('translate');
@@ -34,9 +35,10 @@ export function TaskForm({ novel, onCreated }: { novel: string; onCreated: () =>
         }}>
             <div className="task-choices" aria-label="Основна дія"><button type="button" aria-pressed={operation === 'import'} onClick={() => choose('import')}><strong>1. Імпортувати</strong><span>Завантажити новелу або глави з Syosetu.</span></button>
                 <button type="button" aria-pressed={operation === 'translate'} onClick={() => choose('translate')}><strong>2. Перекласти</strong><span>Перекласти та автоматично вичитати готові глави.</span></button></div>
-            <details className="advanced-operation"><summary>Додаткові операції</summary><label>Операція<select value={['proofread', 'resume'].includes(operation) ? operation : ''} onChange={event => event.target.value && choose(event.target.value)}>
-                <option value="">Оберіть за потреби</option><option value="proofread">Повторно вичитати одну главу</option><option value="resume">Відновити переклад за ID job</option>
-            </select></label><p className="muted">Використовуйте їх після збою або коли потрібна нова вичитка вже перекладеної глави.</p></details>
+            <details className="advanced-operation"><summary>Додаткові операції</summary>
+                <SelectField label="Операція" value={['proofread', 'resume'].includes(operation) ? operation : ''} onChange={value => { if (value) choose(value); }}
+                    options={[{ value: '', label: 'Оберіть за потреби' }, { value: 'proofread', label: 'Повторно вичитати одну главу' }, { value: 'resume', label: 'Відновити переклад за ID job' }]} />
+                <p className="muted">Використовуйте їх після збою або коли потрібна нова вичитка вже перекладеної глави.</p></details>
             <p className="task-step">Поточний крок: <strong>{operationName}</strong>.</p>
             {operation === 'import' && <label>Посилання на новелу<input type="url" required placeholder="https://ncode.syosetu.com/n0022gd/" value={url} onChange={event => setUrl(event.target.value)} /></label>}
             {operation === 'resume' ? <label>ID перекладу (job)<input required value={jobId} onChange={event => setJobId(event.target.value)} /></label>

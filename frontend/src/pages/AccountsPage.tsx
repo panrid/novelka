@@ -5,6 +5,7 @@ import { mutate } from '../api/client';
 import { useAction } from '../hooks/useAction';
 import { ActionNotice } from '../components/ActionNotice';
 import { ErrorState, Loading } from '../components/Status';
+import { SelectField } from '../components/SelectField';
 
 function AccountRow({ account, refresh }: { account: User; refresh: () => void }) {
     const { user } = useAuth();
@@ -13,9 +14,9 @@ function AccountRow({ account, refresh }: { account: User; refresh: () => void }
     const canEdit = account.id !== user?.id && account.role !== 'OWNER'
         && (user?.role === 'OWNER' || account.role !== 'ADMIN');
     return <tr><td>{account.username}</td><td>{roleNames[account.role]}</td><td>{canEdit && <div className="button-row">
-        <select aria-label={'Роль ' + account.username} value={role} onChange={event => setRole(event.target.value as Role)}>
-            <option value="READER">Читач</option><option value="EDITOR">Редактор</option>{user?.role === 'OWNER' && <option value="ADMIN">Адміністратор</option>}
-        </select><button disabled={action.busy || role === account.role} onClick={() => { void action.run(async () => { await mutate('/accounts/' + account.id + '/role', { role }); refresh(); }); }}>Змінити роль</button>
+        <SelectField hideLabel label={'Роль ' + account.username} value={role} onChange={value => setRole(value as Role)}
+            options={[{ value: 'READER', label: 'Читач' }, { value: 'EDITOR', label: 'Редактор' }, ...(user?.role === 'OWNER' ? [{ value: 'ADMIN', label: 'Адміністратор' }] : [])]} />
+        <button disabled={action.busy || role === account.role} onClick={() => { void action.run(async () => { await mutate('/accounts/' + account.id + '/role', { role }); refresh(); }); }}>Змінити роль</button>
     </div>}<ActionNotice {...action} /></td></tr>;
 }
 export function AccountsPage() {

@@ -40,7 +40,19 @@ test('reader submits a revision-bound private correction without rendering html'
         return route.fulfill({ json: { id: 'correction1' } });
     });
     await page.goto('/#/novels/n0022gd/chapters/1');
-    await page.getByRole('button', { name: 'Запропонувати правку' }).nth(1).click();
+    await expect(page.getByRole('button', { name: 'Запропонувати правку' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Режим правок' }).click();
+    await expect(page.getByRole('button', { name: 'Запропонувати правку' })).toHaveCount(2);
+    await page.getByRole('button', { name: 'Режим правок' }).click();
+    await page.locator('.reading-text .editable-content').evaluate(element => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        window.getSelection()?.removeAllRanges();
+        window.getSelection()?.addRange(range);
+    });
+    await expect(page.getByRole('button', { name: 'Запропонувати правку' })).toHaveCount(1);
+    await page.getByRole('button', { name: 'Запропонувати правку' }).click();
+    await expect(page.locator('.correction-form blockquote')).toHaveText('Він ішов.');
     await page.getByLabel('Виправлений абзац').fill('Він крокував. <b>Текст</b>');
     await page.getByRole('button', { name: 'Надіслати', exact: true }).click();
     await expect(page.getByText('Ваша версія · очікує перевірки')).toBeVisible();
@@ -60,7 +72,8 @@ test('owner launches budgeted translation and sees persisted queue', async ({ pa
         return route.fulfill({ json: tasks });
     });
     await page.goto('/#/manage');
-    await page.getByRole('combobox', { name: 'Новела', exact: true }).selectOption(novel.id);
+    await page.getByRole('combobox', { name: 'Новела', exact: true }).click();
+    await page.getByRole('option', { name: 'Водяний маг · n0022gd', exact: true }).click();
     await page.getByLabel('Остання глава').fill('10');
     await page.getByLabel('Додатковий бюджет').fill('.5');
     await expect(page.getByRole('button', { name: 'Додати в чергу' })).toBeDisabled();
@@ -94,7 +107,8 @@ test('owner edits reader metadata and sees an explained legacy task failure', as
     await expect(page.getByText('ШІ потребує уточнення словника')).toBeVisible();
     await page.getByRole('article', { name: 'Переклад n0022gd' }).getByText('Подробиці').click();
     await expect(page.getByText('до 6 пошуків у словнику')).toBeVisible();
-    await page.getByRole('combobox', { name: 'Новела', exact: true }).selectOption(novel.id);
+    await page.getByRole('combobox', { name: 'Новела', exact: true }).click();
+    await page.getByRole('option', { name: 'Водяний маг · n0022gd', exact: true }).click();
     await page.getByRole('button', { name: 'Дані новели', exact: true }).click();
     await page.getByLabel('Українська назва').fill('Водяний маг');
     await page.getByLabel('Автор українською').fill('Кубо Тадаші');
