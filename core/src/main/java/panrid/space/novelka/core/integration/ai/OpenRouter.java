@@ -81,7 +81,8 @@ public final class OpenRouter implements AiClient {
             throws Exception {
         if (calls.hasUncertain(job.id(), stage, segment))
             throw new IllegalStateException(
-                    "Uncertain previous request; inspect costs then resume --retry-uncertain");
+                    "Результат попереднього запиту до ШІ невідомий: він уже міг коштувати грошей. "
+                            + "Перевірте витрати та відновіть переклад із --retry-uncertain лише за потреби.");
         String prompt;
         try (var in = OpenRouter.class.getResourceAsStream("/prompts/" + stage + ".txt")) {
             if (in == null) throw new IllegalArgumentException("Unknown stage");
@@ -149,11 +150,14 @@ public final class OpenRouter implements AiClient {
             var calls = message.path("tool_calls");
             if (calls.isArray() && !calls.isEmpty()) {
                 if (round == 3 || toolUses + calls.size() > 6)
-                    throw new IllegalStateException("Dictionary tool limit exceeded");
+                    throw new IllegalStateException(
+                            "ШІ перевищив ліміт пошуків у словнику: на один етап доступно до 6 пошуків. "
+                                    + "Завершені частини перекладу збережено. Уточніть імена або терміни у словнику "
+                                    + "та відновіть переклад за ID job.");
                 messages.add(Json.M.convertValue(message, Object.class));
                 for (var tc : calls) {
                     if (!tc.path("function").path("name").asText().equals("dictionary_search"))
-                        throw new IllegalStateException("Unknown tool");
+                        throw new IllegalStateException("ШІ запросив непідтримуваний інструмент. Спробуйте відновити переклад пізніше.");
                     String query =
                             Json.read(tc.path("function").path("arguments").asText()).path("query").asText();
                     messages.add(
@@ -169,11 +173,14 @@ public final class OpenRouter implements AiClient {
             } else {
                 if (!"stop".equals(choice.path("finish_reason").asText()))
                     throw new IllegalStateException(
-                            "Incomplete model response: " + choice.path("finish_reason").asText());
+                            "ШІ не завершив відповідь (" + choice.path("finish_reason").asText()
+                                    + "). Прогрес збережено; відновіть переклад за ID job.");
                 return normalize(stage, payload, Json.read(message.path("content").asText()));
             }
         }
-        throw new IllegalStateException("Tool round limit exceeded");
+        throw new IllegalStateException(
+                "ШІ не зміг завершити відповідь після чотирьох раундів уточнення словника. "
+                        + "Доповніть словник потрібними іменами або термінами та відновіть переклад за ID job.");
     }
 
     static Object responseFormat(String stage, Object payload) {
@@ -261,7 +268,8 @@ public final class OpenRouter implements AiClient {
                 return Json.read(previous.getFirst().get("response").toString());
             if (state.equals("pending") || state.equals("uncertain"))
                 throw new IllegalStateException(
-                        "Uncertain previous request; inspect costs, then resume --retry-uncertain explicitly");
+                        "Результат попереднього запиту до ШІ невідомий: він уже міг коштувати грошей. "
+                                + "Перевірте витрати та відновіть переклад із --retry-uncertain лише за потреби.");
         }
         // Conservative UTF-8 byte upper bound, not a tokenizer measurement.
         double estimate =
@@ -270,7 +278,7 @@ public final class OpenRouter implements AiClient {
                         / 1_000_000;
         for (int attempt = 0; attempt < 3; attempt++) {
             if (budget > 0 && calls.spent(job.id()) + estimate > budget)
-                throw new IllegalStateException("Budget reached before next request; progress saved");
+                throw new IllegalStateException("Бюджет досягнуто перед наступним запитом. Виконаний прогрес збережено.");
             System.err.printf(
                     java.util.Locale.ROOT,
                     "%s segment %d: request cost reserve $%.6f%n",
@@ -296,7 +304,9 @@ public final class OpenRouter implements AiClient {
                                 HttpResponse.BodyHandlers.ofString());
             } catch (Exception e) {
                 calls.uncertain(id, (System.nanoTime() - start) / 1_000_000);
-                throw new IllegalStateException("OpenRouter request outcome unknown; call " + id, e);
+                throw new IllegalStateException(
+                        "Не вдалося визначити результат запиту OpenRouter; він міг бути оплачений. "
+                                + "Перевірте витрати для виклику " + id + " перед відновленням.", e);
             }
             long elapsed = (System.nanoTime() - start) / 1_000_000;
             JsonNode body;
@@ -304,7 +314,9 @@ public final class OpenRouter implements AiClient {
                 body = Json.read(response.body());
             } catch (Exception e) {
                 calls.uncertain(id, elapsed);
-                throw new IllegalStateException("Unparseable API response; outcome unknown");
+                throw new IllegalStateException(
+                        "OpenRouter повернув нерозбірливу відповідь; результат запиту невідомий. "
+                                + "Перевірте витрати перед відновленням.");
             }
             boolean success = response.statusCode() == 200 && body.has("choices") && !body.has("error");
             String state =
@@ -322,9 +334,23 @@ public final class OpenRouter implements AiClient {
                 Thread.sleep(1000L * (attempt + 1));
                 continue;
             }
-            throw new IllegalStateException(
-                    "OpenRouter HTTP " + response.statusCode() + "; call " + id + " (" + state + ")");
+            throw new IllegalStateException(providerError(response.statusCode(), id, state));
         }
-        throw new IllegalStateException("Retry limit reached");
+        throw new IllegalStateException("OpenRouter не відповів після кількох спроб. Спробуйте відновити переклад пізніше.");
+    }
+
+    private String providerError(int status, String callId, String state) {
+        String explanation = switch (status) {
+            case 400 -> "OpenRouter відхилив параметри запиту. Перевірте вибрану модель і її підтримку JSON та інструментів.";
+            case 401 -> "OpenRouter не прийняв API-ключ. Перевірте OPENROUTER_API_KEY на сервері.";
+            case 402 -> "На акаунті OpenRouter недостатньо коштів або доступу для цієї моделі.";
+            case 403 -> "OpenRouter заборонив цей запит. Перевірте доступ ключа та моделі у кабінеті OpenRouter.";
+            case 429 -> "OpenRouter тимчасово обмежив кількість запитів. Зачекайте та відновіть переклад пізніше.";
+            default -> "OpenRouter повернув HTTP " + status + ".";
+        };
+        String outcome = state.equals("uncertain")
+                ? "Результат виклику невідомий, тому він уже міг бути оплачений."
+                : "Запит не був виконаний провайдером.";
+        return explanation + " " + outcome + " ID виклику: " + callId + ".";
     }
 }

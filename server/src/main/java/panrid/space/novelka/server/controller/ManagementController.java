@@ -11,6 +11,7 @@ import panrid.space.novelka.core.model.Glossary;
 import panrid.space.novelka.core.model.Novel;
 import panrid.space.novelka.core.service.glossary.Dictionary;
 import panrid.space.novelka.core.support.Json;
+import panrid.space.novelka.server.account.Account;
 import panrid.space.novelka.server.account.AccessService;
 import panrid.space.novelka.server.account.Role;
 import panrid.space.novelka.server.config.ReaderDatabase;
@@ -58,17 +59,39 @@ public final class ManagementController {
         var actor = access.require(principal, Role.ADMIN);
         if (request.titleUk() == null || request.titleUk().isBlank() || request.titleUk().length() > 500)
             throw new IllegalArgumentException("Вкажіть українську назву до 500 символів.");
+        return updateMetadata(actor, novel, request, true);
+    }
+
+    @PostMapping("/{novel}/metadata")
+    public Map<String, String> metadata(Principal principal, @PathVariable String novel, @RequestBody MetadataRequest request) throws Exception {
+        return updateMetadata(access.require(principal, Role.ADMIN), novel, request, false);
+    }
+
+    private Map<String, String> updateMetadata(Account actor, String novel, MetadataRequest request, boolean preserveMissing) throws Exception {
         try (var jdbc = database.open()) {
             var repository = new panrid.space.novelka.core.repository.NovelRepository(jdbc);
             String id = repository.resolveNovel(novel);
             try (var lock = jdbc.lock(id)) { jdbc.transaction(() -> {
                 var old = repository.novel(id);
-                repository.save(new Novel(id, old.title(), request.titleUk().strip(), old.author(), old.url(), old.chapterCount(), old.shortStory()));
-                new AuditRepository(jdbc).add(actor.id(), "novel.title", id, request);
+                String titleUk = localized(request.titleUk(), 500, "українську назву");
+                if (preserveMissing && titleUk == null) titleUk = old.titleUk();
+                String authorUk = preserveMissing ? old.authorUk() : localized(request.authorUk(), 500, "українського автора");
+                String descriptionUk = preserveMissing ? old.descriptionUk()
+                        : localized(request.descriptionUk(), 10000, "український опис");
+                repository.save(new Novel(id, old.title(), titleUk, old.author(), authorUk, descriptionUk,
+                        old.url(), old.chapterCount(), old.shortStory()));
+                new AuditRepository(jdbc).add(actor.id(), "novel.metadata", id, request);
                 return null;
             }); }
         }
-        return Map.of("message", "Назву збережено.");
+        return Map.of("message", "Українські дані новели збережено.");
+    }
+
+    private String localized(String value, int maximum, String field) {
+        if (value == null || value.isBlank()) return null;
+        String normalized = value.strip();
+        if (normalized.length() > maximum) throw new IllegalArgumentException("Вкажіть " + field + " до " + maximum + " символів.");
+        return normalized;
     }
 
     @PostMapping("/{novel}/aliases")

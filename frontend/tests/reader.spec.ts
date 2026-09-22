@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const novel = {
     id: 'n0022gd', title: 'Водяний маг', author: 'Кубо Тадаші', chapterCount: 100,
-    readyChapters: 2, aliases: ['water'],
+    description: 'Історія про мага води та його нове життя.', readyChapters: 2, aliases: ['water'],
 };
 const chapters = [
     { number: 1, title: 'Пролог', revision: 1 },
@@ -55,14 +55,15 @@ test('catalog search, contents and navigation follow available chapter numbers',
 test('reader preferences survive reload and resume uses the canonical novel id', async ({ page }) => {
     await library(page);
     await page.goto('/#/novels/n0022gd/chapters/3');
-    await page.getByRole('button', { name: 'Збільшити текст' }).click();
-    await page.getByRole('button', { name: 'Темна тема' }).click();
-    await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.getByRole('button', { name: 'Збільшити текст' }).click();
+    await page.locator('.reader-toolbar').getByRole('button', { name: 'Світла тема' }).click();
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     await expect(page.locator('article')).toHaveCSS('font-size', '22px');
     await page.getByRole('link', { name: '← Зміст', exact: true }).click();
     await expect(page.getByRole('link', { name: 'Продовжити читання' })).toHaveAttribute('href', '#/novels/n0022gd/chapters/3');
-    await expect(page.locator('html')).not.toHaveAttribute('data-theme', 'dark');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
 
 test('empty catalog and no search results are distinct', async ({ page }) => {

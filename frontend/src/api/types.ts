@@ -2,6 +2,7 @@ export interface NovelCard {
     id: string;
     title: string;
     author: string;
+    description: string;
     chapterCount: number;
     readyChapters: number;
     aliases: string[];
@@ -17,6 +18,7 @@ export interface NovelDetail {
     id: string;
     title: string;
     author: string;
+    description: string;
     chapterCount: number;
     chapters: ChapterSummary[];
 }

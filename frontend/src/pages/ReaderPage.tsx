@@ -6,22 +6,18 @@ import { readPreference, savePreference } from '../lib/preferences';
 import { ErrorState, Loading } from '../components/Status';
 import { EditableBlock } from '../components/EditableBlock';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 
 export function ReaderPage({ id, number }: { id: string; number: number }) {
     const { user } = useAuth();
     const chapter = useResource<ReaderChapter>(chapterPath(id, number));
     const novel = useResource<NovelDetail>(novelPath(id));
-    const [theme, setTheme] = useState(() => readPreference('theme') === 'dark' ? 'dark' : 'light');
+    const { theme, toggleTheme } = useTheme();
     const [fontSize, setFontSize] = useState(() => {
         const saved = Number(readPreference('font-size'));
         return saved >= 16 && saved <= 28 ? saved : 20;
     });
     const data = chapter.data;
-    useEffect(() => {
-        document.documentElement.dataset.theme = theme;
-        savePreference('theme', theme);
-        return () => { delete document.documentElement.dataset.theme; };
-    }, [theme]);
     useEffect(() => { savePreference('font-size', String(fontSize)); }, [fontSize]);
     useEffect(() => {
         if (data) {
@@ -43,7 +39,7 @@ export function ReaderPage({ id, number }: { id: string; number: number }) {
                 <span aria-label="Розмір тексту">{fontSize}</span>
                 <button aria-label="Збільшити текст" disabled={fontSize >= 28} onClick={() => setFontSize(size => size + 2)}>А+</button>
                 <span className="control-divider" />
-                <button aria-label={theme === 'dark' ? 'Світла тема' : 'Темна тема'} aria-pressed={theme === 'dark'} onClick={() => setTheme(value => value === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☀' : '☾'}</button>
+                <button aria-label={theme === 'dark' ? 'Світла тема' : 'Темна тема'} aria-pressed={theme === 'dark'} onClick={toggleTheme}>{theme === 'dark' ? '☀' : '☾'}</button>
             </div>
         </div>
         <article className="reading-sheet" style={{ fontSize }}>

@@ -15,7 +15,7 @@ export function NovelPage({ id }: { id: string }) {
     const first = resume || data.chapters[0];
     return <div className="page novel-page">
         <a className="back-link" href="#/">← До каталогу</a>
-        <section className="novel-intro"><div className="eyebrow">Японська новела · {data.id}</div><h1>{data.title}</h1><p className="novel-author">{data.author}</p>
+        <section className="novel-intro"><div className="eyebrow">Японська новела · {data.id}</div><h1>{data.title}</h1><p className="novel-author">{data.author}</p>{data.description && <p className="novel-description">{data.description}</p>}
             <p className="muted">{data.chapters.length} готових глав із {data.chapterCount} в оригіналі</p>
             {first && <a className="button" href={'#' + chapterPath(data.id, first.number)}>{resume ? 'Продовжити читання' : 'Почати читання'} <span aria-hidden="true">→</span></a>}
         </section>

@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const reader = { id: 'reader', username: 'reader', role: 'READER' };
 const owner = { id: 'owner', username: 'owner', role: 'OWNER' };
-const novel = { id: 'n0022gd', title: 'Водяний маг', author: 'Автор', chapterCount: 10, readyChapters: 1, aliases: [] };
+const novel = { id: 'n0022gd', title: 'Водяний маг', author: 'Автор', description: '', chapterCount: 10, readyChapters: 1, aliases: [] };
 
 async function session(page: Page, user: typeof reader | null) {
     await page.route('**/api/auth/me', route => route.fulfill({ json: { user, registrationOpen: true } }));
@@ -70,6 +70,35 @@ test('owner launches budgeted translation and sees persisted queue', async ({ pa
     await expect(page.getByRole('link', { name: 'Налаштування', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('workspace.png'), fullPage: true });
+});
+
+test('owner edits reader metadata and sees an explained legacy task failure', async ({ page }) => {
+    await session(page, owner);
+    await page.route('**/api/tasks**', route => route.fulfill({ json: [{
+        id: 'failed-task', novel_id: novel.id, operation: 'translate', state: 'failed', spent_usd: .02,
+        username: owner.username, current_job_id: 'job-failed', message: 'Dictionary tool limit exceeded',
+    }] }));
+    await page.route('**/api/manage/n0022gd', route => {
+        if (route.request().method() === 'POST') {
+            expect(route.request().postDataJSON()).toEqual({
+                titleUk: 'Водяний маг', authorUk: 'Кубо Тадаші', descriptionUk: 'Пригода мага води.',
+            });
+            return route.fulfill({ json: { message: 'Збережено' } });
+        }
+        return route.fulfill({ json: {
+            novel: { id: novel.id, title: '水属性の魔法使い', titleUk: null, author: '久宝忠', authorUk: null, descriptionUk: null, chapterCount: 10 },
+            aliases: [], chapters: [], jobs: [], glossary: { revision: 0, entries: [] }, proposals: [],
+        } });
+    });
+    await page.goto('/#/manage');
+    await expect(page.getByText('ШІ потребує уточнення словника')).toBeVisible();
+    await expect(page.getByText('до 6 пошуків у словнику')).toBeVisible();
+    await page.getByRole('combobox', { name: 'Новела', exact: true }).selectOption(novel.id);
+    await page.getByRole('button', { name: 'Дані новели', exact: true }).click();
+    await page.getByLabel('Українська назва').fill('Водяний маг');
+    await page.getByLabel('Автор українською').fill('Кубо Тадаші');
+    await page.getByLabel('Опис українською').fill('Пригода мага води.');
+    await page.getByRole('button', { name: 'Зберегти дані' }).click();
 });
 
 test('editor approves a correction with a reason', async ({ page }) => {

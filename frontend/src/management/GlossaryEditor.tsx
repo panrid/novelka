@@ -1,33 +1,119 @@
 import { useState } from 'react';
 import { mutate } from '../api/client';
-import { useAction } from '../hooks/useAction';
 import { ActionNotice } from '../components/ActionNotice';
+import { useAction } from '../hooks/useAction';
 
-export interface Entry { key: string; kind: string; japanese: string; reading: string; ukrainian: string; aliases: string[]; gender: string; facts: string; certainty: string; sourceChapter: number; manual: boolean }
-export interface Glossary { revision: number; entries: Entry[] }
-const empty: Entry = { key: '', kind: 'character', japanese: '', reading: '', ukrainian: '', aliases: [], gender: 'unknown', facts: '', certainty: 'unknown', sourceChapter: 1, manual: true };
-export function GlossaryEditor({ novel, glossary, proposals, refresh }: { novel: string; glossary: Glossary; proposals: { id: number; proposal: unknown }[]; refresh: () => void }) {
+export interface Entry {
+    key: string;
+    kind: string;
+    japanese: string;
+    reading: string;
+    ukrainian: string;
+    aliases: string[];
+    gender: string;
+    facts: string;
+    certainty: string;
+    sourceChapter: number;
+    manual: boolean;
+}
+
+export interface Glossary {
+    revision: number;
+    entries: Entry[];
+}
+
+const empty: Entry = {
+    key: '', kind: 'character', japanese: '', reading: '', ukrainian: '', aliases: [], gender: 'unknown',
+    facts: '', certainty: 'unknown', sourceChapter: 1, manual: true,
+};
+
+function isEntry(value: unknown): value is Entry {
+    return typeof value === 'object' && value !== null && 'japanese' in value && 'ukrainian' in value && 'kind' in value;
+}
+
+function suggestedEntry(value: unknown) {
+    return isEntry(value) ? {
+        ...empty,
+        ...value,
+        aliases: Array.isArray(value.aliases) ? value.aliases : [],
+        key: value.key || value.japanese,
+        manual: true,
+    } : null;
+}
+
+export function GlossaryEditor({ novel, glossary, proposals, refresh }: {
+    novel: string;
+    glossary: Glossary;
+    proposals: { id: number; proposal: unknown }[];
+    refresh: () => void;
+}) {
     const [query, setQuery] = useState('');
     const [entry, setEntry] = useState<Entry>({ ...empty });
     const action = useAction();
-    const matches = glossary.entries.filter(item => JSON.stringify(item).toLowerCase().includes(query.toLowerCase()));
-    return <section className="panel"><h2>Словник · версія {glossary.revision}</h2>
-        <label>Пошук імен, термінів і фактів<input value={query} onChange={event => setQuery(event.target.value)} /></label>
-        <div className="glossary-list">{matches.map(item => <button key={item.key} onClick={() => setEntry({ ...item })}>{item.japanese} → {item.ukrainian || '—'} <small>{item.key} · {item.gender}</small></button>)}</div>
-        {!matches.length && <p>Записів не знайдено.</p>}
-        <button onClick={() => setEntry({ ...empty })}>Новий запис</button>
-        <form className="stack-form" onSubmit={event => { event.preventDefault(); void action.run(async () => {
-            await mutate('/manage/' + encodeURIComponent(novel) + '/glossary', { revision: glossary.revision, entries: [entry] }); refresh();
-        }, 'Запис збережено. Залежні переклади позначено на перевірку.'); }}>
-            <div className="form-grid">{Object.entries({ key: 'Стабільний ключ', kind: 'Тип (character / term / place)', japanese: 'Японською', reading: 'Читання', ukrainian: 'Українською' }).map(([key, label]) => <label key={key}>{label}<input required={['key', 'japanese', 'kind'].includes(key)} maxLength={1000} value={entry[key as keyof Entry] as string} onChange={event => setEntry({ ...entry, [key]: event.target.value })} /></label>)}</div>
-            <p className="muted">Ключ визначає запис: той самий ключ оновлює його, інший створює новий. Ручні записи мають пріоритет перед пропозиціями ШІ.</p>
-            <label>Інші написання, через кому<input value={entry.aliases.join(', ')} onChange={event => setEntry({ ...entry, aliases: event.target.value.split(',').map(value => value.trim()) })} /></label>
-            <div className="form-grid"><label>Стать<select value={entry.gender} onChange={event => setEntry({ ...entry, gender: event.target.value })}>{Object.entries({ unknown: 'Невідомо', male: 'Чоловіча', female: 'Жіноча', other: 'Інша' }).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-                <label>Впевненість<select value={entry.certainty} onChange={event => setEntry({ ...entry, certainty: event.target.value })}>{Object.entries({ unknown: 'Невідомо', assumed: 'Припущення', confirmed: 'Підтверджено' }).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-                <label>Глава-джерело<input type="number" min="1" required value={entry.sourceChapter} onChange={event => setEntry({ ...entry, sourceChapter: Number(event.target.value) })} /></label></div>
-            <label>Факти й контекст<textarea rows={4} maxLength={10000} value={entry.facts} onChange={event => setEntry({ ...entry, facts: event.target.value })} /></label>
-            <button className="button" disabled={action.busy}>Зберегти запис</button><ActionNotice {...action} />
-        </form>
-        <details><summary>Пропозиції ШІ ({proposals.length})</summary><p>Перевірте пропозицію та перенесіть підтверджені дані у форму вище.</p>{proposals.map(proposal => <pre key={proposal.id}>{JSON.stringify(proposal.proposal, null, 2)}</pre>)}</details>
-    </section>;
+    const normalizedQuery = query.trim().toLocaleLowerCase('uk');
+    const matches = glossary.entries.filter(item => [item.japanese, item.ukrainian, item.reading, ...item.aliases]
+        .join(' ').toLocaleLowerCase('uk').includes(normalizedQuery));
+    const isCharacter = entry.kind === 'character';
+    const save = () => action.run(async () => {
+        const updated = {
+            ...entry,
+            key: entry.key.trim() || entry.japanese.trim(),
+            japanese: entry.japanese.trim(),
+            ukrainian: entry.ukrainian.trim(),
+            reading: entry.reading.trim(),
+            aliases: entry.aliases.map(value => value.trim()).filter(Boolean),
+            facts: entry.facts.trim(),
+            manual: true,
+        };
+        await mutate('/manage/' + encodeURIComponent(novel) + '/glossary', { revision: glossary.revision, entries: [updated] });
+        setEntry(updated);
+        refresh();
+    }, 'Запис збережено. Пов’язані переклади позначено для перевірки.');
+
+    return <div className="glossary-panel"><div className="panel-heading"><div><h2>Словник</h2><p className="muted">Імена, терміни й факти, які ШІ використовує під час перекладу.</p></div><span className="badge">Версія {glossary.revision}</span></div>
+        <div className="glossary-layout"><div className="glossary-browser"><label>Знайти запис<input placeholder="Ім’я, термін або переклад" value={query} onChange={event => setQuery(event.target.value)} /></label>
+            <div className="glossary-list" aria-label="Записи словника">{matches.map(item => <button type="button" key={item.key} className={entry.key === item.key ? 'selected' : ''} onClick={() => setEntry({ ...item })}>
+                <strong>{item.japanese}</strong> <span>→ {item.ukrainian || 'ще не перекладено'}</span><small>{kindLabel(item.kind)}{item.kind === 'character' && ' · ' + genderLabel(item.gender)}</small>
+            </button>)}</div>
+            {!matches.length && <p className="muted">Записів не знайдено.</p>}
+            <button type="button" onClick={() => setEntry({ ...empty })}>+ Новий запис</button>
+        </div>
+            <form className="stack-form glossary-form" onSubmit={event => { event.preventDefault(); void save(); }}><h3>{entry.key ? 'Редагувати запис' : 'Новий запис'}</h3>
+                <div className="form-grid"><label>Японською<input required maxLength={1000} placeholder="涼" value={entry.japanese} onChange={event => setEntry({ ...entry, japanese: event.target.value })} /></label>
+                    <label>Українською<input maxLength={1000} placeholder="Рьо" value={entry.ukrainian} onChange={event => setEntry({ ...entry, ukrainian: event.target.value })} /></label>
+                    <label>Це<select value={entry.kind} onChange={event => setEntry({ ...entry, kind: event.target.value })}>
+                        <option value="character">Персонаж</option><option value="term">Термін</option><option value="place">Місце</option><option value="other">Інше</option>
+                    </select></label>
+                    {isCharacter && <label>Стать<select value={entry.gender} onChange={event => setEntry({ ...entry, gender: event.target.value })}>
+                        <option value="unknown">Невідомо</option><option value="male">Чоловіча</option><option value="female">Жіноча</option><option value="other">Інша</option>
+                    </select></label>}
+                </div>
+                <label>Коротке пояснення для перекладу<textarea rows={3} maxLength={10000} placeholder="Роль, стосунки, важливі деталі сюжету" value={entry.facts} onChange={event => setEntry({ ...entry, facts: event.target.value })} /></label>
+                <details><summary>Додаткові дані</summary><div className="form-grid"><label>Читання<input maxLength={1000} placeholder="りょう" value={entry.reading} onChange={event => setEntry({ ...entry, reading: event.target.value })} /></label>
+                    <label>Інші написання<input maxLength={4000} placeholder="через кому" value={entry.aliases.join(', ')} onChange={event => setEntry({ ...entry, aliases: event.target.value.split(',') })} /></label>
+                    <label>Впевненість<select value={entry.certainty} onChange={event => setEntry({ ...entry, certainty: event.target.value })}>
+                        <option value="unknown">Невідомо</option><option value="assumed">Припущення</option><option value="confirmed">Підтверджено</option>
+                    </select></label>
+                    <label>Глава-джерело<input type="number" min="1" required value={entry.sourceChapter} onChange={event => setEntry({ ...entry, sourceChapter: Number(event.target.value) })} /></label>
+                    <label>Технічний ключ<input maxLength={1000} placeholder="За замовчуванням — японське написання" value={entry.key} onChange={event => setEntry({ ...entry, key: event.target.value })} /></label>
+                </div><p className="muted">Ключ потрібен лише для стабільного оновлення наявного запису. Для нового запису його можна не заповнювати.</p></details>
+                <button className="button" disabled={action.busy}>Зберегти запис</button><ActionNotice {...action} />
+            </form>
+        </div>
+        <details className="suggestion-list"><summary>Пропозиції ШІ ({proposals.length})</summary><p>Пропозиції не змінюють словник автоматично. Відкрийте потрібну у формі, перевірте дані та збережіть її вручну.</p>
+            {proposals.map(item => {
+                const suggested = suggestedEntry(item.proposal);
+                return <article className="suggestion-card" key={item.id}>{suggested ? <><strong>{suggested.japanese} → {suggested.ukrainian || 'без перекладу'}</strong><span>{kindLabel(suggested.kind)}</span><button type="button" onClick={() => setEntry(suggested)}>Відкрити у формі</button></> : <><strong>Пропозиція з помилкою</strong><p className="muted">ШІ повернув дані, які не можна безпечно додати до словника.</p><details><summary>Технічні дані</summary><pre>{JSON.stringify(item.proposal, null, 2)}</pre></details></>}</article>;
+            })}
+            {!proposals.length && <p className="muted">Поки немає нових пропозицій.</p>}
+        </details>
+    </div>;
+}
+
+function kindLabel(kind: string) {
+    return ({ character: 'персонаж', term: 'термін', place: 'місце', other: 'інше' } as Record<string, string>)[kind] || kind;
+}
+
+function genderLabel(gender: string) {
+    return ({ unknown: 'стать невідома', male: 'чоловіча стать', female: 'жіноча стать', other: 'інша стать' } as Record<string, string>)[gender] || gender;
 }

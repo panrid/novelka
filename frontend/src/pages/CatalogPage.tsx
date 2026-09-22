@@ -39,7 +39,7 @@ export function CatalogPage() {
             </div> : <div className="novel-grid">{novels.map((novel, index) => <a className="novel-card" key={novel.id} href={'#' + novelPath(novel.id)}>
                 <div className={'book-cover cover-' + index % 4} aria-hidden="true"><div className="cover-circle" /><span className="cover-id">{novel.id}</span><span className="cover-letter">{novel.title.slice(0, 1)}</span><span className="cover-imprint">NOVELKA / STORIES</span></div>
                 <div className="card-body"><span className={'availability' + (novel.readyChapters ? ' available' : '')}>{novel.readyChapters ? 'Готово до читання' : 'Очікує перекладу'}</span>
-                    <h3>{novel.title}</h3><p className="card-author">{novel.author}</p>
+                    <h3>{novel.title}</h3><p className="card-author">{novel.author}</p>{novel.description && <p className="card-description">{novel.description}</p>}
                     {novel.aliases.length > 0 && <p className="card-alias">{novel.aliases.join(' · ')}</p>}
                     <div className="card-bottom"><span>{novel.readyChapters} / {novel.chapterCount} глав</span><span aria-hidden="true">↗</span></div>
                 </div>

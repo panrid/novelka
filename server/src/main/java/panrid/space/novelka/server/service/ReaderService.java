@@ -32,7 +32,7 @@ public final class ReaderService {
                 var novel = Json.decode(row.get("data").toString(), Novel.class);
                 var aliases = StreamSupport.stream(Json.read(row.get("aliases").toString()).spliterator(), false)
                         .map(node -> node.asText()).toList();
-                cards.add(new NovelCard(novel.id(), novel.displayTitle(), novel.author(), novel.chapterCount(),
+                cards.add(new NovelCard(novel.id(), novel.displayTitle(), novel.displayAuthor(), description(novel), novel.chapterCount(),
                         ((Number) row.get("ready_chapters")).intValue(), aliases));
             }
             return cards;
@@ -47,7 +47,7 @@ public final class ReaderService {
             var chapters = new ReaderRepository(jdbc).chapters(id).stream()
                     .map(row -> new ChapterSummary(((Number) row.get("chapter")).intValue(),
                             (String) row.get("title"), ((Number) row.get("revision")).intValue())).toList();
-            return new NovelDetail(id, novel.displayTitle(), novel.author(), novel.chapterCount(), chapters);
+            return new NovelDetail(id, novel.displayTitle(), novel.displayAuthor(), description(novel), novel.chapterCount(), chapters);
         }
     }
 
@@ -77,5 +77,9 @@ public final class ReaderService {
         } catch (IllegalArgumentException error) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
+    }
+
+    private String description(Novel novel) {
+        return novel.descriptionUk() == null ? "" : novel.descriptionUk();
     }
 }

@@ -98,6 +98,23 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void managementPublishesLocalizedNovelMetadata() throws Exception {
+        String novel = seed();
+        var metadata = Map.of(
+                "titleUk", "Водяний маг",
+                "authorUk", "Кубо Тадаші",
+                "descriptionUk", "Історія про мага, який починає нове життя.");
+        assertEquals(200, post(owner, "/manage/" + novel + "/metadata", metadata).statusCode());
+        var publicNovel = body(get(owner, "/novels/" + novel));
+        assertEquals("Водяний маг", publicNovel.path("title").asText());
+        assertEquals("Кубо Тадаші", publicNovel.path("author").asText());
+        assertEquals("Історія про мага, який починає нове життя.", publicNovel.path("description").asText());
+        var managed = body(get(owner, "/manage/" + novel));
+        assertEquals("Водяний маг", managed.path("novel").path("titleUk").asText());
+        assertEquals("Кубо Тадаші", managed.path("novel").path("authorUk").asText());
+    }
+
+    @Test
     void publishesCorrectionsAsRevisionsAndKeepsPendingTextPrivate() throws Exception {
         String novel = seed();
         try (var reader = registered(); var stranger = browser()) {

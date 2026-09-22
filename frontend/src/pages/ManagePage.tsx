@@ -17,7 +17,7 @@ export function ManagePage() {
             <option value="">Оберіть новелу</option>{catalog.data?.map(item => <option value={item.id} key={item.id}>{item.title} · {item.id}</option>)}
         </select></label><button onClick={catalog.retry}>Оновити каталог</button></div>
         {catalog.error && <ErrorState message={catalog.error} retry={catalog.retry} />}
-        <nav className="tab-bar" aria-label="Керування перекладами">{Object.entries({ tasks: 'Запуск і черга', novel: 'Новела й словник', costs: 'Витрати' }).map(([key, label]) => <button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</button>)}</nav>
+        <nav className="tab-bar" aria-label="Керування перекладами">{Object.entries({ tasks: 'Переклад', novel: 'Дані новели', costs: 'Витрати' }).map(([key, label]) => <button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</button>)}</nav>
         {tab === 'tasks' && <><TaskForm novel={novel} onCreated={() => setVersion(value => value + 1)} /><TaskQueue version={version} /></>}
         {tab === 'novel' && (novel ? <NovelManager key={novel} novel={novel} /> : <p>Оберіть новелу. Нову можна додати через імпорт у вкладці запуску.</p>)}
         {tab === 'costs' && <CostReport novel={novel} />}

@@ -44,8 +44,7 @@ public final class TaskWorker {
                 queue.state(id, queue.cancelled(id) ? "cancelled" : "complete", "");
             } catch (Exception error) {
                 boolean cancel = queue.cancelled(id);
-                String message = error instanceof IllegalArgumentException || error instanceof IllegalStateException
-                        ? error.getMessage() : "Операцію перервано. Перевірте стан job і журнал сервера.";
+                String message = TaskFailureMessage.describe(error);
                 queue.state(id, cancel ? "cancelled" : "failed", message == null ? "Помилка операції." : message.substring(0, Math.min(500, message.length())));
                 LOG.warn("Task {} failed ({})", id, error.getClass().getSimpleName());
             }
@@ -61,11 +60,12 @@ public final class TaskWorker {
                 var source = new Syosetu();
                 var imported = source.inspect(request.url());
                 if (request.last() > imported.chapterCount()) throw new IllegalArgumentException("Діапазон перевищує кількість глав.");
-                // Refresh source metadata without erasing the manually assigned Ukrainian title.
-                String titleUk = null;
-                try { titleUk = db.novels().novel(imported.id()).titleUk(); } catch (IllegalArgumentException ignored) { }
-                db.novels().save(new Novel(imported.id(), imported.title(), titleUk, imported.author(),
-                        imported.url(), imported.chapterCount(), imported.shortStory()));
+                // Refresh source metadata without erasing manual Ukrainian metadata.
+                Novel existing = null;
+                try { existing = db.novels().novel(imported.id()); } catch (IllegalArgumentException ignored) { }
+                db.novels().save(new Novel(imported.id(), imported.title(), existing == null ? null : existing.titleUk(),
+                        imported.author(), existing == null ? null : existing.authorUk(),
+                        existing == null ? null : existing.descriptionUk(), imported.url(), imported.chapterCount(), imported.shortStory()));
                 for (int chapter = request.first(); chapter > 0 && chapter <= request.last(); chapter++) {
                     check(queue, task, actor);
                     db.chapters().save(imported.id(), source.fetch(imported, chapter));
