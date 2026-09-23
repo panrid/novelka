@@ -261,6 +261,13 @@ class AccessIntegrationTest {
             queue.recoverInterrupted();
             assertEquals(1, sql.rows("SELECT id FROM notifications WHERE task_id=? AND kind='task_interrupted'", task).size());
         }
+        JsonNode event = null;
+        for (var item : body(get(owner, "/notifications")).path("items"))
+            if (task.equals(item.path("task_id").asText()) && item.path("kind").asText().equals("task_interrupted")) event = item;
+        assertNotNull(event, "task notification must be on the first page");
+        assertEquals("translate", event.path("task_operation").asText());
+        assertEquals(1, event.path("task_first").asInt());
+        assertEquals(1, event.path("task_last").asInt());
         assertEquals(200, get(owner, "/tasks/" + task).statusCode());
         try (var reader = registered()) { assertEquals(403, get(reader, "/tasks/" + task).statusCode()); }
     }

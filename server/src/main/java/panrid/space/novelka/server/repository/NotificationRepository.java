@@ -21,10 +21,12 @@ public final class NotificationRepository {
         var items = jdbc.rows("""
                 SELECT n.id,n.kind,n.novel_id,n.chapter,n.task_id,n.entry_count,n.created_at,
                     COALESCE(NULLIF(v.data->>'titleUk',''),v.data->>'title',n.novel_id) AS novel_title,
-                    (r.notification_id IS NOT NULL) AS read
+                    (r.notification_id IS NOT NULL) AS read,t.operation AS task_operation,
+                    (t.request->>'first')::int AS task_first,(t.request->>'last')::int AS task_last,j.chapter AS task_job_chapter
                 FROM notifications n JOIN accounts a ON a.id=?
                 LEFT JOIN notification_reads r ON r.notification_id=n.id AND r.account_id=a.id
-                LEFT JOIN novels v ON v.id=n.novel_id WHERE
+                LEFT JOIN novels v ON v.id=n.novel_id
+                LEFT JOIN web_tasks t ON t.id=n.task_id LEFT JOIN jobs j ON j.id=t.request->>'jobId' WHERE
                 """ + VISIBLE + " AND (?=0 OR n.id<?) ORDER BY n.id DESC LIMIT 31", account.id(), admin, before, before);
         boolean hasMore = items.size() > 30;
         if (hasMore) items = items.subList(0, 30);

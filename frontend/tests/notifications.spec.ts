@@ -20,7 +20,7 @@ test.beforeEach(async ({ page }) => {
 
 test('notifications persist read state and open exact task or glossary', async ({ page }, testInfo) => {
     const items = [
-        { id: 3, kind: 'task_failed', task_id: task.id, entry_count: null },
+        { id: 3, kind: 'task_failed', task_id: task.id, entry_count: null, task_operation: 'translate', task_first: 7, task_last: 10 },
         { id: 2, kind: 'glossary_added', task_id: null, entry_count: 2 },
         { id: 1, kind: 'chapter_published', task_id: null, entry_count: null },
     ].map(item => ({ ...item, novel_id: novel.id, novel_title: novel.title, chapter: 2, created_at: '2026-09-23T08:00:00Z', read: false }));
@@ -40,7 +40,8 @@ test('notifications persist read state and open exact task or glossary', async (
     expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     await page.screenshot({ path: testInfo.outputPath('notifications.png') });
     await expect(panel.getByRole('link', { name: /Нова глава 2/ })).toHaveAttribute('href', '#/novels/n0022gd/chapters/2');
-    await panel.getByRole('link', { name: /Завдання зупинилось/ }).click();
+    await expect(panel.getByRole('link', { name: /Переклад зупинився через помилку: глави 7–10/ })).toContainText('Водяний маг');
+    await panel.getByRole('link', { name: /Переклад зупинився/ }).click();
     await expect(page).toHaveURL(/task=failed-task/);
     await expect(page.getByRole('button', { name: 'Повторно вичитати', exact: true })).toBeVisible();
     await page.reload();
@@ -109,4 +110,22 @@ test('newly received events update badge and show an in-site notification', asyn
     await expect(page.locator('.notification-toast')).toContainText('Завдання успішно завершено');
     await page.getByRole('button', { name: 'Приховати сповіщення' }).click();
     await expect(page.locator('.notification-toast')).toHaveCount(0);
+});
+
+test('task notifications describe operation and chapters from the stored task', async ({ page }) => {
+    const base = { novel_id: novel.id, novel_title: novel.title, chapter: null, entry_count: null, created_at: '2026-09-23T08:00:00Z', read: false };
+    const items = [
+        { ...base, id: 6, kind: 'task_complete', task_id: 't6', task_operation: 'proofread', task_first: 15, task_last: 15 },
+        { ...base, id: 5, kind: 'task_complete', task_id: 't5', task_operation: 'import', task_first: 0, task_last: 0 },
+        { ...base, id: 4, kind: 'task_interrupted', task_id: 't4', task_operation: 'resume', task_first: 0, task_last: 0, task_job_chapter: 3 },
+        { ...base, id: 3, kind: 'task_complete', task_id: 't3' },
+    ];
+    await page.route('**/api/notifications?*', route => route.fulfill({ json: { items, unread: items.length, latestId: 6 } }));
+    await page.goto('/#/manage');
+    await page.getByRole('button', { name: 'Сповіщення: 4 непрочитаних', exact: true }).click();
+    const panel = page.getByRole('region', { name: 'Сповіщення', exact: true });
+    await expect(panel.getByText('Вичитку завершено: глава 15')).toBeVisible();
+    await expect(panel.getByText('Імпорт завершено: лише опис новели')).toBeVisible();
+    await expect(panel.getByText('Відновлення перекладу перервано після перезапуску сервера: глава 3')).toBeVisible();
+    await expect(panel.getByText('Завдання успішно завершено')).toBeVisible();
 });

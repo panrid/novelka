@@ -6,16 +6,43 @@ import { ActionNotice } from '../components/ActionNotice';
 interface Notice {
     id: number; kind: string; novel_id: string | null; novel_title: string | null;
     chapter: number | null; task_id: string | null; entry_count: number | null; created_at: string | number; read: boolean;
+    task_operation?: string | null; task_first?: number | null; task_last?: number | null; task_job_chapter?: number | null;
 }
 interface Feed { items: Notice[]; unread: number; latestId: number; nextCursor: number }
+
+// Accusative for "… завершено/перервано", nominative with a matching verb for failures.
+const taskPhrases: Record<string, { done: string; failed: string }> = {
+    import: { done: 'Імпорт', failed: 'Імпорт зупинився' },
+    translate: { done: 'Переклад', failed: 'Переклад зупинився' },
+    proofread: { done: 'Вичитку', failed: 'Вичитка зупинилася' },
+    resume: { done: 'Відновлення перекладу', failed: 'Відновлення перекладу зупинилося' },
+};
+
+function taskChapters(item: Notice) {
+    if (item.task_operation === 'resume') return item.task_job_chapter ? `глава ${item.task_job_chapter}` : '';
+    const first = item.task_first, last = item.task_last ?? first;
+    if (first == null || last == null) return '';
+    if (item.task_operation === 'import' && first === 0 && last === 0) return 'лише опис новели';
+    return first === last ? `глава ${first}` : `глави ${first}–${last}`;
+}
+
+function taskTitle(item: Notice) {
+    const phrase = taskPhrases[item.task_operation ?? ''];
+    if (!phrase) return {
+        task_complete: 'Завдання успішно завершено', task_failed: 'Завдання зупинилось через помилку',
+        task_interrupted: 'Завдання перервано після перезапуску сервера',
+    }[item.kind] ?? 'Сповіщення';
+    const chapters = taskChapters(item);
+    const text = item.kind === 'task_complete' ? `${phrase.done} завершено`
+        : item.kind === 'task_failed' ? `${phrase.failed} через помилку` : `${phrase.done} перервано після перезапуску сервера`;
+    return chapters ? `${text}: ${chapters}` : text;
+}
 
 function title(item: Notice) {
     switch (item.kind) {
         case 'chapter_published': return `Нова глава ${item.chapter}`;
         case 'glossary_added': return `Нові записи словника: ${item.entry_count}`;
-        case 'task_complete': return 'Завдання успішно завершено';
-        case 'task_failed': return 'Завдання зупинилось через помилку';
-        case 'task_interrupted': return 'Завдання перервано після перезапуску сервера';
+        case 'task_complete': case 'task_failed': case 'task_interrupted': return taskTitle(item);
         default: return 'Сповіщення';
     }
 }
