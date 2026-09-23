@@ -9,12 +9,12 @@ test.beforeEach(async ({ page }) => {
 
 test('help opens by keyboard, closes with Escape and stays inside the viewport', async ({ page }) => {
     await page.goto('/#/accounts');
-    const help = page.getByRole('button', { name: 'Пояснення: Поточна роль' });
+    const help = page.getByRole('button', { name: 'Пояснення: Роль' });
     await help.focus();
     await help.press('Enter');
     await expect(help).toHaveAttribute('aria-expanded', 'true');
     const bubble = page.getByRole('note');
-    await expect(bubble).toHaveText('Права користувача на сайті.');
+    await expect(bubble).toHaveText('Що користувач може робити на сайті. Докладно — у панелі користувача.');
     const box = await bubble.boundingBox();
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width);

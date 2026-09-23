@@ -8,6 +8,8 @@ import { OpenRouterBalance } from '../components/OpenRouterBalance';
 import { HelpField } from '../components/HelpField';
 import { HelpTip } from '../components/HelpTip';
 import { ThemePicker } from '../theme/ThemePicker';
+import { permits, useAuth, type Role } from '../auth/AuthContext';
+import { UsersSettings } from './UsersSettings';
 
 export interface Settings {
     revision: number; registrationOpen: boolean; segmentChars: number; targetUsdPer5000: number; maxBudgetUsd: number;
@@ -15,47 +17,54 @@ export interface Settings {
 }
 
 /** Categories are listed only when they have real controls; new settings join an existing category first. */
-export const settingsSections = [
-    { id: 'general', label: 'Загальні' },
-    { id: 'ai', label: 'ШІ та моделі' },
-    { id: 'translation', label: 'Переклад' },
-    { id: 'editing', label: 'Редагування та погодження' },
-    { id: 'appearance', label: 'Вигляд' },
-] as const;
-type SectionId = typeof settingsSections[number]['id'];
+export const settingsSections: readonly { id: string; label: string; minimum: Role }[] = [
+    { id: 'general', label: 'Загальні', minimum: 'OWNER' },
+    { id: 'ai', label: 'ШІ та моделі', minimum: 'OWNER' },
+    { id: 'translation', label: 'Переклад', minimum: 'OWNER' },
+    { id: 'users', label: 'Користувачі та ролі', minimum: 'ADMIN' },
+    { id: 'editing', label: 'Редагування та погодження', minimum: 'OWNER' },
+    { id: 'appearance', label: 'Вигляд', minimum: 'ADMIN' },
+];
+type SectionId = 'general' | 'ai' | 'translation' | 'editing';
 const stageNames: Record<string, string> = { analyze: 'Аналіз', translate: 'Переклад', proofread: 'Вичитка' };
 
 export function SettingsPage({ search = '' }: { search?: string }) {
+    const { user } = useAuth();
+    const visible = settingsSections.filter(item => permits(user, item.minimum));
     const requested = new URLSearchParams(search).get('section');
-    const section: SectionId = settingsSections.some(item => item.id === requested) ? requested as SectionId : 'general';
+    const current = visible.find(item => item.id === requested) ?? visible[0];
+    const owner = permits(user, 'OWNER');
+    return <div className="page workspace settings-page"><p className="eyebrow">{owner ? 'Сайт і команда' : 'Адміністрування'}</p><h1>Налаштування</h1>
+        <div className="settings-layout">
+            <nav className="settings-nav" aria-label="Розділи налаштувань">{visible.map(item =>
+                <a key={item.id} href={'#/settings?section=' + item.id} aria-current={item.id === current.id ? 'page' : undefined}>{item.label}</a>)}
+                {owner && <a href="#/audit">Журнал дій</a>}
+            </nav>
+            <section className="settings-content" aria-labelledby="settings-section-title">
+                <h2 id="settings-section-title">{current.label}</h2>
+                {current.id === 'users' ? <UsersSettings /> : current.id === 'appearance' ? <Appearance /> : <SiteSettingsForm section={current.id as SectionId} />}
+            </section>
+        </div>
+    </div>;
+}
+
+/** Owner-only site settings; stays mounted across its categories so unsaved edits survive switching. */
+function SiteSettingsForm({ section }: { section: SectionId }) {
     const resource = useResource<Settings>('/settings');
     const [settings, setSettings] = useState<Settings>();
     const action = useAction();
     useEffect(() => { if (resource.data) setSettings(resource.data); }, [resource.data]);
-    const current = settingsSections.find(item => item.id === section)!;
-    return <div className="page workspace settings-page"><p className="eyebrow">Лише для власника</p><h1>Налаштування</h1>
-        <div className="settings-layout">
-            <nav className="settings-nav" aria-label="Розділи налаштувань">{settingsSections.map(item =>
-                <a key={item.id} href={'#/settings?section=' + item.id} aria-current={item.id === section ? 'page' : undefined}>{item.label}</a>)}
-                <a href="#/audit">Журнал дій</a>
-            </nav>
-            <section className="settings-content" aria-labelledby="settings-section-title">
-                <h2 id="settings-section-title">{current.label}</h2>
-                {section === 'appearance' ? <Appearance />
-                    : resource.error ? <ErrorState message={resource.error} retry={resource.retry} />
-                        : !settings ? <Loading />
-                            : <form className="stack-form settings-form" onSubmit={event => {
-                                event.preventDefault();
-                                void action.run(async () => { setSettings(await mutate<Settings>('/settings', settings)); }, 'Налаштування збережено.');
-                            }}>
-                                <SectionFields section={section} settings={settings} update={setSettings} />
-                                <div className="settings-save"><button className="button" disabled={action.busy}>Зберегти налаштування</button>
-                                    <span className="muted">Нові завдання отримують знімок цих налаштувань.</span></div>
-                                <ActionNotice {...action} />
-                            </form>}
-            </section>
-        </div>
-    </div>;
+    if (resource.error) return <ErrorState message={resource.error} retry={resource.retry} />;
+    if (!settings) return <Loading />;
+    return <form className="stack-form settings-form" onSubmit={event => {
+        event.preventDefault();
+        void action.run(async () => { setSettings(await mutate<Settings>('/settings', settings)); }, 'Налаштування збережено.');
+    }}>
+        <SectionFields section={section} settings={settings} update={setSettings} />
+        <div className="settings-save"><button className="button" disabled={action.busy}>Зберегти налаштування</button>
+            <span className="muted">Нові завдання отримують знімок цих налаштувань.</span></div>
+        <ActionNotice {...action} />
+    </form>;
 }
 
 function SectionFields({ section, settings, update }: { section: SectionId; settings: Settings; update: (settings: Settings) => void }): ReactNode {

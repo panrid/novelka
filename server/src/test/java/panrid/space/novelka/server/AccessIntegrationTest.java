@@ -148,6 +148,13 @@ class AccessIntegrationTest {
         assertEquals(1, body(accounts).path("total").asInt());
         assertEquals("owner", body(accounts).path("items").get(0).path("username").asText());
         assertEquals(0, body(get(owner, "/accounts?q=owner&role=READER")).path("total").asInt());
+        var byEmail = body(get(owner, "/accounts?q=owner%40example.test&sort=email&direction=asc"));
+        assertEquals(1, byEmail.path("total").asInt());
+        assertEquals("owner@example.test", byEmail.path("items").get(0).path("email").asText());
+        String ownerId = byEmail.path("items").get(0).path("id").asText();
+        assertEquals("owner@example.test", body(get(owner, "/accounts/" + ownerId)).path("email").asText());
+        assertEquals(404, get(owner, "/accounts/" + UUID.randomUUID()).statusCode());
+        try (var reader = registered()) { assertEquals(403, get(reader, "/accounts/" + ownerId).statusCode()); }
         assertEquals(400, get(owner, "/accounts?direction=sideways").statusCode());
 
         try (var reader = registered(); var db = new DatabaseSession(postgres.getJdbcUrl("postgres", "postgres"), "postgres", "")) {

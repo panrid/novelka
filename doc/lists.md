@@ -8,7 +8,7 @@
 |---|---|---|---|
 | Каталог | CatalogPage, вибір у ManagePage | `GET /api/novels/search` або `/api/novels` | `q`, `readyOnly`, `sort=title\|author\|ready\|id` |
 | Зміст новели | NovelPage | `GET /api/novels/{id}/contents` | `q` за назвою/номером, `sort=number` |
-| Користувачі | AccountsPage | `GET /api/accounts` | `q`, `role`, `sort=created\|username\|role` |
+| Користувачі | UsersSettings (`#/settings?section=users`) | `GET /api/accounts` | `q` за ніком або email, `role`, `sort=created\|username\|email\|role`; вибраний користувач — `user` в URL |
 | Журнал дій | AuditPage | `GET /api/accounts/audit` | `q` за виконавцем/об'єктом, `action`, `sort=created\|actor\|action` |
 | Правки | CorrectionsPage | `GET /api/corrections` | `queue`; `q` за назвою новели, назвою/номером глави, автором і текстом; `state`, `novel`, `chapter`, `authorId`, `dateFrom`/`dateTo` (РРРР-ММ-ДД, UTC, включно); `sort=created\|novel\|chapter\|author\|state`. Рядок без текстів; `GET /api/corrections/{id}` віддає тексти для diff |
 | Черга | TaskQueue | `GET /api/tasks` | `q` за новелою/ID, `state`, `operation`, `novel`, `sort=created\|state\|novel\|spent` |

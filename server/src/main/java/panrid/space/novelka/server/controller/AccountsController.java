@@ -60,6 +60,16 @@ public final class AccountsController {
         }
     }
 
+    @GetMapping("/{id}")
+    public Map<String, Object> account(Principal principal, @PathVariable String id) throws Exception {
+        access.require(principal, Role.ADMIN);
+        try (var jdbc = database.open()) {
+            var account = new AccountRepository(jdbc).adminView(id);
+            if (account == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            return account;
+        }
+    }
+
     /** Nickname history is administrative data: never public and never used for sign-in. */
     @GetMapping("/{id}/nicknames")
     public Object nicknames(Principal principal, @PathVariable String id) throws Exception {

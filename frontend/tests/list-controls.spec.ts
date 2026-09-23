@@ -35,7 +35,7 @@ test('accounts combine backend search, role, sorting and pages with restorable U
     await page.getByLabel('Пояснення: Нік').focus();
     await page.getByLabel('Пояснення: Нік').press('Enter');
     await expect(page.getByText('Поточне публічне ім’я. Історію змін бачать лише адміністратори.')).toBeVisible();
-    await page.getByRole('searchbox', { name: 'Знайти користувача' }).fill('reader-0');
+    await page.getByRole('searchbox', { name: 'Нік або email' }).fill('reader-0');
     await expect(page.getByText('Сторінка 1 з 1')).toBeVisible();
     expect(queries).toBe(1);
     await page.getByRole('combobox', { name: 'Роль', exact: true }).click();
@@ -46,10 +46,10 @@ test('accounts combine backend search, role, sorting and pages with restorable U
     await expect(page).toHaveURL(/role=EDITOR/);
     await page.getByRole('button', { name: 'Очистити фільтр' }).click();
     await expect(page.locator('tbody tr')).toHaveCount(9);
-    await page.getByRole('searchbox', { name: 'Знайти користувача' }).fill('nobody');
+    await page.getByRole('searchbox', { name: 'Нік або email' }).fill('nobody');
     await expect(page.getByText('За заданими параметрами нічого не знайдено.')).toBeVisible();
     failure = true;
-    await page.getByRole('searchbox', { name: 'Знайти користувача' }).fill('failed');
+    await page.getByRole('searchbox', { name: 'Нік або email' }).fill('failed');
     await expect(page.getByRole('alert')).toBeVisible();
     failure = false;
     await page.getByRole('button', { name: 'Спробувати ще раз' }).click();

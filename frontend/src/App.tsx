@@ -4,7 +4,7 @@ import { NovelPage } from './pages/NovelPage';
 import { ReaderPage } from './pages/ReaderPage';
 import { AuthPage } from './pages/AuthPage';
 import { CorrectionsPage } from './pages/CorrectionsPage';
-import { AccountsPage } from './pages/AccountsPage';
+import { Redirect } from './components/Redirect';
 import { SettingsPage } from './pages/SettingsPage';
 import { AuditPage } from './pages/AuditPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -43,9 +43,9 @@ export function App() {
         } else if (path === '/login') content = <AuthPage />;
         else if (section === '/corrections') content = guarded('READER', <CorrectionsPage />);
         else if (path === '/profile') content = guarded('READER', <ProfilePage />);
-        else if (section === '/accounts') content = guarded('ADMIN', <AccountsPage />);
+        else if (section === '/accounts') content = <Redirect to="/settings?section=users" />;
         else if (path.split('?')[0] === '/manage') content = guarded('ADMIN', <ManagePage key={path} search={path.split('?')[1]} />);
-        else if (section === '/settings') content = guarded('OWNER', <SettingsPage search={path.split('?')[1]} />);
+        else if (section === '/settings') content = guarded('ADMIN', <SettingsPage search={path.split('?')[1]} />);
         else if (section === '/audit') content = guarded('OWNER', <AuditPage />);
     } catch { /* Malformed URL is handled by the not-found page. */ }
     return <>
@@ -55,8 +55,7 @@ export function App() {
             <nav aria-label="Основна навігація">
                 <a className="nav-link" href="#/">Каталог новел</a>
                 {auth.user && <a className="nav-link" href="#/corrections">Правки</a>}
-                {permits(auth.user, 'ADMIN') && <><a className="nav-link" href="#/manage">Майстерня</a><a className="nav-link" href="#/accounts">Користувачі</a></>}
-                {permits(auth.user, 'OWNER') && <a className="nav-link" href="#/settings">Налаштування</a>}
+                {permits(auth.user, 'ADMIN') && <><a className="nav-link" href="#/manage">Майстерня</a><a className="nav-link" href="#/settings">Налаштування</a></>}
             </nav>
             <div className="session-controls"><ThemePicker compact />
                 {auth.user ? <><NotificationBell key={auth.user.id + ':' + auth.user.role} /><a className="nav-link profile-link" href="#/profile" title="Профіль">{auth.user.username} · {roleNames[auth.user.role]}</a><button disabled={action.busy} onClick={() => { void action.run(auth.logout, 'Ви вийшли.'); }}>Вийти</button></> : <a className="nav-link" href="#/login">Увійти</a>}

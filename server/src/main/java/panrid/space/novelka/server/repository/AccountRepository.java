@@ -33,6 +33,11 @@ public final class AccountRepository {
         return rows.isEmpty() ? null : (String) rows.getFirst().get("password_hash");
     }
 
+    public Map<String, Object> adminView(String id) throws Exception {
+        var rows = jdbc.rows("SELECT id,username,email,role,created_at FROM accounts WHERE id=?", id);
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
     public String email(String id) throws Exception {
         var rows = jdbc.rows("SELECT email FROM accounts WHERE id=?", id);
         return rows.isEmpty() ? null : (String) rows.getFirst().get("email");
@@ -80,15 +85,16 @@ public final class AccountRepository {
         return !jdbc.rows("SELECT id FROM accounts WHERE role='OWNER'").isEmpty();
     }
 
-    public ListPage<Account> list(ListQuery query, String role) throws Exception {
+    /** Administrative list: search by nickname or email, filter by role; email is returned only here. */
+    public ListPage<Map<String, Object>> list(ListQuery query, String role) throws Exception {
         if (!role.isEmpty() && !List.of("READER", "EDITOR", "ADMIN", "OWNER").contains(role))
             throw new IllegalArgumentException("Невідома роль.");
-        String where = " WHERE (?='' OR username ILIKE ? ESCAPE '\\') AND (?='' OR role=?)";
-        Object[] filters = {query.q(), query.pattern(), role, role};
+        String where = " WHERE (?='' OR username ILIKE ? ESCAPE '\\' OR email ILIKE ? ESCAPE '\\') AND (?='' OR role=?)";
+        Object[] filters = {query.q(), query.pattern(), query.pattern(), role, role};
         long total = ((Number) jdbc.rows("SELECT count(*) total FROM accounts" + where, filters).getFirst().get("total")).longValue();
-        String order = query.order(Map.of("username", "username", "role", "role", "created", "created_at"), "created", "id");
-        var items = jdbc.rows("SELECT id,username,role FROM accounts" + where + order + " LIMIT ? OFFSET ?",
-                query.q(), query.pattern(), role, role, query.size(), query.offset()).stream().map(AccountRepository::account).toList();
+        String order = query.order(Map.of("username", "username", "email", "email", "role", "role", "created", "created_at"), "created", "id");
+        var items = jdbc.rows("SELECT id,username,email,role,created_at FROM accounts" + where + order + " LIMIT ? OFFSET ?",
+                query.q(), query.pattern(), query.pattern(), role, role, query.size(), query.offset());
         return ListPage.of(items, query, total);
     }
 

@@ -305,7 +305,8 @@ job не збільшує історичну суму попереднього �
 | GET /api/corrections/authors | EDITOR, автори правок для фільтра (ID і поточне ім'я) |
 | GET /api/corrections/{id} | Автор правки або EDITOR: тексти, пояснення, базова й опублікована ревізії |
 | POST /api/corrections/{id}/review | EDITOR, approve і note |
-| GET /api/accounts; POST /api/accounts/{id}/role | ADMIN, обмеження за таблицею ролей |
+| GET /api/accounts; POST /api/accounts/{id}/role | ADMIN, пошук за ніком або email; зміна ролі за таблицею ролей |
+| GET /api/accounts/{id} | ADMIN, нік, email, роль і дата реєстрації для панелі користувача |
 | GET /api/accounts/audit | OWNER, журнал дій |
 | GET/POST /api/settings | ADMIN читає; OWNER змінює |
 | GET/POST /api/tasks; POST /api/tasks/{id}/cancel | ADMIN, фонові операції |
