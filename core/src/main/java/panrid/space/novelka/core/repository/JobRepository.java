@@ -16,7 +16,13 @@ public final class JobRepository {
     }
 
     public void save(Work w) throws Exception {
-        jdbc.exec(
+        jdbc.transaction(() -> {
+            boolean firstPublication = w.state().equals("complete") && !jdbc.rows("""
+                    SELECT 1 FROM chapters c WHERE c.novel_id=? AND c.number=? AND c.source_hash=?
+                    AND NOT EXISTS (SELECT 1 FROM jobs j WHERE j.novel_id=c.novel_id AND j.chapter=c.number
+                        AND j.state IN ('complete','needs-review'))
+                    """, w.novelId(), w.chapter(), w.sourceHash()).isEmpty();
+            jdbc.exec(
                 "INSERT INTO jobs(id,novel_id,chapter,revision,state,data) VALUES(?,?,?,?,?,?::jsonb) ON"
                         + " CONFLICT(id) DO UPDATE SET"
                         + " state=excluded.state,data=excluded.data,updated_at=now()",
@@ -26,6 +32,9 @@ public final class JobRepository {
                 w.revision(),
                 w.state(),
                 Json.write(w));
+            if (firstPublication) new NotificationEventRepository(jdbc).chapterPublished(w.novelId(), w.chapter());
+            return null;
+        });
     }
 
     public Work job(String id) throws Exception {

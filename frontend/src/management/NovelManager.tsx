@@ -23,11 +23,11 @@ interface Detail {
     proposals: { id: number; proposal: unknown }[];
 }
 
-export function NovelManager({ novel }: { novel: string }) {
+export function NovelManager({ novel, initialTab = 'info' }: { novel: string; initialTab?: 'info' | 'glossary' }) {
     const path = '/manage/' + encodeURIComponent(novel);
     const resource = useResource<Detail>(path);
     const action = useAction();
-    const [tab, setTab] = useState<'info' | 'glossary' | 'materials'>('info');
+    const [tab, setTab] = useState<'info' | 'glossary' | 'materials'>(initialTab);
     const [alias, setAlias] = useState('');
     const [chapter, setChapter] = useState(1);
     const [text, setText] = useState('');

@@ -12,6 +12,7 @@ import { useAuth, permits, roleNames, type Role } from './auth/AuthContext';
 import { useAction } from './hooks/useAction';
 import { ActionNotice } from './components/ActionNotice';
 import { useTheme } from './theme/ThemeContext';
+import { NotificationBell } from './notifications/NotificationBell';
 import type { ReactNode } from 'react';
 
 function currentPath() { return window.location.hash.slice(1) || '/'; }
@@ -41,7 +42,7 @@ export function App() {
         } else if (path === '/login') content = <AuthPage />;
         else if (path === '/corrections') content = guarded('READER', <CorrectionsPage />);
         else if (path === '/accounts') content = guarded('ADMIN', <AccountsPage />);
-        else if (path === '/manage') content = guarded('ADMIN', <ManagePage />);
+        else if (path.split('?')[0] === '/manage') content = guarded('ADMIN', <ManagePage key={path} search={path.split('?')[1]} />);
         else if (path === '/settings') content = guarded('OWNER', <SettingsPage />);
         else if (path === '/audit') content = guarded('OWNER', <AuditPage />);
     } catch { /* Malformed URL is handled by the not-found page. */ }
@@ -56,7 +57,7 @@ export function App() {
                 {permits(auth.user, 'OWNER') && <a className="nav-link" href="#/settings">Налаштування</a>}
             </nav>
             <div className="session-controls"><button className="theme-toggle" aria-label={theme === 'dark' ? 'Світла тема' : 'Темна тема'} aria-pressed={theme === 'dark'} onClick={toggleTheme}>{theme === 'dark' ? '☀ Світла' : '☾ Темна'}</button>
-                {auth.user ? <><span>{auth.user.username} · {roleNames[auth.user.role]}</span><button disabled={action.busy} onClick={() => { void action.run(auth.logout, 'Ви вийшли.'); }}>Вийти</button></> : <a className="nav-link" href="#/login">Увійти</a>}
+                {auth.user ? <><NotificationBell key={auth.user.id + ':' + auth.user.role} /><span>{auth.user.username} · {roleNames[auth.user.role]}</span><button disabled={action.busy} onClick={() => { void action.run(auth.logout, 'Ви вийшли.'); }}>Вийти</button></> : <a className="nav-link" href="#/login">Увійти</a>}
             </div>
         </header>
         <main id="main" tabIndex={-1}><ActionNotice {...action} />{content || <div className="status-panel">

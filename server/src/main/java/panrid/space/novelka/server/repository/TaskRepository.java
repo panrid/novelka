@@ -2,6 +2,7 @@ package panrid.space.novelka.server.repository;
 
 import panrid.space.novelka.core.persistence.JdbcSession;
 import panrid.space.novelka.core.support.Json;
+import panrid.space.novelka.core.repository.NotificationEventRepository;
 import panrid.space.novelka.server.task.TaskRequest;
 import panrid.space.novelka.server.settings.SiteSettings;
 
@@ -24,18 +25,35 @@ public final class TaskRepository {
                 .getFirst().get("id").toString();
     }
 
-    public List<Map<String, Object>> list(int offset) throws Exception {
-        return jdbc.rows("""
-                SELECT t.id,t.operation,t.novel_id,t.state,t.message,t.current_job_id,t.cancel_requested,
+    private static final String TASK_SELECT = """
+                SELECT t.id,t.operation,t.novel_id,t.state,t.message,
+                    COALESCE(t.current_job_id,t.request->>'jobId') AS current_job_id,t.cancel_requested,
                     current_job.chapter AS current_chapter,
+                    latest_job.state AS latest_job_state,
+                    COALESCE(current_job.id=latest_job.id AND current_job.state NOT IN ('complete','needs-review')
+                        AND current_job.data->>'sourceHash'=c.source_hash,false) AS can_resume,
+                    COALESCE(latest_job.data->>'sourceHash'=c.source_hash
+                        AND jsonb_array_length(latest_job.data->'segments')>0
+                        AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(latest_job.data->'segments') s
+                            WHERE jsonb_array_length(s->'draft')=0),false) AS can_proofread,
                     t.request,t.created_at,t.updated_at,a.username,
                     COALESCE((SELECT sum(GREATEST(0,COALESCE(j.final_usd,(SELECT sum(COALESCE(c.actual_usd,c.estimated_usd))
                         FROM ai_calls c WHERE c.job_id=j.job_id),0)-j.initial_usd))
                         FROM web_task_jobs j WHERE j.task_id=t.id),0) spent_usd
                 FROM web_tasks t JOIN accounts a ON a.id=t.actor_id
-                    LEFT JOIN jobs current_job ON current_job.id=t.current_job_id
-                ORDER BY t.created_at DESC LIMIT 50 OFFSET ?
-                """, offset);
+                    LEFT JOIN jobs current_job ON current_job.id=COALESCE(t.current_job_id,t.request->>'jobId')
+                    LEFT JOIN chapters c ON c.novel_id=current_job.novel_id AND c.number=current_job.chapter
+                    LEFT JOIN LATERAL (SELECT j.* FROM jobs j WHERE j.novel_id=current_job.novel_id
+                        AND j.chapter=current_job.chapter ORDER BY revision DESC LIMIT 1) latest_job ON true
+                """;
+
+    public List<Map<String, Object>> list(int offset) throws Exception {
+        return jdbc.rows(TASK_SELECT + " ORDER BY t.created_at DESC,t.id LIMIT 50 OFFSET ?", offset);
+    }
+
+    public Map<String, Object> find(String id) throws Exception {
+        var rows = jdbc.rows(TASK_SELECT + " WHERE t.id=?", id);
+        return rows.isEmpty() ? null : rows.getFirst();
     }
 
     public boolean workerLock() throws Exception {
@@ -47,8 +65,10 @@ public final class TaskRepository {
             jdbc.exec("UPDATE web_task_jobs j SET final_usd=COALESCE((SELECT sum(COALESCE(actual_usd,estimated_usd))"
                     + " FROM ai_calls WHERE job_id=j.job_id),0) WHERE final_usd IS NULL"
                     + " AND task_id IN (SELECT id FROM web_tasks WHERE state='running')");
-            jdbc.exec("UPDATE web_tasks SET state='interrupted',message='Сервер перезапущено. Перевірте витрати й продовжіть job вручну.',"
-                    + "updated_at=now() WHERE state='running'");
+            var interrupted = jdbc.rows("UPDATE web_tasks SET state='interrupted',message='Сервер перезапущено. Перевірте витрати й продовжіть job вручну.',"
+                    + "updated_at=now() WHERE state='running' RETURNING id,novel_id");
+            for (var task : interrupted) new NotificationEventRepository(jdbc).taskFinished(
+                    (String) task.get("id"), (String) task.get("novel_id"), "interrupted");
             return null;
         });
     }
@@ -59,7 +79,12 @@ public final class TaskRepository {
     }
 
     public void state(String id, String state, String message) throws Exception {
-        jdbc.exec("UPDATE web_tasks SET state=?,message=?,updated_at=now() WHERE id=?", state, message, id);
+        jdbc.transaction(() -> {
+            var changed = jdbc.rows("UPDATE web_tasks SET state=?,message=?,updated_at=now() WHERE id=? RETURNING novel_id",
+                    state, message, id);
+            if (!changed.isEmpty()) new NotificationEventRepository(jdbc).taskFinished(id, (String) changed.getFirst().get("novel_id"), state);
+            return null;
+        });
     }
 
     public void job(String task, String job, double initial) throws Exception {

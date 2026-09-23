@@ -38,6 +38,16 @@ public final class TasksController {
         return Map.of("id", service.enqueue(access.require(principal, Role.ADMIN), request));
     }
 
+    @GetMapping("/{id}")
+    public Object read(Principal principal, @PathVariable String id) throws Exception {
+        access.require(principal, Role.ADMIN);
+        try (var jdbc = database.open()) {
+            var task = new TaskRepository(jdbc).find(id);
+            if (task == null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
+            return Json.M.convertValue(task, Object.class);
+        }
+    }
+
     @PostMapping("/{id}/cancel")
     public Map<String, String> cancel(Principal principal, @PathVariable String id) throws Exception {
         var actor = access.require(principal, Role.ADMIN);

@@ -138,7 +138,12 @@ ChapterSummary містить number, title, revision. Block містить id, 
 ReaderRepository формує проєкції: каталог і зміст не передають повні тексти глав.
 ReaderService відкриває новий JdbcSession на HTTP-запит і закриває його через
 try-with-resources. Міграції виконуються один раз у ReaderDatabase при запуску.
-Схема PostgreSQL — V3; окремої копії бази для фронтенду немає.
+Схема PostgreSQL — V4; окремої копії бази для фронтенду немає.
+`frontend/notifications/NotificationBell` опитує API сповіщень кожні 15 секунд,
+зберігаючи прочитання на сервері. Параметри `#/manage?novel=ID&task=ID` відкривають
+конкретне завдання; `tab=glossary` відкриває словник. `TaskPreset` передає
+підготовлену швидкою дією операцію у `TaskForm`, без бюджету й дозволу uncertain.
+Права та поведінка подій описані в [акаунтах і майстерні](accounts-and-management.md).
 Адміністративний DatabaseSession також ідемпотентно перевіряє міграції при відкритті.
 
 ## Навігація у коді

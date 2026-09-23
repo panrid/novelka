@@ -14,6 +14,27 @@
 }
 
 * { box-sizing: border-box; }
+.notification-bell { position: relative; }
+.session-controls .notification-toggle { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 9px; }
+.notification-count { border-radius: 12px; background: #bad3a7; color: #183425; padding: 2px 6px; font-size: 11px; font-weight: 700; }
+.notification-feed { position: absolute; z-index: 120; top: calc(100% + 12px); right: 0; width: min(410px, calc(100vw - 24px)); max-height: 70vh; overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 12px 48px #0006; padding: 16px; }
+.notification-heading, .notification-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.notification-heading h2 { margin: 0; font-size: 19px; }
+.notification-tools { margin: 14px 0; color: var(--muted); }
+.notification-feed ul { list-style: none; padding: 0; margin: 0; }
+.notification-feed li { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); border-radius: 6px; }
+.notification-feed li.unread { background: var(--surface); box-shadow: inset 3px 0 #bad3a7; }
+.notification-feed li a { flex: 1; display: grid; gap: 6px; padding: 14px 12px; min-width: 0; overflow-wrap: anywhere; }
+.notification-feed li a:hover { text-decoration: underline; }
+.notification-feed li small { color: var(--muted); }
+.session-controls .notification-feed button { padding: 8px; flex-shrink: 0; }
+.notification-toast { position: fixed; z-index: 110; right: 16px; bottom: 20px; width: min(370px, calc(100vw - 32px)); display: flex; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 30px #0005; }
+.session-controls .notification-toast button { border: 0; }
+.notification-toast button:first-child { flex: 1; min-width: 0; display: grid; gap: 8px; text-align: left; overflow-wrap: anywhere; }
+.task-quick-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.task-quick-actions a { align-self: center; border: 1px solid var(--line); border-radius: 4px; padding: 10px 14px; }
+.quick-task-notice { padding: 14px; border-left: 3px solid #bad3a7; background: var(--surface); line-height: 1.6; }
+@media (max-width: 700px) { .notification-feed { position: fixed; top: 100px; right: 12px; max-height: calc(100dvh - 120px); } }
 body { margin: 0; color: var(--ink); background: var(--paper); }
 a { color: inherit; text-decoration: none; }
 button, input { font: inherit; }

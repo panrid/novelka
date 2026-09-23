@@ -1,25 +1,31 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { mutate } from '../api/client';
 import { ActionNotice } from '../components/ActionNotice';
 import { useAction } from '../hooks/useAction';
 import { SelectField } from '../components/SelectField';
+import type { TaskPreset } from './TaskPreset';
 
-export function TaskForm({ novel, onCreated }: { novel: string; onCreated: () => void }) {
-    const [operation, setOperation] = useState('translate');
+export function TaskForm({ novel, onCreated, preset }: { novel: string; onCreated: (id: string) => void; preset?: TaskPreset }) {
+    const [operation, setOperation] = useState<string>(preset?.operation ?? 'translate');
     const [url, setUrl] = useState('');
-    const [first, setFirst] = useState(1);
-    const [last, setLast] = useState(1);
-    const [jobId, setJobId] = useState('');
+    const [first, setFirst] = useState(preset?.chapter ?? 1);
+    const [last, setLast] = useState(preset?.chapter ?? 1);
+    const [jobId, setJobId] = useState(preset?.jobId ?? '');
     const [budget, setBudget] = useState('');
-    const [force, setForce] = useState(false);
+    const [force, setForce] = useState(preset?.force ?? false);
     const [retry, setRetry] = useState(false);
     const [confirmed, setConfirmed] = useState(false);
     const request = useRef({ signature: '', key: '' });
     const action = useAction();
+    const panel = useRef<HTMLElement>(null);
+    useEffect(() => {
+        if (preset) { panel.current?.scrollIntoView({ block: 'start' }); panel.current?.focus({ preventScroll: true }); }
+    }, [preset]);
     const paid = operation !== 'import';
     const choose = (value: string) => { setOperation(value); setConfirmed(false); };
     const operationName = ({ import: 'імпорт', translate: 'переклад', proofread: 'вичитка', resume: 'відновлення' } as Record<string, string>)[operation];
-    return <section className="panel"><h2>Запустити переклад</h2><p className="muted">Оберіть новелу вище, підготуйте оригінал і запустіть потрібний крок. Черга збереже прогрес, якщо вкладку закрити.</p>
+    return <section className="panel" ref={panel} tabIndex={-1}><h2>Запустити переклад</h2><p className="muted">Оберіть новелу вище, підготуйте оригінал і запустіть потрібний крок. Черга збереже прогрес, якщо вкладку закрити.</p>
+        {preset && operation === preset.operation && <p className="quick-task-notice" role="status">Підготовлено: {operationName}, глава {first}, {novel}. {force ? 'Буде створено новий переклад глави.' : 'Використаємо збережений переклад.'} Вкажіть бюджет і підтвердьте запуск нижче.</p>}
         <form className="stack-form" onSubmit={event => {
             event.preventDefault();
             void action.run(async () => {
@@ -27,15 +33,15 @@ export function TaskForm({ novel, onCreated }: { novel: string; onCreated: () =>
                     force: operation === 'translate' && force, retryUncertain: operation === 'resume' && retry, budgetUsd: paid ? Number(budget) : 0 };
                 const signature = JSON.stringify(body);
                 if (request.current.signature !== signature) request.current = { signature, key: crypto.randomUUID() };
-                await mutate('/tasks', { ...body, requestKey: request.current.key });
+                const created = await mutate<{ id: string }>('/tasks', { ...body, requestKey: request.current.key });
                 request.current = { signature: '', key: '' };
                 setConfirmed(false);
-                onCreated();
+                onCreated(created.id);
             }, 'Завдання додано в чергу. Вкладку можна закрити.');
         }}>
             <div className="task-choices" aria-label="Основна дія"><button type="button" aria-pressed={operation === 'import'} onClick={() => choose('import')}><strong>1. Імпортувати</strong><span>Завантажити новелу або глави з Syosetu.</span></button>
                 <button type="button" aria-pressed={operation === 'translate'} onClick={() => choose('translate')}><strong>2. Перекласти</strong><span>Перекласти та автоматично вичитати готові глави.</span></button></div>
-            <details className="advanced-operation"><summary>Додаткові операції</summary>
+            <details className="advanced-operation" open={['proofread', 'resume'].includes(operation) || undefined}><summary>Додаткові операції</summary>
                 <SelectField label="Операція" value={['proofread', 'resume'].includes(operation) ? operation : ''} onChange={value => { if (value) choose(value); }}
                     options={[{ value: '', label: 'Оберіть за потреби' }, { value: 'proofread', label: 'Повторно вичитати одну главу' }, { value: 'resume', label: 'Відновити переклад за ID job' }]} />
                 <p className="muted">Використовуйте їх після збою або коли потрібна нова вичитка вже перекладеної глави.</p></details>

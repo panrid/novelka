@@ -9,6 +9,7 @@ import panrid.space.novelka.core.persistence.JdbcSession;
 import panrid.space.novelka.core.repository.AiCallRepository;
 import panrid.space.novelka.core.repository.GlossaryRepository;
 import panrid.space.novelka.core.repository.JobRepository;
+import panrid.space.novelka.core.repository.NotificationEventRepository;
 import panrid.space.novelka.core.support.Json;
 
 /** Updates canonical facts and invalidates translations in the same transaction. */
@@ -29,6 +30,9 @@ public final class GlossaryService {
         jdbc.transaction(() -> {
             var old = glossaries.glossary(novel);
             glossaries.save(novel, glossary);
+            var previousKeys = old.entries().stream().map(Entry::key).collect(java.util.stream.Collectors.toSet());
+            int added = (int) glossary.entries().stream().filter(entry -> !previousKeys.contains(entry.key())).count();
+            new NotificationEventRepository(jdbc).glossaryAdded(novel, glossary.revision(), added);
             var changed = old.entries().stream()
                     .filter(entry -> glossary.entries().stream().noneMatch(entry::equals))
                     .map(Entry::key).toList();

@@ -3,11 +3,13 @@ import { getJson, mutate } from '../api/client';
 import { useAction } from '../hooks/useAction';
 import { ActionNotice } from '../components/ActionNotice';
 import { describeTaskFailure } from './taskFailure';
+import type { TaskPreset } from './TaskPreset';
 
 interface Task {
     id: string; operation: string; novel_id: string; state: string; message: string | null;
     current_job_id: string | null; current_chapter?: number | null; spent_usd: number; cancel_requested: boolean; username: string;
     created_at?: string; request?: { first: number; last: number };
+    can_resume?: boolean; can_proofread?: boolean; latest_job_state?: string;
 }
 const states: Record<string, string> = { queued: 'У черзі', running: 'Виконується', complete: 'Готово', failed: 'Помилка', interrupted: 'Перервано', cancelled: 'Зупинено' };
 const operations: Record<string, string> = { import: 'Імпорт', translate: 'Переклад', proofread: 'Вичитка', resume: 'Відновлення' };
@@ -21,7 +23,7 @@ function chapterRange(task: Task) {
     return first === last ? `Глава ${first}` : `Глави ${first}–${last}`;
 }
 
-export function TaskQueue({ version }: { version: number }) {
+export function TaskQueue({ version, onPrepare, taskId }: { version: number; onPrepare: (preset: TaskPreset) => void; taskId?: string }) {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [error, setError] = useState('');
     const [offset, setOffset] = useState(0);
@@ -29,12 +31,16 @@ export function TaskQueue({ version }: { version: number }) {
     useEffect(() => {
         const controller = new AbortController();
         const refresh = async () => {
-            try { const data = await getJson<Task[]>('/tasks?offset=' + offset, controller.signal); if (!controller.signal.aborted) { setTasks(data); setError(''); } }
+            try {
+                const data = taskId ? [await getJson<Task>('/tasks/' + encodeURIComponent(taskId), controller.signal)]
+                    : await getJson<Task[]>('/tasks?offset=' + offset, controller.signal);
+                if (!controller.signal.aborted) { setTasks(data); setError(''); }
+            }
             catch (failure) { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Помилка черги'); }
         };
         void refresh(); const timer = window.setInterval(() => { void refresh(); }, 5000);
         return () => { controller.abort(); window.clearInterval(timer); };
-    }, [version, offset, action.message]);
+    }, [version, offset, action.message, taskId]);
     return <section className="panel task-queue"><div className="task-queue-heading"><div><h2>Черга завдань</h2>
         <p className="muted">Оновлюється кожні 5 секунд</p></div></div>
         {error && <p role="alert">{error}</p>}<ActionNotice {...action} />
@@ -42,6 +48,10 @@ export function TaskQueue({ version }: { version: number }) {
         <div className="task-list">{tasks.map(task => {
             const failure = task.message && ['failed', 'interrupted'].includes(task.state) ? describeTaskFailure(task.message) : null;
             const range = chapterRange(task);
+            const stopped = ['failed', 'interrupted', 'cancelled'].includes(task.state);
+            const needsReview = task.latest_job_state === 'needs-review' || /Dictionary changed|Словник змінився/.test(task.message ?? '');
+            const glossary = needsReview || /dictionary|словник|tool round/i.test(task.message ?? '');
+            const chapter = task.current_chapter ?? (task.request?.first === task.request?.last ? task.request?.first : undefined);
             return <article className="task-card" key={task.id} aria-label={`${operations[task.operation] || task.operation} ${task.novel_id}`}>
                 <div className="task-card-main"><div className="task-card-title"><strong>{operations[task.operation] || task.operation}</strong>
                     <span>{task.novel_id}</span>{range && <span>{range}</span>}</div>
@@ -52,6 +62,12 @@ export function TaskQueue({ version }: { version: number }) {
                 {failure && <p className="task-failure-title" role={task.state === 'failed' ? 'alert' : undefined}>{failure.title}</p>}
                 {task.cancel_requested && task.state === 'running' && <p className="muted task-cancel-note">Зупиниться після поточного запиту до ШІ.</p>}
                 <div className="task-card-actions">
+                    {(stopped || needsReview) && <div className="task-quick-actions">
+                        {glossary && <a className="quick-action" href={'#/manage?novel=' + encodeURIComponent(task.novel_id) + '&tab=glossary&task=' + encodeURIComponent(task.id)}>Відкрити словник</a>}
+                        {stopped && task.can_resume && task.current_job_id && chapter && <button type="button" onClick={() => onPrepare({ operation: 'resume', novelId: task.novel_id, chapter, jobId: task.current_job_id! })}>Відновити</button>}
+                        {needsReview && task.can_proofread && chapter && <button type="button" onClick={() => onPrepare({ operation: 'proofread', novelId: task.novel_id, chapter })}>Повторно вичитати</button>}
+                        {chapter && chapter > 0 && task.operation !== 'import' && <button type="button" onClick={() => onPrepare({ operation: 'translate', novelId: task.novel_id, chapter, force: true })}>Перекласти главу заново</button>}
+                    </div>}
                     <details><summary>Подробиці</summary><div className="task-card-details">
                         {failure && <p>{failure.detail}</p>}
                         {task.message && !failure && <p>{task.message}</p>}
@@ -65,7 +81,7 @@ export function TaskQueue({ version }: { version: number }) {
                 </div>
             </article>;
         })}</div>
-        {(offset > 0 || tasks.length === 50) && <div className="task-pages"><button disabled={offset === 0} onClick={() => setOffset(value => Math.max(0, value - 50))}>Новіші</button>
+        {!taskId && (offset > 0 || tasks.length === 50) && <div className="task-pages"><button disabled={offset === 0} onClick={() => setOffset(value => Math.max(0, value - 50))}>Новіші</button>
             <button disabled={tasks.length < 50} onClick={() => setOffset(value => value + 50)}>Старіші</button></div>}
     </section>;
 }

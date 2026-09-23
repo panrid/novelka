@@ -61,6 +61,89 @@ class AccessIntegrationTest {
         if (postgres != null) postgres.close();
     }
 
+    @org.junit.jupiter.api.BeforeEach
+    void isolateRateLimitWindow() throws Exception {
+        // Each scenario represents independent clients, despite sharing one loopback address.
+        var security = application.getBean(org.springframework.security.web.FilterChainProxy.class);
+        for (var chain : security.getFilterChains()) {
+            for (var filter : chain.getFilters()) {
+                if (filter instanceof panrid.space.novelka.server.security.LoginRateLimitFilter) {
+                    var attempts = filter.getClass().getDeclaredField("attempts");
+                    attempts.setAccessible(true);
+                    ((Map<?, ?>) attempts.get(filter)).clear();
+                }
+            }
+        }
+    }
+
+    @Test
+    void notificationsAreDurableScopedAndReadIndependently() throws Exception {
+        try (var reader = registered(); var second = registered(); var admin = registered(); var guest = browser()) {
+            post(owner, "/accounts/" + userId(admin) + "/role", Map.of("role", "ADMIN"));
+            String novel = seed();
+            long chapterId;
+            long glossaryId;
+            try (var db = new DatabaseSession(postgres.getJdbcUrl("postgres", "postgres"), "postgres", ""); var sql = jdbc()) {
+                db.jobs().save(db.jobs().latest(novel, 1));
+                assertEquals(1, sql.rows("SELECT id FROM notifications WHERE novel_id=?", novel).size());
+                chapterId = ((Number) sql.rows("SELECT id FROM notifications WHERE novel_id=?", novel).getFirst().get("id")).longValue();
+                var entry = new panrid.space.novelka.core.model.Entry("person", "character", "涼", "", "Рьо", List.of(), "male", "", "confirmed", 1, true);
+                db.glossaryService().update(novel, new panrid.space.novelka.core.model.Glossary(1, List.of(entry)));
+                db.glossaryService().update(novel, new panrid.space.novelka.core.model.Glossary(2, List.of(entry)));
+                var events = sql.rows("SELECT id,entry_count FROM notifications WHERE novel_id=? AND kind='glossary_added'", novel);
+                assertEquals(1, events.size());
+                assertEquals(1, ((Number) events.getFirst().get("entry_count")).intValue());
+                glossaryId = ((Number) events.getFirst().get("id")).longValue();
+                assertThrows(IllegalStateException.class, () -> sql.transaction(() -> {
+                    new panrid.space.novelka.core.repository.NotificationEventRepository(sql).chapterPublished(novel, 99);
+                    throw new IllegalStateException("rollback");
+                }));
+                assertTrue(sql.rows("SELECT id FROM notifications WHERE novel_id=? AND chapter=99", novel).isEmpty());
+            }
+            assertEquals(401, get(guest, "/notifications").statusCode());
+            assertEquals(1, body(get(reader, "/notifications")).path("unread").asInt());
+            assertEquals(2, body(get(admin, "/notifications")).path("unread").asInt());
+            assertEquals(404, post(reader, "/notifications/" + glossaryId + "/read", Map.of()).statusCode());
+            var noCsrf = reader.send(HttpRequest.newBuilder(URI.create(base + "/notifications/" + chapterId + "/read"))
+                    .POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, noCsrf.statusCode());
+            assertEquals(204, post(reader, "/notifications/" + chapterId + "/read", Map.of()).statusCode());
+            assertEquals(0, body(get(reader, "/notifications")).path("unread").asInt());
+            assertEquals(1, body(get(second, "/notifications")).path("unread").asInt());
+            assertEquals(204, post(admin, "/notifications/read-all?through=" + chapterId, Map.of()).statusCode());
+            assertEquals(1, body(get(admin, "/notifications")).path("unread").asInt());
+            post(owner, "/accounts/" + userId(admin) + "/role", Map.of("role", "READER"));
+            assertEquals(0, body(get(admin, "/notifications")).path("unread").asInt());
+            try (var newcomer = registered()) {
+                assertEquals(0, body(get(newcomer, "/notifications")).path("items").size());
+            }
+        }
+    }
+
+    @Test
+    void taskEventsAreDeduplicatedAndQuickActionsUseLatestWork() throws Exception {
+        String novel = seed();
+        String task = body(post(owner, "/tasks", task(novel, UUID.randomUUID().toString(), .1))).path("id").asText();
+        try (var sql = jdbc(); var db = new DatabaseSession(postgres.getJdbcUrl("postgres", "postgres"), "postgres", "")) {
+            var queue = new TaskRepository(sql);
+            var job = new Pipeline(db, null, 6000).create(novel, 1, true);
+            queue.job(task, job.id(), 0);
+            queue.state(task, "failed", "Dictionary tool limit exceeded");
+            queue.state(task, "failed", "Dictionary tool limit exceeded");
+            assertEquals(1, sql.rows("SELECT id FROM notifications WHERE task_id=?", task).size());
+            assertEquals(true, queue.find(task).get("can_resume"));
+            assertEquals(false, queue.find(task).get("can_proofread"));
+            new Pipeline(db, null, 6000).create(novel, 1, true);
+            assertEquals(false, queue.find(task).get("can_resume"));
+            queue.state(task, "running", "");
+            queue.recoverInterrupted();
+            queue.recoverInterrupted();
+            assertEquals(1, sql.rows("SELECT id FROM notifications WHERE task_id=? AND kind='task_interrupted'", task).size());
+        }
+        assertEquals(200, get(owner, "/tasks/" + task).statusCode());
+        try (var reader = registered()) { assertEquals(403, get(reader, "/tasks/" + task).statusCode()); }
+    }
+
     @Test
     void enforcesSessionsCsrfAndFreshRoleChecks() throws Exception {
         try (var anonymous = browser(); var reader = registered()) {
@@ -238,6 +321,8 @@ class AccessIntegrationTest {
         assertEquals(.07, budgets.getLast(), .000001);
         try (var jdbc = jdbc()) {
             assertEquals("complete", jdbc.rows("SELECT state FROM web_tasks WHERE id=?", task).getFirst().get("state"));
+            assertEquals(1, jdbc.rows("SELECT id FROM notifications WHERE task_id=? AND kind='task_complete'", task).size());
+            assertEquals(2, jdbc.rows("SELECT id FROM notifications WHERE novel_id=? AND kind='chapter_published'", novel).size());
             var row = new TaskRepository(jdbc).list(0).stream().filter(item -> item.get("id").equals(task)).findFirst().orElseThrow();
             assertEquals(.06, ((Number) row.get("spent_usd")).doubleValue(), .000001);
             String job = jdbc.rows("SELECT current_job_id FROM web_tasks WHERE id=?", task).getFirst().get("current_job_id").toString();
