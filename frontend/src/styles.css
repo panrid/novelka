@@ -545,3 +545,29 @@ summary { cursor: pointer; font-weight: 600; margin-bottom: 18px; }
     .suggestion-card { grid-template-columns: 1fr; }
     .balance-values { grid-template-columns: 1fr; gap: 10px; }
 }
+
+/* Layout review: denser workshop form, wider catalog grid, compact mobile header. */
+.novel-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 20px; }
+.book-cover { height: 150px; }
+.cover-letter { top: 22px; right: 30px; font-size: 72px; line-height: 1; }
+.cover-circle { top: 16px; width: 180px; height: 180px; }
+.cover-circle::after { width: 140px; height: 140px; margin: 19px; }
+.card-body { padding: 18px; }
+.card-bottom { margin-top: 16px; padding-top: 12px; }
+.card-bottom span.card-score { font-size: inherit; color: var(--muted); }
+.catalog-tools > button[aria-label="Змінити напрямок сортування"] { align-self: end; min-height: 43px; min-width: 48px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.panel { padding: 22px; }
+.panel .stack-form { gap: 14px; }
+.task-form { max-width: 860px; }
+.task-form .form-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 200px)); }
+.task-form fieldset input[type="number"] { max-width: 220px; }
+@media (max-width: 600px) {
+    .book-cover { height: 120px; }
+    .cover-letter { top: 18px; font-size: 60px; }
+    .site-header { padding-top: 10px; padding-bottom: 10px; gap: 10px; }
+    .site-header nav { flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding-bottom: 4px; scrollbar-width: none; }
+    .site-header nav a { flex: none; white-space: nowrap; }
+    .session-controls { gap: 8px; }
+    .panel { padding: 16px; }
+    .task-form .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

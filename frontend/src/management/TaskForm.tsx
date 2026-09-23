@@ -33,7 +33,7 @@ export function TaskForm({ novel, onCreated, preset }: { novel: string; onCreate
     const operationName = ({ import: 'імпорт', translate: 'переклад', proofread: 'вичитка', resume: 'відновлення' } as Record<string, string>)[operation];
     return <section className="panel" ref={panel} tabIndex={-1}><h2>Запустити переклад</h2><p className="muted">Оберіть новелу вище, підготуйте оригінал і запустіть потрібний крок. Черга збереже прогрес, якщо вкладку закрити.</p>
         {preset && operation === preset.operation && <p className="quick-task-notice" role="status">Підготовлено: {operationName}, глава {first}, {novel}. {force ? 'Буде створено новий переклад глави.' : 'Використаємо збережений переклад.'} Вкажіть бюджет і підтвердьте запуск нижче.</p>}
-        <form className="stack-form" onSubmit={event => {
+        <form className="stack-form task-form" onSubmit={event => {
             event.preventDefault();
             void action.run(async () => {
                 const body = { operation, novelId: novel, url, first, last: operation === 'proofread' ? first : last, jobId,
