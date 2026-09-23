@@ -6,13 +6,12 @@ import { readPreference, savePreference } from '../lib/preferences';
 import { ErrorState, Loading } from '../components/Status';
 import { EditableBlock } from '../components/EditableBlock';
 import { useAuth } from '../auth/AuthContext';
-import { useTheme } from '../theme/ThemeContext';
+import { ThemePicker } from '../theme/ThemePicker';
 
 export function ReaderPage({ id, number }: { id: string; number: number }) {
     const { user } = useAuth();
     const chapter = useResource<ReaderChapter>(chapterPath(id, number));
     const novel = useResource<NovelDetail>(novelPath(id));
-    const { theme, toggleTheme } = useTheme();
     const [correctionMode, setCorrectionMode] = useState(false);
     const [selection, setSelection] = useState<{ index: number; text: string } | null>(null);
     const [fontSize, setFontSize] = useState(() => {
@@ -53,7 +52,7 @@ export function ReaderPage({ id, number }: { id: string; number: number }) {
                 <span aria-label="Розмір тексту">{fontSize}</span>
                 <button aria-label="Збільшити текст" disabled={fontSize >= 28} onClick={() => setFontSize(size => size + 2)}>А+</button>
                 <span className="control-divider" />
-                <button aria-label={theme === 'dark' ? 'Світла тема' : 'Темна тема'} aria-pressed={theme === 'dark'} onClick={toggleTheme}>{theme === 'dark' ? '☀' : '☾'}</button>
+                <ThemePicker />
             </div>
         </div>
         {user && <div className="reader-edit-tools"><button type="button" aria-pressed={correctionMode} onClick={() => setCorrectionMode(value => !value)}>Режим правок</button>

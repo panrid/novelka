@@ -11,7 +11,7 @@ import { ManagePage } from './pages/ManagePage';
 import { useAuth, permits, roleNames, type Role } from './auth/AuthContext';
 import { useAction } from './hooks/useAction';
 import { ActionNotice } from './components/ActionNotice';
-import { useTheme } from './theme/ThemeContext';
+import { ThemePicker } from './theme/ThemePicker';
 import { NotificationBell } from './notifications/NotificationBell';
 import type { ReactNode } from 'react';
 
@@ -20,7 +20,6 @@ function currentPath() { return window.location.hash.slice(1) || '/'; }
 export function App() {
     const auth = useAuth();
     const action = useAction();
-    const { theme, toggleTheme } = useTheme();
     const guarded = (role: Role, page: ReactNode) => auth.loading ? <p role="status">Перевіряємо сесію…</p>
         : permits(auth.user, role) ? page : <div className="status-panel"><h1>Потрібен доступ</h1><p>Ця сторінка потребує ролі «{roleNames[role]}».</p><a href="#/login">Увійти</a></div>;
     const [path, setPath] = useState(currentPath);
@@ -56,7 +55,7 @@ export function App() {
                 {permits(auth.user, 'ADMIN') && <><a className="nav-link" href="#/manage">Майстерня</a><a className="nav-link" href="#/accounts">Користувачі</a></>}
                 {permits(auth.user, 'OWNER') && <a className="nav-link" href="#/settings">Налаштування</a>}
             </nav>
-            <div className="session-controls"><button className="theme-toggle" aria-label={theme === 'dark' ? 'Світла тема' : 'Темна тема'} aria-pressed={theme === 'dark'} onClick={toggleTheme}>{theme === 'dark' ? '☀ Світла' : '☾ Темна'}</button>
+            <div className="session-controls"><ThemePicker />
                 {auth.user ? <><NotificationBell key={auth.user.id + ':' + auth.user.role} /><span>{auth.user.username} · {roleNames[auth.user.role]}</span><button disabled={action.busy} onClick={() => { void action.run(auth.logout, 'Ви вийшли.'); }}>Вийти</button></> : <a className="nav-link" href="#/login">Увійти</a>}
             </div>
         </header>

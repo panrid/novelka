@@ -52,18 +52,28 @@ test('catalog search, contents and navigation follow available chapter numbers',
     await expect(page).toHaveURL(/chapters\/1$/);
 });
 
-test('reader preferences survive reload and resume uses the canonical novel id', async ({ page }) => {
+test('reader preferences survive reload and resume uses the canonical novel id', async ({ page }, testInfo) => {
     await library(page);
     await page.goto('/#/novels/n0022gd/chapters/3');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await page.getByRole('button', { name: 'Збільшити текст' }).click();
-    await page.locator('.reader-toolbar').getByRole('button', { name: 'Світла тема' }).click();
+    await page.locator('.reader-toolbar').getByRole('combobox', { name: 'Тема', exact: true }).click();
+    await page.getByRole('option', { name: 'Світла', exact: true }).click();
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     await expect(page.locator('article')).toHaveCSS('font-size', '22px');
+    await page.locator('.site-header').getByRole('combobox', { name: 'Тема', exact: true }).click();
+    await page.getByRole('option', { name: 'Чорна', exact: true }).click();
+    await expect(page.locator('.reader-toolbar').getByRole('combobox', { name: 'Тема', exact: true })).toContainText('Чорна');
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'black');
+    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#000000');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('black-theme.png') });
     await page.getByRole('link', { name: '← Зміст', exact: true }).click();
     await expect(page.getByRole('link', { name: 'Продовжити читання' })).toHaveAttribute('href', '#/novels/n0022gd/chapters/3');
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'black');
 });
 
 test('empty catalog and no search results are distinct', async ({ page }) => {
