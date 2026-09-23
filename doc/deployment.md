@@ -108,10 +108,28 @@ cat ~/.ssh/novelka_deploy.pub
 Публічний ключ додайте в `/home/novelka/.ssh/authorized_keys` на VPS.
 Приватний ключ додайте тільки в `DEPLOY_SSH_KEY`.
 
+Необов'язковий, але бажаний secret `DEPLOY_KNOWN_HOSTS` фіксує SSH-ключ VPS.
+Без нього workflow попереджає й довіряє ключу, який сервер покаже під час запуску.
+Значення отримайте один раз із перевіреної машини:
+
+```sh
+ssh-keyscan -4 -H 62.72.33.247
+```
+
 Workflow `.github/workflows/deploy-production.yml` запускається після push у `main`
-або вручну через `Actions → Deploy production → Run workflow`. Він запускає тести,
-збирає JAR і frontend, передає release-файли на VPS, виконує Docker Compose та
-перевіряє `https://novelka.panrid.space/`.
+або вручну через `Actions → Deploy production → Run workflow`. Етапи:
+
+1. Паралельно: `Backend unit tests` (`./gradlew test`, `sh -n` для launcher),
+   `Backend integration tests` (тимчасовий PostgreSQL і реальний HTTP) та
+   `Frontend build and browser tests` (`npm run build`, Playwright). Трасування
+   Playwright після збою зберігаються як artifact `playwright-results` на 7 днів.
+2. `Build production JAR` збирає JAR із frontend один раз і зберігає його як artifact.
+3. `Deploy to VPS` передає саме цей перевірений JAR, виконує Docker Compose і
+   перевіряє `https://novelka.panrid.space/api/health` та головну сторінку.
+   Новий push не перериває деплой, що вже виконується, а чекає на нього.
+
+`GET /api/health` публічний: `200 {"status":"ok"}`, якщо застосунок відповідає і
+PostgreSQL виконує запит, інакше `503 {"status":"unavailable"}`.
 
 ## Важливі межі
 

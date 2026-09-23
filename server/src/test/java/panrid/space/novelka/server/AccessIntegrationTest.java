@@ -335,6 +335,9 @@ class AccessIntegrationTest {
             assertFalse(body(get(reader, "/auth/me")).path("user").isNull());
             assertEquals(204, post(reader, "/auth/logout", Map.of()).statusCode());
             assertEquals(401, get(reader, "/corrections").statusCode());
+            var health = get(reader, "/health");
+            assertEquals(200, health.statusCode(), health.body());
+            assertEquals("ok", body(health).path("status").asText());
             assertTrue(body(get(reader, "/auth/me")).path("user").isNull());
         }
     }

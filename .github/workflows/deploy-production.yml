@@ -5,58 +5,125 @@ on:
         branches: [main]
     workflow_dispatch:
 
-concurrency:
-    group: production
-    cancel-in-progress: true
-
 permissions:
     contents: read
 
 jobs:
-    verify:
+    backend-unit:
+        name: Backend unit tests
         runs-on: ubuntu-latest
-        timeout-minutes: 30
+        timeout-minutes: 15
         steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-java@v4
+            - uses: actions/checkout@v7
+            - uses: actions/setup-java@v6
               with:
                   distribution: temurin
                   java-version: '25'
                   cache: gradle
-            - uses: actions/setup-node@v4
+            - name: Check launcher syntax
+              run: sh -n novelka novelka-web
+            - name: Run unit tests
+              run: ./gradlew test --no-daemon
+
+    backend-integration:
+        name: Backend integration tests
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            - uses: actions/checkout@v7
+            - uses: actions/setup-java@v6
+              with:
+                  distribution: temurin
+                  java-version: '25'
+                  cache: gradle
+            - name: Run PostgreSQL and HTTP integration tests
+              run: ./gradlew :core:integrationTest :server:integrationTest --no-daemon
+
+    frontend:
+        name: Frontend build and browser tests
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        defaults:
+            run:
+                working-directory: frontend
+        steps:
+            - uses: actions/checkout@v7
+            - uses: actions/setup-node@v7
               with:
                   node-version: '22.12.0'
                   cache: npm
                   cache-dependency-path: frontend/package-lock.json
-            - name: Run tests and build production JAR
-              run: ./gradlew test :core:integrationTest :server:integrationTest :server:bootJar --no-daemon
-            - name: Install browser for UI checks
-              working-directory: frontend
+            - name: Install dependencies
+              run: npm ci --no-audit --no-fund
+            - name: Type-check and build
+              run: npm run build
+            - name: Cache Playwright browsers
+              uses: actions/cache@v6
+              with:
+                  path: ~/.cache/ms-playwright
+                  key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+            - name: Install browsers and system libraries
               run: npx playwright install --with-deps chromium webkit
-            - name: Check reader and editorial workspace
-              working-directory: frontend
+            - name: Run browser tests
               run: npm test
+            - name: Keep failure traces
+              if: failure()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: playwright-results
+                  path: frontend/test-results
+                  retention-days: 7
 
-    deploy:
-        needs: verify
+    package:
+        name: Build production JAR
+        needs: [backend-unit, backend-integration, frontend]
         runs-on: ubuntu-latest
         timeout-minutes: 15
-        environment: production
         steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-java@v4
+            - uses: actions/checkout@v7
+            - uses: actions/setup-java@v6
               with:
                   distribution: temurin
                   java-version: '25'
-            - uses: actions/setup-node@v4
+                  cache: gradle
+            - uses: actions/setup-node@v7
               with:
                   node-version: '22.12.0'
-            - name: Build production JAR
+                  cache: npm
+                  cache-dependency-path: frontend/package-lock.json
+            - name: Build JAR with frontend
               run: ./gradlew :server:bootJar --no-daemon
+            - name: Keep release JAR
+              uses: actions/upload-artifact@v7
+              with:
+                  name: novelka-server
+                  path: server/build/libs/novelka-server.jar
+                  if-no-files-found: error
+                  retention-days: 14
+
+    deploy:
+        name: Deploy to VPS
+        needs: package
+        if: github.ref == 'refs/heads/main'
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        environment: production
+        # A newer push waits for the running deploy instead of interrupting Docker Compose midway.
+        concurrency:
+            group: production
+            cancel-in-progress: false
+        steps:
+            - uses: actions/checkout@v7
+            - name: Download tested JAR
+              uses: actions/download-artifact@v8
+              with:
+                  name: novelka-server
+                  path: server/build/libs
             - name: Configure SSH
               env:
                   DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
                   DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+                  DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
               run: |
                   test -n "$DEPLOY_HOST" || { echo 'DEPLOY_HOST is empty' >&2; exit 1; }
                   case "$DEPLOY_HOST" in
@@ -65,8 +132,13 @@ jobs:
                   install -m 700 -d ~/.ssh
                   printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/novelka_deploy
                   chmod 600 ~/.ssh/novelka_deploy
-                  ssh-keyscan -4 -T 15 -H "$DEPLOY_HOST" > ~/.ssh/known_hosts \
-                      || { echo "Could not read SSH host key from $DEPLOY_HOST: check DNS, port 22 and firewall" >&2; exit 1; }
+                  if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
+                      printf '%s\n' "$DEPLOY_KNOWN_HOSTS" | tr -d '\r' > ~/.ssh/known_hosts
+                  else
+                      echo '::warning::DEPLOY_KNOWN_HOSTS is not set; trusting the host key offered right now.'
+                      ssh-keyscan -4 -T 15 -H "$DEPLOY_HOST" > ~/.ssh/known_hosts \
+                          || { echo "Could not read SSH host key from $DEPLOY_HOST: check DNS, port 22 and firewall" >&2; exit 1; }
+                  fi
             - name: Upload release files
               run: |
                   ssh -i ~/.ssh/novelka_deploy "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
@@ -81,5 +153,9 @@ jobs:
               run: |
                   ssh -i ~/.ssh/novelka_deploy "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
                     'cd /opt/novelka && docker compose --env-file .env.production -f infra/production.compose.yaml up -d --build --remove-orphans && docker compose --env-file .env.production -f infra/production.compose.yaml ps'
+            - name: Check application and database
+              run: |
+                  curl --fail --silent --show-error --retry 12 --retry-delay 5 --retry-all-errors \
+                      https://novelka.panrid.space/api/health | tee /dev/stderr | grep -q '"status":"ok"'
             - name: Check public site
-              run: curl --fail --retry 10 --retry-delay 5 --retry-all-errors https://novelka.panrid.space/
+              run: curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null https://novelka.panrid.space/
