@@ -22,11 +22,14 @@ public class SecurityConfiguration {
 
     @Bean
     UserDetailsService users(ReaderDatabase database) {
-        return username -> {
+        // The login form accepts an email or the current nickname; the session principal is the stable account id.
+        return login -> {
             try (var jdbc = database.open()) {
-                var account = new AccountRepository(jdbc).credentials(AccountService.username(username));
+                var accounts = new AccountRepository(jdbc);
+                var account = login != null && login.contains("@") ? accounts.credentialsByEmail(AccountService.email(login))
+                        : accounts.credentials(AccountService.username(login));
                 if (account == null) throw new UsernameNotFoundException("Invalid credentials");
-                return User.withUsername((String) account.get("username"))
+                return User.withUsername((String) account.get("id"))
                         .password((String) account.get("password_hash")).roles((String) account.get("role")).build();
             } catch (Exception error) {
                 throw new UsernameNotFoundException("Invalid credentials");

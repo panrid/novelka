@@ -8,13 +8,29 @@ import { ErrorState, Loading } from '../components/Status';
 import { SelectField } from '../components/SelectField';
 import { ListEmpty, ListFilter, ListPages, ListSearch, TableHeader, listParams, useListState, type PageData } from '../components/ListTools';
 
+function NicknameHistory({ id }: { id: string }) {
+    const [open, setOpen] = useState(false);
+    return <details className="nickname-history-toggle" onToggle={event => setOpen(event.currentTarget.open)}>
+        <summary>Історія ніків</summary>{open && <NicknameHistoryList id={id} />}
+    </details>;
+}
+
+function NicknameHistoryList({ id }: { id: string }) {
+    const resource = useResource<{ items: { previous_nickname: string; new_nickname: string; changed_at: string }[] }>('/accounts/' + id + '/nicknames');
+    if (resource.error) return <ErrorState message={resource.error} retry={resource.retry} />;
+    if (!resource.data) return <Loading />;
+    if (!resource.data.items.length) return <p className="muted nickname-history">Нік не змінювався.</p>;
+    return <ul className="nickname-history">{resource.data.items.map(item => <li key={item.changed_at + item.new_nickname}>
+        {item.previous_nickname} → {item.new_nickname} <span className="muted">{new Date(item.changed_at).toLocaleString('uk-UA')}</span></li>)}</ul>;
+}
+
 function AccountRow({ account, refresh }: { account: User; refresh: () => void }) {
     const { user } = useAuth();
     const [role, setRole] = useState<Role>(account.role);
     const action = useAction();
     const canEdit = account.id !== user?.id && account.role !== 'OWNER'
         && (user?.role === 'OWNER' || account.role !== 'ADMIN');
-    return <tr><td>{account.username}</td><td>{roleNames[account.role]}</td><td>{canEdit && <div className="button-row">
+    return <tr><td><span>{account.username}</span><NicknameHistory id={account.id} /></td><td>{roleNames[account.role]}</td><td>{canEdit && <div className="button-row">
         <SelectField hideLabel label={'Роль ' + account.username} value={role} onChange={value => setRole(value as Role)}
             options={[{ value: 'READER', label: 'Читач' }, { value: 'EDITOR', label: 'Редактор' }, ...(user?.role === 'OWNER' ? [{ value: 'ADMIN', label: 'Адміністратор' }] : [])]} />
         <button disabled={action.busy || role === account.role} onClick={() => { void action.run(async () => { await mutate('/accounts/' + account.id + '/role', { role }); refresh(); }); }}>Змінити роль</button>
@@ -33,7 +49,7 @@ export function AccountsPage() {
         {resource.error ? <ErrorState message={resource.error} retry={resource.retry} /> : !data ? <Loading /> : <>
             {resource.loading && <p role="status">Оновлюємо список…</p>}
             {data.items.length ? <div className="table-scroll"><table><thead><tr>
-                <TableHeader label="Логін" help="Ім’я облікового запису." sortKey="username" state={list.state} onSort={list.setSort} />
+                <TableHeader label="Нік" help="Поточне публічне ім’я. Історію змін бачать лише адміністратори." sortKey="username" state={list.state} onSort={list.setSort} />
                 <TableHeader label="Поточна роль" help="Права користувача на сайті." sortKey="role" state={list.state} onSort={list.setSort} />
                 <TableHeader label="Керування" help="Зміна ролі відповідно до ваших прав." />
             </tr></thead><tbody>{data.items.map(account => <AccountRow key={account.id + account.role} account={account} refresh={resource.retry} />)}</tbody></table></div>

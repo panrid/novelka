@@ -44,7 +44,7 @@ public final class AccountsController {
             return jdbc.transaction(() -> {
                 jdbc.exec("SELECT pg_advisory_xact_lock(728618)");
                 var accounts = new AccountRepository(jdbc);
-                var actor = accounts.find(principal.getName());
+                var actor = accounts.byId(principal.getName());
                 var target = accounts.byId(id);
                 if (target == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
                 Role role = request.role();
@@ -57,6 +57,17 @@ public final class AccountsController {
                         Map.of("from", target.role(), "to", role));
                 return accounts.byId(id);
             });
+        }
+    }
+
+    /** Nickname history is administrative data: never public and never used for sign-in. */
+    @GetMapping("/{id}/nicknames")
+    public Object nicknames(Principal principal, @PathVariable String id) throws Exception {
+        access.require(principal, Role.ADMIN);
+        try (var jdbc = database.open()) {
+            var accounts = new AccountRepository(jdbc);
+            if (accounts.byId(id) == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            return Map.of("items", accounts.nicknameHistory(id));
         }
     }
 

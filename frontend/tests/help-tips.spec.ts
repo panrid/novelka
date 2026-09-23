@@ -25,9 +25,9 @@ test('help opens by keyboard, closes with Escape and stays inside the viewport',
 
 test('help toggles by tap or click and closes on outside press', async ({ page }) => {
     await page.goto('/#/accounts');
-    const help = page.getByRole('button', { name: 'Пояснення: Логін' });
+    const help = page.getByRole('button', { name: 'Пояснення: Нік' });
     await help.click();
-    await expect(page.getByRole('note')).toHaveText('Ім’я облікового запису.');
+    await expect(page.getByRole('note')).toHaveText('Поточне публічне ім’я. Історію змін бачать лише адміністратори.');
     await page.getByRole('heading', { name: 'Користувачі та ролі' }).click();
     await expect(page.getByRole('note')).toHaveCount(0);
     await help.click();
@@ -38,7 +38,7 @@ test('help toggles by tap or click and closes on outside press', async ({ page }
 test('mouse hover previews help without clicking', async ({ page, isMobile }) => {
     test.skip(isMobile, 'Touch screens have no hover.');
     await page.goto('/#/accounts');
-    await page.getByRole('button', { name: 'Пояснення: Логін' }).hover();
+    await page.getByRole('button', { name: 'Пояснення: Нік' }).hover();
     await expect(page.getByRole('note')).toBeVisible();
     await page.getByRole('heading', { name: 'Користувачі та ролі' }).hover();
     await expect(page.getByRole('note')).toHaveCount(0);

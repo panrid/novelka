@@ -29,12 +29,12 @@ test('accounts combine backend search, role, sorting and pages with restorable U
     await page.getByRole('button', { name: 'Далі →' }).click();
     await expect(page).toHaveURL(/page=2/);
     await expect(page.getByText('Сторінка 2 з 2')).toBeVisible();
-    await page.getByRole('button', { name: 'Логін', exact: true }).click();
-    await expect(page.getByRole('columnheader', { name: /Логін/ })).toHaveAttribute('aria-sort', 'ascending');
+    await page.getByRole('button', { name: 'Нік', exact: true }).click();
+    await expect(page.getByRole('columnheader', { name: /Нік/ })).toHaveAttribute('aria-sort', 'ascending');
     await expect(page).toHaveURL(/page=1/);
-    await page.getByLabel('Пояснення: Логін').focus();
-    await page.getByLabel('Пояснення: Логін').press('Enter');
-    await expect(page.getByText('Ім’я облікового запису.')).toBeVisible();
+    await page.getByLabel('Пояснення: Нік').focus();
+    await page.getByLabel('Пояснення: Нік').press('Enter');
+    await expect(page.getByText('Поточне публічне ім’я. Історію змін бачать лише адміністратори.')).toBeVisible();
     await page.getByRole('searchbox', { name: 'Знайти користувача' }).fill('reader-0');
     await expect(page.getByText('Сторінка 1 з 1')).toBeVisible();
     expect(queries).toBe(1);

@@ -17,7 +17,7 @@ public final class AccessService {
     public Account current(Principal principal) throws Exception {
         if (principal == null) return null;
         try (var jdbc = database.open()) {
-            return new AccountRepository(jdbc).find(principal.getName());
+            return new AccountRepository(jdbc).byId(principal.getName());
         }
     }
 

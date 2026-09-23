@@ -71,7 +71,7 @@ chmod 600 /opt/novelka/.env.production
 
 `.env.production` не додається до GitHub і не передається workflow.
 
-Перед деплоєм версії з акаунтами також задайте `NOVELKA_OWNER_USERNAME` і
+Перед деплоєм версії з акаунтами також задайте `NOVELKA_OWNER_USERNAME`, `NOVELKA_OWNER_EMAIL` і
 `NOVELKA_OWNER_PASSWORD` у цьому файлі, щоб створити власника при запуску.
 Для вебперекладу потрібен `OPENROUTER_API_KEY`. Значення вводьте редактором у
 env-файл на VPS, не в workflow. Деталі й правила видалення bootstrap-пароля:

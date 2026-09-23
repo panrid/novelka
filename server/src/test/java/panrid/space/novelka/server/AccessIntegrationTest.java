@@ -47,7 +47,7 @@ class AccessIntegrationTest {
         application = new SpringApplication(NovelkaServer.class).run("--server.port=0",
                 "--novelka.database.url=" + postgres.getJdbcUrl("postgres", "postgres"),
                 "--novelka.database.user=postgres", "--novelka.database.password=",
-                "--novelka.owner.username=owner", "--novelka.owner.password=" + PASSWORD,
+                "--novelka.owner.username=owner", "--novelka.owner.password=" + PASSWORD, "--novelka.owner.email=Owner@Example.test",
                 "--novelka.worker.enabled=false", "--server.servlet.session.cookie.secure=false");
         base = "http://127.0.0.1:" + application.getEnvironment().getProperty("local.server.port") + "/api";
         owner = browser();
@@ -476,6 +476,69 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void accountsSignInByEmailOrCurrentNicknameWithCooldownAndPrivateHistory() throws Exception {
+        assertEquals("owner@example.test", body(get(owner, "/profile")).path("email").asText(), "bootstrap email is normalized");
+        String name = "n" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (var client = browser(); var other = browser(); var reader = registered(); var sql = jdbc()) {
+            assertEquals(200, post(client, "/auth/register", Map.of("username", name, "email", name + "@Example.test", "password", PASSWORD)).statusCode());
+            assertEquals(400, post(other, "/auth/register", Map.of("username", name + "x", "email", name + "@example.test", "password", PASSWORD)).statusCode());
+            assertEquals(400, post(other, "/auth/register", Map.of("username", name, "email", name + "x@example.test", "password", PASSWORD)).statusCode());
+            assertEquals(400, post(other, "/auth/register", Map.of("username", name + "y", "email", "not-an-email", "password", PASSWORD)).statusCode());
+            assertEquals(204, loginStatus(other, " " + name.toUpperCase() + "@EXAMPLE.TEST "));
+            assertEquals(204, loginStatus(client, name));
+            String id = userId(client);
+
+            var profile = body(get(client, "/profile"));
+            assertEquals(name + "@example.test", profile.path("email").asText());
+            assertEquals(0, profile.path("nicknameChanges").asInt());
+            assertTrue(profile.path("nicknameAvailableAt").isNull());
+
+            String second = name + "b";
+            assertEquals(200, post(client, "/profile/nickname", Map.of("nickname", second)).statusCode());
+            assertEquals(second, body(get(client, "/auth/me")).path("user").path("username").asText(), "session survives rename");
+            assertEquals(401, loginStatus(browser(), name), "old nickname no longer signs in");
+            assertEquals(204, loginStatus(browser(), second));
+            assertEquals(204, loginStatus(browser(), name + "@example.test"));
+            assertEquals(429, post(client, "/profile/nickname", Map.of("nickname", name + "c")).statusCode());
+            assertTrue(java.time.Instant.parse(body(get(client, "/profile")).path("nicknameAvailableAt").asText())
+                    .isAfter(java.time.Instant.now().plus(java.time.Duration.ofMinutes(110))));
+
+            sql.exec("UPDATE nickname_changes SET changed_at=changed_at-interval '3 hours' WHERE account_id=?", id);
+            assertEquals(200, post(client, "/profile/nickname", Map.of("nickname", name + "c")).statusCode());
+            assertEquals(429, post(client, "/profile/nickname", Map.of("nickname", name + "d")).statusCode());
+            assertTrue(java.time.Instant.parse(body(get(client, "/profile")).path("nicknameAvailableAt").asText())
+                    .isAfter(java.time.Instant.now().plus(java.time.Duration.ofDays(13))));
+            sql.exec("UPDATE nickname_changes SET changed_at=changed_at-interval '15 days' WHERE account_id=?", id);
+            assertEquals(200, post(client, "/profile/nickname", Map.of("nickname", name + "d")).statusCode());
+            assertTrue(java.time.Instant.parse(body(get(client, "/profile")).path("nicknameAvailableAt").asText())
+                    .isAfter(java.time.Instant.now().plus(java.time.Duration.ofDays(55))));
+            assertEquals(400, post(reader, "/profile/nickname", Map.of("nickname", name + "d")).statusCode(), "nickname stays unique");
+
+            assertEquals(403, get(reader, "/accounts/" + id + "/nicknames").statusCode());
+            var history = body(get(owner, "/accounts/" + id + "/nicknames")).path("items");
+            assertEquals(3, history.size());
+            assertEquals(name + "c", history.get(0).path("previous_nickname").asText());
+            assertEquals(name + "d", history.get(0).path("new_nickname").asText());
+            assertEquals(name, history.get(2).path("previous_nickname").asText());
+
+            assertEquals(403, post(client, "/profile/email", Map.of("email", name + "-new@example.test", "password", "wrong-password-123")).statusCode());
+            assertEquals(400, post(client, "/profile/email", Map.of("email", body(get(reader, "/profile")).path("email").asText(), "password", PASSWORD)).statusCode());
+            assertEquals(200, post(client, "/profile/email", Map.of("email", name + "-new@example.test", "password", PASSWORD)).statusCode());
+            assertEquals(204, loginStatus(browser(), name + "-new@example.test"));
+            assertEquals(401, loginStatus(browser(), name + "@example.test"));
+        }
+    }
+
+    private static int loginStatus(HttpClient client, String login) throws Exception {
+        var csrf = body(get(client, "/auth/csrf"));
+        return client.send(HttpRequest.newBuilder(URI.create(base + "/auth/login"))
+                .header(csrf.path("headerName").asText(), csrf.path("token").asText())
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(HttpRequest.BodyPublishers.ofString("username=" + java.net.URLEncoder.encode(login, java.nio.charset.StandardCharsets.UTF_8)
+                        + "&password=" + PASSWORD)).build(), HttpResponse.BodyHandlers.ofString()).statusCode();
+    }
+
+    @Test
     void selfApprovalSettingAppliesOnlyToAdminsAndIsEnforcedByBackend() throws Exception {
         String novel = seed();
         String job = body(get(owner, "/novels/" + novel + "/chapters/1")).path("jobId").asText();
@@ -644,7 +707,7 @@ class AccessIntegrationTest {
     private static HttpClient registered() throws Exception {
         var client = browser();
         String name = "u" + UUID.randomUUID().toString().replace("-", "");
-        var response = post(client, "/auth/register", Map.of("username", name, "password", PASSWORD));
+        var response = post(client, "/auth/register", Map.of("username", name, "email", name + "@example.test", "password", PASSWORD));
         assertEquals(200, response.statusCode(), response.body());
         login(client, name);
         return client;
