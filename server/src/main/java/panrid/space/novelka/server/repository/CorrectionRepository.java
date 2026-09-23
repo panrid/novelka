@@ -9,6 +9,8 @@ import panrid.space.novelka.server.list.ListQuery;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 
 public final class CorrectionRepository {
     private final JdbcSession jdbc;
@@ -28,18 +30,78 @@ public final class CorrectionRepository {
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
-    public ListPage<Map<String, Object>> list(String author, ListQuery query, String state, String novel) throws Exception {
+    public ListPage<Map<String, Object>> list(String owner, ListQuery query, String state, String novel,
+            int chapter, String authorId, String dateFrom, String dateTo) throws Exception {
         if (!state.isEmpty() && !List.of("pending", "approved", "rejected").contains(state))
             throw new IllegalArgumentException("Невідомий стан правки.");
-        String from = " FROM corrections c JOIN accounts a ON a.id=c.author_id";
-        String where = " WHERE (?::text IS NULL OR c.author_id=?) AND (?='' OR c.state=?) AND (?='' OR c.novel_id=?)"
-                + " AND (?='' OR c.original ILIKE ? ESCAPE '\\' OR c.replacement ILIKE ? ESCAPE '\\')";
-        Object[] filters = {author, author, state, state, novel, novel, query.q(), query.pattern(), query.pattern()};
-        long total = ((Number) jdbc.rows("SELECT count(*) total" + from + where, filters).getFirst().get("total")).longValue();
-        String order = query.order(Map.of("created", "c.created_at", "state", "c.state", "chapter", "c.chapter", "novel", "c.novel_id"), "created", "c.id");
-        var items = jdbc.rows("SELECT c.*,a.username author" + from + where + order + " LIMIT ? OFFSET ?",
-                author, author, state, state, novel, novel, query.q(), query.pattern(), query.pattern(), query.size(), query.offset());
+        if (chapter < 0) throw new IllegalArgumentException("Некоректний номер глави.");
+        String fromDate = date(dateFrom);
+        String toDate = date(dateTo);
+        if (!fromDate.isEmpty() && !toDate.isEmpty() && fromDate.compareTo(toDate) > 0)
+            throw new IllegalArgumentException("Початкова дата має бути не пізнішою за кінцеву.");
+        fromDate = fromDate.isEmpty() ? "" : fromDate + "T00:00:00Z";
+        toDate = toDate.isEmpty() ? "" : LocalDate.parse(toDate).plusDays(1) + "T00:00:00Z";
+        String base = """
+                WITH correction_list AS (
+                    SELECT c.id,c.author_id,a.username author,c.novel_id,
+                        COALESCE(NULLIF(n.data->>'titleUk',''),n.data->>'title') novel_title,
+                        c.chapter,COALESCE(jsonb_path_query_first(b.data,
+                            '$.segments[*].revised[*] ? (@.kind == "heading").text') #>> '{}',ch.data->>'title') chapter_title,
+                        c.state,c.created_at,c.reviewed_at,c.original,c.replacement
+                    FROM corrections c JOIN accounts a ON a.id=c.author_id
+                    JOIN novels n ON n.id=c.novel_id JOIN jobs b ON b.id=c.base_job_id
+                    LEFT JOIN chapters ch ON ch.novel_id=c.novel_id AND ch.number=c.chapter
+                )
+                """;
+        String where = """
+                 WHERE (?::text IS NULL OR author_id=?) AND (?='' OR state=?) AND (?='' OR novel_id=?)
+                   AND (?=0 OR chapter=?) AND (?='' OR author_id=?)
+                   AND (?='' OR created_at>=?::timestamptz) AND (?='' OR created_at<?::timestamptz)
+                   AND (?='' OR novel_title ILIKE ? ESCAPE '\\' OR chapter_title ILIKE ? ESCAPE '\\'
+                       OR chapter::text LIKE ? ESCAPE '\\' OR author ILIKE ? ESCAPE '\\'
+                       OR original ILIKE ? ESCAPE '\\' OR replacement ILIKE ? ESCAPE '\\')
+                """;
+        Object[] filters = {owner, owner, state, state, novel, novel, chapter, chapter, authorId, authorId,
+                fromDate, fromDate, toDate, toDate, query.q(), query.pattern(), query.pattern(), query.pattern(),
+                query.pattern(), query.pattern(), query.pattern()};
+        long total = ((Number) jdbc.rows(base + "SELECT count(*) total FROM correction_list" + where, filters).getFirst().get("total")).longValue();
+        String order = query.order(Map.of("created", "created_at", "state", "state", "chapter", "chapter",
+                "novel", "novel_title", "author", "author"), "created", "id");
+        var items = jdbc.rows(base + "SELECT id,author_id,author,novel_id,novel_title,chapter,chapter_title,state,created_at,reviewed_at"
+                + " FROM correction_list" + where + order + " LIMIT ? OFFSET ?", append(filters, query.size(), query.offset()));
         return ListPage.of(items, query, total);
+    }
+
+    public Map<String, Object> detail(String id) throws Exception {
+        var rows = jdbc.rows("""
+                SELECT c.id,c.author_id,a.username author,c.novel_id,c.chapter,c.base_job_id,b.revision base_revision,
+                    p.revision published_revision,c.block_index,c.original,c.replacement,c.reason,c.state,c.review_note,
+                    c.created_at,c.reviewed_at
+                FROM corrections c JOIN accounts a ON a.id=c.author_id JOIN jobs b ON b.id=c.base_job_id
+                LEFT JOIN jobs p ON p.id=c.published_job_id WHERE c.id=?
+                """, id);
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
+    public List<Map<String, Object>> authors(String owner, String q) throws Exception {
+        var query = new ListQuery(1, 20, q, "", "asc");
+        return jdbc.rows("""
+                SELECT DISTINCT a.id,a.username FROM corrections c JOIN accounts a ON a.id=c.author_id
+                WHERE (?::text IS NULL OR c.author_id=?) AND (?='' OR a.username ILIKE ? ESCAPE '\\')
+                ORDER BY a.username,a.id LIMIT 20
+                """, owner, owner, query.q(), query.pattern());
+    }
+
+    private String date(String value) {
+        if (value == null || value.isEmpty()) return "";
+        try { return LocalDate.parse(value).toString(); }
+        catch (DateTimeParseException error) { throw new IllegalArgumentException("Дата має формат РРРР-ММ-ДД."); }
+    }
+
+    private Object[] append(Object[] values, Object... extras) {
+        var result = java.util.Arrays.copyOf(values, values.length + extras.length);
+        System.arraycopy(extras, 0, result, values.length, extras.length);
+        return result;
     }
 
     public List<Map<String, Object>> pending(String author, Work work) throws Exception {

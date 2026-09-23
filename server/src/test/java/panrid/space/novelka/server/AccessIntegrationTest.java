@@ -404,6 +404,68 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void correctionListCombinesFiltersSortingPagesAndKeepsDiffOnProposalBase() throws Exception {
+        String first = seed();
+        String second = seed();
+        try (var one = registered(); var two = registered()) {
+            String jobA = body(get(one, "/novels/" + first + "/chapters/1")).path("jobId").asText();
+            String jobB = body(get(two, "/novels/" + second + "/chapters/1")).path("jobId").asText();
+            String paragraph = propose(one, first, jobA, 1, "Він ішов.", "Він крокував.");
+            String heading = propose(two, first, jobA, 0, "Пролог", "Початок");
+            String other = propose(two, second, jobB, 1, "Він ішов.", "Він біг.");
+            String author = userId(two);
+            String name = body(get(two, "/auth/me")).path("user").path("username").asText();
+            var today = java.time.LocalDate.now(java.time.ZoneOffset.UTC);
+
+            var mine = body(get(two, "/corrections?sort=created&direction=asc"));
+            assertEquals(2, mine.path("total").asInt());
+            assertFalse(mine.path("items").get(0).has("original"), "list must not carry correction texts");
+            assertEquals("Пролог", mine.path("items").get(0).path("chapter_title").asText());
+            assertEquals(0, body(get(two, "/corrections?authorId=" + userId(one))).path("total").asInt(),
+                    "a reader only sees own corrections even with another author filter");
+
+            assertEquals(2, body(get(owner, "/corrections?queue=true&novel=" + first)).path("total").asInt());
+            assertEquals(2, body(get(owner, "/corrections?queue=true&authorId=" + author)).path("total").asInt());
+            assertEquals(1, body(get(owner, "/corrections?queue=true&authorId=" + author + "&novel=" + first)).path("total").asInt());
+            assertEquals(0, body(get(owner, "/corrections?queue=true&novel=" + first + "&chapter=2")).path("total").asInt());
+            assertEquals(1, body(get(owner, "/corrections?queue=true&novel=" + second + "&q=" + name)).path("total").asInt());
+            assertEquals(2, body(get(owner, "/corrections?queue=true&novel=" + first + "&q=%D0%9F%D1%80%D0%BE%D0%BB%D0%BE%D0%B3")).path("total").asInt());
+            assertEquals(2, body(get(owner, "/corrections?queue=true&authorId=" + author + "&dateFrom=" + today.minusDays(1)
+                    + "&dateTo=" + today.plusDays(1) + "&state=pending")).path("total").asInt());
+            assertEquals(0, body(get(owner, "/corrections?queue=true&authorId=" + author + "&dateTo=" + today.minusDays(2))).path("total").asInt());
+
+            String paged = "/corrections?queue=true&authorId=" + author + "&sort=created&direction=asc&size=1&page=";
+            var page1 = body(get(owner, paged + 1));
+            var page2 = body(get(owner, paged + 2));
+            assertEquals(2, page1.path("totalPages").asInt());
+            assertEquals(heading, page1.path("items").get(0).path("id").asText());
+            assertEquals(other, page2.path("items").get(0).path("id").asText());
+            var byNovel = get(owner, "/corrections?queue=true&authorId=" + author + "&sort=novel&direction=desc&size=1&page=2");
+            assertEquals(200, byNovel.statusCode(), byNovel.body());
+            assertEquals(1, body(byNovel).path("items").size());
+
+            assertEquals(400, get(owner, "/corrections?queue=true&dateFrom=" + today + "&dateTo=" + today.minusDays(1)).statusCode());
+            assertEquals(400, get(owner, "/corrections?queue=true&dateFrom=23.09.2026").statusCode());
+            assertEquals(400, get(owner, "/corrections?queue=true&chapter=-1").statusCode());
+            assertEquals(400, get(owner, "/corrections?queue=true&sort=original").statusCode());
+            assertEquals(403, get(one, "/corrections/authors?q=u").statusCode());
+            var authors = body(get(owner, "/corrections/authors?q=" + name)).path("items");
+            assertEquals(author, authors.get(0).path("id").asText());
+
+            assertEquals(403, get(one, "/corrections/" + heading).statusCode());
+            assertEquals(404, get(owner, "/corrections/" + UUID.randomUUID()).statusCode());
+            assertEquals(200, post(owner, "/corrections/" + paragraph + "/review", Map.of("approve", true, "note", "")).statusCode());
+            var approved = body(get(one, "/corrections/" + paragraph));
+            assertEquals(1, approved.path("base_revision").asInt());
+            assertEquals(2, approved.path("published_revision").asInt());
+            var pending = body(get(owner, "/corrections/" + heading));
+            assertEquals("Пролог", pending.path("original").asText(), "diff base is the proposal text, not the newer revision");
+            assertEquals(1, pending.path("base_revision").asInt());
+            assertEquals(1, body(get(owner, "/corrections?queue=true&novel=" + first + "&state=approved")).path("total").asInt());
+        }
+    }
+
+    @Test
     void rejectsConflictingEditsAndSelfReviewButRebasesUnrelatedBlocks() throws Exception {
         String novel = seed();
         try (var first = registered(); var second = registered()) {

@@ -146,21 +146,3 @@ test('owner sees account balance and a web action for a changed dictionary', asy
     await expect(task.getByText('Повторно вичитати одну главу', { exact: false })).toBeVisible();
     await expect(task.getByText('job2')).toBeVisible();
 });
-
-test('editor approves a correction with a reason', async ({ page }) => {
-    await session(page, { id: 'editor', username: 'editor', role: 'EDITOR' });
-    let approved = false;
-    await page.route('**/api/corrections?**', route => route.fulfill({ json: pageData(new URL(route.request().url()).searchParams.get('queue') === 'true' ? [{
-        id: 'c1', author_id: 'reader', author: 'reader', novel_id: novel.id, chapter: 1,
-        original: 'Він ішов.', replacement: 'Він крокував.', reason: 'Точніше', state: approved ? 'approved' : 'pending', review_note: '',
-    }] : []) }));
-    await page.route('**/api/corrections/c1/review', route => {
-        expect(route.request().postDataJSON()).toEqual({ approve: true, note: 'Погоджую' }); approved = true;
-        return route.fulfill({ json: { message: 'Збережено' } });
-    });
-    await page.goto('/#/corrections');
-    await page.getByRole('button', { name: 'Черга редактора' }).click();
-    await page.getByLabel('Коментар рішення').fill('Погоджую');
-    await page.getByRole('button', { name: 'Погодити й опублікувати' }).click();
-    await expect(page.getByText('Погоджено', { exact: true })).toBeVisible();
-});

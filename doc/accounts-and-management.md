@@ -264,6 +264,8 @@ job не збільшує історичну суму попереднього �
 | POST /api/auth/register, /login, /logout | Реєстрація, form login, вихід |
 | GET/POST /api/corrections | Власні пропозиції / створення |
 | GET /api/corrections?queue=true | EDITOR, черга з історією |
+| GET /api/corrections/authors | EDITOR, автори правок для фільтра (ID і поточне ім'я) |
+| GET /api/corrections/{id} | Автор правки або EDITOR: тексти, пояснення, базова й опублікована ревізії |
 | POST /api/corrections/{id}/review | EDITOR, approve і note |
 | GET /api/accounts; POST /api/accounts/{id}/role | ADMIN, обмеження за таблицею ролей |
 | GET /api/accounts/audit | OWNER, журнал дій |

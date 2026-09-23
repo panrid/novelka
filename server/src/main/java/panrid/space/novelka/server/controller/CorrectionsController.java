@@ -1,6 +1,8 @@
 package panrid.space.novelka.server.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import panrid.space.novelka.core.support.Json;
 import panrid.space.novelka.server.account.AccessService;
 import panrid.space.novelka.server.account.Role;
@@ -30,11 +32,32 @@ public final class CorrectionsController {
             @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "25") int size,
             @RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "created") String sort,
             @RequestParam(defaultValue = "desc") String direction, @RequestParam(defaultValue = "") String state,
-            @RequestParam(defaultValue = "") String novel) throws Exception {
+            @RequestParam(defaultValue = "") String novel, @RequestParam(defaultValue = "0") int chapter,
+            @RequestParam(defaultValue = "") String authorId, @RequestParam(defaultValue = "") String dateFrom,
+            @RequestParam(defaultValue = "") String dateTo) throws Exception {
         var account = access.require(principal, queue ? Role.EDITOR : Role.READER);
         try (var jdbc = database.open()) {
             return Json.M.convertValue(new CorrectionRepository(jdbc).list(queue ? null : account.id(),
-                    new ListQuery(page, size, q, sort, direction), state, novel), Object.class);
+                    new ListQuery(page, size, q, sort, direction), state, novel, chapter, authorId, dateFrom, dateTo), Object.class);
+        }
+    }
+
+    @GetMapping("/authors")
+    public Object authors(Principal principal, @RequestParam(defaultValue = "") String q) throws Exception {
+        access.require(principal, Role.EDITOR);
+        try (var jdbc = database.open()) {
+            return Map.of("items", new CorrectionRepository(jdbc).authors(null, q));
+        }
+    }
+
+    @GetMapping("/{id}")
+    public Object detail(Principal principal, @PathVariable String id) throws Exception {
+        var account = access.require(principal, Role.READER);
+        try (var jdbc = database.open()) {
+            var detail = new CorrectionRepository(jdbc).detail(id);
+            if (detail == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            if (!account.id().equals(detail.get("author_id"))) access.require(principal, Role.EDITOR);
+            return detail;
         }
     }
 

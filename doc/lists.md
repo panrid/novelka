@@ -10,7 +10,7 @@
 | Зміст новели | NovelPage | `GET /api/novels/{id}/contents` | `q` за назвою/номером, `sort=number` |
 | Користувачі | AccountsPage | `GET /api/accounts` | `q`, `role`, `sort=created\|username\|role` |
 | Журнал дій | AuditPage | `GET /api/accounts/audit` | `q` за виконавцем/об'єктом, `action`, `sort=created\|actor\|action` |
-| Правки | CorrectionsPage | `GET /api/corrections` | `queue`, `q` за текстом, `state`, `novel`, `sort=created\|state\|chapter\|novel` |
+| Правки | CorrectionsPage | `GET /api/corrections` | `queue`; `q` за назвою новели, назвою/номером глави, автором і текстом; `state`, `novel`, `chapter`, `authorId`, `dateFrom`/`dateTo` (РРРР-ММ-ДД, UTC, включно); `sort=created\|novel\|chapter\|author\|state`. Рядок без текстів; `GET /api/corrections/{id}` віддає тексти для diff |
 | Черга | TaskQueue | `GET /api/tasks` | `q` за новелою/ID, `state`, `operation`, `novel`, `sort=created\|state\|novel\|spent` |
 | Витрати | CostReport | `GET /api/manage/costs` | `novel`, `details`, `q`, `stage`; сортування за видимими числовими, текстовими й часовими колонками |
 | Ревізії | JobTable | `GET /api/manage/{id}/jobs` | `q` за номером/ID, `state`, `sort=updated\|chapter\|revision\|state` |
@@ -55,6 +55,8 @@ offset-сторінки можуть зсунутися; для потоку с�
 переклади на перевірку. Якщо pipeline тримає lock новели, збереження/об'єднання
 повертає 409 одразу. Відхилення пропозиції не залежить від цього lock.
 
+V7 додає індекси `corrections(created_at,id)` для черги за датою та
+`corrections(novel_id,chapter,created_at,id)` для фільтра новели/глави.
 Схема V6 додає індекси для порядку за часом та фільтра власних правок,
 завдань, ревізій, аудиту й пропозицій. Пошук `ILIKE '%...%'` не отримав
 випадкового btree-індексу: він не прискорить такий запит. Якщо обсяг даних
