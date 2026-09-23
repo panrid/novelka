@@ -129,7 +129,7 @@ test('owner sees account balance and a web action for a changed dictionary', asy
     } }));
     await page.route('**/api/settings', route => route.fulfill({ json: {
         revision: 0, registrationOpen: true, segmentChars: 1500, targetUsdPer5000: .1, maxBudgetUsd: 5,
-        stages: ['analyze', 'translate', 'proofread'].map(stage => ({ stage, model: 'openai/gpt-4o-mini', inputUsdM: .15, outputUsdM: .6 })),
+        stages: ['analyze', 'translate', 'proofread'].map(stage => ({ stage, model: 'openai/gpt-4o-mini', inputUsdM: .15, outputUsdM: .6, catalogPricing: false })),
         adminSelfApproval: false,
     } }));
     await page.route('**/api/tasks**', route => route.fulfill({ json: pageData([{
@@ -153,7 +153,7 @@ test('settings are grouped into categories that keep unsaved edits and save toge
     let saved: Record<string, unknown> | undefined;
     const settings = {
         revision: 3, registrationOpen: true, segmentChars: 1500, targetUsdPer5000: .1, maxBudgetUsd: 5,
-        stages: ['analyze', 'translate', 'proofread'].map(stage => ({ stage, model: 'openai/gpt-4o-mini', inputUsdM: .15, outputUsdM: .6 })),
+        stages: ['analyze', 'translate', 'proofread'].map(stage => ({ stage, model: 'openai/gpt-4o-mini', inputUsdM: .15, outputUsdM: .6, catalogPricing: false })),
         adminSelfApproval: false,
     };
     await page.route('**/api/settings', route => {
@@ -174,4 +174,43 @@ test('settings are grouped into categories that keep unsaved edits and save toge
     await page.getByRole('radio', { name: 'Світла', exact: true }).last().check();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('AI settings suggest suitable catalog models and explain prices', async ({ page }) => {
+    await session(page, owner);
+    await page.route('**/api/settings/openrouter-credits', route => route.fulfill({ json: { configured: false, totalCredits: null, totalUsage: null, remainingUsd: null } }));
+    let saved: { stages: { model: string; catalogPricing: boolean }[] } | undefined;
+    await page.route('**/api/settings', route => {
+        if (route.request().method() === 'POST') { saved = route.request().postDataJSON(); return route.fulfill({ json: { ...saved, revision: 2 } }); }
+        return route.fulfill({ json: { revision: 1, registrationOpen: true, segmentChars: 1500, targetUsdPer5000: .1, maxBudgetUsd: 5,
+            stages: ['analyze', 'translate', 'proofread'].map(stage => ({ stage, model: 'openai/gpt-4o-mini', inputUsdM: .15, outputUsdM: .6, catalogPricing: false })),
+            adminSelfApproval: false } });
+    });
+    const catalog = (refreshedAt: string) => ({ provider: 'openrouter', refreshedAt, stale: false, error: null, items: [
+        { id: 'openai/gpt-4o-mini', name: 'GPT-4o mini', contextLength: 128000, inputUsdM: .15, outputUsdM: .6, suitable: true, limitation: null },
+        { id: 'vendor/cheap', name: 'Cheap', contextLength: 32000, inputUsdM: .05, outputUsdM: .1, suitable: true, limitation: null },
+        { id: 'vendor/no-tools', name: 'No tools', contextLength: 8000, inputUsdM: .01, outputUsdM: .02, suitable: false, limitation: 'Немає інструментів для пошуку в словнику.' },
+    ] });
+    await page.route('**/api/models', route => route.fulfill({ json: catalog('2026-09-24T08:00:00Z') }));
+    let refreshed = false;
+    await page.route('**/api/models/refresh', route => { refreshed = true; return route.fulfill({ json: catalog('2026-09-24T09:30:00Z') }); });
+    await page.goto('/#/settings?section=ai');
+    await expect(page.getByText(/Каталог OpenRouter: 2 придатних моделей/)).toBeVisible();
+    const translate = page.getByRole('group', { name: 'Переклад' });
+    await expect(translate.locator('.model-info')).toContainText(/GPT-4o mini · контекст 128/);
+    await translate.getByLabel('Модель').fill('vendor/no-tools');
+    await expect(translate.locator('.model-info')).toHaveText('Не підходить для перекладу: Немає інструментів для пошуку в словнику.');
+    await translate.getByLabel('Модель').fill('vendor/cheap');
+    await translate.getByLabel('Брати ціну з каталогу провайдера').check();
+    await expect(translate.getByText(/Діє ціна з каталогу: Cheap/)).toBeVisible();
+    await expect(translate.getByLabel('Резервна ціна входу, $ / млн')).toHaveValue('0.15');
+    const status = page.locator('.catalog-status > span');
+    const before = await status.textContent();
+    await page.getByRole('button', { name: 'Оновити список моделей' }).click();
+    await expect(status).not.toHaveText(before!);
+    expect(refreshed).toBe(true);
+    await page.getByRole('button', { name: 'Зберегти налаштування' }).click();
+    await expect(page.getByText('Налаштування збережено.')).toBeVisible();
+    expect(saved!.stages[1]).toMatchObject({ model: 'vendor/cheap', catalogPricing: true });
+    expect(saved!.stages[0]).toMatchObject({ model: 'openai/gpt-4o-mini', catalogPricing: false });
 });

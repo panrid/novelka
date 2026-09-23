@@ -10,10 +10,11 @@ import { HelpTip } from '../components/HelpTip';
 import { ThemePicker } from '../theme/ThemePicker';
 import { permits, useAuth, type Role } from '../auth/AuthContext';
 import { UsersSettings } from './UsersSettings';
+import { ModelPicker, modelSummary, type ModelCatalog } from '../components/ModelPicker';
 
 export interface Settings {
     revision: number; registrationOpen: boolean; segmentChars: number; targetUsdPer5000: number; maxBudgetUsd: number;
-    stages: { stage: string; model: string; inputUsdM: number; outputUsdM: number }[]; adminSelfApproval: boolean;
+    stages: { stage: string; model: string; inputUsdM: number; outputUsdM: number; catalogPricing: boolean }[]; adminSelfApproval: boolean;
 }
 
 /** Categories are listed only when they have real controls; new settings join an existing category first. */
@@ -78,16 +79,41 @@ function SectionFields({ section, settings, update }: { section: SectionId; sett
         <HelpField label="Цільова ціна на 5000 токенів, $" help="Орієнтир вартості перекладу 5000 токенів оригіналу. Використовується для оцінки витрат у звітах; фактичний ліміт задає бюджет запуску.">{id => <input id={id} type="number" min="0" step=".01" required value={settings.targetUsdPer5000} onChange={event => update({ ...settings, targetUsdPer5000: Number(event.target.value) })} />}</HelpField>
         <HelpField label="Символів у сегменті" help="Довга глава ділиться між абзацами на сегменти приблизно такого розміру. Більший сегмент дає моделі більше контексту, але дорожчий повтор після збою.">{id => <input id={id} type="number" min="500" max="20000" required value={settings.segmentChars} onChange={event => update({ ...settings, segmentChars: Number(event.target.value) })} />}</HelpField>
     </div>;
+    return <AiSettings settings={settings} update={update} />;
+}
+
+function AiSettings({ settings, update }: { settings: Settings; update: (settings: Settings) => void }) {
+    const catalog = useResource<ModelCatalog>('/models', true);
+    const refresh = useAction();
+    const [fresh, setFresh] = useState<ModelCatalog>();
+    const models = fresh ?? catalog.data;
     const stage = (index: number, patch: Partial<Settings['stages'][number]>) =>
         update({ ...settings, stages: settings.stages.map((item, i) => i === index ? { ...item, ...patch } : item) });
     return <>
         <OpenRouterBalance />
-        <p className="muted">Ключ OpenRouter задається на сервері.</p>
-        {settings.stages.map((item, index) => <fieldset key={item.stage}><legend>{stageNames[item.stage]}</legend><div className="form-grid">
-            <label>Модель<input required value={item.model} onChange={event => stage(index, { model: event.target.value })} /></label>
-            <label>Вхідні токени, $ / млн<input type="number" required min="0" step=".001" value={item.inputUsdM} onChange={event => stage(index, { inputUsdM: Number(event.target.value) })} /></label>
-            <label>Вихідні токени, $ / млн<input type="number" required min="0" step=".001" value={item.outputUsdM} onChange={event => stage(index, { outputUsdM: Number(event.target.value) })} /></label>
-        </div></fieldset>)}
+        <div className="catalog-status" role="status">
+            <span>{catalog.error ? 'Каталог моделей недоступний: ' + catalog.error
+                : !models ? 'Отримуємо список моделей…'
+                    : `Каталог OpenRouter: ${models.items.filter(item => item.suitable).length} придатних моделей` + (models.refreshedAt
+                        ? `, оновлено ${new Date(models.refreshedAt).toLocaleString('uk-UA')}` : '') + (models.error ? `. Останнє оновлення не вдалося: ${models.error}` : '.')}</span>
+            <button type="button" disabled={refresh.busy} onClick={() => { void refresh.run(async () => setFresh(await mutate<ModelCatalog>('/models/refresh'))); }}>Оновити список моделей</button>
+        </div>
+        <p className="muted">Ключ OpenRouter задається на сервері. Підказки показують лише моделі з JSON-відповідями, інструментами й фіксованою ціною.</p>
+        {settings.stages.map((item, index) => {
+            const known = models?.items.find(model => model.id === item.model);
+            const catalogPrice = item.catalogPricing && known?.inputUsdM != null && known.outputUsdM != null;
+            return <fieldset key={item.stage}><legend>{stageNames[item.stage]}</legend>
+                <ModelPicker label="Модель" required value={item.model} catalog={models} onChange={model => stage(index, { model })} />
+                <span className="check-with-help"><label className="check-label"><input type="checkbox" checked={item.catalogPricing}
+                    onChange={event => stage(index, { catalogPricing: event.target.checked })} />Брати ціну з каталогу провайдера</label>
+                    <HelpTip label="Ціна з каталогу">Нове завдання отримує актуальну ціну моделі з останнього списку OpenRouter. Якщо моделі немає в каталозі або ціна неповна, використовуються ручні ціни нижче. Каталог ніколи не перезаписує ручні ціни.</HelpTip></span>
+                {catalogPrice && <p className="muted model-price">Діє ціна з каталогу: {modelSummary(known!)}.</p>}
+                <div className="form-grid">
+                    <label>{item.catalogPricing ? 'Резервна ціна входу' : 'Вхідні токени'}, $ / млн<input type="number" required min="0" step=".001" value={item.inputUsdM} onChange={event => stage(index, { inputUsdM: Number(event.target.value) })} /></label>
+                    <label>{item.catalogPricing ? 'Резервна ціна виходу' : 'Вихідні токени'}, $ / млн<input type="number" required min="0" step=".001" value={item.outputUsdM} onChange={event => stage(index, { outputUsdM: Number(event.target.value) })} /></label>
+                </div></fieldset>;
+        })}
+        <ActionNotice {...refresh} />
     </>;
 }
 

@@ -255,6 +255,12 @@ button.link-button[aria-pressed="true"] { color: var(--accent); }
 .role-choice:has(input:checked) { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
 .role-choice:has(input:disabled) { cursor: not-allowed; opacity: .6; }
 .role-choice.current:has(input:disabled) { opacity: 1; }
+.model-picker { display: grid; gap: 8px; min-width: 0; font-size: 14px; line-height: 1.5; }
+.model-info { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.model-info.warning { color: var(--ink); padding-left: 8px; border-left: 3px solid #ad6546; }
+.catalog-status { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 16px 0 6px; font-size: 13px; }
+.settings-form fieldset { display: grid; gap: 12px; }
+.model-price { margin: 0; font-size: 13px; }
 .profile-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 18px 0 26px; }
 .profile-summary > div { padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); min-width: 0; }
 .profile-summary dt { color: var(--muted); font-size: 12px; }

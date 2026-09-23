@@ -39,16 +39,28 @@ class AccessIntegrationTest {
     static String base;
     static HttpClient owner;
     static final String PASSWORD = "test-password-only-1234";
+    static com.sun.net.httpserver.HttpServer models;
+    static volatile boolean modelsFail;
 
     @BeforeAll
     static void start() throws Exception {
         postgres = EmbeddedPostgres.builder().setErrorRedirector(ProcessBuilder.Redirect.INHERIT)
                 .setOutputRedirector(ProcessBuilder.Redirect.INHERIT).start();
+        // Stand-in for the public OpenRouter model list, so tests never call the network.
+        models = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        models.createContext("/models", exchange -> {
+            if (modelsFail) { exchange.sendResponseHeaders(503, -1); exchange.close(); return; }
+            byte[] response = panrid.space.novelka.server.models.ModelFixtures.MODELS.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, response.length);
+            try (var output = exchange.getResponseBody()) { output.write(response); }
+        });
+        models.start();
         application = new SpringApplication(NovelkaServer.class).run("--server.port=0",
                 "--novelka.database.url=" + postgres.getJdbcUrl("postgres", "postgres"),
                 "--novelka.database.user=postgres", "--novelka.database.password=",
                 "--novelka.owner.username=owner", "--novelka.owner.password=" + PASSWORD, "--novelka.owner.email=Owner@Example.test",
-                "--novelka.worker.enabled=false", "--server.servlet.session.cookie.secure=false");
+                "--novelka.worker.enabled=false", "--server.servlet.session.cookie.secure=false",
+                "--novelka.openrouter.models-url=http://127.0.0.1:" + models.getAddress().getPort() + "/models");
         base = "http://127.0.0.1:" + application.getEnvironment().getProperty("local.server.port") + "/api";
         owner = browser();
         login(owner, "owner");
@@ -59,6 +71,7 @@ class AccessIntegrationTest {
         if (owner != null) owner.close();
         if (application != null) application.close();
         if (postgres != null) postgres.close();
+        if (models != null) models.stop(0);
     }
 
     @org.junit.jupiter.api.BeforeEach
@@ -543,6 +556,49 @@ class AccessIntegrationTest {
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .POST(HttpRequest.BodyPublishers.ofString("username=" + java.net.URLEncoder.encode(login, java.nio.charset.StandardCharsets.UTF_8)
                         + "&password=" + PASSWORD)).build(), HttpResponse.BodyHandlers.ofString()).statusCode();
+    }
+
+    @Test
+    void modelCatalogIsCachedKeepsLastListOnFailureAndPricesNewTasks() throws Exception {
+        try (var reader = registered()) { assertEquals(403, get(reader, "/models").statusCode()); }
+        var catalog = body(get(owner, "/models"));
+        assertEquals("openrouter", catalog.path("provider").asText());
+        assertFalse(catalog.path("refreshedAt").isNull());
+        assertEquals("good/model", catalog.path("items").get(0).path("id").asText(), "suitable models come first");
+        assertEquals(0.15, catalog.path("items").get(0).path("inputUsdM").asDouble());
+
+        modelsFail = true;
+        try {
+            var failed = body(post(owner, "/models/refresh", Map.of()));
+            assertTrue(failed.path("error").asText().contains("503"));
+            assertEquals(4, failed.path("items").size(), "last good list stays available");
+        } finally {
+            modelsFail = false;
+        }
+
+        var settings = (com.fasterxml.jackson.databind.node.ObjectNode) body(get(owner, "/settings"));
+        var original = settings.deepCopy();
+        for (var stage : settings.withArray("stages")) {
+            ((com.fasterxml.jackson.databind.node.ObjectNode) stage).put("model", "good/model").put("inputUsdM", 9).put("outputUsdM", 9)
+                    .put("catalogPricing", true);
+        }
+        ((com.fasterxml.jackson.databind.node.ObjectNode) settings.withArray("stages").get(2)).put("model", "no/such-model");
+        assertEquals(200, post(owner, "/settings", settings).statusCode());
+        try {
+            String novel = seed();
+            String task = body(post(owner, "/tasks", task(novel, UUID.randomUUID().toString(), .1))).path("id").asText();
+            try (var sql = jdbc()) {
+                var snapshot = Json.read(sql.rows("SELECT settings FROM web_tasks WHERE id=?", task).getFirst().get("settings").toString());
+                assertEquals(0.15, snapshot.path("stages").get(0).path("inputUsdM").asDouble(), "catalog price used");
+                assertEquals(0.6, snapshot.path("stages").get(0).path("outputUsdM").asDouble());
+                assertEquals(9, snapshot.path("stages").get(2).path("inputUsdM").asDouble(), "manual price kept when the catalog has no model");
+            }
+            var saved = body(get(owner, "/settings"));
+            assertEquals(9, saved.path("stages").get(0).path("inputUsdM").asDouble(), "catalog never overwrites stored manual prices");
+        } finally {
+            original.put("revision", body(get(owner, "/settings")).path("revision").asLong());
+            assertEquals(200, post(owner, "/settings", original).statusCode());
+        }
     }
 
     @Test

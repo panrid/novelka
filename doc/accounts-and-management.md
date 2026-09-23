@@ -302,6 +302,8 @@ job не збільшує історичну суму попереднього �
 | POST /api/profile/nickname | READER, зміна ніка з обмеженням частоти |
 | POST /api/profile/email | READER, зміна email із поточним паролем |
 | GET /api/accounts/{id}/nicknames | ADMIN, історія ніків користувача |
+| GET /api/models | ADMIN, каталог моделей провайдера: придатність, ціни за млн токенів, час оновлення |
+| POST /api/models/refresh | OWNER, примусово оновити каталог моделей |
 | GET /api/corrections/authors | EDITOR, автори правок для фільтра (ID і поточне ім'я) |
 | GET /api/corrections/{id} | Автор правки або EDITOR: тексти, пояснення, базова й опублікована ревізії |
 | POST /api/corrections/{id}/review | EDITOR, approve і note |

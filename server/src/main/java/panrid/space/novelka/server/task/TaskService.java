@@ -24,7 +24,7 @@ public final class TaskService {
         if (request.requestKey() == null || !request.requestKey().matches("[a-zA-Z0-9-]{8,80}")
                 || request.operation() == null || !Set.of("import", "translate", "proofread", "resume").contains(request.operation()))
             throw new IllegalArgumentException("Невідома операція або ключ запиту.");
-        var snapshot = settings.read();
+        var snapshot = settings.forTask();
         if (request.dictionarySearchLimit() < 0 || request.dictionarySearchLimit() > 30)
             throw new IllegalArgumentException("Ліміт звернень до словника: від 0 до 30.");
         if (!request.operation().equals("import") && (!Double.isFinite(request.budgetUsd())
