@@ -45,7 +45,7 @@ export function App() {
         else if (path === '/profile') content = guarded('READER', <ProfilePage />);
         else if (section === '/accounts') content = guarded('ADMIN', <AccountsPage />);
         else if (path.split('?')[0] === '/manage') content = guarded('ADMIN', <ManagePage key={path} search={path.split('?')[1]} />);
-        else if (path === '/settings') content = guarded('OWNER', <SettingsPage />);
+        else if (section === '/settings') content = guarded('OWNER', <SettingsPage search={path.split('?')[1]} />);
         else if (section === '/audit') content = guarded('OWNER', <AuditPage />);
     } catch { /* Malformed URL is handled by the not-found page. */ }
     return <>

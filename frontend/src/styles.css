@@ -213,6 +213,22 @@ textarea { resize: vertical; }
 .help-field { display: grid; gap: 8px; min-width: 0; font-size: 14px; line-height: 1.5; }
 .help-field-label { display: flex; align-items: center; gap: 2px; }
 .check-with-help { display: flex; align-items: baseline; gap: 4px; }
+.settings-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 32px; align-items: start; margin-top: 18px; }
+.settings-nav { position: sticky; top: 16px; display: grid; gap: 2px; }
+.settings-nav a { padding: 9px 12px; border-left: 2px solid transparent; border-radius: 0 4px 4px 0; color: var(--muted); text-decoration: none; }
+.settings-nav a:hover { color: var(--ink); background: var(--surface); }
+.settings-nav a[aria-current="page"] { border-left-color: var(--accent); color: var(--ink); background: var(--surface); font-weight: 600; }
+.settings-nav a:last-child { margin-top: 10px; }
+.settings-content h2 { margin: 0 0 14px; font-size: 22px; }
+.settings-content .stack-form { margin-top: 0; }
+.settings-save { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+@media (max-width: 760px) {
+    .settings-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    .settings-nav { position: static; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
+    .settings-nav a { flex: none; border-left: 0; border-bottom: 2px solid transparent; border-radius: 4px 4px 0 0; white-space: nowrap; }
+    .settings-nav a[aria-current="page"] { border-bottom-color: var(--accent); }
+    .settings-nav a:last-child { margin-top: 0; }
+}
 .profile-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 18px 0 26px; }
 .profile-summary > div { padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); min-width: 0; }
 .profile-summary dt { color: var(--muted); font-size: 12px; }

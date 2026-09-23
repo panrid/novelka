@@ -137,7 +137,7 @@ test('owner sees account balance and a web action for a changed dictionary', asy
         username: owner.username, current_job_id: 'job2', message: 'Dictionary changed; run proofread or translate --force',
         current_chapter: 2, request: { first: 2, last: 2 },
     }]) }));
-    await page.goto('/#/settings');
+    await page.goto('/#/settings?section=ai');
     await expect(page.getByText('74,75')).toBeVisible();
     await page.goto('/#/manage');
     const task = page.getByRole('article', { name: 'Переклад n0022gd' });
@@ -146,4 +146,32 @@ test('owner sees account balance and a web action for a changed dictionary', asy
     await task.getByText('Подробиці').click();
     await expect(task.getByText('Повторно вичитати одну главу', { exact: false })).toBeVisible();
     await expect(task.getByText('job2')).toBeVisible();
+});
+
+test('settings are grouped into categories that keep unsaved edits and save together', async ({ page }) => {
+    await session(page, owner);
+    let saved: Record<string, unknown> | undefined;
+    const settings = {
+        revision: 3, registrationOpen: true, segmentChars: 1500, targetUsdPer5000: .1, maxBudgetUsd: 5,
+        stages: ['analyze', 'translate', 'proofread'].map(stage => ({ stage, model: 'openai/gpt-4o-mini', inputUsdM: .15, outputUsdM: .6 })),
+        adminSelfApproval: false,
+    };
+    await page.route('**/api/settings', route => {
+        if (route.request().method() === 'POST') { saved = route.request().postDataJSON(); return route.fulfill({ json: { ...saved, revision: 4 } }); }
+        return route.fulfill({ json: settings });
+    });
+    await page.goto('/#/settings');
+    const nav = page.getByRole('navigation', { name: 'Розділи налаштувань' });
+    await expect(nav.getByRole('link', { name: 'Загальні' })).toHaveAttribute('aria-current', 'page');
+    await page.getByLabel('Дозволити реєстрацію нових читачів').uncheck();
+    await nav.getByRole('link', { name: 'Редагування та погодження' }).click();
+    await expect(page).toHaveURL(/section=editing/);
+    await page.getByLabel('Адміністратор може погоджувати власні правки').check();
+    await page.getByRole('button', { name: 'Зберегти налаштування' }).click();
+    await expect(page.getByText('Налаштування збережено.')).toBeVisible();
+    expect(saved).toMatchObject({ registrationOpen: false, adminSelfApproval: true, revision: 3 });
+    await nav.getByRole('link', { name: 'Вигляд' }).click();
+    await page.getByRole('radio', { name: 'Світла', exact: true }).last().check();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
