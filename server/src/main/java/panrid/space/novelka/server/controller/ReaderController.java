@@ -41,8 +41,10 @@ public final class ReaderController {
     }
 
     @GetMapping("/{novel}")
-    public NovelDetail novel(@PathVariable("novel") String novel, @RequestParam(required = false) Integer resume) throws Exception {
-        return service.novel(novel, resume);
+    public NovelDetail novel(@PathVariable("novel") String novel, @RequestParam(required = false) Integer resume,
+            java.security.Principal principal) throws Exception {
+        var account = access.current(principal);
+        return service.novel(novel, resume, account == null ? null : account.id());
     }
 
     @GetMapping("/{novel}/contents")

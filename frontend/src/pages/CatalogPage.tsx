@@ -37,7 +37,7 @@ export function CatalogPage() {
             <div className="catalog-tools">
                 <ListSearch label="Назва, автор або аліас" value={list.state.q} onChange={q => list.update({ q, page: 1 })} />
                 <button className={'filter-button' + (readyOnly ? ' selected' : '')} aria-pressed={readyOnly} onClick={() => list.setFilter('readyOnly', readyOnly ? '' : 'true')}>Є готові глави <span aria-hidden="true">✓</span></button>
-                <label>Порядок<select value={list.state.sort} onChange={event => list.update({ sort: event.target.value, page: 1 })}><option value="title">Назва</option><option value="author">Автор</option><option value="ready">Готові глави</option></select></label>
+                <label>Порядок<select value={list.state.sort} onChange={event => list.update({ sort: event.target.value, page: 1 })}><option value="title">Назва</option><option value="author">Автор</option><option value="ready">Готові глави</option><option value="rating">Рейтинг</option></select></label>
                 <button aria-label="Змінити напрямок сортування" title="Змінити напрямок сортування" onClick={() => list.update({ direction: list.state.direction === 'asc' ? 'desc' : 'asc', page: 1 })}>{list.state.direction === 'asc' ? '↑' : '↓'}</button>
                 <TagInput label="Тег" action="Фільтрувати" placeholder="Наприклад, фентезі"
                     onAdd={name => { const slug = tagSlug(name); if (!tags.includes(slug) && tags.length < 12) setTags([...tags, slug]); }} />
@@ -59,7 +59,7 @@ export function CatalogPage() {
                     {novel.aliases.length > 0 && <p className="card-alias">{novel.aliases.join(' · ')}</p>}
                     {novel.tags.length > 0 && <p className="card-tags">{novel.tags.slice(0, 3).map(tag => <span className="tag-chip" key={tag.slug}>{tag.name}</span>)}
                         {novel.tags.length > 3 && <span className="muted">+{novel.tags.length - 3}</span>}</p>}
-                    <div className="card-bottom"><span>{novel.readyChapters} / {novel.chapterCount} глав</span><span aria-hidden="true">↗</span></div>
+                    <div className="card-bottom"><span>{novel.readyChapters} / {novel.chapterCount} глав{!!novel.score && <span className="card-score"> · рейтинг {novel.score > 0 ? '+' + novel.score : novel.score}</span>}</span><span aria-hidden="true">↗</span></div>
                 </div>
             </a>)}</div>}<ListPages data={data} onPage={list.setPage} /></>}
         </section>

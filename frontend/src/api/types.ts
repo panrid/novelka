@@ -9,6 +9,7 @@ export interface NovelCard {
     readyChapters: number;
     aliases: string[];
     tags: TagView[];
+    score: number;
 }
 
 export interface ChapterSummary {
@@ -27,6 +28,7 @@ export interface NovelDetail {
     firstChapter: number | null;
     resumeChapter: number | null;
     tags: TagView[];
+    rating: { score: number; mine: number };
 }
 
 export interface Block {

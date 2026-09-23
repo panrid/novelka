@@ -18,7 +18,8 @@ public final class CatalogRepository {
                 SELECT n.id,n.data,COALESCE(r.ready_chapters,0) ready_chapters,
                     COALESCE((SELECT jsonb_agg(a.alias ORDER BY a.alias) FROM novel_aliases a WHERE a.novel_id=n.id),'[]'::jsonb) aliases,
                     COALESCE(NULLIF(n.data->>'titleUk',''),n.data->>'title') display_title,
-                    COALESCE(NULLIF(n.data->>'authorUk',''),n.data->>'author') display_author
+                    COALESCE(NULLIF(n.data->>'authorUk',''),n.data->>'author') display_author,
+                    COALESCE((SELECT sum(v.value) FROM votes v WHERE v.target_type='novel' AND v.target_id=n.id),0) score
                 FROM novels n LEFT JOIN ready r ON r.novel_id=n.id
             )
             """;
@@ -36,8 +37,8 @@ public final class CatalogRepository {
         String selected = panrid.space.novelka.core.support.Json.write(tags);
         Object[] filters = {query.q(), query.pattern(), query.pattern(), query.pattern(), query.pattern(), readyOnly, selected, selected, selected};
         long total = ((Number) jdbc.rows(BASE + "SELECT count(*) total FROM cards" + FILTER, filters).getFirst().get("total")).longValue();
-        String order = query.order(Map.of("title", "display_title", "author", "display_author", "ready", "ready_chapters", "id", "id"), "title", "id");
-        var rows = jdbc.rows(BASE + "SELECT id,data,ready_chapters,aliases FROM cards" + FILTER + order + " LIMIT ? OFFSET ?",
+        String order = query.order(Map.of("title", "display_title", "author", "display_author", "ready", "ready_chapters", "rating", "score", "id", "id"), "title", "id");
+        var rows = jdbc.rows(BASE + "SELECT id,data,ready_chapters,aliases,score FROM cards" + FILTER + order + " LIMIT ? OFFSET ?",
                 query.q(), query.pattern(), query.pattern(), query.pattern(), query.pattern(), readyOnly, selected, selected, selected,
                 query.size(), query.offset());
         return ListPage.of(rows, query, total);

@@ -14,6 +14,7 @@ import panrid.space.novelka.server.dto.NovelDetail;
 import panrid.space.novelka.server.dto.ReaderChapter;
 import panrid.space.novelka.server.repository.CatalogRepository;
 import panrid.space.novelka.server.repository.TagRepository;
+import panrid.space.novelka.server.repository.VoteRepository;
 import panrid.space.novelka.server.tag.TagNames;
 import panrid.space.novelka.server.list.ListPage;
 import panrid.space.novelka.server.list.ListQuery;
@@ -42,13 +43,14 @@ public final class ReaderService {
                 var aliases = StreamSupport.stream(Json.read(row.get("aliases").toString()).spliterator(), false)
                         .map(node -> node.asText()).toList();
                 cards.add(new NovelCard(novel.id(), novel.displayTitle(), novel.displayAuthor(), description(novel), novel.chapterCount(),
-                        ((Number) row.get("ready_chapters")).intValue(), aliases, tagsByNovel.getOrDefault(novel.id(), List.of())));
+                        ((Number) row.get("ready_chapters")).intValue(), aliases, tagsByNovel.getOrDefault(novel.id(), List.of()),
+                        ((Number) row.get("score")).longValue()));
             }
             return ListPage.of(cards, query, page.total());
         }
     }
 
-    public NovelDetail novel(String reference, Integer resume) throws Exception {
+    public NovelDetail novel(String reference, Integer resume, String viewer) throws Exception {
         try (var jdbc = database.open()) {
             var novels = new NovelRepository(jdbc);
             String id = resolve(novels, reference);
@@ -57,7 +59,8 @@ public final class ReaderService {
             var stats = reader.chapterStats(id);
             return new NovelDetail(id, novel.displayTitle(), novel.displayAuthor(), description(novel), novel.chapterCount(),
                     ((Number) stats.get("ready")).longValue(), stats.get("first_chapter") == null ? null : ((Number) stats.get("first_chapter")).intValue(),
-                    resume != null && resume > 0 && reader.hasChapter(id, resume) ? resume : null, new TagRepository(jdbc).forNovel(id));
+                    resume != null && resume > 0 && reader.hasChapter(id, resume) ? resume : null, new TagRepository(jdbc).forNovel(id),
+                    new VoteRepository(jdbc).summary("novel", id, viewer));
         }
     }
 

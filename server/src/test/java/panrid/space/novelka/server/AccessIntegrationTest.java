@@ -735,6 +735,35 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void novelVotesKeepOneActiveVotePerAccountAndRankTheCatalog() throws Exception {
+        String liked = seed();
+        String other = seed();
+        String alias = "a" + UUID.randomUUID().toString().substring(0, 8);
+        assertEquals(200, post(owner, "/manage/" + liked + "/aliases", Map.of("alias", alias)).statusCode());
+        try (var anonymous = browser(); var first = registered(); var second = registered()) {
+            assertEquals(401, post(anonymous, "/votes/novel/" + liked, Map.of("value", 1)).statusCode());
+            var up = body(post(first, "/votes/novel/" + alias, Map.of("value", 1)));
+            assertEquals(1, up.path("score").asLong());
+            assertEquals(1, up.path("mine").asInt());
+            assertEquals(1, body(post(first, "/votes/novel/" + liked, Map.of("value", 1))).path("score").asLong(), "repeating a vote is idempotent");
+            assertEquals(2, body(post(second, "/votes/novel/" + liked, Map.of("value", 1))).path("score").asLong());
+            var changed = body(post(first, "/votes/novel/" + liked, Map.of("value", -1)));
+            assertEquals(0, changed.path("score").asLong());
+            assertEquals(-1, changed.path("mine").asInt());
+            assertEquals(1, body(post(first, "/votes/novel/" + liked, Map.of("value", 0))).path("score").asLong(), "removal");
+            assertEquals(400, post(first, "/votes/novel/" + liked, Map.of("value", 2)).statusCode());
+            assertEquals(404, post(first, "/votes/chapter/" + liked, Map.of("value", 1)).statusCode());
+            assertEquals(1, body(get(second, "/novels/" + liked)).path("rating").path("mine").asInt());
+            assertEquals(0, body(get(anonymous, "/novels/" + liked)).path("rating").path("mine").asInt());
+            assertEquals(1, body(get(anonymous, "/novels/" + liked)).path("rating").path("score").asLong());
+            assertEquals(-1, body(post(first, "/votes/novel/" + other, Map.of("value", -1))).path("score").asLong());
+            var ranked = body(get(anonymous, "/novels/search?q=test-&sort=rating&direction=desc&size=100")).path("items").findValuesAsText("id");
+            assertTrue(ranked.indexOf(liked) < ranked.indexOf(other));
+            assertEquals(1, body(get(anonymous, "/novels/search?q=" + liked)).path("items").get(0).path("score").asLong());
+        }
+    }
+
+    @Test
     void selfApprovalSettingAppliesOnlyToAdminsAndIsEnforcedByBackend() throws Exception {
         String novel = seed();
         String job = body(get(owner, "/novels/" + novel + "/chapters/1")).path("jobId").asText();

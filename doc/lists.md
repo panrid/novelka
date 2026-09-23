@@ -8,6 +8,7 @@
 |---|---|---|---|
 | Каталог | CatalogPage, вибір у ManagePage | `GET /api/novels/search` або `/api/novels` | `q`, `readyOnly`, `sort=title\|author\|ready\|id` |
 | Зміст новели | NovelPage | `GET /api/novels/{id}/contents` | `q` за назвою/номером, `sort=number` |
+| Каталог (рейтинг) | CatalogPage | `GET /api/novels/search` | `sort=rating` — сума голосів |
 | Каталог (теги) | CatalogPage | `GET /api/novels/search` | повторюваний `tag` (усі вибрані теги разом, AND); у URL — `tags` через «\|» |
 | Користувачі | UsersSettings (`#/settings?section=users`) | `GET /api/accounts` | `q` за ніком або email, `role`, `sort=created\|username\|email\|role`; вибраний користувач — `user` в URL |
 | Журнал дій | AuditPage | `GET /api/accounts/audit` | `q` за виконавцем/об'єктом, `action`, `sort=created\|actor\|action` |
