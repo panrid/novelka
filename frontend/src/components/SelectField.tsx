@@ -23,20 +23,31 @@ export function SelectField({ label, value, options, onChange, hideLabel = false
 
     useLayoutEffect(() => {
         if (!open) return;
+        const viewport = window.visualViewport;
+        let upwards: boolean | null = null;
         const place = () => {
             const rect = button.current!.getBoundingClientRect();
-            const below = window.innerHeight - rect.bottom - 12;
-            const above = rect.top - 12;
-            const upwards = below < 180 && above > below;
+            // Mobile browser toolbars and the keyboard shrink the visible area without changing innerHeight.
+            const top = viewport?.offsetTop ?? 0;
+            const below = top + (viewport?.height ?? window.innerHeight) - rect.bottom - 12;
+            const above = rect.top - top - 12;
+            // Choose the side once: flipping while the viewport scrolls moves options away from the pointer.
+            upwards ??= below < 180 && above > below;
             const width = Math.min(rect.width, window.innerWidth - 16);
+            // Anchor both directions to the trigger: innerHeight changes while mobile toolbars collapse.
             setPosition({ width, left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
                 maxHeight: Math.max(44, Math.min(280, upwards ? above : below)),
-                ...(upwards ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }) });
+                ...(upwards ? { top: rect.top - 4, transform: 'translateY(-100%)' } : { top: rect.bottom + 4 }) });
         };
         place();
         window.addEventListener('resize', place);
         window.addEventListener('scroll', place, true);
-        return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
+        viewport?.addEventListener('resize', place);
+        viewport?.addEventListener('scroll', place);
+        return () => {
+            window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true);
+            viewport?.removeEventListener('resize', place); viewport?.removeEventListener('scroll', place);
+        };
     }, [open]);
 
     useEffect(() => {
