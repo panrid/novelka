@@ -17,7 +17,8 @@ export function NovelPage({ id }: { id: string }) {
     const first = data.resumeChapter ?? data.firstChapter;
     return <div className="page novel-page">
         <a className="back-link" href="#/">← До каталогу</a>
-        <section className="novel-intro"><div className="eyebrow">Японська новела · {data.id}</div><h1>{data.title}</h1><p className="novel-author">{data.author}</p>{data.description && <p className="novel-description">{data.description}</p>}
+        <section className="novel-intro"><div className="eyebrow">Японська новела · {data.id}</div><h1>{data.title}</h1><p className="novel-author">{data.author}</p>{data.tags.length > 0 && <p className="novel-tags" aria-label="Теги">{data.tags.map(tag =>
+            <a className="tag-chip" key={tag.slug} href={'#/?tags=' + encodeURIComponent(tag.slug)}>{tag.name}</a>)}</p>}{data.description && <p className="novel-description">{data.description}</p>}
             <p className="muted">{data.readyChapters} готових глав із {data.chapterCount} в оригіналі</p>
             {first && <a className="button" href={'#' + chapterPath(data.id, first)}>{data.resumeChapter ? 'Продовжити читання' : 'Почати читання'} <span aria-hidden="true">→</span></a>}
         </section>

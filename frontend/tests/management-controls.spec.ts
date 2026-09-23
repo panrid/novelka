@@ -3,8 +3,8 @@ import { pageData } from './pageData';
 
 test.beforeEach(async ({ page }) => {
     await page.route('**/api/auth/me', route => route.fulfill({ json: { user: { id: 'owner', username: 'owner', role: 'OWNER' }, registrationOpen: true } }));
-    await page.route('**/api/novels', route => route.fulfill({ json: [{ id: 'n0022gd', title: 'Водяний маг', author: 'Автор', chapterCount: 10, readyChapters: 3, aliases: [] }] }));
-    await page.route('**/api/novels/search?*', route => route.fulfill({ json: pageData([{ id: 'n0022gd', title: 'Водяний маг', author: 'Автор', chapterCount: 10, readyChapters: 3, aliases: [] }]) }));
+    await page.route('**/api/novels', route => route.fulfill({ json: [{ id: 'n0022gd', title: 'Водяний маг', author: 'Автор', chapterCount: 10, readyChapters: 3, aliases: [], tags: [] }] }));
+    await page.route('**/api/novels/search?*', route => route.fulfill({ json: pageData([{ id: 'n0022gd', title: 'Водяний маг', author: 'Автор', chapterCount: 10, readyChapters: 3, aliases: [], tags: [] }]) }));
     await page.route('**/api/tasks**', route => route.fulfill({ json: pageData([]) }));
 });
 

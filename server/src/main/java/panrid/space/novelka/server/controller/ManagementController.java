@@ -20,6 +20,9 @@ import panrid.space.novelka.server.dto.GlossaryMerge;
 import panrid.space.novelka.server.dto.MetadataRequest;
 import panrid.space.novelka.server.dto.TextImportRequest;
 import panrid.space.novelka.server.repository.AuditRepository;
+import panrid.space.novelka.server.repository.TagRepository;
+import panrid.space.novelka.server.tag.TagNames;
+import panrid.space.novelka.server.tag.TagUpdate;
 import panrid.space.novelka.server.repository.CostRepository;
 import panrid.space.novelka.server.repository.JobListRepository;
 import panrid.space.novelka.server.repository.GlossaryEntryRepository;
@@ -47,7 +50,11 @@ public final class ManagementController {
             String id = db.novels().resolveNovel(novel);
             return Json.M.convertValue(Map.of("novel", db.novels().novel(id), "aliases", db.novels().aliases(id),
                     "importedChapters", ((Number) jdbc.rows("SELECT count(*) total FROM chapters WHERE novel_id=?", id).getFirst().get("total")).longValue(),
-                    "glossary", new Glossary(db.glossaries().glossary(id).revision(), List.of()), "proposals", List.of()), Object.class);
+                    "glossary", new Glossary(db.glossaries().glossary(id).revision(), List.of()), "proposals", List.of(),
+                    "tags", new TagRepository(jdbc).forNovel(id),
+                    // Novelka produced at least one translation: the UI suggests the machine translation tag, never sets it silently.
+                    "aiTranslated", !jdbc.rows("SELECT 1 FROM jobs WHERE novel_id=? AND state IN ('complete','needs-review') LIMIT 1", id).isEmpty()),
+                    Object.class);
         }
     }
 
@@ -166,6 +173,20 @@ public final class ManagementController {
         String normalized = value.strip();
         if (normalized.length() > maximum) throw new IllegalArgumentException("Вкажіть " + field + " до " + maximum + " символів.");
         return normalized;
+    }
+
+    @PostMapping("/{novel}/tags")
+    public Map<String, Object> tags(Principal principal, @PathVariable String novel, @RequestBody TagUpdate request) throws Exception {
+        var actor = access.require(principal, Role.ADMIN);
+        var names = TagNames.names(request.tags());
+        try (var jdbc = database.open()) {
+            String id = new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
+            return jdbc.transaction(() -> {
+                var tags = new TagRepository(jdbc).replace(id, names);
+                new AuditRepository(jdbc).add(actor.id(), "novel.tags", id, Map.of("tags", names));
+                return Map.of("tags", tags);
+            });
+        }
     }
 
     @PostMapping("/{novel}/aliases")

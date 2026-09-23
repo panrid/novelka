@@ -26,16 +26,18 @@ public final class ReaderController {
     public Object catalog(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "25") int size,
             @RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "title") String sort,
             @RequestParam(defaultValue = "asc") String direction,
-            @RequestParam(defaultValue = "false") boolean readyOnly) throws Exception {
-        return service.catalog(new ListQuery(page, size, q, sort, direction), readyOnly);
+            @RequestParam(defaultValue = "false") boolean readyOnly,
+            @RequestParam(required = false) java.util.List<String> tag) throws Exception {
+        return service.catalog(new ListQuery(page, size, q, sort, direction), readyOnly, tag);
     }
 
     @GetMapping("/search")
     public Object search(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "25") int size,
             @RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "title") String sort,
             @RequestParam(defaultValue = "asc") String direction,
-            @RequestParam(defaultValue = "false") boolean readyOnly) throws Exception {
-        return service.catalog(new ListQuery(page, size, q, sort, direction), readyOnly);
+            @RequestParam(defaultValue = "false") boolean readyOnly,
+            @RequestParam(required = false) java.util.List<String> tag) throws Exception {
+        return service.catalog(new ListQuery(page, size, q, sort, direction), readyOnly, tag);
     }
 
     @GetMapping("/{novel}")

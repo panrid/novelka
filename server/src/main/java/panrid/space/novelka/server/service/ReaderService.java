@@ -13,6 +13,8 @@ import panrid.space.novelka.server.dto.NovelCard;
 import panrid.space.novelka.server.dto.NovelDetail;
 import panrid.space.novelka.server.dto.ReaderChapter;
 import panrid.space.novelka.server.repository.CatalogRepository;
+import panrid.space.novelka.server.repository.TagRepository;
+import panrid.space.novelka.server.tag.TagNames;
 import panrid.space.novelka.server.list.ListPage;
 import panrid.space.novelka.server.list.ListQuery;
 
@@ -28,16 +30,19 @@ public final class ReaderService {
         this.database = database;
     }
 
-    public ListPage<NovelCard> catalog(ListQuery query, boolean readyOnly) throws Exception {
+    public ListPage<NovelCard> catalog(ListQuery query, boolean readyOnly, List<String> tags) throws Exception {
+        var slugs = tags == null ? List.<String>of() : tags.stream().filter(tag -> !tag.isBlank()).map(TagNames::slug).distinct().toList();
+        if (slugs.size() > 12) throw new IllegalArgumentException("Можна вибрати до 12 тегів.");
         try (var jdbc = database.open()) {
-            var page = new CatalogRepository(jdbc).list(query, readyOnly);
+            var page = new CatalogRepository(jdbc).list(query, readyOnly, slugs);
+            var tagsByNovel = new TagRepository(jdbc).forNovels(page.items().stream().map(row -> (String) row.get("id")).toList());
             var cards = new ArrayList<NovelCard>();
             for (var row : page.items()) {
                 var novel = Json.decode(row.get("data").toString(), Novel.class);
                 var aliases = StreamSupport.stream(Json.read(row.get("aliases").toString()).spliterator(), false)
                         .map(node -> node.asText()).toList();
                 cards.add(new NovelCard(novel.id(), novel.displayTitle(), novel.displayAuthor(), description(novel), novel.chapterCount(),
-                        ((Number) row.get("ready_chapters")).intValue(), aliases));
+                        ((Number) row.get("ready_chapters")).intValue(), aliases, tagsByNovel.getOrDefault(novel.id(), List.of())));
             }
             return ListPage.of(cards, query, page.total());
         }
@@ -52,7 +57,7 @@ public final class ReaderService {
             var stats = reader.chapterStats(id);
             return new NovelDetail(id, novel.displayTitle(), novel.displayAuthor(), description(novel), novel.chapterCount(),
                     ((Number) stats.get("ready")).longValue(), stats.get("first_chapter") == null ? null : ((Number) stats.get("first_chapter")).intValue(),
-                    resume != null && resume > 0 && reader.hasChapter(id, resume) ? resume : null);
+                    resume != null && resume > 0 && reader.hasChapter(id, resume) ? resume : null, new TagRepository(jdbc).forNovel(id));
         }
     }
 

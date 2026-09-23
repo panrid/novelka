@@ -31,7 +31,7 @@ export function App() {
     }, []);
     let content;
     try {
-        const section = path.split('?')[0];
+        const section = path.split('?')[0] || '/';
         const chapter = section.match(/^\/novels\/([^/]+)\/chapters\/([1-9]\d*)$/);
         const novel = section.match(/^\/novels\/([^/]+)$/);
         if (chapter && Number.isSafeInteger(Number(chapter[2]))) {

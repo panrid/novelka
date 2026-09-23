@@ -645,6 +645,43 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void tagsAreNormalizedSharedAndFilterTheCatalogTogether() throws Exception {
+        String first = seed();
+        String second = seed();
+        String unique = "Тег" + UUID.randomUUID().toString().substring(0, 8);
+        var saved = post(owner, "/manage/" + first + "/tags", Map.of("tags", List.of("  Фентезі ", "фентезі", "ФЕНТЕЗІ", unique, "Машинний  переклад")));
+        assertEquals(200, saved.statusCode(), saved.body());
+        assertEquals(3, body(saved).path("tags").size(), "case and spaces do not create duplicates");
+        assertEquals(200, post(owner, "/manage/" + second + "/tags", Map.of("tags", List.of("фентезі"))).statusCode());
+
+        String fantasy = java.net.URLEncoder.encode("фентезі", java.nio.charset.StandardCharsets.UTF_8);
+        String machine = java.net.URLEncoder.encode("МАШИННИЙ ПЕРЕКЛАД", java.nio.charset.StandardCharsets.UTF_8);
+        String scope = "&q=test-";
+        var both = body(get(owner, "/novels?tag=" + fantasy + scope + "&size=100"));
+        assertTrue(both.path("items").findValuesAsText("id").containsAll(List.of(first, second)));
+        var narrowed = body(get(owner, "/novels?tag=" + fantasy + "&tag=" + machine + scope + "&size=100")).path("items").findValuesAsText("id");
+        assertTrue(narrowed.contains(first));
+        assertFalse(narrowed.contains(second), "several tags narrow the catalog");
+        var card = body(get(owner, "/novels?q=" + first)).path("items").get(0);
+        assertEquals(3, card.path("tags").size());
+        assertEquals(3, body(get(owner, "/novels/" + first)).path("tags").size());
+
+        try (var anonymous = browser(); var reader = registered()) {
+            var tags = body(get(anonymous, "/tags?q=" + fantasy)).path("items");
+            assertEquals("фентезі", tags.get(0).path("slug").asText());
+            assertTrue(tags.get(0).path("novels").asInt() >= 2);
+            assertEquals(403, post(reader, "/manage/" + first + "/tags", Map.of("tags", List.of("x"))).statusCode());
+        }
+        var tooMany = new java.util.ArrayList<String>();
+        for (int i = 0; i < 13; i++) tooMany.add("tag-" + i);
+        assertEquals(400, post(owner, "/manage/" + first + "/tags", Map.of("tags", tooMany)).statusCode());
+        assertEquals(400, post(owner, "/manage/" + first + "/tags", Map.of("tags", List.of(" "))).statusCode());
+        assertTrue(body(get(owner, "/manage/" + first)).path("aiTranslated").asBoolean(), "seeded novel has a Novelka translation");
+        assertEquals(200, post(owner, "/manage/" + first + "/tags", Map.of("tags", List.of())).statusCode());
+        assertEquals(0, body(get(owner, "/novels/" + first)).path("tags").size());
+    }
+
+    @Test
     void selfApprovalSettingAppliesOnlyToAdminsAndIsEnforcedByBackend() throws Exception {
         String novel = seed();
         String job = body(get(owner, "/novels/" + novel + "/chapters/1")).path("jobId").asText();

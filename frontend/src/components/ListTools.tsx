@@ -26,7 +26,8 @@ export function useListState(prefix: string, defaultSort: string, filterNames: s
         const params = new URLSearchParams(search || '');
         const fields = { page: String(value.page), q: value.q, sort: value.sort, direction: value.direction, ...value.filters };
         Object.entries(fields).forEach(([key, field]) => field ? params.set(prefix + key, field) : params.delete(prefix + key));
-        window.history.replaceState(null, '', '#' + path + (params.size ? '?' + params : ''));
+        // A bare "/" URL has an empty hash path; keep "/" so a reload still opens the same page.
+        window.history.replaceState(null, '', '#' + (path || '/') + (params.size ? '?' + params : ''));
         return value;
     });
     return { state, update, setPage: (page: number) => update({ page }),

@@ -44,7 +44,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/error").permitAll()
                         // Spring's welcome page forwards GET / to /index.html, which is authorized again.
                         .requestMatchers(HttpMethod.GET, "/", "/index.html", "/assets/**", "/favicon.ico", "/api/novels/**",
-                                "/api/auth/me", "/api/auth/csrf", "/api/health").permitAll()
+                                "/api/auth/me", "/api/auth/csrf", "/api/health", "/api/tags").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll())

@@ -1,3 +1,5 @@
+export interface TagView { name: string; slug: string }
+
 export interface NovelCard {
     id: string;
     title: string;
@@ -6,6 +8,7 @@ export interface NovelCard {
     chapterCount: number;
     readyChapters: number;
     aliases: string[];
+    tags: TagView[];
 }
 
 export interface ChapterSummary {
@@ -23,6 +26,7 @@ export interface NovelDetail {
     readyChapters: number;
     firstChapter: number | null;
     resumeChapter: number | null;
+    tags: TagView[];
 }
 
 export interface Block {

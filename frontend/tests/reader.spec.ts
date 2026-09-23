@@ -3,7 +3,7 @@ import { pageData } from './pageData';
 
 const novel = {
     id: 'n0022gd', title: 'Водяний маг', author: 'Кубо Тадаші', chapterCount: 100,
-    description: 'Історія про мага води та його нове життя.', readyChapters: 2, aliases: ['water'],
+    description: 'Історія про мага води та його нове життя.', readyChapters: 2, aliases: ['water'], tags: [{ name: 'Фентезі', slug: 'фентезі' }],
 };
 const chapters = [
     { number: 1, title: 'Пролог', revision: 1 },

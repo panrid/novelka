@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { pageData } from './pageData';
 
-const novel = { id: 'n0022gd', title: 'Водяний маг', author: 'Автор', chapterCount: 10, readyChapters: 3, aliases: [] };
+const novel = { id: 'n0022gd', title: 'Водяний маг', author: 'Автор', chapterCount: 10, readyChapters: 3, aliases: [], tags: [] };
 const task = { id: 'failed-task', operation: 'translate', novel_id: novel.id, state: 'failed', message: 'Dictionary changed; run proofread or translate --force',
     current_job_id: 'job-2', current_chapter: 2, latest_job_state: 'needs-review', can_resume: false, can_proofread: true,
     spent_usd: .03, cancel_requested: false, username: 'owner', request: { first: 1, last: 10 } };
@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
     await page.route('**/api/tasks?*', route => route.fulfill({ json: pageData([task]) }));
     await page.route('**/api/tasks/failed-task', route => route.fulfill({ json: task }));
     await page.route('**/api/tasks/new-task', route => route.fulfill({ json: { ...task, id: 'new-task', state: 'queued', message: null } }));
-    await page.route('**/api/manage/n0022gd', route => route.fulfill({ json: { novel, aliases: [], chapters: [], jobs: [], glossary: { revision: 1, entries: [] }, proposals: [] } }));
+    await page.route('**/api/manage/n0022gd', route => route.fulfill({ json: { novel, aliases: [], chapters: [], jobs: [], glossary: { revision: 1, entries: [] }, proposals: [], tags: [], aiTranslated: false } }));
 });
 
 test('notifications persist read state and open exact task or glossary', async ({ page }, testInfo) => {

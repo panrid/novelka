@@ -3,7 +3,7 @@ import { pageData } from './pageData';
 
 const reader = { id: 'reader', username: 'reader', role: 'READER' };
 const owner = { id: 'owner', username: 'owner', role: 'OWNER' };
-const novel = { id: 'n0022gd', title: 'Водяний маг', author: 'Автор', description: '', chapterCount: 10, readyChapters: 1, aliases: [] };
+const novel = { id: 'n0022gd', title: 'Водяний маг', author: 'Автор', description: '', chapterCount: 10, readyChapters: 1, aliases: [], tags: [] };
 
 async function session(page: Page, user: typeof reader | null) {
     await page.route('**/api/auth/me', route => route.fulfill({ json: { user, registrationOpen: true } }));
@@ -106,7 +106,7 @@ test('owner edits reader metadata and sees an explained legacy task failure', as
         }
         return route.fulfill({ json: {
             novel: { id: novel.id, title: '水属性の魔法使い', titleUk: null, author: '久宝忠', authorUk: null, descriptionUk: null, chapterCount: 10 },
-            aliases: [], chapters: [], jobs: [], glossary: { revision: 0, entries: [] }, proposals: [],
+            aliases: [], chapters: [], jobs: [], glossary: { revision: 0, entries: [] }, proposals: [], tags: [], aiTranslated: false,
         } });
     });
     await page.goto('/#/manage');

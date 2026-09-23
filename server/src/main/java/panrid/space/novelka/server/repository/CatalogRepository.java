@@ -24,17 +24,22 @@ public final class CatalogRepository {
             """;
     private static final String FILTER = " WHERE (?='' OR id ILIKE ? ESCAPE '\\' OR display_title ILIKE ? ESCAPE '\\'"
             + " OR display_author ILIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(aliases) AS alias(value) WHERE value ILIKE ? ESCAPE '\\'))"
-            + " AND (NOT ? OR ready_chapters>0)";
+            + " AND (NOT ? OR ready_chapters>0)"
+            // Every selected tag must be present (AND), so adding a tag narrows the catalog.
+            + " AND (jsonb_array_length(?::jsonb)=0 OR (SELECT count(DISTINCT t.slug) FROM novel_tags nt JOIN tags t ON t.id=nt.tag_id"
+            + " WHERE nt.novel_id=cards.id AND t.slug IN (SELECT jsonb_array_elements_text(?::jsonb)))=jsonb_array_length(?::jsonb))";
     private final JdbcSession jdbc;
 
     public CatalogRepository(JdbcSession jdbc) { this.jdbc = jdbc; }
 
-    public ListPage<Map<String, Object>> list(ListQuery query, boolean readyOnly) throws Exception {
-        Object[] filters = {query.q(), query.pattern(), query.pattern(), query.pattern(), query.pattern(), readyOnly};
+    public ListPage<Map<String, Object>> list(ListQuery query, boolean readyOnly, java.util.List<String> tags) throws Exception {
+        String selected = panrid.space.novelka.core.support.Json.write(tags);
+        Object[] filters = {query.q(), query.pattern(), query.pattern(), query.pattern(), query.pattern(), readyOnly, selected, selected, selected};
         long total = ((Number) jdbc.rows(BASE + "SELECT count(*) total FROM cards" + FILTER, filters).getFirst().get("total")).longValue();
         String order = query.order(Map.of("title", "display_title", "author", "display_author", "ready", "ready_chapters", "id", "id"), "title", "id");
         var rows = jdbc.rows(BASE + "SELECT id,data,ready_chapters,aliases FROM cards" + FILTER + order + " LIMIT ? OFFSET ?",
-                query.q(), query.pattern(), query.pattern(), query.pattern(), query.pattern(), readyOnly, query.size(), query.offset());
+                query.q(), query.pattern(), query.pattern(), query.pattern(), query.pattern(), readyOnly, selected, selected, selected,
+                query.size(), query.offset());
         return ListPage.of(rows, query, total);
     }
 }

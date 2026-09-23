@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { pageData } from './pageData';
 
 test('glossary shows grouped pending suggestions and persists dismissal', async ({ page }) => {
-    const novel = { id: 'n0022gd', title: 'Водяний маг', author: 'Автор', chapterCount: 10, readyChapters: 1, aliases: [] };
+    const novel = { id: 'n0022gd', title: 'Водяний маг', author: 'Автор', chapterCount: 10, readyChapters: 1, aliases: [], tags: [] };
     const entry = { key: 'person', japanese: '涼', ukrainian: 'Рьо', reading: '', aliases: [], kind: 'character', gender: 'male', facts: '', certainty: 'confirmed', sourceChapter: 1, manual: true };
     const proposals = [
         { id: 1, proposal: entry, status: 'in_dictionary', occurrences: 3 },
@@ -13,7 +13,7 @@ test('glossary shows grouped pending suggestions and persists dismissal', async 
     await page.route('**/api/notifications?*', route => route.fulfill({ json: { items: [], unread: 0, latestId: 0 } }));
     await page.route('**/api/novels', route => route.fulfill({ json: [novel] }));
     await page.route('**/api/novels/search?*', route => route.fulfill({ json: pageData([novel]) }));
-    await page.route('**/api/manage/n0022gd', route => route.fulfill({ json: { novel, importedChapters: 0, aliases: [], glossary: { revision: 1, entries: [] } } }));
+    await page.route('**/api/manage/n0022gd', route => route.fulfill({ json: { novel, importedChapters: 0, aliases: [], glossary: { revision: 1, entries: [] }, tags: [], aiTranslated: false } }));
     await page.route('**/api/manage/n0022gd/glossary/entries?*', route => route.fulfill({ json: pageData([entry]) }));
     await page.route('**/api/manage/n0022gd/glossary/similar?*', route => route.fulfill({ json: [entry] }));
     await page.route('**/api/manage/n0022gd/proposals?*', route => route.fulfill({ json: pageData(proposals) }));

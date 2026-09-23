@@ -6,6 +6,8 @@ import { useAction } from '../hooks/useAction';
 import { useResource } from '../hooks/useResource';
 import { GlossaryEditor, type Glossary } from './GlossaryEditor';
 import { JobTable } from './JobTable';
+import { NovelTags } from './NovelTags';
+import type { TagView } from '../api/types';
 
 interface Detail {
     novel: {
@@ -20,6 +22,8 @@ interface Detail {
     aliases: { alias: string }[];
     importedChapters: number;
     glossary: Glossary;
+    tags: TagView[];
+    aiTranslated: boolean;
 }
 
 export function NovelManager({ novel, initialTab = 'info' }: { novel: string; initialTab?: 'info' | 'glossary' }) {
@@ -50,6 +54,7 @@ export function NovelManager({ novel, initialTab = 'info' }: { novel: string; in
                 <label>Опис українською<textarea name="descriptionUk" rows={6} maxLength={10000} defaultValue={data.novel.descriptionUk || ''} placeholder="Коротко опишіть зав’язку, жанр або світ новели." /></label>
                 <button className="button" disabled={action.busy}>Зберегти дані</button><ActionNotice {...action} />
             </form>
+            <NovelTags path={path} initial={data.tags} aiTranslated={data.aiTranslated} />
             <details><summary>Аліаси й технічні дії</summary><p className="muted">Аліас дозволяє запускати CLI-команди коротким іменем. Читачі його також можуть використати в пошуку.</p>
                 <div className="button-row">{data.aliases.map(item => <span className="badge" key={item.alias}>{item.alias} <button aria-label={'Видалити аліас ' + item.alias} disabled={action.busy} onClick={() => { void action.run(async () => { await mutate(path + '/aliases/' + encodeURIComponent(item.alias), undefined, 'DELETE'); resource.retry(); }); }}>×</button></span>)}</div>
                 <form className="inline-form" onSubmit={event => { event.preventDefault(); void action.run(async () => { await mutate(path + '/aliases', { alias }); setAlias(''); resource.retry(); }); }}><label>Новий аліас<input required value={alias} onChange={event => setAlias(event.target.value)} /></label><button disabled={action.busy}>Додати аліас</button></form>
