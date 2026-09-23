@@ -5,6 +5,8 @@ import panrid.space.novelka.core.support.Json;
 import panrid.space.novelka.core.repository.NotificationEventRepository;
 import panrid.space.novelka.server.task.TaskRequest;
 import panrid.space.novelka.server.settings.SiteSettings;
+import panrid.space.novelka.server.list.ListPage;
+import panrid.space.novelka.server.list.ListQuery;
 
 import java.util.List;
 import java.util.Map;
@@ -47,8 +49,19 @@ public final class TaskRepository {
                         AND j.chapter=current_job.chapter ORDER BY revision DESC LIMIT 1) latest_job ON true
                 """;
 
-    public List<Map<String, Object>> list(int offset) throws Exception {
-        return jdbc.rows(TASK_SELECT + " ORDER BY t.created_at DESC,t.id LIMIT 50 OFFSET ?", offset);
+    public ListPage<Map<String, Object>> list(ListQuery query, String state, String operation, String novel) throws Exception {
+        if (!state.isEmpty() && !List.of("queued", "running", "complete", "failed", "interrupted", "cancelled").contains(state))
+            throw new IllegalArgumentException("Невідомий стан завдання.");
+        if (!operation.isEmpty() && !List.of("import", "translate", "proofread", "resume").contains(operation))
+            throw new IllegalArgumentException("Невідома операція.");
+        String where = " WHERE (?='' OR t.state=?) AND (?='' OR t.operation=?) AND (?='' OR t.novel_id=?)"
+                + " AND (?='' OR t.novel_id ILIKE ? ESCAPE '\\' OR t.id ILIKE ? ESCAPE '\\')";
+        Object[] filters = {state, state, operation, operation, novel, novel, query.q(), query.pattern(), query.pattern()};
+        long total = ((Number) jdbc.rows("SELECT count(*) total FROM web_tasks t" + where, filters).getFirst().get("total")).longValue();
+        String order = query.order(Map.of("created", "t.created_at", "state", "t.state", "novel", "t.novel_id", "spent", "spent_usd"), "created", "t.id");
+        var items = jdbc.rows(TASK_SELECT + where + order + " LIMIT ? OFFSET ?", state, state, operation, operation, novel, novel,
+                query.q(), query.pattern(), query.pattern(), query.size(), query.offset());
+        return ListPage.of(items, query, total);
     }
 
     public Map<String, Object> find(String id) throws Exception {

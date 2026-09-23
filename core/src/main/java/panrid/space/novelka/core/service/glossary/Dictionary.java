@@ -62,12 +62,7 @@ public final class Dictionary {
     }
 
     public static boolean sameEntity(Entry a, Entry b) {
-        return a.key().equals(b.key())
-                || a.japanese().equals(b.japanese())
-                || a.aliases().contains(b.key())
-                || a.aliases().contains(b.japanese())
-                || b.aliases().contains(a.key())
-                || b.aliases().contains(a.japanese());
+        return EntryIdentity.same(a, b);
     }
 
     public static void validate(Entry e) {

@@ -4,7 +4,8 @@ import { ActionNotice } from '../components/ActionNotice';
 import { ErrorState, Loading } from '../components/Status';
 import { useAction } from '../hooks/useAction';
 import { useResource } from '../hooks/useResource';
-import { GlossaryEditor, type Glossary, type GlossaryProposal } from './GlossaryEditor';
+import { GlossaryEditor, type Glossary } from './GlossaryEditor';
+import { JobTable } from './JobTable';
 
 interface Detail {
     novel: {
@@ -17,10 +18,8 @@ interface Detail {
         chapterCount: number;
     };
     aliases: { alias: string }[];
-    chapters: { number: number; title: string }[];
-    jobs: { id: string; chapter: number; revision: number; state: string }[];
+    importedChapters: number;
     glossary: Glossary;
-    proposals: GlossaryProposal[];
 }
 
 export function NovelManager({ novel, initialTab = 'info' }: { novel: string; initialTab?: 'info' | 'glossary' }) {
@@ -56,10 +55,10 @@ export function NovelManager({ novel, initialTab = 'info' }: { novel: string; in
                 <form className="inline-form" onSubmit={event => { event.preventDefault(); void action.run(async () => { await mutate(path + '/aliases', { alias }); setAlias(''); resource.retry(); }); }}><label>Новий аліас<input required value={alias} onChange={event => setAlias(event.target.value)} /></label><button disabled={action.busy}>Додати аліас</button></form>
             </details>
         </>}
-        {tab === 'glossary' && <GlossaryEditor novel={novel} glossary={data.glossary} proposals={data.proposals} refresh={resource.retry} />}
-        {tab === 'materials' && <><p>Імпортовано оригіналів: {data.chapters.length}. Кожен переклад має окрему ревізію.</p>
+        {tab === 'glossary' && <GlossaryEditor novel={novel} glossary={data.glossary} refresh={resource.retry} />}
+        {tab === 'materials' && <><p>Імпортовано оригіналів: {data.importedChapters}. Кожен переклад має окрему ревізію.</p>
             <div className="button-row"><a className="button secondary" href={'/api' + path + '/export?format=epub'}>Завантажити EPUB</a><a className="button secondary" href={'/api' + path + '/export?format=html'}>Завантажити HTML</a></div>
-            <div className="table-scroll"><table><thead><tr><th>Глава</th><th>Ревізія</th><th>Стан</th><th>ID для відновлення</th></tr></thead><tbody>{data.jobs.map(job => <tr key={job.id}><td>{job.chapter}</td><td>{job.revision}</td><td>{job.state}</td><td><code>{job.id}</code></td></tr>)}</tbody></table></div>
+            <JobTable novel={novel} />
             <details><summary>Вставити оригінальний текст вручну</summary><p>Зміна оригіналу приховає застарілий переклад, доки ви не створите нову ревізію.</p>
                 <form className="stack-form" onSubmit={event => { event.preventDefault(); void action.run(async () => { await mutate(path + '/text', { chapter, text }); setText(''); resource.retry(); }); }}>
                     <label>Глава<input type="number" min="1" max={data.novel.chapterCount} required value={chapter} onChange={event => setChapter(Number(event.target.value))} /></label>

@@ -7,12 +7,15 @@ import { NovelManager } from '../management/NovelManager';
 import { CostReport } from '../management/CostReport';
 import { ErrorState } from '../components/Status';
 import { SelectField } from '../components/SelectField';
+import { ListSearch, type PageData } from '../components/ListTools';
 import type { TaskPreset } from '../management/TaskPreset';
 
 export function ManagePage({ search = '' }: { search?: string }) {
     const params = new URLSearchParams(search);
-    const catalog = useResource<NovelCard[]>('/novels');
+    const [catalogQuery, setCatalogQuery] = useState('');
+    const catalog = useResource<PageData<NovelCard>>('/novels/search?size=25&q=' + encodeURIComponent(catalogQuery) + '&sort=title&direction=asc', true);
     const [novel, setNovel] = useState(params.get('novel') ?? '');
+    const [selectedTitle, setSelectedTitle] = useState('');
     const [tab, setTab] = useState(params.get('tab') === 'glossary' ? 'novel' : 'tasks');
     const [preset, setPreset] = useState<TaskPreset>();
     const [formVersion, setFormVersion] = useState(0);
@@ -20,8 +23,10 @@ export function ManagePage({ search = '' }: { search?: string }) {
     const prepare = (next: TaskPreset) => { setNovel(next.novelId); setPreset(next); setFormVersion(value => value + 1); setTab('tasks'); };
     const taskId = params.get('task') ?? undefined;
     return <div className="page workspace"><p className="eyebrow">Від оригіналу до публікації</p><h1>Майстерня перекладу</h1>
-        <div className="workspace-toolbar"><SelectField label="Новела" value={novel} onChange={value => { setNovel(value); setPreset(undefined); setFormVersion(value => value + 1); }}
-            options={[{ value: '', label: 'Оберіть новелу' }, ...(catalog.data ?? []).map(item => ({ value: item.id, label: `${item.title} · ${item.id}` }))]} />
+        <div className="workspace-toolbar"><ListSearch label="Знайти новелу" value={catalogQuery} onChange={setCatalogQuery} />
+            <SelectField label="Новела" value={novel} onChange={value => { setNovel(value); setSelectedTitle(catalog.data?.items.find(item => item.id === value)?.title || value); setPreset(undefined); setFormVersion(value => value + 1); }}
+            options={[{ value: '', label: 'Оберіть новелу' }, ...(novel ? [{ value: novel, label: `${selectedTitle || catalog.data?.items.find(item => item.id === novel)?.title || novel} · ${novel}` }] : []),
+                ...(catalog.data?.items ?? []).filter(item => item.id !== novel).map(item => ({ value: item.id, label: `${item.title} · ${item.id}` }))]} />
             <button onClick={catalog.retry}>Оновити каталог</button></div>
         {catalog.error && <ErrorState message={catalog.error} retry={catalog.retry} />}
         <nav className="tab-bar" aria-label="Керування перекладами">{Object.entries({ tasks: 'Переклад', novel: 'Дані новели', costs: 'Витрати' }).map(([key, label]) => <button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</button>)}</nav>

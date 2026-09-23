@@ -11,6 +11,7 @@ import panrid.space.novelka.server.config.ReaderDatabase;
 import panrid.space.novelka.server.repository.AccountRepository;
 import panrid.space.novelka.server.repository.AuditRepository;
 import panrid.space.novelka.core.support.Json;
+import panrid.space.novelka.server.list.ListQuery;
 
 import java.security.Principal;
 import java.util.List;
@@ -28,10 +29,12 @@ public final class AccountsController {
     }
 
     @GetMapping
-    public List<Account> list(Principal principal, @RequestParam(defaultValue = "0") int offset) throws Exception {
+    public Object list(Principal principal, @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "25") int size, @RequestParam(defaultValue = "") String q,
+            @RequestParam(defaultValue = "created") String sort, @RequestParam(defaultValue = "desc") String direction,
+            @RequestParam(defaultValue = "") String role) throws Exception {
         access.require(principal, Role.ADMIN);
-        if (offset < 0) throw new IllegalArgumentException("Некоректна сторінка.");
-        try (var jdbc = database.open()) { return new AccountRepository(jdbc).list(offset); }
+        try (var jdbc = database.open()) { return new AccountRepository(jdbc).list(new ListQuery(page, size, q, sort, direction), role); }
     }
 
     @PostMapping("/{id}/role")
@@ -58,11 +61,13 @@ public final class AccountsController {
     }
 
     @GetMapping("/audit")
-    public Object audit(Principal principal, @RequestParam(defaultValue = "0") int offset) throws Exception {
+    public Object audit(Principal principal, @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "25") int size, @RequestParam(defaultValue = "") String q,
+            @RequestParam(defaultValue = "created") String sort, @RequestParam(defaultValue = "desc") String direction,
+            @RequestParam(defaultValue = "") String action) throws Exception {
         access.require(principal, Role.OWNER);
-        if (offset < 0) throw new IllegalArgumentException("Некоректна сторінка.");
         try (var jdbc = database.open()) {
-            return Json.M.convertValue(new AuditRepository(jdbc).list(offset), Object.class);
+            return Json.M.convertValue(new AuditRepository(jdbc).list(new ListQuery(page, size, q, sort, direction), action), Object.class);
         }
     }
 }

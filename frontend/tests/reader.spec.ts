@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { pageData } from './pageData';
 
 const novel = {
     id: 'n0022gd', title: 'Водяний маг', author: 'Кубо Тадаші', chapterCount: 100,
@@ -14,12 +15,19 @@ async function library(page: Page) {
     await page.route('**/api/novels**', async route => {
         const path = new URL(route.request().url()).pathname;
         let body;
-        if (path === '/api/novels') body = [novel];
-        else if (path === '/api/novels/n0022gd') body = { ...novel, chapters };
+        if (path === '/api/novels/search') {
+            const params = new URL(route.request().url()).searchParams;
+            body = pageData([novel].filter(item => !params.get('q') || [item.title, item.author, ...item.aliases].join(' ').includes(params.get('q')!)));
+        }
+        else if (path === '/api/novels/n0022gd') {
+            const resume = Number(new URL(route.request().url()).searchParams.get('resume'));
+            body = { ...novel, firstChapter: 1, resumeChapter: chapters.some(chapter => chapter.number === resume) ? resume : null };
+        }
+        else if (path === '/api/novels/n0022gd/contents') body = pageData(chapters);
         else {
             const number = Number(path.split('/').pop());
             body = {
-                novelId: novel.id, number, revision: 1,
+                novelId: novel.id, number, revision: 1, previousNumber: number === 3 ? 1 : null, nextNumber: number === 1 ? 3 : null,
                 title: number === 1 ? 'Пролог' : 'Інший світ',
                 blocks: [
                     { id: 'title', kind: 'heading', text: number === 1 ? 'Пролог' : 'Інший світ' },
@@ -76,19 +84,26 @@ test('reader preferences survive reload and resume uses the canonical novel id',
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'black');
 });
 
+test('resume falls back to the first published chapter when saved chapter is unavailable', async ({ page }) => {
+    await library(page);
+    await page.addInitScript(() => localStorage.setItem('novelka:chapter:n0022gd', '2'));
+    await page.goto('/#/novels/n0022gd');
+    await expect(page.getByRole('link', { name: 'Почати читання' })).toHaveAttribute('href', '#/novels/n0022gd/chapters/1');
+});
+
 test('empty catalog and no search results are distinct', async ({ page }) => {
     await library(page);
     await page.goto('/');
     await page.getByRole('searchbox').fill('невідома історія');
     await expect(page.getByRole('heading', { name: 'Історію не знайдено' })).toBeVisible();
     await page.unrouteAll({ behavior: 'wait' });
-    await page.route('**/api/novels', route => route.fulfill({ json: [] }));
-    await page.reload();
+    await page.route('**/api/novels/search?*', route => route.fulfill({ json: pageData([]) }));
+    await page.goto('/#/');
     await expect(page.getByRole('heading', { name: 'Перша історія ще попереду' })).toBeVisible();
 });
 
 test('API errors offer a working retry and never leave stale text', async ({ page }) => {
-    await page.route('**/api/novels', route => route.fulfill({ status: 503, json: {} }));
+    await page.route('**/api/novels/search?*', route => route.fulfill({ status: 503, json: {} }));
     await page.goto('/');
     await expect(page.getByRole('alert')).toBeVisible();
     await page.unrouteAll({ behavior: 'wait' });
@@ -101,9 +116,9 @@ test('API errors offer a working retry and never leave stale text', async ({ pag
 });
 
 test('readable-only filter hides untranslated novels', async ({ page }) => {
-    await page.route('**/api/novels', route => route.fulfill({ json: [novel, {
+    await page.route('**/api/novels/search?*', route => route.fulfill({ json: pageData([novel, {
         ...novel, id: 'untranslated', title: 'Нова історія', readyChapters: 0, aliases: [],
-    }] }));
+    }].filter(item => new URL(route.request().url()).searchParams.get('readyOnly') !== 'true' || item.readyChapters > 0)) }));
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'Нова історія' })).toBeVisible();
     await page.getByRole('button', { name: 'Є готові глави' }).click();
@@ -122,4 +137,22 @@ test('layout fits viewport and deep links load after refresh', async ({ page }, 
     await expect(page.getByRole('heading', { name: 'Пролог', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('reader.png'), fullPage: true });
+});
+
+test('system theme follows OS changes while keeping explicit themes', async ({ page }) => {
+    await library(page);
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.goto('/');
+    await page.locator('.site-header').getByRole('combobox', { name: 'Тема' }).click();
+    await page.getByRole('option', { name: 'Системна' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.reload();
+    await expect(page.locator('.site-header').getByRole('combobox', { name: 'Тема' })).toContainText('Системна');
+    await page.locator('.site-header').getByRole('combobox', { name: 'Тема' }).click();
+    await page.getByRole('option', { name: 'Світла' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });

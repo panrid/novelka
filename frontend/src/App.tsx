@@ -30,20 +30,21 @@ export function App() {
     }, []);
     let content;
     try {
-        const chapter = path.match(/^\/novels\/([^/]+)\/chapters\/([1-9]\d*)$/);
-        const novel = path.match(/^\/novels\/([^/]+)$/);
+        const section = path.split('?')[0];
+        const chapter = section.match(/^\/novels\/([^/]+)\/chapters\/([1-9]\d*)$/);
+        const novel = section.match(/^\/novels\/([^/]+)$/);
         if (chapter && Number.isSafeInteger(Number(chapter[2]))) {
             content = <ReaderPage key={path + ':' + auth.user?.id} id={decodeURIComponent(chapter[1])} number={Number(chapter[2])} />;
         } else if (novel) {
             content = <NovelPage key={path} id={decodeURIComponent(novel[1])} />;
-        } else if (path === '/') {
+        } else if (section === '/') {
             content = <CatalogPage />;
         } else if (path === '/login') content = <AuthPage />;
-        else if (path === '/corrections') content = guarded('READER', <CorrectionsPage />);
-        else if (path === '/accounts') content = guarded('ADMIN', <AccountsPage />);
+        else if (section === '/corrections') content = guarded('READER', <CorrectionsPage />);
+        else if (section === '/accounts') content = guarded('ADMIN', <AccountsPage />);
         else if (path.split('?')[0] === '/manage') content = guarded('ADMIN', <ManagePage key={path} search={path.split('?')[1]} />);
         else if (path === '/settings') content = guarded('OWNER', <SettingsPage />);
-        else if (path === '/audit') content = guarded('OWNER', <AuditPage />);
+        else if (section === '/audit') content = guarded('OWNER', <AuditPage />);
     } catch { /* Malformed URL is handled by the not-found page. */ }
     return <>
         <a className="skip-link" href="#main" onClick={event => { event.preventDefault(); document.getElementById('main')?.focus(); }}>Перейти до вмісту</a>

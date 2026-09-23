@@ -7,7 +7,7 @@ interface Notice {
     id: number; kind: string; novel_id: string | null; novel_title: string | null;
     chapter: number | null; task_id: string | null; entry_count: number | null; created_at: string | number; read: boolean;
 }
-interface Feed { items: Notice[]; unread: number; latestId: number }
+interface Feed { items: Notice[]; unread: number; latestId: number; nextCursor: number }
 
 function title(item: Notice) {
     switch (item.kind) {
@@ -31,7 +31,8 @@ export function NotificationBell() {
     const [open, setOpen] = useState(false);
     const [data, setData] = useState<Feed>();
     const [error, setError] = useState('');
-    const [offset, setOffset] = useState(0);
+    const [cursors, setCursors] = useState<number[]>([0]);
+    const before = cursors[cursors.length - 1];
     const [version, setVersion] = useState(0);
     const [toast, setToast] = useState<Notice>();
     const latest = useRef<number | undefined>(undefined);
@@ -46,7 +47,7 @@ export function NotificationBell() {
             if (fetching || document.hidden) return;
             fetching = true;
             try {
-                const feed = await getJson<Feed>('/notifications?offset=' + offset, controller.signal);
+                const feed = await getJson<Feed>('/notifications?before=' + before, controller.signal);
                 if (controller.signal.aborted) return;
                 if (latest.current !== undefined && feed.latestId > latest.current) {
                     const newest = feed.items.find(item => item.id > latest.current! && !item.read);
@@ -62,7 +63,7 @@ export function NotificationBell() {
         const timer = window.setInterval(() => { void refresh(); }, 15000);
         document.addEventListener('visibilitychange', refresh);
         return () => { controller.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
-    }, [offset, version]);
+    }, [before, version]);
 
     useEffect(() => {
         const dismiss = (event: PointerEvent) => { if (!container.current?.contains(event.target as Node)) setOpen(false); };
@@ -105,11 +106,11 @@ export function NotificationBell() {
                         await mutate(`/notifications/${item.id}/read`); setVersion(value => value + 1);
                     }); }}>✓</button>}
                 </li>)}</ul>
-                {(offset > 0 || data.items.length === 30) && <div className="notification-tools"><button disabled={!offset} onClick={() => { setData(undefined); setOffset(value => Math.max(0, value - 30)); }}>Новіші</button>
-                    <button disabled={data.items.length < 30} onClick={() => { setData(undefined); setOffset(value => value + 30); }}>Старіші</button></div>}
+                {(cursors.length > 1 || data.nextCursor > 0) && <div className="notification-tools"><button disabled={cursors.length === 1} onClick={() => { setData(undefined); setCursors(value => value.slice(0, -1)); }}>Новіші</button>
+                    <button disabled={!data.nextCursor} onClick={() => { setData(undefined); setCursors(value => [...value, data.nextCursor]); }}>Старіші</button></div>}
             </>}
         </section>}
-        {toast && !open && <div className="notification-toast" role="status"><button type="button" onClick={() => { setOpen(true); setOffset(0); setToast(undefined); }}>
+        {toast && !open && <div className="notification-toast" role="status"><button type="button" onClick={() => { setOpen(true); setCursors([0]); setToast(undefined); }}>
             <strong>{title(toast)}</strong><span>{toast.novel_title}</span></button><button type="button" aria-label="Приховати сповіщення" onClick={() => setToast(undefined)}>×</button></div>}
     </div>;
 }

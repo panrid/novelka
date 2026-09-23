@@ -12,7 +12,7 @@ public final class NotificationRepository {
 
     public NotificationRepository(JdbcSession jdbc) { this.jdbc = jdbc; }
 
-    public Map<String, Object> list(Account account, int offset) throws Exception {
+    public Map<String, Object> list(Account account, long before) throws Exception {
         boolean admin = account.role().includes(Role.ADMIN);
         var totals = jdbc.rows("SELECT count(*) FILTER(WHERE r.notification_id IS NULL) AS unread, COALESCE(max(n.id),0) AS latest_id"
                 + " FROM notifications n JOIN accounts a ON a.id=?"
@@ -25,8 +25,11 @@ public final class NotificationRepository {
                 FROM notifications n JOIN accounts a ON a.id=?
                 LEFT JOIN notification_reads r ON r.notification_id=n.id AND r.account_id=a.id
                 LEFT JOIN novels v ON v.id=n.novel_id WHERE
-                """ + VISIBLE + " ORDER BY n.id DESC LIMIT 30 OFFSET ?", account.id(), admin, offset);
-        return Map.of("items", items, "unread", totals.get("unread"), "latestId", totals.get("latest_id"));
+                """ + VISIBLE + " AND (?=0 OR n.id<?) ORDER BY n.id DESC LIMIT 31", account.id(), admin, before, before);
+        boolean hasMore = items.size() > 30;
+        if (hasMore) items = items.subList(0, 30);
+        long nextCursor = hasMore ? ((Number) items.getLast().get("id")).longValue() : 0;
+        return Map.of("items", items, "unread", totals.get("unread"), "latestId", totals.get("latest_id"), "nextCursor", nextCursor);
     }
 
     public boolean read(Account account, long id) throws Exception {

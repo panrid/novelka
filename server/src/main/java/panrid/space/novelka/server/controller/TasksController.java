@@ -9,6 +9,7 @@ import panrid.space.novelka.server.repository.TaskRepository;
 import panrid.space.novelka.server.repository.AuditRepository;
 import panrid.space.novelka.server.task.TaskRequest;
 import panrid.space.novelka.server.task.TaskService;
+import panrid.space.novelka.server.list.ListQuery;
 
 import java.security.Principal;
 import java.util.Map;
@@ -25,11 +26,14 @@ public final class TasksController {
     }
 
     @GetMapping
-    public Object list(Principal principal, @RequestParam(defaultValue = "0") int offset) throws Exception {
+    public Object list(Principal principal, @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "25") int size, @RequestParam(defaultValue = "") String q,
+            @RequestParam(defaultValue = "created") String sort, @RequestParam(defaultValue = "desc") String direction,
+            @RequestParam(defaultValue = "") String state, @RequestParam(defaultValue = "") String operation,
+            @RequestParam(defaultValue = "") String novel) throws Exception {
         access.require(principal, Role.ADMIN);
-        if (offset < 0) throw new IllegalArgumentException("Некоректна сторінка.");
         try (var jdbc = database.open()) {
-            return Json.M.convertValue(new TaskRepository(jdbc).list(offset), Object.class);
+            return Json.M.convertValue(new TaskRepository(jdbc).list(new ListQuery(page, size, q, sort, direction), state, operation, novel), Object.class);
         }
     }
 

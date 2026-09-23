@@ -4,6 +4,7 @@ import { useAction } from '../hooks/useAction';
 import { ActionNotice } from '../components/ActionNotice';
 import { describeTaskFailure } from './taskFailure';
 import type { TaskPreset } from './TaskPreset';
+import { ListEmpty, ListFilter, ListPages, ListSearch, listParams, useListState, type PageData } from '../components/ListTools';
 
 interface Task {
     id: string; operation: string; novel_id: string; state: string; message: string | null;
@@ -25,27 +26,38 @@ function chapterRange(task: Task) {
 
 export function TaskQueue({ version, onPrepare, taskId }: { version: number; onPrepare: (preset: TaskPreset) => void; taskId?: string }) {
     const [tasks, setTasks] = useState<Task[]>([]);
+    const [pageData, setPageData] = useState<PageData<Task>>();
     const [error, setError] = useState('');
-    const [offset, setOffset] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [retry, setRetry] = useState(0);
+    const list = useListState('task_', 'created', ['state', 'operation']);
     const action = useAction();
     useEffect(() => {
         const controller = new AbortController();
         const refresh = async () => {
             try {
-                const data = taskId ? [await getJson<Task>('/tasks/' + encodeURIComponent(taskId), controller.signal)]
-                    : await getJson<Task[]>('/tasks?offset=' + offset, controller.signal);
-                if (!controller.signal.aborted) { setTasks(data); setError(''); }
+                const data = taskId ? null : await getJson<PageData<Task>>('/tasks?' + listParams(list.state), controller.signal);
+                const items = data ? data.items : [await getJson<Task>('/tasks/' + encodeURIComponent(taskId!), controller.signal)];
+                if (!controller.signal.aborted) { setTasks(items); setPageData(data ?? undefined); setError(''); setLoading(false); }
             }
-            catch (failure) { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Помилка черги'); }
+            catch (failure) { if (!controller.signal.aborted) { setError(failure instanceof Error ? failure.message : 'Помилка черги'); setLoading(false); } }
         };
+        setLoading(true);
         void refresh(); const timer = window.setInterval(() => { void refresh(); }, 5000);
         return () => { controller.abort(); window.clearInterval(timer); };
-    }, [version, offset, action.message, taskId]);
+    }, [version, list.state, action.message, taskId, retry]);
     return <section className="panel task-queue"><div className="task-queue-heading"><div><h2>Черга завдань</h2>
         <p className="muted">Оновлюється кожні 5 секунд</p></div></div>
-        {error && <p role="alert">{error}</p>}<ActionNotice {...action} />
-        {!tasks.length && <p>Завдань поки немає.</p>}
-        <div className="task-list">{tasks.map(task => {
+        {!taskId && <div className="list-toolbar"><ListSearch label="Новела або ID завдання" value={list.state.q} onChange={q => list.update({ q, page: 1 })} />
+            <ListFilter label="Стан" value={list.state.filters.state} onChange={value => list.setFilter('state', value)} options={[
+                { value: '', label: 'Усі стани' }, ...Object.entries(states).map(([value, label]) => ({ value, label }))]} />
+            <ListFilter label="Операція" value={list.state.filters.operation} onChange={value => list.setFilter('operation', value)} options={[
+                { value: '', label: 'Усі операції' }, ...Object.entries(operations).map(([value, label]) => ({ value, label }))]} />
+            {(list.state.filters.state || list.state.filters.operation) && <button onClick={list.clearFilters}>Очистити фільтри</button>}</div>}
+        {error && <div role="alert">{error} <button onClick={() => setRetry(value => value + 1)}>Повторити</button></div>}<ActionNotice {...action} />
+        {loading && <p role="status">Оновлюємо завдання…</p>}
+        {!loading && !error && !tasks.length && <ListEmpty filtered={!!(list.state.q || list.state.filters.state || list.state.filters.operation)} noun="Завдань" />}
+        {!error && <div className="task-list">{tasks.map(task => {
             const failure = task.message && ['failed', 'interrupted'].includes(task.state) ? describeTaskFailure(task.message) : null;
             const range = chapterRange(task);
             const stopped = ['failed', 'interrupted', 'cancelled'].includes(task.state);
@@ -82,8 +94,7 @@ export function TaskQueue({ version, onPrepare, taskId }: { version: number; onP
                         {task.cancel_requested ? 'Зупиняється…' : 'Зупинити'}</button>}
                 </div>
             </article>;
-        })}</div>
-        {!taskId && (offset > 0 || tasks.length === 50) && <div className="task-pages"><button disabled={offset === 0} onClick={() => setOffset(value => Math.max(0, value - 50))}>Новіші</button>
-            <button disabled={tasks.length < 50} onClick={() => setOffset(value => value + 50)}>Старіші</button></div>}
+        })}</div>}
+        {!taskId && pageData && <ListPages data={pageData} onPage={list.setPage} />}
     </section>;
 }

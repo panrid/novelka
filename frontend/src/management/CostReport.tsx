@@ -1,48 +1,45 @@
-import { useState } from 'react';
 import { useResource } from '../hooks/useResource';
 import { ErrorState, Loading } from '../components/Status';
+import { ListEmpty, ListFilter, ListPages, ListSearch, TableHeader, listParams, useListState, type PageData } from '../components/ListTools';
 
 type Cost = Record<string, string | number | null>;
-interface Column { key: string; label: string; type: 'text' | 'number' | 'money' | 'date' }
+interface Column { key: string; label: string; help: string; type: 'text' | 'number' | 'money' | 'date' }
 const money = (value: string | number | null | undefined) => value == null ? 'Невідомо' : '$' + Number(value).toFixed(6);
+
 export function CostReport({ novel }: { novel: string }) {
-    const [details, setDetails] = useState(false);
-    const [sort, setSort] = useState<{ key: string; descending: boolean } | null>(null);
-    const resource = useResource<Cost[]>('/manage/costs?details=' + details + (novel ? '&novel=' + encodeURIComponent(novel) : ''));
+    const list = useListState('cost_', '', ['details', 'stage']);
+    const details = list.state.filters.details === 'true';
+    const resource = useResource<PageData<Cost>>('/manage/costs?' + listParams(list.state, { details, novel }), true);
     const columns: Column[] = [
-        { key: 'novel_id', label: 'Новела', type: 'text' }, { key: 'chapter', label: 'Глава', type: 'number' },
-        { key: 'stage', label: 'Етап', type: 'text' }, { key: 'model', label: 'Модель', type: 'text' },
-        { key: 'estimated_usd', label: 'Оцінка', type: 'money' },
-        { key: details ? 'actual_usd' : 'known_actual_usd', label: 'Факт', type: 'money' },
-        ...(details ? [{ key: 'state', label: 'Стан', type: 'text' } as Column]
-            : [{ key: 'unknown_cost_calls', label: 'Невідомих', type: 'number' }, { key: 'calls', label: 'Запитів', type: 'number' }] as Column[]),
-        { key: 'input_tokens', label: 'Токени вхід', type: 'number' }, { key: 'output_tokens', label: 'Токени вихід', type: 'number' },
-        ...(details ? [{ key: 'created_at', label: 'Час', type: 'date' } as Column] : []),
+        { key: 'novel_id', label: 'Новела', help: 'ID новели, для якої зроблено запит.', type: 'text' },
+        { key: 'chapter', label: 'Глава', help: 'Номер глави в оригіналі.', type: 'number' },
+        { key: 'stage', label: 'Етап', help: 'Аналіз, переклад або вичитка.', type: 'text' },
+        { key: 'model', label: 'Модель', help: 'Модель ШІ, що обробила текст.', type: 'text' },
+        { key: 'estimated_usd', label: 'Оцінка', help: 'Резервована сума перед запитом у доларах США.', type: 'money' },
+        { key: details ? 'actual_usd' : 'known_actual_usd', label: 'Факт', help: 'Підтверджена провайдером ціна; невідома ціна не дорівнює нулю.', type: 'money' },
+        ...(details ? [{ key: 'state', label: 'Стан', help: 'Результат окремого запиту.', type: 'text' } as Column]
+            : [{ key: 'unknown_cost_calls', label: 'Невідомих', help: 'Запити без підтвердженої ціни.', type: 'number' },
+                { key: 'calls', label: 'Запитів', help: 'Кількість запитів у цій групі.', type: 'number' }] as Column[]),
+        { key: 'input_tokens', label: 'Токени вхід', help: 'Вхідні токени, повідомлені провайдером.', type: 'number' },
+        { key: 'output_tokens', label: 'Токени вихід', help: 'Вихідні токени, повідомлені провайдером.', type: 'number' },
+        ...(details ? [{ key: 'created_at', label: 'Час', help: 'Час початку запиту.', type: 'date' } as Column] : []),
     ];
-    const column = columns.find(item => item.key === sort?.key);
-    const rows = [...(resource.data ?? [])];
-    if (sort && column) rows.sort((a, b) => {
-        const left = a[sort.key], right = b[sort.key];
-        // Unknown costs must remain unknown and sort last in either direction.
-        if (left == null || right == null) return left == null ? right == null ? 0 : 1 : -1;
-        const comparison = column.type === 'text' ? String(left).localeCompare(String(right), 'uk', { numeric: true })
-            : column.type === 'date' ? new Date(left).getTime() - new Date(right).getTime() : Number(left) - Number(right);
-        return sort.descending ? -comparison : comparison;
-    });
-    return <section className="panel"><h2>Історія витрат</h2><p className="muted">{novel ? 'Для вибраної новели.' : 'Для всіх новел.'} Невідома фактична ціна не вважається нулем. Оцінка — резерв на момент запиту.</p>
-        <div className="button-row"><label className="check-label"><input type="checkbox" checked={details} onChange={event => { setDetails(event.target.checked); setSort(null); }} />Кожен запит окремо</label><button onClick={resource.retry}>Оновити витрати</button></div>
-        {resource.error ? <ErrorState message={resource.error} retry={resource.retry} /> : !resource.data ? <Loading /> : <>
-            {!resource.data.length && <p>Платних запитів ще не було.</p>}
-            <p className="muted table-hint">Натисніть назву стовпця для сортування. Повторне натискання змінює напрямок.</p>
-            <div className="table-scroll"><table className="cost-table"><caption className="sr-only">Історія витрат</caption><thead><tr>{columns.map(item =>
-                <th key={item.key} scope="col" aria-sort={sort?.key === item.key ? sort.descending ? 'descending' : 'ascending' : 'none'}>
-                    <button type="button" className="sort-button" onClick={() => setSort({ key: item.key, descending: sort?.key === item.key ? !sort.descending : false })}>
-                        {item.label}<span aria-hidden="true">{sort?.key === item.key ? sort.descending ? '↓' : '↑' : '↕'}</span>
-                    </button></th>)}</tr></thead>
-                <tbody>{rows.map((row, index) => <tr key={String(row.id ?? index)}>{columns.map(item => <td key={item.key}>
-                    {item.type === 'money' ? money(row[item.key]) : item.type === 'date' && row[item.key] != null ? new Date(row[item.key]!).toLocaleString('uk-UA') : row[item.key] ?? '—'}
-                    {item.key === 'novel_id' && details && <details className="cost-identifiers"><summary>ID запиту</summary><small className="block">Job: {row.job_id}<br />Запит: {row.id}</small></details>}
-                </td>)}</tr>)}</tbody></table></div>
-        </>}
+    const data = resource.data;
+    return <section className="panel"><h2>Історія витрат</h2><p className="muted">{novel ? 'Для вибраної новели.' : 'Для всіх новел.'} Невідома фактична ціна не вважається нулем.</p>
+        <div className="list-toolbar"><ListSearch label="Новела або модель" value={list.state.q} onChange={q => list.update({ q, page: 1 })} />
+            <ListFilter label="Етап" value={list.state.filters.stage} onChange={value => list.setFilter('stage', value)} options={[
+                { value: '', label: 'Усі етапи' }, { value: 'analyze', label: 'Аналіз' }, { value: 'translate', label: 'Переклад' }, { value: 'proofread', label: 'Вичитка' }]} />
+            <label className="check-label"><input type="checkbox" checked={details} onChange={event => list.update({ page: 1, sort: '', filters: { ...list.state.filters, details: event.target.checked ? 'true' : '' } })} />Кожен запит окремо</label>
+            {list.state.filters.stage && <button onClick={() => list.setFilter('stage', '')}>Очистити фільтр</button>}
+            <button onClick={resource.retry}>Оновити витрати</button></div>
+        {resource.error ? <ErrorState message={resource.error} retry={resource.retry} /> : !data ? <Loading /> : <>
+            {resource.loading && <p role="status">Оновлюємо витрати…</p>}
+            {data.items.length ? <div className="table-scroll"><table className="cost-table"><caption className="sr-only">Історія витрат</caption><thead><tr>{columns.map(column =>
+                <TableHeader key={column.key} label={column.label} help={column.help} sortKey={column.key === 'created_at' ? 'created' : column.key} state={list.state} onSort={list.setSort} />)}</tr></thead>
+                <tbody>{data.items.map((row, index) => <tr key={String(row.id ?? index)}>{columns.map(column => <td key={column.key}>
+                    {column.type === 'money' ? money(row[column.key]) : column.type === 'date' && row[column.key] != null ? new Date(row[column.key]!).toLocaleString('uk-UA') : row[column.key] ?? '—'}
+                    {column.key === 'novel_id' && details && <details className="cost-identifiers"><summary>ID запиту</summary><small className="block">Job: {row.job_id}<br />Запит: {row.id}</small></details>}
+                </td>)}</tr>)}</tbody></table></div> : <ListEmpty filtered={!!(list.state.q || list.state.filters.stage || novel)} noun="Платних запитів" />}
+            <ListPages data={data} onPage={list.setPage} /></>}
     </section>;
 }

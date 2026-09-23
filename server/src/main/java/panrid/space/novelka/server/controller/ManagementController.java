@@ -16,9 +16,14 @@ import panrid.space.novelka.server.account.AccessService;
 import panrid.space.novelka.server.account.Role;
 import panrid.space.novelka.server.config.ReaderDatabase;
 import panrid.space.novelka.server.dto.GlossaryUpdate;
+import panrid.space.novelka.server.dto.GlossaryMerge;
 import panrid.space.novelka.server.dto.MetadataRequest;
 import panrid.space.novelka.server.dto.TextImportRequest;
 import panrid.space.novelka.server.repository.AuditRepository;
+import panrid.space.novelka.server.repository.CostRepository;
+import panrid.space.novelka.server.repository.JobListRepository;
+import panrid.space.novelka.server.repository.GlossaryEntryRepository;
+import panrid.space.novelka.server.list.ListQuery;
 import panrid.space.novelka.server.service.GlossaryProposalService;
 
 import java.nio.file.Files;
@@ -41,17 +46,71 @@ public final class ManagementController {
         try (var db = database.openDatabase(); var jdbc = database.open()) {
             String id = db.novels().resolveNovel(novel);
             return Json.M.convertValue(Map.of("novel", db.novels().novel(id), "aliases", db.novels().aliases(id),
-                    "chapters", db.chapters().list(id), "jobs", db.jobs().status(id),
-                    "glossary", db.glossaries().glossary(id), "proposals", new GlossaryProposalService(jdbc).list(id)), Object.class);
+                    "importedChapters", ((Number) jdbc.rows("SELECT count(*) total FROM chapters WHERE novel_id=?", id).getFirst().get("total")).longValue(),
+                    "glossary", new Glossary(db.glossaries().glossary(id).revision(), List.of()), "proposals", List.of()), Object.class);
+        }
+    }
+
+    @GetMapping("/{novel}/glossary/entries")
+    public Object glossaryEntries(Principal principal, @PathVariable String novel,
+            @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "japanese") String sort,
+            @RequestParam(defaultValue = "asc") String direction, @RequestParam(defaultValue = "") String kind) throws Exception {
+        access.require(principal, Role.ADMIN);
+        try (var jdbc = database.open()) {
+            String id = new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
+            return new GlossaryEntryRepository(jdbc).list(id, new ListQuery(page, size, q, sort, direction), kind);
+        }
+    }
+
+    @GetMapping("/{novel}/proposals")
+    public Object proposals(Principal principal, @PathVariable String novel,
+            @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "created") String sort,
+            @RequestParam(defaultValue = "desc") String direction) throws Exception {
+        access.require(principal, Role.ADMIN);
+        try (var jdbc = database.open()) {
+            String id = new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
+            return new GlossaryProposalService(jdbc).page(id, new ListQuery(page, size, q, sort, direction));
+        }
+    }
+
+    @GetMapping("/{novel}/glossary/similar")
+    public Object similarEntries(Principal principal, @PathVariable String novel, @RequestParam String japanese,
+            @RequestParam String ukrainian, @RequestParam String kind) throws Exception {
+        access.require(principal, Role.ADMIN);
+        if (japanese.length() > 1000 || ukrainian.length() > 1000 || kind.length() > 50)
+            throw new IllegalArgumentException("Запит на пошук схожих записів завеликий.");
+        try (var jdbc = database.open()) {
+            String id = new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
+            var probe = new Entry("", kind, japanese, "", ukrainian, List.of(), "unknown", "", "unknown", 1, false);
+            return new panrid.space.novelka.core.repository.GlossaryRepository(jdbc).glossary(id).entries().stream()
+                    .filter(entry -> panrid.space.novelka.core.service.glossary.EntryIdentity.possible(entry, probe)).limit(20).toList();
+        }
+    }
+
+    @GetMapping("/{novel}/jobs")
+    public Object jobs(Principal principal, @PathVariable String novel, @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "25") int size, @RequestParam(defaultValue = "") String q,
+            @RequestParam(defaultValue = "updated") String sort, @RequestParam(defaultValue = "desc") String direction,
+            @RequestParam(defaultValue = "") String state) throws Exception {
+        access.require(principal, Role.ADMIN);
+        try (var jdbc = database.open()) {
+            String id = new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
+            return Json.M.convertValue(new JobListRepository(jdbc).list(id, new ListQuery(page, size, q, sort, direction), state), Object.class);
         }
     }
 
     @GetMapping("/costs")
     public Object costs(Principal principal, @RequestParam(required = false) String novel,
-            @RequestParam(defaultValue = "false") boolean details) throws Exception {
+            @RequestParam(defaultValue = "false") boolean details, @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "25") int size, @RequestParam(defaultValue = "") String q,
+            @RequestParam(defaultValue = "") String sort, @RequestParam(defaultValue = "desc") String direction,
+            @RequestParam(defaultValue = "") String stage) throws Exception {
         access.require(principal, Role.ADMIN);
-        try (var db = database.openDatabase()) {
-            return Json.M.convertValue(db.calls().costs(novel == null || novel.isBlank() ? null : db.novels().resolveNovel(novel), details), Object.class);
+        try (var jdbc = database.open()) {
+            String id = novel == null || novel.isBlank() ? null : new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
+            return Json.M.convertValue(new CostRepository(jdbc).list(id, details, new ListQuery(page, size, q, sort, direction), stage), Object.class);
         }
     }
 
@@ -173,13 +232,21 @@ public final class ManagementController {
             var glossaries = new panrid.space.novelka.core.repository.GlossaryRepository(jdbc);
             var service = new panrid.space.novelka.core.service.glossary.GlossaryService(jdbc, glossaries,
                     new panrid.space.novelka.core.repository.JobRepository(jdbc), new panrid.space.novelka.core.repository.AiCallRepository(jdbc));
-            try (var lock = jdbc.lock(id)) { jdbc.transaction(() -> {
+            jdbc.transaction(() -> {
+                boolean available = (Boolean) jdbc.rows("SELECT pg_try_advisory_xact_lock(hashtext(?)) AS available", id).getFirst().get("available");
+                if (!available) throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Словник новели зараз зайнятий перекладом. Зупиніть завдання в черзі, дочекайтеся завершення поточного AI-запиту й повторіть збереження.");
                 var old = glossaries.glossary(id);
                 if (old.revision() != request.revision()) throw new ResponseStatusException(HttpStatus.CONFLICT, "Словник уже змінено.");
                 var entries = new LinkedHashMap<String, Entry>();
                 old.entries().forEach(entry -> entries.put(entry.key(), entry));
                 for (var entry : request.entries()) {
                     Dictionary.validate(entry);
+                    var duplicate = entries.values().stream().filter(existing -> !existing.key().equals(entry.key())
+                            && panrid.space.novelka.core.service.glossary.EntryIdentity.possible(existing, entry)).findFirst();
+                    if (duplicate.isPresent()) throw new ResponseStatusException(HttpStatus.CONFLICT,
+                            "Схожий запис уже є в словнику: " + duplicate.get().ukrainian() + " (" + duplicate.get().japanese()
+                                    + "). Відредагуйте його або об’єднайте записи.");
                     entries.put(entry.key(), new Entry(entry.key(), entry.kind(), entry.japanese(), entry.reading(),
                             entry.ukrainian(), entry.aliases(), entry.gender(), entry.facts(), entry.certainty(), entry.sourceChapter(), true));
                 }
@@ -187,9 +254,57 @@ public final class ManagementController {
                 new AuditRepository(jdbc).add(actor.id(), "glossary.update", id,
                         Map.of("revision", old.revision() + 1, "keys", request.entries().stream().map(Entry::key).toList()));
                 return null;
-            }); }
+            });
         }
         return Map.of("message", "Словник оновлено. Залежні переклади позначено на перевірку.");
+    }
+
+    @PostMapping("/{novel}/glossary/merge")
+    public Map<String, String> mergeGlossary(Principal principal, @PathVariable String novel, @RequestBody GlossaryMerge request) throws Exception {
+        var actor = access.require(principal, Role.ADMIN);
+        if (request.keepKey() == null || request.removeKey() == null || request.keepKey().equals(request.removeKey()))
+            throw new IllegalArgumentException("Виберіть два різні записи для об’єднання.");
+        try (var jdbc = database.open()) {
+            String id = new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
+            var glossaries = new panrid.space.novelka.core.repository.GlossaryRepository(jdbc);
+            var service = new panrid.space.novelka.core.service.glossary.GlossaryService(jdbc, glossaries,
+                    new panrid.space.novelka.core.repository.JobRepository(jdbc), new panrid.space.novelka.core.repository.AiCallRepository(jdbc));
+            jdbc.transaction(() -> {
+                boolean available = (Boolean) jdbc.rows("SELECT pg_try_advisory_xact_lock(hashtext(?)) AS available", id).getFirst().get("available");
+                if (!available) throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Словник новели зараз зайнятий перекладом. Зупиніть завдання й повторіть об’єднання.");
+                var old = glossaries.glossary(id);
+                if (old.revision() != request.revision()) throw new ResponseStatusException(HttpStatus.CONFLICT, "Словник уже змінено.");
+                var keep = old.entries().stream().filter(entry -> entry.key().equals(request.keepKey())).findFirst().orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Перший запис не знайдено."));
+                var remove = old.entries().stream().filter(entry -> entry.key().equals(request.removeKey())).findFirst().orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Другий запис не знайдено."));
+                if (!panrid.space.novelka.core.service.glossary.EntryIdentity.possible(keep, remove))
+                    throw new IllegalArgumentException("Ці записи не схожі на одну сутність.");
+                var aliases = new java.util.LinkedHashSet<String>(keep.aliases());
+                for (String name : java.util.List.of(remove.key(), remove.japanese(), remove.ukrainian(), remove.reading()))
+                    if (!name.isBlank() && !name.equals(keep.key()) && !name.equals(keep.japanese()) && !name.equals(keep.ukrainian())) aliases.add(name);
+                aliases.addAll(remove.aliases());
+                aliases.removeIf(String::isBlank);
+                String facts = keep.facts();
+                if (!remove.facts().isBlank() && !facts.contains(remove.facts()))
+                    facts = facts.isBlank() ? remove.facts() : facts + "\n" + remove.facts();
+                var merged = new Entry(keep.key(), keep.kind(), keep.japanese(), keep.reading().isBlank() ? remove.reading() : keep.reading(),
+                        keep.ukrainian().isBlank() ? remove.ukrainian() : keep.ukrainian(), java.util.List.copyOf(aliases),
+                        keep.gender().equals("unknown") ? remove.gender() : keep.gender(), facts, keep.certainty(),
+                        Math.min(keep.sourceChapter(), remove.sourceChapter()), true);
+                var entries = new java.util.ArrayList<Entry>();
+                for (var entry : old.entries()) {
+                    if (entry.key().equals(keep.key())) entries.add(merged);
+                    else if (!entry.key().equals(remove.key())) entries.add(entry);
+                }
+                service.update(id, new Glossary(old.revision() + 1, entries));
+                new AuditRepository(jdbc).add(actor.id(), "glossary.merge", id,
+                        Map.of("keepKey", keep.key(), "removeKey", remove.key(), "revision", old.revision() + 1));
+                return null;
+            });
+        }
+        return Map.of("message", "Записи об’єднано. Перевірте збережені поля й пов’язані переклади.");
     }
 
     @GetMapping("/{novel}/export")

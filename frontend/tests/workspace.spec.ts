@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { pageData } from './pageData';
 
 const reader = { id: 'reader', username: 'reader', role: 'READER' };
 const owner = { id: 'owner', username: 'owner', role: 'OWNER' };
@@ -8,6 +9,7 @@ async function session(page: Page, user: typeof reader | null) {
     await page.route('**/api/auth/me', route => route.fulfill({ json: { user, registrationOpen: true } }));
     await page.route('**/api/auth/csrf', route => route.fulfill({ json: { token: 'csrf-test', headerName: 'X-CSRF-TOKEN' } }));
     await page.route('**/api/novels', route => route.fulfill({ json: [novel] }));
+    await page.route('**/api/novels/search?*', route => route.fulfill({ json: pageData([novel]) }));
 }
 
 test('login uses csrf and exposes only reader navigation', async ({ page }) => {
@@ -69,7 +71,7 @@ test('owner launches budgeted translation and sees persisted queue', async ({ pa
             tasks.push({ id: 'task1', novel_id: novel.id, operation: 'translate', state: 'queued', spent_usd: 0, username: owner.username });
             return route.fulfill({ json: { id: 'task1' } });
         }
-        return route.fulfill({ json: tasks });
+        return route.fulfill({ json: pageData(tasks) });
     });
     await page.goto('/#/manage');
     await page.getByRole('combobox', { name: 'Новела', exact: true }).click();
@@ -91,10 +93,10 @@ test('owner launches budgeted translation and sees persisted queue', async ({ pa
 
 test('owner edits reader metadata and sees an explained legacy task failure', async ({ page }) => {
     await session(page, owner);
-    await page.route('**/api/tasks**', route => route.fulfill({ json: [{
+    await page.route('**/api/tasks**', route => route.fulfill({ json: pageData([{
         id: 'failed-task', novel_id: novel.id, operation: 'translate', state: 'failed', spent_usd: .02,
         username: owner.username, current_job_id: 'job-failed', message: 'Dictionary tool limit exceeded',
-    }] }));
+    }]) }));
     await page.route('**/api/manage/n0022gd', route => {
         if (route.request().method() === 'POST') {
             expect(route.request().postDataJSON()).toEqual({
@@ -129,11 +131,11 @@ test('owner sees account balance and a web action for a changed dictionary', asy
         revision: 0, registrationOpen: true, segmentChars: 1500, targetUsdPer5000: .1, maxBudgetUsd: 5,
         stages: ['analyze', 'translate', 'proofread'].map(stage => ({ stage, model: 'openai/gpt-4o-mini', inputUsdM: .15, outputUsdM: .6 })),
     } }));
-    await page.route('**/api/tasks**', route => route.fulfill({ json: [{
+    await page.route('**/api/tasks**', route => route.fulfill({ json: pageData([{
         id: 'task2', novel_id: novel.id, operation: 'translate', state: 'failed', spent_usd: .02,
         username: owner.username, current_job_id: 'job2', message: 'Dictionary changed; run proofread or translate --force',
         current_chapter: 2, request: { first: 2, last: 2 },
-    }] }));
+    }]) }));
     await page.goto('/#/settings');
     await expect(page.getByText('74,75')).toBeVisible();
     await page.goto('/#/manage');
@@ -148,10 +150,10 @@ test('owner sees account balance and a web action for a changed dictionary', asy
 test('editor approves a correction with a reason', async ({ page }) => {
     await session(page, { id: 'editor', username: 'editor', role: 'EDITOR' });
     let approved = false;
-    await page.route('**/api/corrections?**', route => route.fulfill({ json: new URL(route.request().url()).searchParams.get('queue') === 'true' ? [{
+    await page.route('**/api/corrections?**', route => route.fulfill({ json: pageData(new URL(route.request().url()).searchParams.get('queue') === 'true' ? [{
         id: 'c1', author_id: 'reader', author: 'reader', novel_id: novel.id, chapter: 1,
         original: 'Він ішов.', replacement: 'Він крокував.', reason: 'Точніше', state: approved ? 'approved' : 'pending', review_note: '',
-    }] : [] }));
+    }] : []) }));
     await page.route('**/api/corrections/c1/review', route => {
         expect(route.request().postDataJSON()).toEqual({ approve: true, note: 'Погоджую' }); approved = true;
         return route.fulfill({ json: { message: 'Збережено' } });

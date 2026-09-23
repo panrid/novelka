@@ -3,6 +3,8 @@ package panrid.space.novelka.server.repository;
 import panrid.space.novelka.core.persistence.JdbcSession;
 import panrid.space.novelka.core.model.Work;
 import panrid.space.novelka.server.correction.CorrectionRequest;
+import panrid.space.novelka.server.list.ListPage;
+import panrid.space.novelka.server.list.ListQuery;
 
 import java.util.List;
 import java.util.Map;
@@ -26,12 +28,18 @@ public final class CorrectionRepository {
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
-    public List<Map<String, Object>> list(String author, int offset) throws Exception {
-        return author == null
-                ? jdbc.rows("SELECT c.*,a.username author FROM corrections c JOIN accounts a ON a.id=c.author_id"
-                        + " ORDER BY (c.state='pending') DESC,c.created_at DESC LIMIT 50 OFFSET ?", offset)
-                : jdbc.rows("SELECT c.*,a.username author FROM corrections c JOIN accounts a ON a.id=c.author_id"
-                        + " WHERE c.author_id=? ORDER BY c.created_at DESC LIMIT 50 OFFSET ?", author, offset);
+    public ListPage<Map<String, Object>> list(String author, ListQuery query, String state, String novel) throws Exception {
+        if (!state.isEmpty() && !List.of("pending", "approved", "rejected").contains(state))
+            throw new IllegalArgumentException("Невідомий стан правки.");
+        String from = " FROM corrections c JOIN accounts a ON a.id=c.author_id";
+        String where = " WHERE (?::text IS NULL OR c.author_id=?) AND (?='' OR c.state=?) AND (?='' OR c.novel_id=?)"
+                + " AND (?='' OR c.original ILIKE ? ESCAPE '\\' OR c.replacement ILIKE ? ESCAPE '\\')";
+        Object[] filters = {author, author, state, state, novel, novel, query.q(), query.pattern(), query.pattern()};
+        long total = ((Number) jdbc.rows("SELECT count(*) total" + from + where, filters).getFirst().get("total")).longValue();
+        String order = query.order(Map.of("created", "c.created_at", "state", "c.state", "chapter", "c.chapter", "novel", "c.novel_id"), "created", "c.id");
+        var items = jdbc.rows("SELECT c.*,a.username author" + from + where + order + " LIMIT ? OFFSET ?",
+                author, author, state, state, novel, novel, query.q(), query.pattern(), query.pattern(), query.size(), query.offset());
+        return ListPage.of(items, query, total);
     }
 
     public List<Map<String, Object>> pending(String author, Work work) throws Exception {

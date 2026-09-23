@@ -26,7 +26,7 @@ Core не залежить від Picocli, хоча ще друкує деякі
 | `cli.support` | `ChapterRange`: перевірка діапазону; `Output`: JSON |
 | `core.model` | Вісім top-level record-моделей; структура збереженого JSON |
 | `core.service.translation` | Pipeline та Segments: процес перекладу і робота з сегментами |
-| `core.service.glossary` | Dictionary: добір контексту; GlossaryService: зміни словника та інвалідація |
+| `core.service.glossary` | Dictionary: добір контексту; EntryIdentity: нормалізовані збіги імен; GlossaryService: зміни словника та інвалідація |
 | `core.repository` | NovelRepository, ChapterRepository, JobRepository, GlossaryRepository, AiCallRepository; ReaderRepository — проєкції для читання |
 | `core.persistence` | JdbcSession, MigrationRunner, DatabaseSession: з'єднання, міграції, складання залежностей |
 | `core.integration.ai` | AiClient та OpenRouter |
@@ -81,6 +81,7 @@ ReaderRepository використовує ту саму умову доступ�
 | `AiClient` | generate(work, segment, stage, glossary, payload, budget) → JsonNode |
 | `OpenRouter` | HTTP, промпти, JSON Schema, dictionary_search, резерв і журнал викликів |
 | `Dictionary` | Валідація, пошук сутностей, обмежена добірка контексту |
+| `EntryIdentity` | Точні та можливі збіги записів, поля для ручної перевірки пропозиції |
 | `JdbcSession` | Один Connection, параметризовані SQL-операції, транзакції та advisory locks |
 | `DatabaseSession` | Життєвий цикл з'єднання і складання залежностей; сам SQL не містить |
 | `MigrationRunner` | Версії SQL-схеми, блокування та атомарне застосування міграцій |
@@ -90,6 +91,7 @@ ReaderRepository використовує ту саму умову доступ�
 | `GlossaryRepository` | Поточний словник, історія, пропозиції; без бізнес-правил інвалідації |
 | `AiCallRepository` | Журнал запитів і відповідей, невідомі результати, повтори, витрати |
 | `GlossaryService` | Транзакція зміни словника та інвалідації Work, що використали змінені факти |
+| `server.list.ListQuery/ListPage` | Єдиний контракт сторінок, межі параметрів і whitelist SQL-порядку |
 | `BookExporter` | HTML/EPUB із переданих завершених Work; не виконує AI-запитів |
 | `Json`, `Hashes`, `Tokens` | Серіалізація, SHA-256 серіалізованого значення, o200k_base |
 

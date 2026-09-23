@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { pageData } from './pageData';
 
 const novel = { id: 'n0022gd', title: 'Водяний маг', author: 'Автор', chapterCount: 10, readyChapters: 3, aliases: [] };
 const task = { id: 'failed-task', operation: 'translate', novel_id: novel.id, state: 'failed', message: 'Dictionary changed; run proofread or translate --force',
@@ -9,8 +10,9 @@ test.beforeEach(async ({ page }) => {
     await page.route('**/api/auth/me', route => route.fulfill({ json: { user: { id: 'owner', username: 'owner', role: 'OWNER' }, registrationOpen: true } }));
     await page.route('**/api/auth/csrf', route => route.fulfill({ json: { token: 'test', headerName: 'X-CSRF-TOKEN' } }));
     await page.route('**/api/novels', route => route.fulfill({ json: [novel] }));
+    await page.route('**/api/novels/search?*', route => route.fulfill({ json: pageData([novel]) }));
     await page.route('**/api/notifications?*', route => route.fulfill({ json: { items: [], unread: 0, latestId: 0 } }));
-    await page.route('**/api/tasks?*', route => route.fulfill({ json: [task] }));
+    await page.route('**/api/tasks?*', route => route.fulfill({ json: pageData([task]) }));
     await page.route('**/api/tasks/failed-task', route => route.fulfill({ json: task }));
     await page.route('**/api/tasks/new-task', route => route.fulfill({ json: { ...task, id: 'new-task', state: 'queued', message: null } }));
     await page.route('**/api/manage/n0022gd', route => route.fulfill({ json: { novel, aliases: [], chapters: [], jobs: [], glossary: { revision: 1, entries: [] }, proposals: [] } }));
@@ -81,7 +83,7 @@ test('quick actions prepare only the failed chapter and require budget approval'
 });
 
 test('resume shortcut never grants uncertain retry automatically', async ({ page }) => {
-    await page.route('**/api/tasks?*', route => route.fulfill({ json: [{ ...task, message: 'Uncertain previous request', latest_job_state: 'running', can_resume: true, can_proofread: false }] }));
+    await page.route('**/api/tasks?*', route => route.fulfill({ json: pageData([{ ...task, message: 'Uncertain previous request', latest_job_state: 'running', can_resume: true, can_proofread: false }]) }));
     await page.goto('/#/manage');
     await page.getByRole('button', { name: 'Відновити', exact: true }).click();
     await expect(page.getByLabel('ID перекладу (job)')).toHaveValue('job-2');

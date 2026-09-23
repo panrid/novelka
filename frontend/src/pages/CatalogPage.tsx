@@ -1,17 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import type { NovelCard } from '../api/types';
 import { useResource } from '../hooks/useResource';
 import { novelPath } from '../lib/routes';
 import { ErrorState, Loading } from '../components/Status';
+import { ListPages, ListSearch, listParams, useListState, type PageData } from '../components/ListTools';
 
 export function CatalogPage() {
-    const { data, error, retry } = useResource<NovelCard[]>('/novels');
-    const [query, setQuery] = useState('');
-    const [readyOnly, setReadyOnly] = useState(false);
+    const list = useListState('', 'title', ['readyOnly'], 'asc');
+    const readyOnly = list.state.filters.readyOnly === 'true';
+    const { data, error, retry, loading } = useResource<PageData<NovelCard>>('/novels/search?' + listParams(list.state, { readyOnly }), true);
     useEffect(() => { document.title = 'Каталог — Новелка'; }, []);
-    const search = query.trim().toLocaleLowerCase('uk');
-    const novels = data?.filter(novel => (!readyOnly || novel.readyChapters > 0)
-        && [novel.title, novel.author, novel.id, ...novel.aliases].join(' ').toLocaleLowerCase('uk').includes(search));
+    const novels = data?.items;
     return <div className="page catalog-page">
         <section className="hero">
             <div className="hero-copy">
@@ -27,15 +26,17 @@ export function CatalogPage() {
             </div>
         </section>
         <section id="catalog" className="catalog-section" aria-labelledby="catalog-title">
-            <div className="section-heading"><div><p className="eyebrow">Ваша наступна історія</p><h2 id="catalog-title">Каталог новел</h2></div>{data && <span className="count-label">{data.length} у каталозі</span>}</div>
+            <div className="section-heading"><div><p className="eyebrow">Ваша наступна історія</p><h2 id="catalog-title">Каталог новел</h2></div>{data && <span className="count-label">{data.total} у каталозі</span>}</div>
             <div className="catalog-tools">
-                <label className="search-field"><span aria-hidden="true">⌕</span><span className="sr-only">Пошук новел</span><input type="search" placeholder="Назва, автор або аліас…" value={query} onChange={event => setQuery(event.target.value)} /></label>
-                <button className={'filter-button' + (readyOnly ? ' selected' : '')} aria-pressed={readyOnly} onClick={() => setReadyOnly(value => !value)}>Є готові глави <span aria-hidden="true">✓</span></button>
+                <ListSearch label="Назва, автор або аліас" value={list.state.q} onChange={q => list.update({ q, page: 1 })} />
+                <button className={'filter-button' + (readyOnly ? ' selected' : '')} aria-pressed={readyOnly} onClick={() => list.setFilter('readyOnly', readyOnly ? '' : 'true')}>Є готові глави <span aria-hidden="true">✓</span></button>
+                <label>Порядок<select value={list.state.sort} onChange={event => list.update({ sort: event.target.value, page: 1 })}><option value="title">Назва</option><option value="author">Автор</option><option value="ready">Готові глави</option></select></label>
+                <button aria-label="Змінити напрямок сортування" onClick={() => list.update({ direction: list.state.direction === 'asc' ? 'desc' : 'asc', page: 1 })}>{list.state.direction === 'asc' ? '↑' : '↓'}</button>
             </div>
-            {error ? <ErrorState message={error} retry={retry} /> : !novels ? <Loading /> : novels.length === 0 ? <div className="empty-state">
+            {error ? <ErrorState message={error} retry={retry} /> : !novels ? <Loading /> : <>{loading && <p role="status">Оновлюємо каталог…</p>}{novels.length === 0 ? <div className="empty-state">
                 <span className="empty-symbol" aria-hidden="true">書</span>
-                <h3>{data?.length ? 'Історію не знайдено' : 'Перша історія ще попереду'}</h3>
-                <p>{data?.length ? 'Спробуйте іншу назву, автора або вимкніть фільтр готових глав.' : 'Імпортуйте новелу через CLI — вона з’явиться тут. Після перекладу можна буде відкрити її глави.'}</p>
+                <h3>{list.state.q || readyOnly ? 'Історію не знайдено' : 'Перша історія ще попереду'}</h3>
+                <p>{list.state.q || readyOnly ? 'Спробуйте іншу назву, автора або вимкніть фільтр готових глав.' : 'Імпортуйте новелу в майстерні — вона з’явиться тут.'}</p>
             </div> : <div className="novel-grid">{novels.map((novel, index) => <a className="novel-card" key={novel.id} href={'#' + novelPath(novel.id)}>
                 <div className={'book-cover cover-' + index % 4} aria-hidden="true"><div className="cover-circle" /><span className="cover-id">{novel.id}</span><span className="cover-letter">{novel.title.slice(0, 1)}</span><span className="cover-imprint">NOVELKA / STORIES</span></div>
                 <div className="card-body"><span className={'availability' + (novel.readyChapters ? ' available' : '')}>{novel.readyChapters ? 'Готово до читання' : 'Очікує перекладу'}</span>
@@ -43,7 +44,7 @@ export function CatalogPage() {
                     {novel.aliases.length > 0 && <p className="card-alias">{novel.aliases.join(' · ')}</p>}
                     <div className="card-bottom"><span>{novel.readyChapters} / {novel.chapterCount} глав</span><span aria-hidden="true">↗</span></div>
                 </div>
-            </a>)}</div>}
+            </a>)}</div>}<ListPages data={data} onPage={list.setPage} /></>}
         </section>
     </div>;
 }

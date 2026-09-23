@@ -12,6 +12,9 @@ import panrid.space.novelka.server.dto.ChapterSummary;
 import panrid.space.novelka.server.dto.NovelCard;
 import panrid.space.novelka.server.dto.NovelDetail;
 import panrid.space.novelka.server.dto.ReaderChapter;
+import panrid.space.novelka.server.repository.CatalogRepository;
+import panrid.space.novelka.server.list.ListPage;
+import panrid.space.novelka.server.list.ListQuery;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,29 +28,44 @@ public final class ReaderService {
         this.database = database;
     }
 
-    public List<NovelCard> catalog() throws Exception {
+    public ListPage<NovelCard> catalog(ListQuery query, boolean readyOnly) throws Exception {
         try (var jdbc = database.open()) {
+            var page = new CatalogRepository(jdbc).list(query, readyOnly);
             var cards = new ArrayList<NovelCard>();
-            for (var row : new ReaderRepository(jdbc).catalog()) {
+            for (var row : page.items()) {
                 var novel = Json.decode(row.get("data").toString(), Novel.class);
                 var aliases = StreamSupport.stream(Json.read(row.get("aliases").toString()).spliterator(), false)
                         .map(node -> node.asText()).toList();
                 cards.add(new NovelCard(novel.id(), novel.displayTitle(), novel.displayAuthor(), description(novel), novel.chapterCount(),
                         ((Number) row.get("ready_chapters")).intValue(), aliases));
             }
-            return cards;
+            return ListPage.of(cards, query, page.total());
         }
     }
 
-    public NovelDetail novel(String reference) throws Exception {
+    public NovelDetail novel(String reference, Integer resume) throws Exception {
         try (var jdbc = database.open()) {
             var novels = new NovelRepository(jdbc);
             String id = resolve(novels, reference);
             var novel = novels.novel(id);
-            var chapters = new ReaderRepository(jdbc).chapters(id).stream()
+            var reader = new ReaderRepository(jdbc);
+            var stats = reader.chapterStats(id);
+            return new NovelDetail(id, novel.displayTitle(), novel.displayAuthor(), description(novel), novel.chapterCount(),
+                    ((Number) stats.get("ready")).longValue(), stats.get("first_chapter") == null ? null : ((Number) stats.get("first_chapter")).intValue(),
+                    resume != null && resume > 0 && reader.hasChapter(id, resume) ? resume : null);
+        }
+    }
+
+    public ListPage<ChapterSummary> contents(String reference, ListQuery query) throws Exception {
+        if (!query.sort().isEmpty() && !query.sort().equals("number")) throw new IllegalArgumentException("Глави можна сортувати за номером.");
+        try (var jdbc = database.open()) {
+            String id = resolve(new NovelRepository(jdbc), reference);
+            var reader = new ReaderRepository(jdbc);
+            long total = reader.chapterCount(id, query.pattern());
+            var chapters = reader.chapterPage(id, query.pattern(), query.direction(), query.size(), query.offset()).stream()
                     .map(row -> new ChapterSummary(((Number) row.get("chapter")).intValue(),
                             (String) row.get("title"), ((Number) row.get("revision")).intValue())).toList();
-            return new NovelDetail(id, novel.displayTitle(), novel.displayAuthor(), description(novel), novel.chapterCount(), chapters);
+            return ListPage.of(chapters, query, total);
         }
     }
 
@@ -67,7 +85,10 @@ public final class ReaderService {
                 for (var row : new panrid.space.novelka.server.repository.CorrectionRepository(jdbc).pending(authorId, work))
                     personal.put(((Number) row.get("block_index")).intValue(), (String) row.get("replacement"));
             }
-            return new ReaderChapter(id, number, work.revision(), title, blocks, work.id(), personal);
+            var neighbours = new ReaderRepository(jdbc).neighbours(id, number);
+            return new ReaderChapter(id, number, work.revision(), title, blocks, work.id(), personal,
+                    neighbours.get("previous") == null ? null : ((Number) neighbours.get("previous")).intValue(),
+                    neighbours.get("next") == null ? null : ((Number) neighbours.get("next")).intValue());
         }
     }
 

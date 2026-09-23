@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { mutate } from '../api/client';
 import { ActionNotice } from '../components/ActionNotice';
 import { useAction } from '../hooks/useAction';
 import { SelectField } from '../components/SelectField';
+import { ListEmpty, ListFilter, ListPages, ListSearch, listParams, useListState, type PageData } from '../components/ListTools';
+import { useResource } from '../hooks/useResource';
 
 export interface Entry {
     key: string;
@@ -29,6 +31,9 @@ export interface GlossaryProposal {
     status: 'pending' | 'dismissed' | 'in_dictionary';
     occurrences: number;
     canonicalKey?: string;
+    kind?: 'new' | 'update' | 'possible_duplicate';
+    differences?: string[];
+    candidates?: Entry[];
 }
 
 const empty: Entry = {
@@ -50,22 +55,31 @@ function suggestedEntry(value: unknown) {
     } : null;
 }
 
-export function GlossaryEditor({ novel, glossary, proposals, refresh }: {
+export function GlossaryEditor({ novel, glossary, refresh }: {
     novel: string;
     glossary: Glossary;
-    proposals: GlossaryProposal[];
     refresh: () => void;
 }) {
-    const [query, setQuery] = useState('');
-    const [showHistory, setShowHistory] = useState(false);
+    const list = useListState('gloss_', 'japanese', ['kind'], 'asc');
+    const entriesResource = useResource<PageData<Entry>>('/manage/' + encodeURIComponent(novel) + '/glossary/entries?' + listParams(list.state), true);
+    const proposalList = useListState('proposal_', 'created', []);
+    const proposalResource = useResource<PageData<GlossaryProposal>>('/manage/' + encodeURIComponent(novel) + '/proposals?' + listParams(proposalList.state), true);
+    const proposals = proposalResource.data?.items ?? [];
     const pending = proposals.filter(item => item.status === 'pending');
     const [entry, setEntry] = useState<Entry>({ ...empty });
-    const action = useAction();
-    const normalizedQuery = query.trim().toLocaleLowerCase('uk');
-    const matches = glossary.entries.filter(item => [item.japanese, item.ukrainian, item.reading, ...item.aliases]
-        .join(' ').toLocaleLowerCase('uk').includes(normalizedQuery));
+    const saveAction = useAction();
+    const reviewAction = useAction();
+    const [probe, setProbe] = useState({ japanese: '', ukrainian: '', kind: '' });
+    useEffect(() => {
+        const timer = window.setTimeout(() => setProbe({ japanese: entry.japanese, ukrainian: entry.ukrainian, kind: entry.kind }), 300);
+        return () => window.clearTimeout(timer);
+    }, [entry.japanese, entry.ukrainian, entry.kind]);
+    const similarResource = useResource<Entry[]>('/manage/' + encodeURIComponent(novel) + '/glossary/similar?'
+        + new URLSearchParams(probe).toString(), true);
+    const matches = entriesResource.data?.items ?? [];
+    const refreshAll = () => { entriesResource.retry(); similarResource.retry(); proposalResource.retry(); refresh(); };
     const isCharacter = entry.kind === 'character';
-    const save = () => action.run(async () => {
+    const save = () => saveAction.run(async () => {
         const updated = {
             ...entry,
             key: entry.key.trim() || entry.japanese.trim(),
@@ -78,15 +92,23 @@ export function GlossaryEditor({ novel, glossary, proposals, refresh }: {
         };
         await mutate('/manage/' + encodeURIComponent(novel) + '/glossary', { revision: glossary.revision, entries: [updated] });
         setEntry(updated);
-        refresh();
+        refreshAll();
     }, 'Запис збережено. Пов’язані переклади позначено для перевірки.');
+    const possibleDuplicates = (similarResource.data ?? []).filter(item => item.key !== entry.key);
 
     return <div className="glossary-panel"><div className="panel-heading"><div><h2>Словник</h2><p className="muted">Імена, терміни й факти, які ШІ використовує під час перекладу.</p></div><span className="badge">Версія {glossary.revision}</span></div>
-        <div className="glossary-layout"><div className="glossary-browser"><label>Знайти запис<input placeholder="Ім’я, термін або переклад" value={query} onChange={event => setQuery(event.target.value)} /></label>
+        <div className="glossary-layout"><div className="glossary-browser"><ListSearch label="Знайти запис" value={list.state.q} onChange={q => list.update({ q, page: 1 })} />
+            <div className="list-toolbar"><ListFilter label="Тип" value={list.state.filters.kind} onChange={value => list.setFilter('kind', value)} options={[
+                { value: '', label: 'Усі типи' }, { value: 'character', label: 'Персонажі' }, { value: 'term', label: 'Терміни' },
+                { value: 'place', label: 'Місця' }, { value: 'other', label: 'Інше' }]} />
+                {list.state.filters.kind && <button type="button" onClick={list.clearFilters}>Очистити фільтр</button>}</div>
+            {entriesResource.loading && <p role="status">Оновлюємо словник…</p>}
+            {entriesResource.error && <p role="alert">{entriesResource.error} <button type="button" onClick={entriesResource.retry}>Повторити</button></p>}
             <div className="glossary-list" aria-label="Записи словника">{matches.map(item => <button type="button" key={item.key} className={entry.key === item.key ? 'selected' : ''} onClick={() => setEntry({ ...item })}>
                 <strong>{item.japanese}</strong> <span>→ {item.ukrainian || 'ще не перекладено'}</span><small>{kindLabel(item.kind)}{item.kind === 'character' && ' · ' + genderLabel(item.gender)}</small>
             </button>)}</div>
-            {!matches.length && <p className="muted">Записів не знайдено.</p>}
+            {entriesResource.data && !matches.length && <ListEmpty filtered={!!(list.state.q || list.state.filters.kind)} noun="Записів словника" />}
+            {entriesResource.data && <ListPages data={entriesResource.data} onPage={list.setPage} />}
             <button type="button" onClick={() => setEntry({ ...empty })}>+ Новий запис</button>
         </div>
             <form className="stack-form glossary-form" onSubmit={event => { event.preventDefault(); void save(); }}><h3>{entry.key ? 'Редагувати запис' : 'Новий запис'}</h3>
@@ -105,26 +127,44 @@ export function GlossaryEditor({ novel, glossary, proposals, refresh }: {
                     <label>Глава-джерело<input type="number" min="1" required value={entry.sourceChapter} onChange={event => setEntry({ ...entry, sourceChapter: Number(event.target.value) })} /></label>
                     <label>Технічний ключ<input maxLength={1000} placeholder="За замовчуванням — японське написання" value={entry.key} onChange={event => setEntry({ ...entry, key: event.target.value })} /></label>
                 </div><p className="muted">Ключ потрібен лише для стабільного оновлення наявного запису. Для нового запису його можна не заповнювати.</p></details>
-                <button className="button" disabled={action.busy}>Зберегти запис</button><ActionNotice {...action} />
+                {!!possibleDuplicates.length && <div className="glossary-duplicates"><strong>Схожі записи у словнику</strong>
+                    <p>Перевірте, чи це той самий персонаж або термін. Під час об’єднання поточний запис залишиться основним; написання та факти іншого збережуться.</p>
+                    {possibleDuplicates.map(candidate => <div key={candidate.key}><span>{candidate.japanese} → {candidate.ukrainian} · {candidate.key}</span>
+                        {similarResource.data?.some(existing => existing.key === entry.key) ? <button type="button" disabled={saveAction.busy} onClick={() => { void saveAction.run(async () => {
+                            await mutate('/manage/' + encodeURIComponent(novel) + '/glossary/merge', {
+                                revision: glossary.revision, keepKey: entry.key, removeKey: candidate.key,
+                            }); refreshAll();
+                        }, 'Записи об’єднано. Перевірте збережені поля.'); }}>Об’єднати з цим записом</button>
+                            : <button type="button" onClick={() => setEntry({ ...candidate })}>Редагувати наявний запис</button>}</div>)}</div>}
+                <button className="button" disabled={saveAction.busy}>Зберегти запис</button><ActionNotice {...saveAction} />
             </form>
         </div>
-        <details className="suggestion-list"><summary>Пропозиції ШІ: на перевірку {pending.length}</summary>
-            <p>Однакові пропозиції об’єднано. Записи, що вже відповідають словнику, та відхилені пропозиції доступні в історії. Всього збережено записів: {proposals.reduce((sum, item) => sum + item.occurrences, 0)}.</p>
+        <details className="suggestion-list"><summary>Пропозиції ШІ: {proposalResource.data?.total ?? '…'} груп</summary>
+            <p>Однакові пропозиції згруповано. На цій сторінці потребують перевірки: {pending.length}. Історія пропозицій зберігається після рішення.</p>
             <p>Коректні нові імена й терміни додаються автоматично. Для вже відомого персонажа або терміна пропозиція не перезаписує наявні дані. За потреби відкрийте її у формі, перевірте й збережіть вручну. Історія після цього залишається.</p>
-            <div className="tab-bar"><button type="button" aria-pressed={!showHistory} onClick={() => setShowHistory(false)}>На перевірку ({pending.length})</button>
-                <button type="button" aria-pressed={showHistory} onClick={() => setShowHistory(true)}>Уся історія ({proposals.length})</button></div>
-            {(showHistory ? proposals : pending).map(item => {
+            <div className="list-toolbar"><ListSearch label="Знайти ім’я або термін у пропозиціях" value={proposalList.state.q} onChange={q => proposalList.update({ q, page: 1 })} />
+                <ListFilter label="Порядок" value={proposalList.state.sort} onChange={sort => proposalList.update({ sort, page: 1 })} options={[
+                    { value: 'created', label: 'За часом' }, { value: 'occurrences', label: 'За кількістю повторів' }]} />
+                <button type="button" onClick={() => proposalList.update({ page: 1, direction: proposalList.state.direction === 'asc' ? 'desc' : 'asc' })}
+                    aria-label="Змінити напрямок сортування">{proposalList.state.direction === 'asc' ? '↑' : '↓'}</button></div>
+            {proposalResource.loading && <p role="status">Оновлюємо пропозиції…</p>}
+            {proposalResource.error && <p role="alert">{proposalResource.error} <button type="button" onClick={proposalResource.retry}>Повторити</button></p>}
+            {proposals.map(item => {
                 const suggested = suggestedEntry(item.proposal);
                 return <article className="suggestion-card" key={item.id}>
-                    <span className="badge">{{ pending: 'На перевірку', dismissed: 'Відхилено', in_dictionary: 'Уже у словнику' }[item.status]}{item.occurrences > 1 && ` · ${item.occurrences} повтори`}</span>
+                    <span className="badge">{item.status === 'pending' && item.kind === 'update' ? 'Уточнення наявного запису' : item.status === 'pending' && item.kind === 'possible_duplicate' ? 'Можливий дубль' : { pending: 'На перевірку', dismissed: 'Відхилено', in_dictionary: 'Уже у словнику' }[item.status]}{item.occurrences > 1 && ` · ${item.occurrences} повтори`}</span>
                     {suggested ? <><strong>{suggested.japanese} → {suggested.ukrainian || 'без перекладу'}</strong><span>{kindLabel(suggested.kind)} · глава {suggested.sourceChapter}</span>
+                        {!!item.candidates?.length && <span>У словнику: {item.candidates.map(candidate => <button key={candidate.key} type="button" onClick={() => setEntry({ ...candidate })}>{candidate.japanese} → {candidate.ukrainian} · редагувати</button>)}</span>}
+                        {!!item.differences?.length && <span>Пропонує змінити: {item.differences.join(', ')}</span>}
                         {item.status === 'pending' && <button type="button" onClick={() => setEntry({ ...suggested, key: item.canonicalKey ?? suggested.key })}>Відкрити у формі</button>}</> : <><strong>Пропозиція з помилкою</strong><p className="muted">ШІ повернув дані, які не можна безпечно додати до словника.</p><details><summary>Технічні дані</summary><pre>{JSON.stringify(item.proposal, null, 2)}</pre></details></>}
-                    {item.status === 'pending' && <button type="button" disabled={action.busy} onClick={() => { void action.run(async () => {
-                        await mutate('/manage/' + encodeURIComponent(novel) + '/proposals/' + item.id + '/dismiss'); refresh();
+                    {item.status === 'pending' && <button type="button" disabled={reviewAction.busy} onClick={() => { void reviewAction.run(async () => {
+                        await mutate('/manage/' + encodeURIComponent(novel) + '/proposals/' + item.id + '/dismiss'); refreshAll();
                     }, 'Пропозицію та її однакові повтори відхилено. Словник не змінено.'); }}>Відхилити</button>}
                 </article>;
             })}
-            {!(showHistory ? proposals : pending).length && <p className="muted">{showHistory ? 'Історія поки порожня.' : 'Немає пропозицій на перевірку.'}</p>}
+            {proposalResource.data && !proposals.length && <ListEmpty filtered={!!proposalList.state.q} noun="Пропозицій" />}
+            {proposalResource.data && <ListPages data={proposalResource.data} onPage={proposalList.setPage} />}
+            <ActionNotice {...reviewAction} />
         </details>
     </div>;
 }

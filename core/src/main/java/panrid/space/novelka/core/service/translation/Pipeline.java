@@ -207,7 +207,7 @@ public final class Pipeline {
                         Entry proposal = e;
                         // Existing facts are never silently overwritten. Conflicting proposals remain
                         // reviewable.
-                        if (entries.stream().noneMatch(x -> Dictionary.sameEntity(x, proposal))) entries.add(e);
+                        if (entries.stream().noneMatch(x -> panrid.space.novelka.core.service.glossary.EntryIdentity.possible(x, proposal))) entries.add(e);
                     }
                     if (!entries.equals(g.entries()))
                         database.glossaryService().update(work.novelId(), new Glossary(g.revision() + 1, List.copyOf(entries)));

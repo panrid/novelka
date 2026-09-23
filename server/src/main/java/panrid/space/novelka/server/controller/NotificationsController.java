@@ -23,11 +23,11 @@ public final class NotificationsController {
     }
 
     @GetMapping
-    public Object list(Principal principal, @RequestParam(defaultValue = "0") int offset) throws Exception {
+    public Object list(Principal principal, @RequestParam(defaultValue = "0") long before) throws Exception {
         var account = access.require(principal, Role.READER);
-        if (offset < 0) throw new IllegalArgumentException("Некоректна сторінка.");
+        if (before < 0) throw new IllegalArgumentException("Некоректний курсор сповіщень.");
         try (var jdbc = database.open()) {
-            return Json.M.convertValue(new NotificationRepository(jdbc).list(account, offset), Object.class);
+            return Json.M.convertValue(new NotificationRepository(jdbc).list(account, before), Object.class);
         }
     }
 

@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { pageData } from './pageData';
 
 test.beforeEach(async ({ page }) => {
     await page.route('**/api/auth/me', route => route.fulfill({ json: { user: { id: 'owner', username: 'owner', role: 'OWNER' }, registrationOpen: true } }));
     await page.route('**/api/novels', route => route.fulfill({ json: [{ id: 'n0022gd', title: 'Водяний маг', author: 'Автор', chapterCount: 10, readyChapters: 3, aliases: [] }] }));
-    await page.route('**/api/tasks**', route => route.fulfill({ json: [] }));
+    await page.route('**/api/novels/search?*', route => route.fulfill({ json: pageData([{ id: 'n0022gd', title: 'Водяний маг', author: 'Автор', chapterCount: 10, readyChapters: 3, aliases: [] }]) }));
+    await page.route('**/api/tasks**', route => route.fulfill({ json: pageData([]) }));
 });
 
 test('styled dropdown supports keyboard, dismissal and viewport bounds', async ({ page }, testInfo) => {
@@ -40,7 +42,19 @@ test('costs sort numerically in both directions and retain unknown values', asyn
         { id: 'b', novel_id: 'n0022gd', chapter: 2, estimated_usd: '0.02', known_actual_usd: '0.12', actual_usd: '0.12', input_tokens: 20, created_at: '2026-09-21T10:00:00Z' },
         { id: 'c', novel_id: 'n0022gd', chapter: 3, estimated_usd: '0.09', known_actual_usd: '0.9', actual_usd: '0.9', input_tokens: 100, created_at: '2026-09-20T10:00:00Z' },
     ].map(row => ({ ...row, stage: 'translate', model: 'test/model', state: 'complete', calls: 1, unknown_cost_calls: row.actual_usd === null ? 1 : 0, output_tokens: 10 }));
-    await page.route('**/api/manage/costs?**', route => route.fulfill({ json: rows }));
+    await page.route('**/api/manage/costs?**', route => {
+        const params = new URL(route.request().url()).searchParams;
+        const key = params.get('sort') || 'created';
+        const direction = params.get('direction') === 'asc' ? 1 : -1;
+        const field = key === 'created' ? 'created_at' : key;
+        const sorted = [...rows].sort((a, b) => {
+            const left = a[field as keyof typeof a], right = b[field as keyof typeof b];
+            if (left == null || right == null) return left == null ? right == null ? 0 : 1 : -1;
+            return (['chapter', 'estimated_usd', 'actual_usd', 'known_actual_usd', 'input_tokens', 'output_tokens', 'calls', 'unknown_cost_calls'].includes(field)
+                ? Number(left) - Number(right) : String(left).localeCompare(String(right), 'uk', { numeric: true })) * direction;
+        });
+        return route.fulfill({ json: pageData(sorted) });
+    });
     await page.goto('/#/manage');
     await page.getByRole('button', { name: 'Витрати', exact: true }).click();
     const chapters = page.locator('.cost-table tbody tr td:nth-child(2)');

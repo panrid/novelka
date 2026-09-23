@@ -77,6 +77,127 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void notificationCursorDoesNotShiftWhenNewEventsArrive() throws Exception {
+        try (var reader = registered(); var sql = jdbc()) {
+            String tag = UUID.randomUUID().toString();
+            for (int number = 1; number <= 32; number++)
+                sql.exec("INSERT INTO notifications(event_key,kind,audience,chapter) VALUES(?,'chapter_published','READER',?)", tag + number, number);
+            var first = body(get(reader, "/notifications"));
+            assertEquals(30, first.path("items").size());
+            long cursor = first.path("nextCursor").asLong();
+            assertTrue(cursor > 0);
+            sql.exec("INSERT INTO notifications(event_key,kind,audience,chapter) VALUES(?,'chapter_published','READER',33)", tag + "new");
+            var second = body(get(reader, "/notifications?before=" + cursor));
+            assertEquals(2, second.path("items").size());
+            assertEquals(0, second.path("nextCursor").asLong());
+            assertEquals(cursor - 1, second.path("items").get(0).path("id").asLong());
+            assertEquals(400, get(reader, "/notifications?before=-1").statusCode());
+        }
+    }
+
+    @Test
+    void glossaryEditingRejectsDuplicatesAndBusyNovelButCanMergeExistingEntries() throws Exception {
+        String novel = seed();
+        var first = new panrid.space.novelka.core.model.Entry("ryo", "character", "涼", "りょう", "Рьо", List.of(), "male", "", "confirmed", 1, true);
+        var second = new panrid.space.novelka.core.model.Entry("ryo-alt", "character", "良", "りょう", "Рьо", List.of(), "unknown", "", "assumed", 1, true);
+        try (var db = new DatabaseSession(postgres.getJdbcUrl("postgres", "postgres"), "postgres", "")) {
+            db.glossaryService().update(novel, new panrid.space.novelka.core.model.Glossary(1, List.of(first, second)));
+            db.glossaries().propose(novel, "job", second);
+        }
+        var entries = body(get(owner, "/manage/" + novel + "/glossary/entries?size=1&sort=japanese&direction=asc&kind=character"));
+        assertEquals(2, entries.path("total").asInt());
+        assertEquals(1, entries.path("items").size());
+        var next = body(get(owner, "/manage/" + novel + "/glossary/entries?page=2&size=1&sort=japanese&direction=asc"));
+        assertEquals(1, next.path("items").size());
+        assertNotEquals(entries.path("items").get(0).path("key").asText(), next.path("items").get(0).path("key").asText());
+        String name = java.net.URLEncoder.encode("Рьо", java.nio.charset.StandardCharsets.UTF_8);
+        assertEquals(2, body(get(owner, "/manage/" + novel + "/glossary/entries?q=" + name)).path("total").asInt());
+        assertEquals(400, get(owner, "/manage/" + novel + "/glossary/entries?kind=bad").statusCode());
+        var proposed = body(get(owner, "/manage/" + novel + "/proposals")).path("items");
+        assertEquals("in_dictionary", proposed.get(0).path("status").asText());
+        var third = new panrid.space.novelka.core.model.Entry("another", "character", "亮", "りょう", "Рьо", List.of(), "unknown", "", "assumed", 1, true);
+        assertEquals(409, post(owner, "/manage/" + novel + "/glossary", Map.of("revision", 1, "entries", List.of(third))).statusCode());
+        try (var sql = jdbc(); var lock = sql.lock(novel)) {
+            assertEquals(409, post(owner, "/manage/" + novel + "/glossary", Map.of("revision", 1, "entries", List.of(first))).statusCode());
+        }
+        assertEquals(200, post(owner, "/manage/" + novel + "/glossary/merge",
+                Map.of("revision", 1, "keepKey", "ryo", "removeKey", "ryo-alt")).statusCode());
+        var glossary = body(get(owner, "/manage/" + novel)).path("glossary");
+        assertEquals(2, glossary.path("revision").asInt());
+        var merged = body(get(owner, "/manage/" + novel + "/glossary/entries"));
+        assertEquals(1, merged.path("total").asInt());
+        assertEquals("ryo", merged.path("items").get(0).path("key").asText());
+        assertTrue(merged.path("items").get(0).path("aliases").toString().contains("良"));
+    }
+
+    @Test
+    void pageableListsCombineSearchFiltersSortingAndBoundaries() throws Exception {
+        String first = seed();
+        String second = seed();
+        var catalog = get(owner, "/novels/search?q=" + first + "&page=1&size=1&sort=id&direction=asc");
+        assertEquals(200, catalog.statusCode(), catalog.body());
+        assertEquals(1, body(catalog).path("items").size());
+        assertEquals(first, body(catalog).path("items").get(0).path("id").asText());
+        assertEquals(1, body(catalog).path("total").asInt());
+        assertEquals(0, body(get(owner, "/novels/search?q=absent-" + first)).path("items").size());
+        assertEquals(400, get(owner, "/novels/search?size=101").statusCode());
+        assertEquals(400, get(owner, "/novels/search?sort=data%3BDROP").statusCode());
+
+        var accounts = get(owner, "/accounts?q=owner&role=OWNER&sort=username&direction=asc&page=1&size=1");
+        assertEquals(200, accounts.statusCode(), accounts.body());
+        assertEquals(1, body(accounts).path("total").asInt());
+        assertEquals("owner", body(accounts).path("items").get(0).path("username").asText());
+        assertEquals(0, body(get(owner, "/accounts?q=owner&role=READER")).path("total").asInt());
+        assertEquals(400, get(owner, "/accounts?direction=sideways").statusCode());
+
+        try (var reader = registered(); var db = new DatabaseSession(postgres.getJdbcUrl("postgres", "postgres"), "postgres", "")) {
+            String job = db.jobs().latest(first, 1).id();
+            propose(reader, first, job, 1, "Він ішов.", "Він крокував.");
+            String search = java.net.URLEncoder.encode("крокував", java.nio.charset.StandardCharsets.UTF_8);
+            var corrections = get(reader, "/corrections?q=" + search + "&state=pending&novel=" + first
+                    + "&sort=chapter&direction=asc&page=1&size=1");
+            assertEquals(200, corrections.statusCode(), corrections.body());
+            assertEquals(1, body(corrections).path("total").asInt());
+            assertEquals(0, body(get(reader, "/corrections?q=" + search + "&state=rejected")).path("total").asInt());
+            assertEquals(400, get(reader, "/corrections?state=invalid").statusCode());
+        }
+
+        String one = body(post(owner, "/tasks", task(first, UUID.randomUUID().toString(), .1))).path("id").asText();
+        String two = body(post(owner, "/tasks", task(second, UUID.randomUUID().toString(), .1))).path("id").asText();
+        var tasks = get(owner, "/tasks?q=" + first + "&state=queued&operation=translate&sort=created&direction=desc&page=1&size=1");
+        assertEquals(200, tasks.statusCode(), tasks.body());
+        assertEquals(1, body(tasks).path("total").asInt());
+        assertEquals(one, body(tasks).path("items").get(0).path("id").asText());
+        assertEquals(0, body(get(owner, "/tasks?novel=" + second + "&q=" + first)).path("total").asInt());
+        assertEquals(400, get(owner, "/tasks?state=invalid").statusCode());
+
+        var jobs = get(owner, "/manage/" + first + "/jobs?state=complete&sort=chapter&direction=asc&page=1&size=1");
+        assertEquals(200, jobs.statusCode(), jobs.body());
+        assertEquals(1, body(jobs).path("total").asInt());
+        assertEquals(1, body(jobs).path("items").get(0).path("chapter").asInt());
+        assertEquals(0, body(get(owner, "/manage/" + first + "/jobs?q=absent")).path("total").asInt());
+
+        var audit = get(owner, "/accounts/audit?q=" + two + "&sort=created&page=1&size=1");
+        assertEquals(200, audit.statusCode(), audit.body());
+        assertTrue(body(audit).path("total").asInt() >= 1);
+        try (var sql = jdbc(); var db = new DatabaseSession(postgres.getJdbcUrl("postgres", "postgres"), "postgres", "")) {
+            String job = db.jobs().latest(first, 1).id();
+            var calls = new panrid.space.novelka.core.repository.AiCallRepository(sql);
+            String known = UUID.randomUUID().toString();
+            calls.start(new panrid.space.novelka.core.model.AiCall(known, job, "translate", 0, "test", "v1", 0, "{}", .02, "complete"));
+            calls.start(new panrid.space.novelka.core.model.AiCall(UUID.randomUUID().toString(), job, "proofread", 0, "test", "v1", 0, "{}", .1, "complete"));
+            sql.exec("UPDATE ai_calls SET actual_usd=0.012 WHERE id=?", known);
+        }
+        var costs = get(owner, "/manage/costs?novel=" + first + "&details=true&sort=created&page=1&size=1");
+        assertEquals(200, costs.statusCode(), costs.body());
+        assertEquals(2, body(costs).path("total").asInt());
+        var priced = body(get(owner, "/manage/costs?novel=" + first + "&details=true&sort=actual_usd&direction=desc&page=1&size=1"));
+        assertEquals("translate", priced.path("items").get(0).path("stage").asText());
+        var unknown = body(get(owner, "/manage/costs?novel=" + first + "&details=true&sort=actual_usd&direction=desc&page=2&size=1"));
+        assertEquals("proofread", unknown.path("items").get(0).path("stage").asText());
+    }
+
+    @Test
     void notificationsAreDurableScopedAndReadIndependently() throws Exception {
         try (var reader = registered(); var second = registered(); var admin = registered(); var guest = browser()) {
             post(owner, "/accounts/" + userId(admin) + "/role", Map.of("role", "ADMIN"));
@@ -157,7 +278,7 @@ class AccessIntegrationTest {
             db.glossaries().propose(novel, "job", alternative);
             db.glossaries().propose(novel, "job", alternative);
         }
-        var proposals = body(get(owner, "/manage/" + novel)).path("proposals");
+        var proposals = body(get(owner, "/manage/" + novel + "/proposals?sort=created&direction=asc")).path("items");
         assertEquals(2, proposals.size());
         assertEquals("in_dictionary", proposals.get(0).path("status").asText());
         assertEquals(2, proposals.get(0).path("occurrences").asInt());
@@ -177,7 +298,7 @@ class AccessIntegrationTest {
             assertEquals(1, db.glossaries().glossary(novel).revision());
             assertEquals(List.of(entry), db.glossaries().glossary(novel).entries());
         }
-        var updated = body(get(owner, "/manage/" + novel)).path("proposals");
+        var updated = body(get(owner, "/manage/" + novel + "/proposals?sort=created&direction=asc")).path("items");
         assertEquals("dismissed", updated.get(1).path("status").asText());
         assertEquals(3, updated.get(1).path("occurrences").asInt());
         assertEquals("pending", updated.get(2).path("status").asText());
@@ -379,13 +500,13 @@ class AccessIntegrationTest {
             assertEquals("complete", jdbc.rows("SELECT state FROM web_tasks WHERE id=?", task).getFirst().get("state"));
             assertEquals(1, jdbc.rows("SELECT id FROM notifications WHERE task_id=? AND kind='task_complete'", task).size());
             assertEquals(2, jdbc.rows("SELECT id FROM notifications WHERE novel_id=? AND kind='chapter_published'", novel).size());
-            var row = new TaskRepository(jdbc).list(0).stream().filter(item -> item.get("id").equals(task)).findFirst().orElseThrow();
+            var row = new TaskRepository(jdbc).find(task);
             assertEquals(.06, ((Number) row.get("spent_usd")).doubleValue(), .000001);
             String job = jdbc.rows("SELECT current_job_id FROM web_tasks WHERE id=?", task).getFirst().get("current_job_id").toString();
             // A later CLI/resume call on the same Work must not rewrite this run's history.
             new panrid.space.novelka.core.repository.AiCallRepository(jdbc).start(new panrid.space.novelka.core.model.AiCall(
                     UUID.randomUUID().toString(), job, "proofread", 0, "fake", "later", 0, "{}", .02, "complete"));
-            var historical = new TaskRepository(jdbc).list(0).stream().filter(item -> item.get("id").equals(task)).findFirst().orElseThrow();
+            var historical = new TaskRepository(jdbc).find(task);
             assertEquals(.06, ((Number) historical.get("spent_usd")).doubleValue(), .000001);
         }
         assertEquals(200, get(owner, "/novels/" + novel + "/chapters/2").statusCode());

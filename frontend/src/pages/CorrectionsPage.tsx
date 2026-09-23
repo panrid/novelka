@@ -6,6 +6,7 @@ import { ErrorState, Loading } from '../components/Status';
 import { useAction } from '../hooks/useAction';
 import { ActionNotice } from '../components/ActionNotice';
 import { chapterPath } from '../lib/routes';
+import { ListEmpty, ListFilter, ListPages, ListSearch, listParams, useListState, type PageData } from '../components/ListTools';
 
 interface Correction {
     id: string; author_id: string; author: string; novel_id: string; chapter: number; original: string;
@@ -37,15 +38,21 @@ function ReviewCard({ correction, queue, refresh }: { correction: Correction; qu
 
 export function CorrectionsPage() {
     const { user } = useAuth();
-    const [queue, setQueue] = useState(false);
-    const [offset, setOffset] = useState(0);
-    const resource = useResource<Correction[]>('/corrections?queue=' + queue + '&offset=' + offset);
+    const list = useListState('', 'created', ['queue', 'state']);
+    const queue = list.state.filters.queue === 'true';
+    const resource = useResource<PageData<Correction>>('/corrections?' + listParams(list.state, { queue }), true);
+    const data = resource.data;
     return <div className="page workspace">
         <p className="eyebrow">Спільна робота над текстом</p><h1>Редакторські правки</h1>
-        {permits(user, 'EDITOR') && <div className="tab-bar"><button aria-pressed={!queue} onClick={() => { setQueue(false); setOffset(0); }}>Мої правки</button><button aria-pressed={queue} onClick={() => { setQueue(true); setOffset(0); }}>Черга редактора</button></div>}
-        {resource.error ? <ErrorState message={resource.error} retry={resource.retry} /> : !resource.data ? <Loading />
-            : resource.data.length ? resource.data.map(correction => <ReviewCard key={correction.id} correction={correction} queue={queue} refresh={resource.retry} />)
-                : <div className="empty-state"><h2>Поки немає правок</h2><p>Пропозицію можна залишити біля абзацу в читалці.</p></div>}
-        <div className="button-row"><button disabled={!offset} onClick={() => setOffset(value => value - 50)}>Назад</button><button disabled={(resource.data?.length ?? 0) < 50} onClick={() => setOffset(value => value + 50)}>Далі</button></div>
+        {permits(user, 'EDITOR') && <div className="tab-bar"><button aria-pressed={!queue} onClick={() => list.setFilter('queue', '')}>Мої правки</button><button aria-pressed={queue} onClick={() => list.setFilter('queue', 'true')}>Черга редактора</button></div>}
+        <div className="list-toolbar"><ListSearch label="Текст правки" value={list.state.q} onChange={q => list.update({ q, page: 1 })} />
+            <ListFilter label="Стан" value={list.state.filters.state} onChange={value => list.setFilter('state', value)} options={[
+                { value: '', label: 'Усі стани' }, ...Object.entries(stateLabels).map(([value, label]) => ({ value, label }))]} />
+            {list.state.filters.state && <button onClick={() => list.setFilter('state', '')}>Очистити фільтр</button>}</div>
+        {resource.error ? <ErrorState message={resource.error} retry={resource.retry} /> : !data ? <Loading /> : <>
+            {resource.loading && <p role="status">Оновлюємо список…</p>}
+            {data.items.length ? data.items.map(correction => <ReviewCard key={correction.id} correction={correction} queue={queue} refresh={resource.retry} />)
+                : <ListEmpty filtered={!!(list.state.q || list.state.filters.state)} noun="Правок" />}
+            <ListPages data={data} onPage={list.setPage} /></>}
     </div>;
 }

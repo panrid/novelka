@@ -41,9 +41,8 @@ export function ReaderPage({ id, number }: { id: string; number: number }) {
     const error = chapter.error || novel.error;
     if (error) return <ErrorState message={error} retry={() => { chapter.retry(); novel.retry(); }} />;
     if (!data || !novel.data) return <Loading />;
-    const index = novel.data.chapters.findIndex(item => item.number === data.number);
-    const previous = index > 0 ? novel.data.chapters[index - 1] : undefined;
-    const next = index >= 0 ? novel.data.chapters[index + 1] : undefined;
+    const previous = data.previousNumber;
+    const next = data.nextNumber;
     return <div className="reader-page">
         <div className="reader-toolbar">
             <a className="back-link" href={'#' + novelPath(data.novelId)}>← Зміст</a>
@@ -75,8 +74,8 @@ export function ReaderPage({ id, number }: { id: string; number: number }) {
             <div className="chapter-end" aria-hidden="true">◇</div>
         </article>
         <nav className="chapter-navigation" aria-label="Навігація між главами">
-            {previous ? <a href={'#' + chapterPath(data.novelId, previous.number)}>← Попередня глава</a> : <span />}
-            {next ? <a className="button" href={'#' + chapterPath(data.novelId, next.number)}>Наступна глава →</a> : <a className="button" href={'#' + novelPath(data.novelId)}>До змісту ↑</a>}
+            {previous ? <a href={'#' + chapterPath(data.novelId, previous)}>← Попередня глава</a> : <span />}
+            {next ? <a className="button" href={'#' + chapterPath(data.novelId, next)}>Наступна глава →</a> : <a className="button" href={'#' + novelPath(data.novelId)}>До змісту ↑</a>}
         </nav>
         <p className="reader-footnote">{next ? 'Історія триває. Перегорніть сторінку.' : 'Ви прочитали всі доступні глави цієї новели.'}</p>
     </div>;

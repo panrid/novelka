@@ -9,6 +9,7 @@ import panrid.space.novelka.server.correction.CorrectionRequest;
 import panrid.space.novelka.server.correction.CorrectionService;
 import panrid.space.novelka.server.correction.ReviewRequest;
 import panrid.space.novelka.server.repository.CorrectionRepository;
+import panrid.space.novelka.server.list.ListQuery;
 
 import java.security.Principal;
 import java.util.Map;
@@ -26,11 +27,14 @@ public final class CorrectionsController {
 
     @GetMapping
     public Object list(Principal principal, @RequestParam(defaultValue = "false") boolean queue,
-            @RequestParam(defaultValue = "0") int offset) throws Exception {
+            @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "created") String sort,
+            @RequestParam(defaultValue = "desc") String direction, @RequestParam(defaultValue = "") String state,
+            @RequestParam(defaultValue = "") String novel) throws Exception {
         var account = access.require(principal, queue ? Role.EDITOR : Role.READER);
-        if (offset < 0) throw new IllegalArgumentException("Некоректна сторінка.");
         try (var jdbc = database.open()) {
-            return Json.M.convertValue(new CorrectionRepository(jdbc).list(queue ? null : account.id(), offset), Object.class);
+            return Json.M.convertValue(new CorrectionRepository(jdbc).list(queue ? null : account.id(),
+                    new ListQuery(page, size, q, sort, direction), state, novel), Object.class);
         }
     }
 

@@ -81,19 +81,43 @@ class ReaderIntegrationTest {
     }
 
     @Test
+    void pagesContentsAndProvidesNeighboursWithoutLoadingWholeNovel() throws Exception {
+        String id = seed("complete");
+        try (var database = database()) {
+            var source = List.of(new Block("title", "heading", "二章"), new Block("p1", "paragraph", "次"));
+            database.chapters().save(id, new Chapter(2, "url", "二章", source, ""));
+            var job = new Pipeline(database, null, 6000).create(id, 2, false);
+            var translated = List.of(new Block("title", "heading", "Друга глава"), new Block("p1", "paragraph", "Далі."));
+            database.jobs().save(new Work(job.id(), id, 2, job.sourceHash(), 1,
+                    List.of(new Segment(source, List.of(), translated, "", "complete")), "complete", ""));
+        }
+        var first = Json.read(get("/" + id + "/contents?page=1&size=1").body());
+        var second = Json.read(get("/" + id + "/contents?page=2&size=1").body());
+        assertEquals(2, first.path("total").asInt());
+        assertEquals(1, first.path("items").get(0).path("number").asInt());
+        assertEquals(2, second.path("items").get(0).path("number").asInt());
+        assertEquals(1, Json.read(get("/" + id + "/chapters/2").body()).path("previousNumber").asInt());
+        assertEquals(2, Json.read(get("/" + id + "/chapters/1").body()).path("nextNumber").asInt());
+        assertEquals(400, get("/" + id + "/contents?sort=title").statusCode());
+    }
+
+    @Test
     void servesCatalogAliasContentsAndOnlyTranslatedBlocks() throws Exception {
         String id = seed("complete");
         try (var database = database()) {
             database.novels().saveAlias(id, "alias-" + id);
         }
-        var catalog = Json.read(get("").body());
+        var catalog = Json.read(get("?q=" + id).body()).path("items");
         var card = java.util.stream.StreamSupport.stream(catalog.spliterator(), false)
                 .filter(node -> node.path("id").asText().equals(id)).findFirst().orElseThrow();
         assertEquals(1, card.path("readyChapters").asInt());
         assertEquals("alias-" + id, card.path("aliases").get(0).asText());
         var detail = get("/alias-" + id);
         assertEquals(200, detail.statusCode());
-        assertEquals("Пролог", Json.read(detail.body()).path("chapters").get(0).path("title").asText());
+        assertEquals(1, Json.read(detail.body()).path("readyChapters").asInt());
+        assertEquals(1, Json.read(get("/" + id + "?resume=1").body()).path("resumeChapter").asInt());
+        assertTrue(Json.read(get("/" + id + "?resume=2").body()).path("resumeChapter").isNull());
+        assertEquals("Пролог", Json.read(get("/" + id + "/contents").body()).path("items").get(0).path("title").asText());
         var chapter = get("/" + id + "/chapters/1");
         assertEquals(200, chapter.statusCode());
         var body = Json.read(chapter.body());
@@ -112,7 +136,7 @@ class ReaderIntegrationTest {
             new Pipeline(database, null, 6000).create(id, 1, true);
         }
         assertEquals(200, get("/" + id + "/chapters/1").statusCode());
-        assertEquals(1, Json.read(get("/" + id).body()).path("chapters").size());
+        assertEquals(1, Json.read(get("/" + id).body()).path("readyChapters").asInt());
     }
 
     @Test

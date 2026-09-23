@@ -20,7 +20,9 @@ export interface NovelDetail {
     author: string;
     description: string;
     chapterCount: number;
-    chapters: ChapterSummary[];
+    readyChapters: number;
+    firstChapter: number | null;
+    resumeChapter: number | null;
 }
 
 export interface Block {
@@ -37,4 +39,6 @@ export interface ReaderChapter {
     revision: number;
     title: string;
     blocks: Block[];
+    previousNumber: number | null;
+    nextNumber: number | null;
 }

@@ -3,6 +3,8 @@ package panrid.space.novelka.server.repository;
 import panrid.space.novelka.core.persistence.JdbcSession;
 import panrid.space.novelka.server.account.Account;
 import panrid.space.novelka.server.account.Role;
+import panrid.space.novelka.server.list.ListPage;
+import panrid.space.novelka.server.list.ListQuery;
 
 import java.util.List;
 import java.util.Map;
@@ -40,9 +42,16 @@ public final class AccountRepository {
         return !jdbc.rows("SELECT id FROM accounts WHERE role='OWNER'").isEmpty();
     }
 
-    public List<Account> list(int offset) throws Exception {
-        return jdbc.rows("SELECT id,username,role FROM accounts ORDER BY created_at,id LIMIT 50 OFFSET ?", offset)
-                .stream().map(AccountRepository::account).toList();
+    public ListPage<Account> list(ListQuery query, String role) throws Exception {
+        if (!role.isEmpty() && !List.of("READER", "EDITOR", "ADMIN", "OWNER").contains(role))
+            throw new IllegalArgumentException("Невідома роль.");
+        String where = " WHERE (?='' OR username ILIKE ? ESCAPE '\\') AND (?='' OR role=?)";
+        Object[] filters = {query.q(), query.pattern(), role, role};
+        long total = ((Number) jdbc.rows("SELECT count(*) total FROM accounts" + where, filters).getFirst().get("total")).longValue();
+        String order = query.order(Map.of("username", "username", "role", "role", "created", "created_at"), "created", "id");
+        var items = jdbc.rows("SELECT id,username,role FROM accounts" + where + order + " LIMIT ? OFFSET ?",
+                query.q(), query.pattern(), role, role, query.size(), query.offset()).stream().map(AccountRepository::account).toList();
+        return ListPage.of(items, query, total);
     }
 
     public void role(String id, Role role) throws Exception {

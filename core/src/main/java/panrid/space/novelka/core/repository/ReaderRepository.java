@@ -23,24 +23,38 @@ public final class ReaderRepository {
         this.jdbc = jdbc;
     }
 
-    public List<Map<String, Object>> catalog() throws Exception {
-        return jdbc.rows(PUBLISHED + """
-                SELECT n.data, (SELECT count(*) FROM published p WHERE p.novel_id=n.id) ready_chapters,
-                    COALESCE((SELECT jsonb_agg(a.alias ORDER BY a.alias)
-                        FROM novel_aliases a WHERE a.novel_id=n.id), '[]'::jsonb) aliases
-                FROM novels n ORDER BY n.id
-                """);
+    public Map<String, Object> chapterStats(String novel) throws Exception {
+        return jdbc.rows(PUBLISHED + "SELECT count(*) ready,min(chapter) first_chapter FROM published WHERE novel_id=?", novel).getFirst();
     }
 
-    public List<Map<String, Object>> chapters(String novel) throws Exception {
+    public boolean hasChapter(String novel, int chapter) throws Exception {
+        return !jdbc.rows(PUBLISHED + "SELECT 1 FROM published WHERE novel_id=? AND chapter=?", novel, chapter).isEmpty();
+    }
+
+    public long chapterCount(String novel, String pattern) throws Exception {
+        return ((Number) jdbc.rows(PUBLISHED + """
+                SELECT count(*) total FROM (
+                    SELECT p.chapter,COALESCE(jsonb_path_query_first(p.data,
+                        '$.segments[*].revised[*] ? (@.kind == "heading").text') #>> '{}',c.data->>'title') title
+                    FROM published p JOIN chapters c ON c.novel_id=p.novel_id AND c.number=p.chapter WHERE p.novel_id=?
+                ) list WHERE (?='' OR title ILIKE ? ESCAPE '\\' OR chapter::text LIKE ? ESCAPE '\\')
+                """, novel, pattern.equals("%%") ? "" : pattern, pattern, pattern).getFirst().get("total")).longValue();
+    }
+
+    public List<Map<String, Object>> chapterPage(String novel, String pattern, String direction, int limit, int offset) throws Exception {
         return jdbc.rows(PUBLISHED + """
-                SELECT p.chapter, p.revision,
-                    COALESCE(
-                        jsonb_path_query_first(p.data, '$.segments[*].revised[*] ? (@.kind == "heading").text') #>> '{}',
-                        c.data->>'title') title
-                FROM published p JOIN chapters c ON c.novel_id=p.novel_id AND c.number=p.chapter
-                WHERE p.novel_id=? ORDER BY p.chapter
-                """, novel);
+                SELECT chapter,title,revision FROM (
+                    SELECT p.chapter,p.revision,COALESCE(jsonb_path_query_first(p.data,
+                        '$.segments[*].revised[*] ? (@.kind == "heading").text') #>> '{}',c.data->>'title') title
+                    FROM published p JOIN chapters c ON c.novel_id=p.novel_id AND c.number=p.chapter WHERE p.novel_id=?
+                ) list WHERE (?='' OR title ILIKE ? ESCAPE '\\' OR chapter::text LIKE ? ESCAPE '\\')
+                ORDER BY chapter
+                """ + direction + " LIMIT ? OFFSET ?", novel, pattern.equals("%%") ? "" : pattern, pattern, pattern, limit, offset);
+    }
+
+    public Map<String, Object> neighbours(String novel, int chapter) throws Exception {
+        return jdbc.rows(PUBLISHED + "SELECT max(chapter) FILTER(WHERE chapter<?) previous,"
+                + " min(chapter) FILTER(WHERE chapter>?) next FROM published WHERE novel_id=?", chapter, chapter, novel).getFirst();
     }
 
     public Work chapter(String novel, int chapter) throws Exception {
