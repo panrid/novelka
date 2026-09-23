@@ -5,6 +5,7 @@ import { TaskForm } from '../management/TaskForm';
 import { TaskQueue } from '../management/TaskQueue';
 import { NovelManager } from '../management/NovelManager';
 import { CostReport } from '../management/CostReport';
+import { ManualNovelForm } from '../management/ManualNovelForm';
 import { ErrorState } from '../components/Status';
 import { SelectField } from '../components/SelectField';
 import { ListSearch, type PageData } from '../components/ListTools';
@@ -36,7 +37,9 @@ export function ManagePage({ search = '' }: { search?: string }) {
             if (taskId) window.location.hash = '/manage?novel=' + encodeURIComponent(novel) + '&task=' + encodeURIComponent(id);
         }} />
             <TaskQueue version={version} onPrepare={prepare} taskId={taskId} /></>}
-        {tab === 'novel' && (novel ? <NovelManager key={novel} novel={novel} initialTab={params.get('tab') === 'glossary' ? 'glossary' : 'info'} /> : <p>Оберіть новелу. Нову можна додати через імпорт у вкладці запуску.</p>)}
+        {tab === 'novel' && (novel ? <NovelManager key={novel} novel={novel} initialTab={params.get('tab') === 'glossary' ? 'glossary' : 'info'} /> : <>
+            <p>Оберіть новелу вище. Новелу з Syosetu додає імпорт у вкладці «Переклад», а готовий переклад — форма нижче.</p>
+            <ManualNovelForm onCreated={(id, title) => { setNovel(id); setSelectedTitle(title); catalog.retry(); }} /></>)}
         {tab === 'costs' && <CostReport novel={novel} />}
     </div>;
 }

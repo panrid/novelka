@@ -7,6 +7,7 @@ import { useResource } from '../hooks/useResource';
 import { GlossaryEditor, type Glossary } from './GlossaryEditor';
 import { JobTable } from './JobTable';
 import { NovelTags } from './NovelTags';
+import { ManualChapters } from './ManualChapters';
 import type { TagView } from '../api/types';
 
 interface Detail {
@@ -18,6 +19,7 @@ interface Detail {
         authorUk: string | null;
         descriptionUk: string | null;
         chapterCount: number;
+        url: string;
     };
     aliases: { alias: string }[];
     importedChapters: number;
@@ -63,13 +65,13 @@ export function NovelManager({ novel, initialTab = 'info' }: { novel: string; in
         {tab === 'glossary' && <GlossaryEditor novel={novel} glossary={data.glossary} refresh={resource.retry} />}
         {tab === 'materials' && <><p>Імпортовано оригіналів: {data.importedChapters}. Кожен переклад має окрему ревізію.</p>
             <div className="button-row"><a className="button secondary" href={'/api' + path + '/export?format=epub'}>Завантажити EPUB</a><a className="button secondary" href={'/api' + path + '/export?format=html'}>Завантажити HTML</a></div>
-            <JobTable novel={novel} />
+            {data.novel.url?.startsWith('manual:') ? <ManualChapters path={path} /> : <><JobTable novel={novel} />
             <details><summary>Вставити оригінальний текст вручну</summary><p>Зміна оригіналу приховає застарілий переклад, доки ви не створите нову ревізію.</p>
                 <form className="stack-form" onSubmit={event => { event.preventDefault(); void action.run(async () => { await mutate(path + '/text', { chapter, text }); setText(''); resource.retry(); }); }}>
                     <label>Глава<input type="number" min="1" max={data.novel.chapterCount} required value={chapter} onChange={event => setChapter(Number(event.target.value))} /></label>
                     <label>Текст японською<textarea rows={10} required maxLength={300000} value={text} onChange={event => setText(event.target.value)} /></label><button disabled={action.busy}>Зберегти оригінал</button>
                 </form>
-            </details>
+            </details></>}
         </>}
     </section></>;
 }

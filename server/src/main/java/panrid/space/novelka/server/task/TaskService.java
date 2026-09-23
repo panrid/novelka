@@ -58,6 +58,9 @@ public final class TaskService {
             if (request.operation().equals("import")) id = Syosetu.code(request.url() == null ? "" : request.url());
             else if (request.operation().equals("resume")) id = new JobRepository(jdbc).job(request.jobId()).novelId();
             else id = new NovelRepository(jdbc).resolveNovel(request.novelId());
+            if (!request.operation().equals("import")
+                    && panrid.space.novelka.server.publication.ManualPublicationService.manual(new NovelRepository(jdbc).novel(id)))
+                throw new IllegalArgumentException("Новелу опубліковано вручну: ШІ-переклад для неї не запускається.");
             if (!request.operation().equals("resume")) {
                 if (!(request.operation().equals("import") && request.first() == 0 && request.last() == 0)
                         && (request.first() < 1 || request.last() < request.first() || request.last() - request.first() >= 100))

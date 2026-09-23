@@ -303,6 +303,10 @@ job не збільшує історичну суму попереднього �
 | POST /api/profile/email | READER, зміна email із поточним паролем |
 | GET /api/accounts/{id}/nicknames | ADMIN, історія ніків користувача |
 | GET /api/tags?q= | Публічний, теги з кількістю новел для фільтра й підказок |
+| POST /api/manage/novels | ADMIN, створити новелу вручну (українські дані, теги) |
+| GET /api/manage/{novel}/manual; GET /api/manage/{novel}/manual/{n} | ADMIN, чернетки й опубліковані глави ручної новели; чернетка та опублікований текст глави |
+| POST/DELETE /api/manage/{novel}/manual/{n} | ADMIN, зберегти або видалити приватну чернетку глави |
+| POST /api/manage/{novel}/manual/{n}/publish | ADMIN, опублікувати чернетку як наступну ревізію |
 | POST /api/manage/{novel}/tags | ADMIN, замінити набір тегів новели (до 12) |
 | GET /api/models | ADMIN, каталог моделей провайдера: придатність, ціни за млн токенів, час оновлення |
 | POST /api/models/refresh | OWNER, примусово оновити каталог моделей |

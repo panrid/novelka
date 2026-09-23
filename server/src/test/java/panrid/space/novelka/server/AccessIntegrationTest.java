@@ -682,6 +682,59 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void manualNovelPublishesDraftsAsOrdinaryRevisionsWithoutAi() throws Exception {
+        var created = post(owner, "/manage/novels", Map.of("titleUk", "Власний переклад", "authorUk", "Авторка",
+                "descriptionUk", "Опис", "tags", List.of("Машинний переклад")));
+        assertEquals(200, created.statusCode(), created.body());
+        String novel = body(created).path("id").asText();
+        assertEquals("машинний переклад", body(get(owner, "/novels/" + novel)).path("tags").get(0).path("slug").asText());
+        try (var reader = registered(); var anonymous = browser()) {
+            assertEquals(403, post(reader, "/manage/novels", Map.of("titleUk", "x")).statusCode());
+            assertEquals(403, post(reader, "/manage/" + novel + "/manual/1", Map.of("title", "x", "text", "y")).statusCode());
+
+            assertEquals(200, post(owner, "/manage/" + novel + "/manual/1", Map.of("title", "Початок", "text", "Перший абзац.\n\nДругий абзац.")).statusCode());
+            assertEquals(404, get(anonymous, "/novels/" + novel + "/chapters/1").statusCode(), "draft stays private");
+            assertEquals(1, body(get(owner, "/manage/" + novel + "/manual")).path("drafts").size());
+
+            var published = post(owner, "/manage/" + novel + "/manual/1/publish", Map.of());
+            assertEquals(200, published.statusCode(), published.body());
+            assertEquals(1, body(published).path("revision").asInt());
+            var chapter = body(get(anonymous, "/novels/" + novel + "/chapters/1"));
+            assertEquals("Початок", chapter.path("blocks").get(0).path("text").asText());
+            assertEquals("Другий абзац.", chapter.path("blocks").get(2).path("text").asText());
+            assertEquals(1, body(get(anonymous, "/novels/" + novel)).path("chapterCount").asInt());
+            assertEquals(404, post(owner, "/manage/" + novel + "/manual/1/publish", Map.of()).statusCode(), "draft consumed");
+
+            var edit = body(get(owner, "/manage/" + novel + "/manual/1"));
+            assertTrue(edit.path("draft").isNull());
+            assertEquals("Перший абзац.\n\nДругий абзац.", edit.path("published").path("text").asText());
+            assertEquals(200, post(owner, "/manage/" + novel + "/manual/1", Map.of("title", "Початок", "text", "Перший абзац.\n\nВиправлений абзац.")).statusCode());
+            assertEquals("Другий абзац.", body(get(anonymous, "/novels/" + novel + "/chapters/1")).path("blocks").get(2).path("text").asText(),
+                    "editing a draft does not change the published text");
+            assertEquals(2, body(post(owner, "/manage/" + novel + "/manual/1/publish", Map.of())).path("revision").asInt());
+            var revised = body(get(anonymous, "/novels/" + novel + "/chapters/1"));
+            assertEquals("Виправлений абзац.", revised.path("blocks").get(2).path("text").asText());
+            try (var sql = jdbc()) {
+                assertEquals(1, sql.rows("SELECT 1 FROM work_origins WHERE child_job_id=?", revised.path("jobId").asText()).size());
+                assertEquals(1, sql.rows("SELECT 1 FROM notifications WHERE kind='chapter_published' AND novel_id=?", novel).size());
+            }
+            assertEquals(200, post(owner, "/manage/" + novel + "/manual/3", Map.of("title", "Третя", "text", "Текст.")).statusCode());
+            assertEquals(200, delete(owner, "/manage/" + novel + "/manual/3").statusCode());
+            assertEquals(404, delete(owner, "/manage/" + novel + "/manual/3").statusCode());
+        }
+        assertEquals(400, post(owner, "/manage/" + seed() + "/manual/1", Map.of("title", "x", "text", "y")).statusCode(), "imported originals are protected");
+        var translate = post(owner, "/tasks", task(novel, UUID.randomUUID().toString(), .1));
+        assertEquals(400, translate.statusCode());
+        assertTrue(translate.body().contains("вручну"), translate.body());
+    }
+
+    private static HttpResponse<String> delete(HttpClient client, String path) throws Exception {
+        var csrf = body(get(client, "/auth/csrf"));
+        return client.send(HttpRequest.newBuilder(URI.create(base + path)).header(csrf.path("headerName").asText(), csrf.path("token").asText())
+                .DELETE().build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    @Test
     void selfApprovalSettingAppliesOnlyToAdminsAndIsEnforcedByBackend() throws Exception {
         String novel = seed();
         String job = body(get(owner, "/novels/" + novel + "/chapters/1")).path("jobId").asText();

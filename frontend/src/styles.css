@@ -275,6 +275,13 @@ button.tag-chip.removable, .workspace button.tag-chip.removable { min-height: 30
 .novel-tags-editor h3 { display: flex; align-items: center; gap: 4px; margin: 0 0 8px; }
 .catalog-tools { flex-wrap: wrap; }
 .catalog-tools .tag-input { flex: 1 1 260px; }
+.manual-novel h2, .manual-chapters h3 { display: flex; align-items: center; gap: 4px; }
+.manual-chapters { margin-top: 18px; }
+.manual-chapter-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.manual-chapter-lists h4 { margin: 0 0 6px; font-size: 14px; }
+.manual-chapter-lists ul { margin: 0; padding-left: 18px; }
+.manual-chapter-lists li { margin: 4px 0; overflow-wrap: anywhere; }
+.manual-chapter-status { margin: 0; font-weight: 600; }
 .profile-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 18px 0 26px; }
 .profile-summary > div { padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); min-width: 0; }
 .profile-summary dt { color: var(--muted); font-size: 12px; }
