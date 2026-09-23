@@ -9,9 +9,11 @@ import panrid.space.novelka.core.model.Work;
 import panrid.space.novelka.core.repository.JobRepository;
 import panrid.space.novelka.core.repository.ReaderRepository;
 import panrid.space.novelka.server.account.Account;
+import panrid.space.novelka.server.account.Role;
 import panrid.space.novelka.server.config.ReaderDatabase;
 import panrid.space.novelka.server.repository.AuditRepository;
 import panrid.space.novelka.server.repository.CorrectionRepository;
+import panrid.space.novelka.server.settings.SettingsService;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -20,8 +22,16 @@ import java.util.UUID;
 @Service
 public final class CorrectionService {
     private final ReaderDatabase database;
+    private final SettingsService settings;
 
-    public CorrectionService(ReaderDatabase database) { this.database = database; }
+    public CorrectionService(ReaderDatabase database, SettingsService settings) {
+        this.database = database; this.settings = settings;
+    }
+
+    /** Editors never approve their own work; ADMIN and OWNER may when the owner enabled it in settings. */
+    public boolean mayReview(Account reviewer, String author) throws Exception {
+        return !reviewer.id().equals(author) || reviewer.role().includes(Role.ADMIN) && settings.read().adminSelfApproval();
+    }
 
     public String propose(Account author, CorrectionRequest request) throws Exception {
         if (request.replacement() == null || request.replacement().isBlank() || request.replacement().length() > 20000
@@ -48,6 +58,7 @@ public final class CorrectionService {
 
     public void review(Account reviewer, String id, ReviewRequest request) throws Exception {
         if (request.note() == null || request.note().length() > 2000) throw new IllegalArgumentException("Завеликий коментар.");
+        boolean selfApproval = reviewer.role().includes(Role.ADMIN) && settings.read().adminSelfApproval();
         try (var jdbc = database.open()) {
             var repository = new CorrectionRepository(jdbc);
             var existing = repository.get(id, false);
@@ -56,7 +67,7 @@ public final class CorrectionService {
                 jdbc.transaction(() -> {
                     var row = repository.get(id, true);
                     if (!row.get("state").equals("pending")) throw conflict();
-                    if (row.get("author_id").equals(reviewer.id()))
+                    if (row.get("author_id").equals(reviewer.id()) && !selfApproval)
                         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Власну правку має перевірити інший редактор.");
                     String published = null;
                     if (request.approve()) {

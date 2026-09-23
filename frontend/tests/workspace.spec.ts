@@ -130,6 +130,7 @@ test('owner sees account balance and a web action for a changed dictionary', asy
     await page.route('**/api/settings', route => route.fulfill({ json: {
         revision: 0, registrationOpen: true, segmentChars: 1500, targetUsdPer5000: .1, maxBudgetUsd: 5,
         stages: ['analyze', 'translate', 'proofread'].map(stage => ({ stage, model: 'openai/gpt-4o-mini', inputUsdM: .15, outputUsdM: .6 })),
+        adminSelfApproval: false,
     } }));
     await page.route('**/api/tasks**', route => route.fulfill({ json: pageData([{
         id: 'task2', novel_id: novel.id, operation: 'translate', state: 'failed', spent_usd: .02,

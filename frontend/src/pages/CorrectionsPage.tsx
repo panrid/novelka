@@ -15,7 +15,7 @@ interface Correction {
     chapter: number; chapter_title: string; state: string; created_at: string; reviewed_at: string | null;
 }
 interface CorrectionDetail {
-    id: string; author_id: string; original: string; replacement: string; reason: string;
+    id: string; author_id: string; original: string; replacement: string; reason: string; can_review: boolean;
     review_note: string | null; base_revision: number; published_revision?: number | null;
 }
 const stateLabels: Record<string, string> = { pending: 'Очікує перевірки', approved: 'Погоджено', rejected: 'Відхилено' };
@@ -39,12 +39,12 @@ function ReviewDetail({ correction, queue, refresh }: { correction: Correction; 
         {data.review_note && <p><strong>Рішення редактора:</strong> {data.review_note}</p>}
         <p className="muted correction-origin">Порівняно з абзацом ревізії {data.base_revision}, на яку спиралася правка.
             {data.published_revision != null && <> Опубліковано як ревізію {data.published_revision}.</>}</p>
-        {queue && correction.state === 'pending' && correction.author_id !== user?.id && <div className="correction-review">
+        {queue && data.can_review && <div className="correction-review">
             <label>Коментар рішення<input maxLength={2000} value={note} onChange={event => setNote(event.target.value)} /></label>
             <div className="button-row"><button className="button" disabled={action.busy} onClick={() => review(true)}>Погодити й опублікувати</button>
                 <button disabled={action.busy} onClick={() => review(false)}>Відхилити</button></div>
         </div>}
-        {queue && correction.state === 'pending' && correction.author_id === user?.id && <p className="muted">Вашу правку має перевірити інший редактор.</p>}
+        {queue && !data.can_review && correction.state === 'pending' && correction.author_id === user?.id && <p className="muted">Вашу правку має перевірити інший редактор.</p>}
         <ActionNotice {...action} />
     </div>;
 }

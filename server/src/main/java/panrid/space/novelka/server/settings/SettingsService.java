@@ -24,7 +24,7 @@ public final class SettingsService {
             return saved == null ? new SiteSettings(0, true, 1500, 0.10, 5,
                     List.of(new StageSettings("analyze", "openai/gpt-4o-mini", .15, .60),
                             new StageSettings("translate", "openai/gpt-4o-mini", .15, .60),
-                            new StageSettings("proofread", "openai/gpt-4o-mini", .15, .60))) : saved;
+                            new StageSettings("proofread", "openai/gpt-4o-mini", .15, .60)), false) : saved;
         }
     }
 
@@ -39,7 +39,7 @@ public final class SettingsService {
                 if (settings.revision() != revision) throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "Налаштування вже змінено. Оновіть сторінку.");
                 var next = new SiteSettings(revision + 1, settings.registrationOpen(), settings.segmentChars(),
-                        settings.targetUsdPer5000(), settings.maxBudgetUsd(), settings.stages());
+                        settings.targetUsdPer5000(), settings.maxBudgetUsd(), settings.stages(), settings.adminSelfApproval());
                 repository.save(next);
                 new AuditRepository(jdbc).add(actor.id(), "settings.update", "site", next);
                 return next;

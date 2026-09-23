@@ -38,6 +38,11 @@ async function workspace(page: Page, options: { failing?: () => boolean; empty?:
     await page.route('**/api/corrections/c1', route => route.fulfill({ json: {
         id: 'c1', author_id: 'writer', original: 'Він ішов повільно. Дощ не вщухав.', replacement: 'Він крокував повільно. Дощ не вщухав.',
         reason: 'Точніше дієслово', review_note: approved ? 'Погоджую' : null, base_revision: 3, published_revision: approved ? 4 : null,
+        can_review: !approved,
+    } }));
+    await page.route('**/api/corrections/c2', route => route.fulfill({ json: {
+        id: 'c2', author_id: 'editor', original: 'Було.', replacement: 'Стало.', reason: '', review_note: null,
+        base_revision: 1, published_revision: null, can_review: false,
     } }));
     await page.route('**/api/corrections/c1/review', route => {
         expect(route.request().postDataJSON()).toEqual({ approve: true, note: 'Погоджую' });
@@ -113,4 +118,16 @@ test('distinguishes empty queue from API failure and retries', async ({ page }) 
     failing = false;
     await page.getByRole('button', { name: 'Спробувати ще раз' }).click();
     await expect(page.getByText('Правок поки немає.')).toBeVisible();
+});
+
+test('own correction shows who must review it when backend denies self-review', async ({ page }) => {
+    await workspace(page);
+    await page.route('**/api/corrections?**', route => route.fulfill({ json: pageData([{
+        id: 'c2', author_id: 'editor', author: 'editor', novel_id: 'n1', novel_title: 'Водяний маг', chapter: 1, chapter_title: 'Пролог',
+        state: 'pending', created_at: '2026-09-01T10:00:00Z', reviewed_at: null,
+    }]) }));
+    await page.goto('/#/corrections?queue=true');
+    await page.getByRole('button', { name: 'Показати diff' }).click();
+    await expect(page.getByText('Вашу правку має перевірити інший редактор.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Погодити й опублікувати' })).toHaveCount(0);
 });

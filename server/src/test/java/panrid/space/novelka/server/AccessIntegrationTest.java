@@ -476,6 +476,35 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void selfApprovalSettingAppliesOnlyToAdminsAndIsEnforcedByBackend() throws Exception {
+        String novel = seed();
+        String job = body(get(owner, "/novels/" + novel + "/chapters/1")).path("jobId").asText();
+        try (var editor = registered()) {
+            post(owner, "/accounts/" + userId(editor) + "/role", Map.of("role", "EDITOR"));
+            String own = propose(owner, novel, job, 1, "Він ішов.", "Він крокував.");
+            String edited = propose(editor, novel, job, 0, "Пролог", "Початок");
+            assertFalse(body(get(owner, "/corrections/" + own)).path("can_review").asBoolean());
+            assertEquals(403, post(owner, "/corrections/" + own + "/review", Map.of("approve", true, "note", "")).statusCode());
+
+            assertEquals(200, saveSelfApproval(true).statusCode());
+            assertTrue(body(get(owner, "/corrections/" + own)).path("can_review").asBoolean());
+            assertFalse(body(get(editor, "/corrections/" + edited)).path("can_review").asBoolean(), "editors never self-review");
+            assertEquals(403, post(editor, "/corrections/" + edited + "/review", Map.of("approve", true, "note", "")).statusCode());
+            assertTrue(body(get(owner, "/corrections/" + edited)).path("can_review").asBoolean());
+            assertEquals(200, post(owner, "/corrections/" + own + "/review", Map.of("approve", true, "note", "")).statusCode());
+            assertFalse(body(get(owner, "/corrections/" + own)).path("can_review").asBoolean(), "reviewed correction is closed");
+        } finally {
+            assertEquals(200, saveSelfApproval(false).statusCode());
+        }
+    }
+
+    private static HttpResponse<String> saveSelfApproval(boolean enabled) throws Exception {
+        var settings = (com.fasterxml.jackson.databind.node.ObjectNode) body(get(owner, "/settings"));
+        settings.put("adminSelfApproval", enabled);
+        return post(owner, "/settings", settings);
+    }
+
+    @Test
     void rejectsConflictingEditsAndSelfReviewButRebasesUnrelatedBlocks() throws Exception {
         String novel = seed();
         try (var first = registered(); var second = registered()) {

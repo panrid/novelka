@@ -57,7 +57,10 @@ public final class CorrectionsController {
             var detail = new CorrectionRepository(jdbc).detail(id);
             if (detail == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
             if (!account.id().equals(detail.get("author_id"))) access.require(principal, Role.EDITOR);
-            return detail;
+            var result = new java.util.LinkedHashMap<>(detail);
+            result.put("can_review", account.role().includes(Role.EDITOR) && "pending".equals(detail.get("state"))
+                    && service.mayReview(account, (String) detail.get("author_id")));
+            return result;
         }
     }
 
