@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SelectField } from './SelectField';
+import { HelpTip } from './HelpTip';
 
 export interface PageData<T> { items: T[]; page: number; size: number; total: number; totalPages: number }
 export interface ListState { page: number; q: string; sort: string; direction: 'asc' | 'desc'; filters: Record<string, string> }
@@ -82,5 +83,5 @@ export function TableHeader({ label, help, sortKey, state, onSort }: {
     return <th scope="col" aria-sort={sortKey ? selected ? state?.direction === 'asc' ? 'ascending' : 'descending' : 'none' : undefined}>
         <span className="table-heading">{sortKey && onSort ? <button type="button" className="sort-button" onClick={() => onSort(sortKey)}>
             {label}<span aria-hidden="true">{selected ? state?.direction === 'asc' ? '↑' : '↓' : '↕'}</span></button> : <span>{label}</span>}
-            <details className="column-help"><summary aria-label={'Пояснення: ' + label}>?</summary><span>{help}</span></details></span></th>;
+            <HelpTip label={label}>{help}</HelpTip></span></th>;
 }

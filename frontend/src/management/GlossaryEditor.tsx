@@ -146,7 +146,7 @@ export function GlossaryEditor({ novel, glossary, refresh }: {
                 <ListFilter label="Порядок" value={proposalList.state.sort} onChange={sort => proposalList.update({ sort, page: 1 })} options={[
                     { value: 'created', label: 'За часом' }, { value: 'occurrences', label: 'За кількістю повторів' }]} />
                 <button type="button" onClick={() => proposalList.update({ page: 1, direction: proposalList.state.direction === 'asc' ? 'desc' : 'asc' })}
-                    aria-label="Змінити напрямок сортування">{proposalList.state.direction === 'asc' ? '↑' : '↓'}</button></div>
+                    aria-label="Змінити напрямок сортування" title="Змінити напрямок сортування">{proposalList.state.direction === 'asc' ? '↑' : '↓'}</button></div>
             {proposalResource.loading && <p role="status">Оновлюємо пропозиції…</p>}
             {proposalResource.error && <p role="alert">{proposalResource.error} <button type="button" onClick={proposalResource.retry}>Повторити</button></p>}
             {proposals.map(item => {

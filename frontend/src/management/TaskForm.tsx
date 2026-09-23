@@ -4,6 +4,7 @@ import { ActionNotice } from '../components/ActionNotice';
 import { useAction } from '../hooks/useAction';
 import { SelectField } from '../components/SelectField';
 import type { TaskPreset } from './TaskPreset';
+import { HelpField } from '../components/HelpField';
 
 export function TaskForm({ novel, onCreated, preset }: { novel: string; onCreated: (id: string) => void; preset?: TaskPreset }) {
     const [operation, setOperation] = useState<string>(preset?.operation ?? 'translate');
@@ -55,9 +56,9 @@ export function TaskForm({ novel, onCreated, preset }: { novel: string; onCreate
             {operation === 'translate' && <details><summary>Перекласти готові глави повторно</summary><label className="check-label"><input type="checkbox" checked={force} onChange={event => setForce(event.target.checked)} />Створити нові ревізії навіть для готових глав. Це створить нові витрати.</label></details>}
             {operation === 'resume' && <label className="check-label"><input type="checkbox" checked={retry} onChange={event => setRetry(event.target.checked)} />Я перевірив витрати й дозволяю повтор uncertain-запиту, який міг уже бути оплачений.</label>}
             {paid && <details><summary>Додаткові опції словника</summary>
-                <label>Ліміт звернень до словника<input type="number" min="0" max="30" step="1" required value={dictionarySearchLimit}
-                    onChange={event => { setDictionarySearchLimit(Number(event.target.value)); setConfirmed(false); }} /></label>
-                <p className="muted">Від 0 до 30 на кожен етап сегмента, типово 6. Одне звернення містить до 20 слів одразу. Після ліміту ШІ завершує відповідь із наявним контекстом. 0 вимикає додаткові пошуки; початковий добір словника залишається. Більше звернень може збільшити витрати в межах бюджету.</p>
+                <HelpField label="Ліміт звернень до словника" help="Від 0 до 30 на кожен етап сегмента, типово 6. Одне звернення містить до 20 слів одразу. Після ліміту ШІ завершує відповідь із наявним контекстом. 0 вимикає додаткові пошуки; початковий добір словника залишається. Більше звернень може збільшити витрати в межах бюджету.">
+                    {id => <input id={id} type="number" min="0" max="30" step="1" required value={dictionarySearchLimit}
+                        onChange={event => { setDictionarySearchLimit(Number(event.target.value)); setConfirmed(false); }} />}</HelpField>
             </details>}
             {paid && <fieldset><legend>Ліміт витрат</legend><label>Додатковий бюджет для всього запуску, $<input type="number" required min="0.01" step="0.01" value={budget} onChange={event => { setBudget(event.target.value); setConfirmed(false); }} /></label>
                 <p className="muted">Це верхня межа нових запитів у цьому запуску. Оцінені й фактичні витрати залишаються в історії.</p>

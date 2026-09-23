@@ -47,9 +47,9 @@ export function ReaderPage({ id, number }: { id: string; number: number }) {
         <div className="reader-toolbar">
             <a className="back-link" href={'#' + novelPath(data.novelId)}>← Зміст</a>
             <div className="reader-controls">
-                <button aria-label="Зменшити текст" disabled={fontSize <= 16} onClick={() => setFontSize(size => size - 2)}>А−</button>
+                <button aria-label="Зменшити текст" title="Зменшити текст" disabled={fontSize <= 16} onClick={() => setFontSize(size => size - 2)}>А−</button>
                 <span aria-label="Розмір тексту">{fontSize}</span>
-                <button aria-label="Збільшити текст" disabled={fontSize >= 28} onClick={() => setFontSize(size => size + 2)}>А+</button>
+                <button aria-label="Збільшити текст" title="Збільшити текст" disabled={fontSize >= 28} onClick={() => setFontSize(size => size + 2)}>А+</button>
                 <span className="control-divider" />
                 <ThemePicker />
             </div>

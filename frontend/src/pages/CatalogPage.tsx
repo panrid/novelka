@@ -31,7 +31,7 @@ export function CatalogPage() {
                 <ListSearch label="Назва, автор або аліас" value={list.state.q} onChange={q => list.update({ q, page: 1 })} />
                 <button className={'filter-button' + (readyOnly ? ' selected' : '')} aria-pressed={readyOnly} onClick={() => list.setFilter('readyOnly', readyOnly ? '' : 'true')}>Є готові глави <span aria-hidden="true">✓</span></button>
                 <label>Порядок<select value={list.state.sort} onChange={event => list.update({ sort: event.target.value, page: 1 })}><option value="title">Назва</option><option value="author">Автор</option><option value="ready">Готові глави</option></select></label>
-                <button aria-label="Змінити напрямок сортування" onClick={() => list.update({ direction: list.state.direction === 'asc' ? 'desc' : 'asc', page: 1 })}>{list.state.direction === 'asc' ? '↑' : '↓'}</button>
+                <button aria-label="Змінити напрямок сортування" title="Змінити напрямок сортування" onClick={() => list.update({ direction: list.state.direction === 'asc' ? 'desc' : 'asc', page: 1 })}>{list.state.direction === 'asc' ? '↑' : '↓'}</button>
             </div>
             {error ? <ErrorState message={error} retry={retry} /> : !novels ? <Loading /> : <>{loading && <p role="status">Оновлюємо каталог…</p>}{novels.length === 0 ? <div className="empty-state">
                 <span className="empty-symbol" aria-hidden="true">書</span>

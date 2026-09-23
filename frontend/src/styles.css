@@ -210,6 +210,8 @@ select, textarea, input:not([type="checkbox"]) { font: inherit; color: var(--ink
 select { -webkit-appearance: none; appearance: none; line-height: 1.4; padding-right: 42px; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%; background-size: 6px 6px, 6px 6px; background-repeat: no-repeat; }
 textarea { resize: vertical; }
 .check-label { display: flex; align-items: baseline; gap: 10px; }
+.help-field { display: grid; gap: 8px; min-width: 0; font-size: 14px; line-height: 1.5; }
+.help-field-label { display: flex; align-items: center; gap: 2px; }
 .check-label input { flex-shrink: 0; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
 .button-row, .inline-form, .workspace-toolbar, .tab-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin: 18px 0; }
@@ -244,11 +246,11 @@ td { overflow-wrap: normal; word-break: normal; }
 td code { display: inline-block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .cost-table { min-width: 1040px; }
 .table-heading { display: inline-flex; align-items: center; gap: 5px; }
-.column-help { display: inline-block; position: relative; margin: 0; white-space: normal; }
-.column-help summary { display: grid; place-items: center; width: 20px; height: 20px; margin: 0; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); font-size: 11px; cursor: pointer; list-style: none; }
-.column-help summary::-webkit-details-marker { display: none; }
-.column-help[open] > span { display: block; width: 180px; padding: 8px; font-size: 12px; font-weight: 400; line-height: 1.4; white-space: normal; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; }
-.column-help summary:hover, .column-help summary:focus-visible { border-color: var(--accent); color: var(--ink); }
+.help-tip { display: inline-flex; vertical-align: middle; margin-left: 4px; }
+button.help-tip-button, .workspace button.help-tip-button { display: grid; place-items: center; width: 20px; height: 20px; min-height: 0; min-width: 0; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--muted); font-size: 11px; font-weight: 600; line-height: 1; cursor: help; }
+button.help-tip-button:hover, button.help-tip-button:focus-visible, button.help-tip-button[aria-expanded="true"] { border-color: var(--accent); color: var(--ink); }
+.help-tip-bubble { position: fixed; z-index: 110; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); box-shadow: 0 8px 24px #0004; font-size: 12px; font-weight: 400; line-height: 1.45; text-align: left; white-space: normal; letter-spacing: normal; text-transform: none; }
+@media (pointer: coarse) { button.help-tip-button, .workspace button.help-tip-button { width: 28px; height: 28px; font-size: 13px; } }
 .list-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin: 16px 0; }
 .list-toolbar > .list-search { flex: 1 1 220px; }
 .list-toolbar > .select-field { flex: 0 1 180px; min-width: 150px; }

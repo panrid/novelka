@@ -5,6 +5,7 @@ import { mutate } from '../api/client';
 import { ActionNotice } from '../components/ActionNotice';
 import { ErrorState, Loading } from '../components/Status';
 import { OpenRouterBalance } from '../components/OpenRouterBalance';
+import { HelpField } from '../components/HelpField';
 
 export interface Settings {
     revision: number; registrationOpen: boolean; segmentChars: number; targetUsdPer5000: number; maxBudgetUsd: number;
@@ -23,9 +24,9 @@ export function SettingsPage() {
         <form className="stack-form" onSubmit={event => { event.preventDefault(); void action.run(async () => { const saved = await mutate<Settings>('/settings', settings); setSettings(saved); }); }}>
             <label className="check-label"><input type="checkbox" checked={settings.registrationOpen} onChange={event => setSettings({ ...settings, registrationOpen: event.target.checked })} />Дозволити реєстрацію</label>
             <div className="form-grid">
-                <label>Максимальний бюджет одного запуску, $<input type="number" min=".01" max="1000" step=".01" required value={settings.maxBudgetUsd} onChange={event => setSettings({ ...settings, maxBudgetUsd: Number(event.target.value) })} /></label>
-                <label>Цільова ціна на 5000 токенів, $<input type="number" min="0" step=".01" required value={settings.targetUsdPer5000} onChange={event => setSettings({ ...settings, targetUsdPer5000: Number(event.target.value) })} /></label>
-                <label>Символів у сегменті<input type="number" min="500" max="20000" required value={settings.segmentChars} onChange={event => setSettings({ ...settings, segmentChars: Number(event.target.value) })} /></label>
+                <HelpField label="Максимальний бюджет одного запуску, $" help="Верхня межа, яку можна вказати для одного завдання в майстерні. Не обмежує вже запущені завдання.">{id => <input id={id} type="number" min=".01" max="1000" step=".01" required value={settings.maxBudgetUsd} onChange={event => setSettings({ ...settings, maxBudgetUsd: Number(event.target.value) })} />}</HelpField>
+                <HelpField label="Цільова ціна на 5000 токенів, $" help="Орієнтир вартості перекладу 5000 токенів оригіналу. Використовується для оцінки витрат у звітах; фактичний ліміт задає бюджет запуску.">{id => <input id={id} type="number" min="0" step=".01" required value={settings.targetUsdPer5000} onChange={event => setSettings({ ...settings, targetUsdPer5000: Number(event.target.value) })} />}</HelpField>
+                <HelpField label="Символів у сегменті" help="Довга глава ділиться між абзацами на сегменти приблизно такого розміру. Більший сегмент дає моделі більше контексту, але дорожчий повтор після збою.">{id => <input id={id} type="number" min="500" max="20000" required value={settings.segmentChars} onChange={event => setSettings({ ...settings, segmentChars: Number(event.target.value) })} />}</HelpField>
             </div>
             {settings.stages.map((stage, index) => <fieldset key={stage.stage}><legend>{({ analyze: 'Аналіз', translate: 'Переклад', proofread: 'Вичитка' })[stage.stage]}</legend><div className="form-grid">
                 <label>Модель<input required value={stage.model} onChange={event => setSettings({ ...settings, stages: settings.stages.map((item, i) => i === index ? { ...item, model: event.target.value } : item) })} /></label>

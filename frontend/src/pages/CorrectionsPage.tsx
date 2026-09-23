@@ -80,7 +80,7 @@ export function CorrectionsPage() {
                 onChange={event => list.setFilter('dateTo', event.target.value)} /></label>
             <div className="correction-sort"><label>Порядок<select value={list.state.sort} onChange={event => list.update({ sort: event.target.value, page: 1 })}>
                 {Object.entries(sortLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-                <button type="button" aria-label="Змінити напрямок сортування" onClick={() => list.update({ direction: list.state.direction === 'asc' ? 'desc' : 'asc', page: 1 })}>
+                <button type="button" aria-label="Змінити напрямок сортування" title="Змінити напрямок сортування" onClick={() => list.update({ direction: list.state.direction === 'asc' ? 'desc' : 'asc', page: 1 })}>
                     {list.state.direction === 'asc' ? '↑' : '↓'}</button></div>
             {filtered && <button type="button" className="correction-clear" onClick={clear}>Очистити пошук і фільтри</button>}
         </div>

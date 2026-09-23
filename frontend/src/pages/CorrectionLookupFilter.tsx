@@ -14,7 +14,7 @@ export function CorrectionLookupFilter({ label, endpoint, value, selected, onCha
     const resource = useResource<{ items: Choice[] }>(endpoint + '?q=' + encodeURIComponent(query) + '&size=20');
     return <div className="correction-lookup">
         <label>{label}{value ? <span className="correction-selected">
-            <span>{selectedLabel}</span><button type="button" aria-label={'Очистити: ' + label} onClick={() => { onChange(''); setDraft(''); setQuery(''); }}>×</button>
+            <span>{selectedLabel}</span><button type="button" aria-label={'Очистити: ' + label} title={'Очистити: ' + label} onClick={() => { onChange(''); setDraft(''); setQuery(''); }}>×</button>
         </span> : <input type="search" value={draft} onChange={event => setDraft(event.target.value)} placeholder="Почніть вводити назву або ім’я" />}</label>
         {!value && draft.trim() && <div className="correction-lookup-results">
             {resource.error ? <p role="alert">Не вдалося знайти варіанти. {resource.error}</p>
