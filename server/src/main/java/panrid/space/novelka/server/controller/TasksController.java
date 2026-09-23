@@ -10,6 +10,7 @@ import panrid.space.novelka.server.repository.AuditRepository;
 import panrid.space.novelka.server.task.TaskRequest;
 import panrid.space.novelka.server.task.TaskService;
 import panrid.space.novelka.server.list.ListQuery;
+import panrid.space.novelka.server.settings.SettingsService;
 
 import java.security.Principal;
 import java.util.Map;
@@ -20,9 +21,20 @@ public final class TasksController {
     private final ReaderDatabase database;
     private final AccessService access;
     private final TaskService service;
+    private final SettingsService settings;
 
-    public TasksController(ReaderDatabase database, AccessService access, TaskService service) {
-        this.database = database; this.access = access; this.service = service;
+    public TasksController(ReaderDatabase database, AccessService access, TaskService service, SettingsService settings) {
+        this.database = database; this.access = access; this.service = service; this.settings = settings;
+    }
+
+    /** What a new task uses unless overridden: administrators cannot read the owner's full settings. */
+    @GetMapping("/defaults")
+    public Map<String, Object> defaults(Principal principal) throws Exception {
+        access.require(principal, Role.ADMIN);
+        var snapshot = settings.read();
+        var models = new java.util.LinkedHashMap<String, String>();
+        snapshot.stages().forEach(stage -> models.put(stage.stage(), stage.model()));
+        return Map.of("models", models, "maxBudgetUsd", snapshot.maxBudgetUsd());
     }
 
     @GetMapping

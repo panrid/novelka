@@ -80,7 +80,7 @@ test('owner launches budgeted translation and sees persisted queue', async ({ pa
     await page.getByLabel('Додатковий бюджет').fill('.5');
     await expect(page.getByRole('button', { name: 'Додати в чергу' })).toBeDisabled();
     await page.getByLabel('Дозволяю платні запити').check();
-    await page.getByText('Додаткові опції словника', { exact: true }).click();
+    await page.getByText('Розширені параметри', { exact: true }).click();
     await page.getByLabel('Ліміт звернень до словника', { exact: true }).fill('12');
     await expect(page.getByRole('button', { name: 'Додати в чергу' })).toBeDisabled();
     await page.getByLabel('Дозволяю платні запити').check();
@@ -213,4 +213,29 @@ test('AI settings suggest suitable catalog models and explain prices', async ({ 
     await expect(page.getByText('Налаштування збережено.')).toBeVisible();
     expect(saved!.stages[1]).toMatchObject({ model: 'vendor/cheap', catalogPricing: true });
     expect(saved!.stages[0]).toMatchObject({ model: 'openai/gpt-4o-mini', catalogPricing: false });
+});
+
+test('advanced options override the model only for one task', async ({ page }) => {
+    await session(page, owner);
+    let submitted: Record<string, unknown> | undefined;
+    await page.route('**/api/tasks**', route => {
+        if (route.request().method() === 'POST') { submitted = route.request().postDataJSON(); return route.fulfill({ json: { id: 'task9' } }); }
+        return route.fulfill({ json: pageData([]) });
+    });
+    await page.route('**/api/tasks/defaults', route => route.fulfill({ json: { models: { analyze: 'openai/gpt-4o-mini', translate: 'openai/gpt-4o-mini', proofread: 'openai/gpt-4o-mini' }, maxBudgetUsd: 5 } }));
+    await page.route('**/api/models', route => route.fulfill({ json: { provider: 'openrouter', refreshedAt: '2026-09-24T08:00:00Z', stale: false, error: null, items: [
+        { id: 'vendor/strong', name: 'Strong', contextLength: 200000, inputUsdM: 3, outputUsdM: 15, suitable: true, limitation: null }] } }));
+    await page.goto('/#/manage');
+    await page.getByRole('combobox', { name: 'Новела', exact: true }).click();
+    await page.getByRole('option', { name: 'Водяний маг · n0022gd', exact: true }).click();
+    const advanced = page.locator('details.advanced-options');
+    await expect(advanced).not.toHaveAttribute('open', '');
+    await page.getByText('Розширені параметри', { exact: true }).click();
+    await expect(advanced.getByText('Буде використано модель за замовчуванням: openai/gpt-4o-mini.')).toBeVisible();
+    await advanced.getByLabel('Модель для цього завдання').fill('vendor/strong');
+    await expect(advanced.locator('.model-info')).toContainText('Strong · контекст 200');
+    await page.getByLabel('Додатковий бюджет').fill('.5');
+    await page.getByLabel('Дозволяю платні запити').check();
+    await page.getByRole('button', { name: 'Додати в чергу' }).click();
+    await expect.poll(() => submitted).toMatchObject({ operation: 'translate', overrides: { model: 'vendor/strong' } });
 });

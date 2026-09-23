@@ -312,7 +312,8 @@ job не збільшує історичну суму попереднього �
 | GET /api/accounts/audit | OWNER, журнал дій |
 | GET/POST /api/settings | ADMIN читає; OWNER змінює |
 | GET/POST /api/tasks; POST /api/tasks/{id}/cancel | ADMIN, фонові операції |
-| GET /api/tasks/{id} | ADMIN, конкретне завдання та доступність швидких дій |
+| GET /api/tasks/{id} | ADMIN, конкретне завдання, модель (`model`, `model_override`) та доступність швидких дій |
+| GET /api/tasks/defaults | ADMIN, моделі етапів за замовчуванням і максимальний бюджет для форми запуску |
 | GET /api/notifications?before=ID | READER, до 30 подій, unread, latestId і nextCursor |
 | POST /api/notifications/{id}/read | READER, позначити доступну подію прочитаною |
 | POST /api/notifications/read-all?through=ID | READER, прочитати доступні події до ID включно |

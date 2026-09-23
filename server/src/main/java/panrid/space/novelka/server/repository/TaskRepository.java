@@ -28,7 +28,8 @@ public final class TaskRepository {
     }
 
     private static final String TASK_SELECT = """
-                SELECT t.id,t.operation,t.novel_id,t.state,t.message,
+                SELECT t.id,t.operation,t.novel_id,t.state,t.message,t.request->'overrides'->>'model' AS model_override,
+                    (SELECT s->>'model' FROM jsonb_array_elements(t.settings->'stages') s WHERE s->>'stage'='translate') AS model,
                     COALESCE(t.current_job_id,t.request->>'jobId') AS current_job_id,t.cancel_requested,
                     current_job.chapter AS current_chapter,
                     latest_job.state AS latest_job_state,

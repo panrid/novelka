@@ -10,6 +10,7 @@ interface Task {
     id: string; operation: string; novel_id: string; state: string; message: string | null;
     current_job_id: string | null; current_chapter?: number | null; spent_usd: number; cancel_requested: boolean; username: string;
     created_at?: string; request?: { first: number; last: number; dictionarySearchLimit?: number };
+    model?: string | null; model_override?: string | null;
     can_resume?: boolean; can_proofread?: boolean; latest_job_state?: string;
 }
 const states: Record<string, string> = { queued: 'У черзі', running: 'Виконується', complete: 'Готово', failed: 'Помилка', interrupted: 'Перервано', cancelled: 'Зупинено' };
@@ -85,6 +86,7 @@ export function TaskQueue({ version, onPrepare, taskId }: { version: number; onP
                         {failure && <p>{failure.detail}</p>}
                         {task.message && !failure && <p>{task.message}</p>}
                         {task.current_job_id && <p>ID перекладу для відновлення: <code>{task.current_job_id}</code></p>}
+                        {task.operation !== 'import' && task.model && <p>Модель: <code>{task.model}</code>{task.model_override ? ' — перевизначено для цього завдання' : ' — за замовчуванням'}.</p>}
                         {task.operation !== 'import' && <p>Ліміт пакетних звернень до словника: {dictionarySearchLimit} на етап сегмента.</p>}
                         <p>Автор: {task.username}{task.created_at && ` · Створено: ${new Date(task.created_at).toLocaleString('uk-UA')}`}</p>
                         <p className="muted">Витрати включають резерв для запитів без підтвердженої ціни.</p>

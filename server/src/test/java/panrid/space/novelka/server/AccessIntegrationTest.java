@@ -602,6 +602,49 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void taskModelOverrideAppliesOnlyToThatTaskAndNeedsCatalogPrices() throws Exception {
+        assertEquals(200, get(owner, "/models").statusCode(), "catalog is filled from the stub provider");
+        var defaults = body(get(owner, "/tasks/defaults"));
+        String defaultModel = defaults.path("models").path("translate").asText();
+        try (var reader = registered()) { assertEquals(403, get(reader, "/tasks/defaults").statusCode()); }
+        String novel = seed();
+        var overridden = overrideTask(novel, "translate", "good/model");
+        var created = post(owner, "/tasks", overridden);
+        assertEquals(200, created.statusCode(), created.body());
+        String task = body(created).path("id").asText();
+        try (var sql = jdbc()) {
+            var snapshot = Json.read(sql.rows("SELECT settings FROM web_tasks WHERE id=?", task).getFirst().get("settings").toString());
+            for (var stage : snapshot.path("stages")) {
+                assertEquals("good/model", stage.path("model").asText());
+                assertEquals(0.15, stage.path("inputUsdM").asDouble());
+            }
+        }
+        var details = body(get(owner, "/tasks/" + task));
+        assertEquals("good/model", details.path("model_override").asText());
+        assertEquals("good/model", details.path("model").asText());
+        assertEquals(defaultModel, body(get(owner, "/tasks/defaults")).path("models").path("translate").asText(), "global default untouched");
+
+        var plain = body(post(owner, "/tasks", task(novel, UUID.randomUUID().toString(), .1))).path("id").asText();
+        assertTrue(body(get(owner, "/tasks/" + plain)).path("model_override").isNull());
+        var unsuitable = post(owner, "/tasks", overrideTask(novel, "translate", "no/tools"));
+        assertEquals(400, unsuitable.statusCode());
+        assertTrue(unsuitable.body().contains("no/tools"), unsuitable.body());
+        assertEquals(400, post(owner, "/tasks", overrideTask(novel, "translate", "missing/model")).statusCode(), "unknown price");
+        var imported = overrideTask(novel, "import", "good/model");
+        imported.put("url", "https://ncode.syosetu.com/n0022gd/");
+        imported.put("first", 0);
+        imported.put("last", 0);
+        assertEquals(400, post(owner, "/tasks", imported).statusCode(), "import has no model");
+    }
+
+    private static Map<String, Object> overrideTask(String novel, String operation, String model) {
+        var request = new java.util.HashMap<String, Object>(Json.M.convertValue(
+                new TaskRequest(UUID.randomUUID().toString(), operation, novel, null, 1, 1, null, false, false, .1), Map.class));
+        request.put("overrides", Map.of("model", model));
+        return request;
+    }
+
+    @Test
     void selfApprovalSettingAppliesOnlyToAdminsAndIsEnforcedByBackend() throws Exception {
         String novel = seed();
         String job = body(get(owner, "/novels/" + novel + "/chapters/1")).path("jobId").asText();

@@ -5,6 +5,8 @@ import { useAction } from '../hooks/useAction';
 import { SelectField } from '../components/SelectField';
 import type { TaskPreset } from './TaskPreset';
 import { HelpField } from '../components/HelpField';
+import { ModelPicker, type ModelCatalog } from '../components/ModelPicker';
+import { useResource } from '../hooks/useResource';
 
 export function TaskForm({ novel, onCreated, preset }: { novel: string; onCreated: (id: string) => void; preset?: TaskPreset }) {
     const [operation, setOperation] = useState<string>(preset?.operation ?? 'translate');
@@ -17,6 +19,9 @@ export function TaskForm({ novel, onCreated, preset }: { novel: string; onCreate
     const [retry, setRetry] = useState(false);
     const [confirmed, setConfirmed] = useState(false);
     const [dictionarySearchLimit, setDictionarySearchLimit] = useState(preset?.dictionarySearchLimit ?? 6);
+    const [model, setModel] = useState('');
+    const defaults = useResource<{ models: Record<string, string>; maxBudgetUsd: number }>('/tasks/defaults');
+    const catalog = useResource<ModelCatalog>('/models', true);
     const request = useRef({ signature: '', key: '' });
     const action = useAction();
     const panel = useRef<HTMLElement>(null);
@@ -32,7 +37,8 @@ export function TaskForm({ novel, onCreated, preset }: { novel: string; onCreate
             event.preventDefault();
             void action.run(async () => {
                 const body = { operation, novelId: novel, url, first, last: operation === 'proofread' ? first : last, jobId,
-                    force: operation === 'translate' && force, retryUncertain: operation === 'resume' && retry, budgetUsd: paid ? Number(budget) : 0, dictionarySearchLimit };
+                    force: operation === 'translate' && force, retryUncertain: operation === 'resume' && retry, budgetUsd: paid ? Number(budget) : 0, dictionarySearchLimit,
+                    overrides: paid && model ? { model } : null };
                 const signature = JSON.stringify(body);
                 if (request.current.signature !== signature) request.current = { signature, key: crypto.randomUUID() };
                 const created = await mutate<{ id: string }>('/tasks', { ...body, requestKey: request.current.key });
@@ -53,9 +59,13 @@ export function TaskForm({ novel, onCreated, preset }: { novel: string; onCreate
                 : <div className="form-grid"><label>Перша глава<input type="number" min={operation === 'import' ? 0 : 1} required value={first} onChange={event => setFirst(Number(event.target.value))} /></label>
                     {operation !== 'proofread' && <label>Остання глава<input type="number" min={first} required value={last} onChange={event => setLast(Number(event.target.value))} /></label>}</div>}
             {operation === 'import' && <p className="muted">0–0 імпортує тільки метадані. За один запуск можна імпортувати до 100 глав.</p>}
-            {operation === 'translate' && <details><summary>Перекласти готові глави повторно</summary><label className="check-label"><input type="checkbox" checked={force} onChange={event => setForce(event.target.checked)} />Створити нові ревізії навіть для готових глав. Це створить нові витрати.</label></details>}
             {operation === 'resume' && <label className="check-label"><input type="checkbox" checked={retry} onChange={event => setRetry(event.target.checked)} />Я перевірив витрати й дозволяю повтор uncertain-запиту, який міг уже бути оплачений.</label>}
-            {paid && <details><summary>Додаткові опції словника</summary>
+            {paid && <details className="advanced-options" open={force || !!model || undefined}><summary>Розширені параметри</summary>
+                <p className="muted">Звичайний запуск їх не потребує. Зміни діють лише для цього завдання й не змінюють налаштувань сайту.</p>
+                <ModelPicker label="Модель для цього завдання" value={model} catalog={catalog.data}
+                    defaultModel={defaults.data?.models?.[operation === 'proofread' ? 'proofread' : 'translate']}
+                    onChange={value => { setModel(value); setConfirmed(false); }} />
+                {operation === 'translate' && <label className="check-label"><input type="checkbox" checked={force} onChange={event => { setForce(event.target.checked); setConfirmed(false); }} />Перекласти готові глави повторно: створити нові ревізії. Це створить нові витрати.</label>}
                 <HelpField label="Ліміт звернень до словника" help="Від 0 до 30 на кожен етап сегмента, типово 6. Одне звернення містить до 20 слів одразу. Після ліміту ШІ завершує відповідь із наявним контекстом. 0 вимикає додаткові пошуки; початковий добір словника залишається. Більше звернень може збільшити витрати в межах бюджету.">
                     {id => <input id={id} type="number" min="0" max="30" step="1" required value={dictionarySearchLimit}
                         onChange={event => { setDictionarySearchLimit(Number(event.target.value)); setConfirmed(false); }} />}</HelpField>
