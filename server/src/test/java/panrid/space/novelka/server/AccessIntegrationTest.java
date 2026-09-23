@@ -815,6 +815,46 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void chatPollsNewMessagesPagesHistoryAndIsModerated() throws Exception {
+        try (var anonymous = browser(); var author = registered(); var other = registered(); var sql = jdbc()) {
+            assertEquals(401, get(anonymous, "/chat").statusCode());
+            assertEquals(401, post(anonymous, "/chat", Map.of("body", "Привіт")).statusCode());
+            long start = body(get(author, "/chat")).path("items").isEmpty() ? 0
+                    : body(get(author, "/chat")).path("items").get(0).path("id").asLong();
+            var sent = post(author, "/chat", Map.of("body", "  Привіт усім  "));
+            assertEquals(200, sent.statusCode(), sent.body());
+            long first = body(sent).path("id").asLong();
+            assertEquals(429, post(author, "/chat", Map.of("body", "Ще")).statusCode());
+            assertEquals(400, post(other, "/chat", Map.of("body", "x".repeat(1001))).statusCode());
+            long second = body(post(other, "/chat", Map.of("body", "Вітаю"))).path("id").asLong();
+
+            var updates = body(get(other, "/chat/updates?after=" + start)).path("items");
+            assertEquals(List.of(first, second), List.of(updates.get(0).path("id").asLong(), updates.get(1).path("id").asLong()), "oldest first");
+            assertEquals("Привіт усім", updates.get(0).path("body").asText());
+            assertFalse(updates.get(0).path("can_delete").asBoolean());
+            assertTrue(body(get(owner, "/chat/updates?after=" + start)).path("items").get(0).path("can_delete").asBoolean());
+
+            assertEquals(403, delete(other, "/chat/" + first).statusCode());
+            assertEquals(200, delete(owner, "/chat/" + first).statusCode());
+            assertEquals(1, sql.rows("SELECT 1 FROM audit_events WHERE action='chat.moderate' AND target=?", String.valueOf(first)).size());
+            var after = body(get(other, "/chat/updates?after=" + start));
+            assertEquals(1, after.path("items").size());
+            assertTrue(after.path("deleted").toString().contains(String.valueOf(first)));
+            assertEquals(200, delete(other, "/chat/" + second).statusCode());
+            assertEquals(404, delete(other, "/chat/" + second).statusCode());
+
+            String id = userId(other);
+            for (int i = 0; i < 35; i++) sql.exec("INSERT INTO chat_messages(author_id,body) VALUES(?,?)", id, "Повідомлення " + i);
+            var latest = body(get(other, "/chat"));
+            assertEquals(30, latest.path("items").size());
+            assertEquals("Повідомлення 34", latest.path("items").get(0).path("body").asText());
+            var older = body(get(other, "/chat?before=" + latest.path("nextCursor").asLong()));
+            assertTrue(older.path("items").size() >= 5);
+            assertEquals("Повідомлення 4", older.path("items").get(0).path("body").asText());
+        }
+    }
+
+    @Test
     void selfApprovalSettingAppliesOnlyToAdminsAndIsEnforcedByBackend() throws Exception {
         String novel = seed();
         String job = body(get(owner, "/novels/" + novel + "/chapters/1")).path("jobId").asText();

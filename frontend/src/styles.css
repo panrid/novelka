@@ -304,6 +304,19 @@ button.vote-up:disabled, button.vote-down:disabled { cursor: not-allowed; opacit
 .comment-actions .vote-control { margin: 0; }
 .comment-actions button.plain-button { min-height: 30px; padding: 3px 8px; border: 0; background: none; color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
 .comment-actions button.plain-button:hover { color: var(--ink); }
+.chat-box { display: grid; gap: 10px; max-width: 860px; }
+.chat-older { justify-self: center; }
+.chat-messages { height: min(62vh, 620px); overflow-y: auto; list-style: none; margin: 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overscroll-behavior: contain; }
+.chat-message { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.chat-message:last-child { border-bottom: 0; }
+.chat-message p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.chat-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 13px; }
+.chat-meta time { color: var(--muted); }
+.chat-meta button.plain-button { margin-left: auto; min-height: 0; padding: 0 4px; border: 0; background: none; color: var(--muted); font-size: 12px; text-decoration: underline; }
+.chat-empty { padding: 20px 0; text-align: center; }
+.chat-form { display: flex; gap: 10px; align-items: end; }
+.chat-form textarea { flex: 1; min-width: 0; resize: vertical; }
+@media (max-width: 600px) { .chat-messages { height: 55vh; } .chat-form { flex-direction: column; align-items: stretch; } }
 .profile-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 18px 0 26px; }
 .profile-summary > div { padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); min-width: 0; }
 .profile-summary dt { color: var(--muted); font-size: 12px; }

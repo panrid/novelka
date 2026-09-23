@@ -307,6 +307,8 @@ job не збільшує історичну суму попереднього �
 | GET /api/novels/{novel}/comments?chapter=&before= | Публічний, 20 коментарів від нових до старих; `nextCursor` для старіших |
 | POST /api/novels/{novel}/comments | READER, коментар до новели (`chapter` 0) чи глави; не частіше ніж раз на 5 с |
 | POST /api/comments/{id}; DELETE /api/comments/{id} | Автор редагує; автор або ADMIN/OWNER м'яко видаляє (модерація потрапляє в аудит) |
+| GET /api/chat?before=; GET /api/chat/updates?after= | READER, історія по 30 повідомлень від нових; нові після ID і нещодавно видалені |
+| POST /api/chat; DELETE /api/chat/{id} | READER надсилає (до 1000 символів, не частіше ніж раз на 2 с); автор або ADMIN/OWNER видаляє |
 | POST /api/manage/novels | ADMIN, створити новелу вручну (українські дані, теги) |
 | GET /api/manage/{novel}/manual; GET /api/manage/{novel}/manual/{n} | ADMIN, чернетки й опубліковані глави ручної новели; чернетка та опублікований текст глави |
 | POST/DELETE /api/manage/{novel}/manual/{n} | ADMIN, зберегти або видалити приватну чернетку глави |

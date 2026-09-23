@@ -8,6 +8,7 @@ import { Redirect } from './components/Redirect';
 import { SettingsPage } from './pages/SettingsPage';
 import { AuditPage } from './pages/AuditPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { ChatPage } from './pages/ChatPage';
 import { ManagePage } from './pages/ManagePage';
 import { useAuth, permits, roleNames, type Role } from './auth/AuthContext';
 import { useAction } from './hooks/useAction';
@@ -43,6 +44,7 @@ export function App() {
         } else if (path === '/login') content = <AuthPage />;
         else if (section === '/corrections') content = guarded('READER', <CorrectionsPage />);
         else if (path === '/profile') content = guarded('READER', <ProfilePage />);
+        else if (path === '/chat') content = guarded('READER', <ChatPage />);
         else if (section === '/accounts') content = <Redirect to="/settings?section=users" />;
         else if (path.split('?')[0] === '/manage') content = guarded('ADMIN', <ManagePage key={path} search={path.split('?')[1]} />);
         else if (section === '/settings') content = guarded('ADMIN', <SettingsPage search={path.split('?')[1]} />);
@@ -54,7 +56,7 @@ export function App() {
             <a className="brand" href="#/" aria-label="Новелка — каталог"><span className="brand-icon">н</span>новелка<span className="brand-dot">.</span></a>
             <nav aria-label="Основна навігація">
                 <a className="nav-link" href="#/">Каталог новел</a>
-                {auth.user && <a className="nav-link" href="#/corrections">Правки</a>}
+                {auth.user && <><a className="nav-link" href="#/corrections">Правки</a><a className="nav-link" href="#/chat">Чат</a></>}
                 {permits(auth.user, 'ADMIN') && <><a className="nav-link" href="#/manage">Майстерня</a><a className="nav-link" href="#/settings">Налаштування</a></>}
             </nav>
             <div className="session-controls"><ThemePicker compact />
