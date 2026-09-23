@@ -30,6 +30,11 @@ public final class VoteService {
     private static String canonical(JdbcSession jdbc, String type, String target) throws Exception {
         switch (type) {
             case "novel" -> { return new NovelRepository(jdbc).resolveNovel(target); }
+            case "comment" -> {
+                if (!target.matches("[1-9]\\d{0,17}") || jdbc.rows("SELECT 1 FROM comments WHERE id=?::bigint AND deleted_at IS NULL", target).isEmpty())
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+                return target;
+            }
             default -> throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
     }

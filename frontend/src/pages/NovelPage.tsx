@@ -6,6 +6,7 @@ import { readPreference } from '../lib/preferences';
 import { ErrorState, Loading } from '../components/Status';
 import { ListEmpty, ListPages, ListSearch, listParams, useListState, type PageData } from '../components/ListTools';
 import { VoteControl } from '../components/VoteControl';
+import { Comments } from '../components/Comments';
 
 export function NovelPage({ id }: { id: string }) {
     const last = Number(readPreference('chapter:' + id));
@@ -33,5 +34,6 @@ export function NovelPage({ id }: { id: string }) {
                     : data.readyChapters ? <ListEmpty filtered={!!list.state.q} noun="Глав" /> : <div className="empty-state"><h3>Переклад ще готується</h3><p>Готові глави з’являться тут після завершення перекладу.</p></div>}
                 <ListPages data={contents.data} onPage={list.setPage} /></>}
         </section>
+        <Comments novel={data.id} title="Обговорення новели" />
     </div>;
 }

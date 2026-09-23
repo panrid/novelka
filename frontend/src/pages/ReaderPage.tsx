@@ -7,6 +7,7 @@ import { ErrorState, Loading } from '../components/Status';
 import { EditableBlock } from '../components/EditableBlock';
 import { useAuth } from '../auth/AuthContext';
 import { ThemePicker } from '../theme/ThemePicker';
+import { Comments } from '../components/Comments';
 
 export function ReaderPage({ id, number }: { id: string; number: number }) {
     const { user } = useAuth();
@@ -78,5 +79,6 @@ export function ReaderPage({ id, number }: { id: string; number: number }) {
             {next ? <a className="button" href={'#' + chapterPath(data.novelId, next)}>Наступна глава →</a> : <a className="button" href={'#' + novelPath(data.novelId)}>До змісту ↑</a>}
         </nav>
         <p className="reader-footnote">{next ? 'Історія триває. Перегорніть сторінку.' : 'Ви прочитали всі доступні глави цієї новели.'}</p>
+        <Comments novel={data.novelId} chapter={data.number} title={'Коментарі до глави ' + data.number} />
     </div>;
 }

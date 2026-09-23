@@ -291,6 +291,19 @@ button.vote-up:disabled, button.vote-down:disabled { cursor: not-allowed; opacit
 .vote-score { min-width: 30px; text-align: center; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .vote-error { margin-left: 6px; padding: 2px 6px; font-size: 12px; }
 @media (pointer: coarse) { button.vote-up, button.vote-down { width: 40px; height: 40px; } }
+.comments { margin: 48px auto 0; max-width: 760px; }
+.comments h2 { font-size: 22px; margin: 0 0 14px; }
+.comment-form { display: grid; gap: 8px; margin: 0 0 18px; }
+.comment-form > button { justify-self: start; }
+.comment-list { list-style: none; margin: 0; padding: 0; }
+.comment { padding: 14px 0; border-top: 1px solid var(--line); }
+.comment-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 13px; }
+.comment-meta time { color: var(--muted); }
+.comment-body { margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+.comment-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.comment-actions .vote-control { margin: 0; }
+.comment-actions button.plain-button { min-height: 30px; padding: 3px 8px; border: 0; background: none; color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+.comment-actions button.plain-button:hover { color: var(--ink); }
 .profile-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 18px 0 26px; }
 .profile-summary > div { padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); min-width: 0; }
 .profile-summary dt { color: var(--muted); font-size: 12px; }

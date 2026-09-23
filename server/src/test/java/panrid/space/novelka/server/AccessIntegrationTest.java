@@ -764,6 +764,57 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void commentsSeparateNovelAndChapterThreadsFollowNicknamesAndAreModerated() throws Exception {
+        String novel = seed();
+        try (var author = registered(); var other = registered(); var anonymous = browser(); var sql = jdbc()) {
+            assertEquals(401, post(anonymous, "/novels/" + novel + "/comments", Map.of("body", "Привіт")).statusCode());
+            var created = post(author, "/novels/" + novel + "/comments", Map.of("body", "  Чудова новела  "));
+            assertEquals(200, created.statusCode(), created.body());
+            long novelComment = body(created).path("id").asLong();
+            assertEquals(429, post(author, "/novels/" + novel + "/comments", Map.of("chapter", 1, "body", "Надто швидко")).statusCode());
+            sql.exec("UPDATE comments SET created_at=created_at-interval '1 minute' WHERE id=?", novelComment);
+            long chapterComment = body(post(author, "/novels/" + novel + "/comments", Map.of("chapter", 1, "body", "Про главу"))).path("id").asLong();
+            assertEquals(400, post(other, "/novels/" + novel + "/comments", Map.of("chapter", 99, "body", "x")).statusCode());
+            assertEquals(400, post(other, "/novels/" + novel + "/comments", Map.of("body", " ")).statusCode());
+
+            var thread = body(get(anonymous, "/novels/" + novel + "/comments"));
+            assertEquals(1, thread.path("items").size(), "chapter comments stay out of the novel thread");
+            assertEquals("Чудова новела", thread.path("items").get(0).path("body").asText());
+            assertFalse(thread.path("items").get(0).path("can_edit").asBoolean());
+            assertEquals(chapterComment, body(get(anonymous, "/novels/" + novel + "/comments?chapter=1")).path("items").get(0).path("id").asLong());
+
+            String renamed = "r" + UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+            assertEquals(200, post(author, "/profile/nickname", Map.of("nickname", renamed)).statusCode());
+            assertEquals(renamed, body(get(anonymous, "/novels/" + novel + "/comments")).path("items").get(0).path("author").asText());
+
+            assertEquals(403, post(other, "/comments/" + novelComment, Map.of("body", "Чужий")).statusCode());
+            assertEquals(200, post(author, "/comments/" + novelComment, Map.of("body", "Чудова новела!")).statusCode());
+            var edited = body(get(author, "/novels/" + novel + "/comments")).path("items").get(0);
+            assertFalse(edited.path("edited_at").isNull());
+            assertTrue(edited.path("can_edit").asBoolean());
+
+            assertEquals(1, body(post(other, "/votes/comment/" + novelComment, Map.of("value", 1))).path("score").asLong());
+            assertEquals(1, body(get(other, "/novels/" + novel + "/comments")).path("items").get(0).path("rating").path("mine").asInt());
+            assertEquals(403, delete(other, "/comments/" + novelComment).statusCode());
+            assertEquals(200, delete(owner, "/comments/" + chapterComment).statusCode(), "admin moderates");
+            assertEquals(1, sql.rows("SELECT 1 FROM audit_events WHERE action='comment.moderate' AND target=?", String.valueOf(chapterComment)).size());
+            assertEquals(0, body(get(anonymous, "/novels/" + novel + "/comments?chapter=1")).path("items").size());
+            assertEquals(404, post(other, "/votes/comment/" + chapterComment, Map.of("value", 1)).statusCode());
+            assertEquals(200, delete(author, "/comments/" + novelComment).statusCode());
+            assertEquals(1, sql.rows("SELECT 1 FROM comments WHERE id=? AND deleted_at IS NOT NULL", novelComment).size(), "soft delete");
+
+            String authorId = userId(other);
+            for (int i = 0; i < 25; i++) sql.exec("INSERT INTO comments(novel_id,chapter,author_id,body) VALUES(?,2,?,?)", novel, authorId, "Коментар " + i);
+            var first = body(get(anonymous, "/novels/" + novel + "/comments?chapter=2"));
+            assertEquals(20, first.path("items").size());
+            assertEquals("Коментар 24", first.path("items").get(0).path("body").asText());
+            var older = body(get(anonymous, "/novels/" + novel + "/comments?chapter=2&before=" + first.path("nextCursor").asLong()));
+            assertEquals(5, older.path("items").size());
+            assertEquals(0, older.path("nextCursor").asLong());
+        }
+    }
+
+    @Test
     void selfApprovalSettingAppliesOnlyToAdminsAndIsEnforcedByBackend() throws Exception {
         String novel = seed();
         String job = body(get(owner, "/novels/" + novel + "/chapters/1")).path("jobId").asText();

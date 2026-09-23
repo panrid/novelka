@@ -303,7 +303,10 @@ job не збільшує історичну суму попереднього �
 | POST /api/profile/email | READER, зміна email із поточним паролем |
 | GET /api/accounts/{id}/nicknames | ADMIN, історія ніків користувача |
 | GET /api/tags?q= | Публічний, теги з кількістю новел для фільтра й підказок |
-| POST /api/votes/{type}/{id} | READER, голос `value` 1/-1/0 за новелу; відповідь — `score` і власний `mine` |
+| POST /api/votes/{type}/{id} | READER, голос `value` 1/-1/0 за новелу (`novel`) чи коментар (`comment`); відповідь — `score` і власний `mine` |
+| GET /api/novels/{novel}/comments?chapter=&before= | Публічний, 20 коментарів від нових до старих; `nextCursor` для старіших |
+| POST /api/novels/{novel}/comments | READER, коментар до новели (`chapter` 0) чи глави; не частіше ніж раз на 5 с |
+| POST /api/comments/{id}; DELETE /api/comments/{id} | Автор редагує; автор або ADMIN/OWNER м'яко видаляє (модерація потрапляє в аудит) |
 | POST /api/manage/novels | ADMIN, створити новелу вручну (українські дані, теги) |
 | GET /api/manage/{novel}/manual; GET /api/manage/{novel}/manual/{n} | ADMIN, чернетки й опубліковані глави ручної новели; чернетка та опублікований текст глави |
 | POST/DELETE /api/manage/{novel}/manual/{n} | ADMIN, зберегти або видалити приватну чернетку глави |
