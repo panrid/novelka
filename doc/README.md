@@ -139,7 +139,8 @@ PostgreSQL зберігає предметні дані переважно у `j
 
 Перед обробкою новели береться advisory lock PostgreSQL за канонічним ID.
 Події сайту зберігаються в `notifications`, індивідуальне прочитання — в `notification_reads`.
-Під час створення DatabaseSession клас MigrationRunner послідовно застосовує зареєстровані V1.sql–V4.sql;
+Відхилення однакових пропозицій словника зберігаються в `glossary_proposal_dismissals`.
+Під час створення DatabaseSession клас MigrationRunner послідовно застосовує зареєстровані V1.sql–V5.sql;
 виконані версії фіксуються у schema_versions. Для наступної міграції потрібно
 додати файл і змінити верхню версію в MigrationRunner.LATEST_VERSION; автосканування файлів немає.
 

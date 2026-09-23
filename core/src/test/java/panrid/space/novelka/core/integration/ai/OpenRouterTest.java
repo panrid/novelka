@@ -200,6 +200,108 @@ class OpenRouterTest {
     }
 
     @Test
+    void excessiveBatchFinishesWithinBudgetAndReusesThePaidSearchResponse() throws Exception {
+        var requests = new ArrayList<com.fasterxml.jackson.databind.JsonNode>();
+        server.createContext("/chat", exchange -> {
+            var request = Json.read(new String(exchange.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            requests.add(request);
+            String body = requests.size() == 1 ? toolResponse(8, .019) : response("{\"entries\":[]}");
+            byte[] bytes = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+        var ai = client();
+        var glossary = testGlossary();
+        var payload = Map.of("source", "アキ");
+        // The initial batch succeeds, but there is not enough budget for a final model request.
+        var error = assertThrows(IllegalStateException.class, () -> ai.generate(work, 0, "analyze", glossary, payload, .02));
+        assertTrue(error.getMessage().contains("Бюджет"));
+        assertEquals(1, requests.size());
+        assertTrue(ai.generate(work, 0, "analyze", glossary, payload, .2).path("entries").isArray());
+        assertEquals(2, requests.size(), "Resume reuses the paid batch instead of sending it again");
+        var last = requests.getLast();
+        assertEquals("none", last.path("tool_choice").asText());
+        int results = 0, limited = 0;
+        for (var message : last.path("messages")) {
+            if (!message.path("role").asText().equals("tool")) continue;
+            results++;
+            if (Json.read(message.path("content").asText()).path("status").asText().equals("search_limit")) limited++;
+        }
+        assertEquals(8, results, "Every tool call receives a matching response");
+        assertEquals(2, limited, "Only six searches execute");
+        ai.generate(work, 0, "analyze", glossary, payload, .2);
+        assertEquals(2, requests.size());
+        assertEquals(.021, store.spent(work.id()), .000001);
+    }
+
+    @Test
+    void finishesAfterConfiguredSearchLimitAndRejectsModelsIgnoringToolChoice() throws Exception {
+        var requests = new ArrayList<com.fasterxml.jackson.databind.JsonNode>();
+        server.createContext("/chat", exchange -> {
+            requests.add(Json.read(new String(exchange.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)));
+            byte[] bytes = toolResponse(1, .002).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+        var error = assertThrows(IllegalStateException.class,
+                () -> client().generate(work, 0, "analyze", testGlossary(), Map.of("source", "アキ"), 1));
+        assertEquals(7, requests.size());
+        assertEquals("none", requests.getLast().path("tool_choice").asText());
+        assertTrue(error.getMessage().contains("Виберіть іншу модель"));
+        assertTrue(error.getMessage().contains("tool_choice=none"));
+    }
+
+    private Glossary testGlossary() {
+        return new Glossary(1, List.of(new Entry("アキ", "character", "アキ", "", "Акі", List.of(), "unknown", "", "unknown", 1, false)));
+    }
+
+    private String toolResponse(int count, double cost) {
+        var tools = new ArrayList<Object>();
+        for (int i = 0; i < count; i++) tools.add(Map.of("id", "search-" + i, "type", "function",
+                "function", Map.of("name", "dictionary_search", "arguments", "{\"query\":\"アキ\"}")));
+        return Json.write(Map.of("usage", Map.of("cost", cost), "choices", List.of(Map.of("finish_reason", "tool_calls",
+                "message", Map.of("role", "assistant", "tool_calls", tools)))));
+    }
+
+    @Test
+    void batchesQueriesAndHonorsCustomAndZeroLimits() throws Exception {
+        var requests = new ArrayList<com.fasterxml.jackson.databind.JsonNode>();
+        server.createContext("/chat", exchange -> {
+            var request = Json.read(new String(exchange.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            requests.add(request);
+            String body = request.path("tool_choice").asText().equals("none") ? response("{\"entries\":[]}")
+                    : Json.write(Map.of("usage", Map.of("cost", .002), "choices", List.of(Map.of("finish_reason", "tool_calls", "message",
+                            Map.of("role", "assistant", "tool_calls", List.of(Map.of("id", "batch", "type", "function", "function",
+                                    Map.of("name", "dictionary_search", "arguments", "{\"queries\":[\"アキ\",\"Акі\",\"アキ\"]}"))))))));
+            byte[] bytes = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+        var endpoint = URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/chat");
+        var one = new OpenRouter(store, "test-secret", "openai/gpt-4o-mini", endpoint, 1);
+        one.generate(work, 0, "analyze", testGlossary(), Map.of("source", "アキ"), 1);
+        assertEquals(2, requests.size());
+        var schema = requests.getFirst().path("tools").get(0).path("function").path("parameters");
+        assertEquals("queries", schema.path("required").get(0).asText());
+        var tool = requests.getLast().path("messages").get(3);
+        var result = Json.read(tool.path("content").asText());
+        assertEquals(2, result.path("matches").size());
+        assertEquals(1, result.path("entries").size(), "Shared matches must not duplicate entry context");
+        assertEquals("アキ", result.path("matches").path("Акі").get(0).asText());
+        new OpenRouter(store, "test-secret", "openai/gpt-4o-mini", endpoint, 0)
+                .generate(work, 1, "analyze", testGlossary(), Map.of("source", "アキ"), 1);
+        assertEquals(3, requests.size());
+        assertEquals("none", requests.getLast().path("tool_choice").asText());
+        assertThrows(IllegalArgumentException.class, () -> new OpenRouter(store, "test-secret", "openai/gpt-4o-mini", endpoint, 31));
+    }
+
+    @Test
     void budgetStopsBeforeAnyRequest() throws Exception {
         server.start();
         assertThrows(

@@ -8,7 +8,7 @@ import type { TaskPreset } from './TaskPreset';
 interface Task {
     id: string; operation: string; novel_id: string; state: string; message: string | null;
     current_job_id: string | null; current_chapter?: number | null; spent_usd: number; cancel_requested: boolean; username: string;
-    created_at?: string; request?: { first: number; last: number };
+    created_at?: string; request?: { first: number; last: number; dictionarySearchLimit?: number };
     can_resume?: boolean; can_proofread?: boolean; latest_job_state?: string;
 }
 const states: Record<string, string> = { queued: 'У черзі', running: 'Виконується', complete: 'Готово', failed: 'Помилка', interrupted: 'Перервано', cancelled: 'Зупинено' };
@@ -52,6 +52,7 @@ export function TaskQueue({ version, onPrepare, taskId }: { version: number; onP
             const needsReview = task.latest_job_state === 'needs-review' || /Dictionary changed|Словник змінився/.test(task.message ?? '');
             const glossary = needsReview || /dictionary|словник|tool round/i.test(task.message ?? '');
             const chapter = task.current_chapter ?? (task.request?.first === task.request?.last ? task.request?.first : undefined);
+            const dictionarySearchLimit = task.request?.dictionarySearchLimit ?? 6;
             return <article className="task-card" key={task.id} aria-label={`${operations[task.operation] || task.operation} ${task.novel_id}`}>
                 <div className="task-card-main"><div className="task-card-title"><strong>{operations[task.operation] || task.operation}</strong>
                     <span>{task.novel_id}</span>{range && <span>{range}</span>}</div>
@@ -64,14 +65,15 @@ export function TaskQueue({ version, onPrepare, taskId }: { version: number; onP
                 <div className="task-card-actions">
                     {(stopped || needsReview) && <div className="task-quick-actions">
                         {glossary && <a className="quick-action" href={'#/manage?novel=' + encodeURIComponent(task.novel_id) + '&tab=glossary&task=' + encodeURIComponent(task.id)}>Відкрити словник</a>}
-                        {stopped && task.can_resume && task.current_job_id && chapter && <button type="button" onClick={() => onPrepare({ operation: 'resume', novelId: task.novel_id, chapter, jobId: task.current_job_id! })}>Відновити</button>}
-                        {needsReview && task.can_proofread && chapter && <button type="button" onClick={() => onPrepare({ operation: 'proofread', novelId: task.novel_id, chapter })}>Повторно вичитати</button>}
-                        {chapter && chapter > 0 && task.operation !== 'import' && <button type="button" onClick={() => onPrepare({ operation: 'translate', novelId: task.novel_id, chapter, force: true })}>Перекласти главу заново</button>}
+                        {stopped && task.can_resume && task.current_job_id && chapter && <button type="button" onClick={() => onPrepare({ operation: 'resume', novelId: task.novel_id, chapter, jobId: task.current_job_id!, dictionarySearchLimit })}>Відновити</button>}
+                        {needsReview && task.can_proofread && chapter && <button type="button" onClick={() => onPrepare({ operation: 'proofread', novelId: task.novel_id, chapter, dictionarySearchLimit })}>Повторно вичитати</button>}
+                        {chapter && chapter > 0 && task.operation !== 'import' && <button type="button" onClick={() => onPrepare({ operation: 'translate', novelId: task.novel_id, chapter, force: true, dictionarySearchLimit })}>Перекласти главу заново</button>}
                     </div>}
                     <details><summary>Подробиці</summary><div className="task-card-details">
                         {failure && <p>{failure.detail}</p>}
                         {task.message && !failure && <p>{task.message}</p>}
                         {task.current_job_id && <p>ID перекладу для відновлення: <code>{task.current_job_id}</code></p>}
+                        {task.operation !== 'import' && <p>Ліміт пакетних звернень до словника: {dictionarySearchLimit} на етап сегмента.</p>}
                         <p>Автор: {task.username}{task.created_at && ` · Створено: ${new Date(task.created_at).toLocaleString('uk-UA')}`}</p>
                         <p className="muted">Витрати включають резерв для запитів без підтвердженої ціни.</p>
                     </div></details>

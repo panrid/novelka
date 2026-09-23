@@ -4,7 +4,7 @@ import { ActionNotice } from '../components/ActionNotice';
 import { ErrorState, Loading } from '../components/Status';
 import { useAction } from '../hooks/useAction';
 import { useResource } from '../hooks/useResource';
-import { GlossaryEditor, type Glossary } from './GlossaryEditor';
+import { GlossaryEditor, type Glossary, type GlossaryProposal } from './GlossaryEditor';
 
 interface Detail {
     novel: {
@@ -20,12 +20,12 @@ interface Detail {
     chapters: { number: number; title: string }[];
     jobs: { id: string; chapter: number; revision: number; state: string }[];
     glossary: Glossary;
-    proposals: { id: number; proposal: unknown }[];
+    proposals: GlossaryProposal[];
 }
 
 export function NovelManager({ novel, initialTab = 'info' }: { novel: string; initialTab?: 'info' | 'glossary' }) {
     const path = '/manage/' + encodeURIComponent(novel);
-    const resource = useResource<Detail>(path);
+    const resource = useResource<Detail>(path, true);
     const action = useAction();
     const [tab, setTab] = useState<'info' | 'glossary' | 'materials'>(initialTab);
     const [alias, setAlias] = useState('');

@@ -145,6 +145,61 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void glossaryProposalsGroupDuplicatesAndRememberDismissalsWithoutChangingCanonicalData() throws Exception {
+        String novel = seed();
+        var entry = new panrid.space.novelka.core.model.Entry("person", "character", "涼", "", "Рьо", List.of("Ryo", "Ryō"), "male", "", "confirmed", 1, true);
+        var duplicate = new panrid.space.novelka.core.model.Entry("other-key", "character", "涼", "", "Рьо", List.of("Ryō", "Ryo"), "male", "", "confirmed", 2, false);
+        var alternative = new panrid.space.novelka.core.model.Entry("other-key", "character", "涼", "", "Рьоу", List.of("Ryō", "Ryo"), "male", "", "confirmed", 2, false);
+        try (var db = new DatabaseSession(postgres.getJdbcUrl("postgres", "postgres"), "postgres", "")) {
+            db.glossaryService().update(novel, new panrid.space.novelka.core.model.Glossary(1, List.of(entry)));
+            db.glossaries().propose(novel, "job", entry);
+            db.glossaries().propose(novel, "job", duplicate);
+            db.glossaries().propose(novel, "job", alternative);
+            db.glossaries().propose(novel, "job", alternative);
+        }
+        var proposals = body(get(owner, "/manage/" + novel)).path("proposals");
+        assertEquals(2, proposals.size());
+        assertEquals("in_dictionary", proposals.get(0).path("status").asText());
+        assertEquals(2, proposals.get(0).path("occurrences").asInt());
+        assertEquals("pending", proposals.get(1).path("status").asText());
+        assertEquals("person", proposals.get(1).path("canonicalKey").asText());
+        long id = proposals.get(1).path("id").asLong();
+        String dismiss = "/manage/" + novel + "/proposals/" + id + "/dismiss";
+        try (var reader = registered()) { assertEquals(403, post(reader, dismiss, Map.of()).statusCode()); }
+        var noCsrf = owner.send(HttpRequest.newBuilder(URI.create(base + dismiss)).POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(403, noCsrf.statusCode());
+        assertEquals(404, post(owner, "/manage/" + seed() + "/proposals/" + id + "/dismiss", Map.of()).statusCode());
+        assertEquals(200, post(owner, dismiss, Map.of()).statusCode());
+        assertEquals(200, post(owner, dismiss, Map.of()).statusCode());
+        try (var db = new DatabaseSession(postgres.getJdbcUrl("postgres", "postgres"), "postgres", "")) {
+            db.glossaries().propose(novel, "later", alternative);
+            db.glossaries().propose(novel, "later", new panrid.space.novelka.core.model.Entry("other-key", "character", "涼", "", "Рьоу", List.of("Ryō", "Ryo"), "male", "New fact", "confirmed", 3, false));
+            assertEquals(1, db.glossaries().glossary(novel).revision());
+            assertEquals(List.of(entry), db.glossaries().glossary(novel).entries());
+        }
+        var updated = body(get(owner, "/manage/" + novel)).path("proposals");
+        assertEquals("dismissed", updated.get(1).path("status").asText());
+        assertEquals(3, updated.get(1).path("occurrences").asInt());
+        assertEquals("pending", updated.get(2).path("status").asText());
+    }
+
+    @Test
+    void taskSearchLimitIsValidatedAndPersistedWithLegacyDefault() throws Exception {
+        String novel = seed();
+        for (int limit : new int[]{-1, 31}) {
+            var request = new TaskRequest(UUID.randomUUID().toString(), "translate", novel, null, 1, 1, null, false, false, .1, limit);
+            assertEquals(400, post(owner, "/tasks", request).statusCode());
+        }
+        var request = new TaskRequest(UUID.randomUUID().toString(), "translate", novel, null, 1, 1, null, false, false, .1, 12);
+        String id = body(post(owner, "/tasks", request)).path("id").asText();
+        assertEquals(12, body(get(owner, "/tasks/" + id)).path("request").path("dictionarySearchLimit").asInt());
+        post(owner, "/tasks/" + id + "/cancel", Map.of());
+        var legacy = Json.M.valueToTree(task(novel, UUID.randomUUID().toString(), .1));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) legacy).remove("dictionarySearchLimit");
+        assertEquals(6, Json.decode(legacy.toString(), TaskRequest.class).dictionarySearchLimit());
+    }
+
+    @Test
     void enforcesSessionsCsrfAndFreshRoleChecks() throws Exception {
         try (var anonymous = browser(); var reader = registered()) {
             assertEquals(200, get(anonymous, "/novels").statusCode());
@@ -262,7 +317,7 @@ class AccessIntegrationTest {
             assertEquals(400, post(admin, "/tasks", task(novel, key, 0)).statusCode());
             assertEquals(400, post(admin, "/tasks", task(novel, key, 1001)).statusCode());
             post(owner, "/accounts/" + account + "/role", Map.of("role", "READER"));
-            new TaskWorker(application.getBean(ReaderDatabase.class), (calls, settings) -> { throw new AssertionError("Demoted actor must not reach AI"); }).poll();
+            new TaskWorker(application.getBean(ReaderDatabase.class), (calls, settings, searchLimit) -> { throw new AssertionError("Demoted actor must not reach AI"); }).poll();
             try (var jdbc = jdbc()) {
                 assertEquals("failed", jdbc.rows("SELECT state FROM web_tasks WHERE id=?", id).getFirst().get("state"));
                 assertTrue(jdbc.rows("SELECT a.id FROM ai_calls a JOIN jobs j ON j.id=a.job_id WHERE j.novel_id=?", novel).isEmpty());
@@ -307,10 +362,11 @@ class AccessIntegrationTest {
             var original = db.chapters().chapter(novel, 1);
             db.chapters().save(novel, new Chapter(2, "url", original.title(), original.blocks(), ""));
         }
-        var request = new TaskRequest(UUID.randomUUID().toString(), "translate", novel, null, 1, 2, null, true, false, .1);
+        var request = new TaskRequest(UUID.randomUUID().toString(), "translate", novel, null, 1, 2, null, true, false, .1, 9);
         String task = body(post(owner, "/tasks", request)).path("id").asText();
         var budgets = new java.util.ArrayList<Double>();
-        new TaskWorker(application.getBean(ReaderDatabase.class), (calls, settings) -> (work, index, stage, glossary, payload, budget) -> {
+        new TaskWorker(application.getBean(ReaderDatabase.class), (calls, settings, searchLimit) -> (work, index, stage, glossary, payload, budget) -> {
+            assertEquals(9, searchLimit);
             budgets.add(budget);
             calls.start(new panrid.space.novelka.core.model.AiCall(UUID.randomUUID().toString(), work.id(), stage, index,
                     "fake", "test", glossary.revision(), "{}", .01, "complete"));

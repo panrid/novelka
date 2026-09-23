@@ -6,5 +6,5 @@ import panrid.space.novelka.server.settings.SiteSettings;
 
 @FunctionalInterface
 public interface TaskAiFactory {
-    AiClient create(AiCallRepository calls, SiteSettings settings);
+    AiClient create(AiCallRepository calls, SiteSettings settings, int dictionarySearchLimit);
 }

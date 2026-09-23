@@ -23,6 +23,14 @@ export interface Glossary {
     entries: Entry[];
 }
 
+export interface GlossaryProposal {
+    id: number;
+    proposal: unknown;
+    status: 'pending' | 'dismissed' | 'in_dictionary';
+    occurrences: number;
+    canonicalKey?: string;
+}
+
 const empty: Entry = {
     key: '', kind: 'character', japanese: '', reading: '', ukrainian: '', aliases: [], gender: 'unknown',
     facts: '', certainty: 'unknown', sourceChapter: 1, manual: true,
@@ -45,10 +53,12 @@ function suggestedEntry(value: unknown) {
 export function GlossaryEditor({ novel, glossary, proposals, refresh }: {
     novel: string;
     glossary: Glossary;
-    proposals: { id: number; proposal: unknown }[];
+    proposals: GlossaryProposal[];
     refresh: () => void;
 }) {
     const [query, setQuery] = useState('');
+    const [showHistory, setShowHistory] = useState(false);
+    const pending = proposals.filter(item => item.status === 'pending');
     const [entry, setEntry] = useState<Entry>({ ...empty });
     const action = useAction();
     const normalizedQuery = query.trim().toLocaleLowerCase('uk');
@@ -98,12 +108,23 @@ export function GlossaryEditor({ novel, glossary, proposals, refresh }: {
                 <button className="button" disabled={action.busy}>Зберегти запис</button><ActionNotice {...action} />
             </form>
         </div>
-        <details className="suggestion-list"><summary>Пропозиції ШІ ({proposals.length})</summary><p>Пропозиції не змінюють словник автоматично. Відкрийте потрібну у формі, перевірте дані та збережіть її вручну.</p>
-            {proposals.map(item => {
+        <details className="suggestion-list"><summary>Пропозиції ШІ: на перевірку {pending.length}</summary>
+            <p>Однакові пропозиції об’єднано. Записи, що вже відповідають словнику, та відхилені пропозиції доступні в історії. Всього збережено записів: {proposals.reduce((sum, item) => sum + item.occurrences, 0)}.</p>
+            <p>Коректні нові імена й терміни додаються автоматично. Для вже відомого персонажа або терміна пропозиція не перезаписує наявні дані. За потреби відкрийте її у формі, перевірте й збережіть вручну. Історія після цього залишається.</p>
+            <div className="tab-bar"><button type="button" aria-pressed={!showHistory} onClick={() => setShowHistory(false)}>На перевірку ({pending.length})</button>
+                <button type="button" aria-pressed={showHistory} onClick={() => setShowHistory(true)}>Уся історія ({proposals.length})</button></div>
+            {(showHistory ? proposals : pending).map(item => {
                 const suggested = suggestedEntry(item.proposal);
-                return <article className="suggestion-card" key={item.id}>{suggested ? <><strong>{suggested.japanese} → {suggested.ukrainian || 'без перекладу'}</strong><span>{kindLabel(suggested.kind)}</span><button type="button" onClick={() => setEntry(suggested)}>Відкрити у формі</button></> : <><strong>Пропозиція з помилкою</strong><p className="muted">ШІ повернув дані, які не можна безпечно додати до словника.</p><details><summary>Технічні дані</summary><pre>{JSON.stringify(item.proposal, null, 2)}</pre></details></>}</article>;
+                return <article className="suggestion-card" key={item.id}>
+                    <span className="badge">{{ pending: 'На перевірку', dismissed: 'Відхилено', in_dictionary: 'Уже у словнику' }[item.status]}{item.occurrences > 1 && ` · ${item.occurrences} повтори`}</span>
+                    {suggested ? <><strong>{suggested.japanese} → {suggested.ukrainian || 'без перекладу'}</strong><span>{kindLabel(suggested.kind)} · глава {suggested.sourceChapter}</span>
+                        {item.status === 'pending' && <button type="button" onClick={() => setEntry({ ...suggested, key: item.canonicalKey ?? suggested.key })}>Відкрити у формі</button>}</> : <><strong>Пропозиція з помилкою</strong><p className="muted">ШІ повернув дані, які не можна безпечно додати до словника.</p><details><summary>Технічні дані</summary><pre>{JSON.stringify(item.proposal, null, 2)}</pre></details></>}
+                    {item.status === 'pending' && <button type="button" disabled={action.busy} onClick={() => { void action.run(async () => {
+                        await mutate('/manage/' + encodeURIComponent(novel) + '/proposals/' + item.id + '/dismiss'); refresh();
+                    }, 'Пропозицію та її однакові повтори відхилено. Словник не змінено.'); }}>Відхилити</button>}
+                </article>;
             })}
-            {!proposals.length && <p className="muted">Поки немає нових пропозицій.</p>}
+            {!(showHistory ? proposals : pending).length && <p className="muted">{showHistory ? 'Історія поки порожня.' : 'Немає пропозицій на перевірку.'}</p>}
         </details>
     </div>;
 }

@@ -19,6 +19,7 @@ import panrid.space.novelka.server.dto.GlossaryUpdate;
 import panrid.space.novelka.server.dto.MetadataRequest;
 import panrid.space.novelka.server.dto.TextImportRequest;
 import panrid.space.novelka.server.repository.AuditRepository;
+import panrid.space.novelka.server.service.GlossaryProposalService;
 
 import java.nio.file.Files;
 import java.security.Principal;
@@ -37,11 +38,11 @@ public final class ManagementController {
     @GetMapping("/{novel}")
     public Object detail(Principal principal, @PathVariable String novel) throws Exception {
         access.require(principal, Role.ADMIN);
-        try (var db = database.openDatabase()) {
+        try (var db = database.openDatabase(); var jdbc = database.open()) {
             String id = db.novels().resolveNovel(novel);
             return Json.M.convertValue(Map.of("novel", db.novels().novel(id), "aliases", db.novels().aliases(id),
                     "chapters", db.chapters().list(id), "jobs", db.jobs().status(id),
-                    "glossary", db.glossaries().glossary(id), "proposals", db.glossaries().proposals(id)), Object.class);
+                    "glossary", db.glossaries().glossary(id), "proposals", new GlossaryProposalService(jdbc).list(id)), Object.class);
         }
     }
 
@@ -52,6 +53,20 @@ public final class ManagementController {
         try (var db = database.openDatabase()) {
             return Json.M.convertValue(db.calls().costs(novel == null || novel.isBlank() ? null : db.novels().resolveNovel(novel), details), Object.class);
         }
+    }
+
+    @PostMapping("/{novel}/proposals/{proposal}/dismiss")
+    public Map<String, String> dismissProposal(Principal principal, @PathVariable String novel, @PathVariable long proposal) throws Exception {
+        var actor = access.require(principal, Role.ADMIN);
+        try (var jdbc = database.open()) {
+            String id = new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
+            jdbc.transaction(() -> {
+                new GlossaryProposalService(jdbc).dismiss(id, proposal);
+                new AuditRepository(jdbc).add(actor.id(), "glossary.proposal.dismiss", id, Map.of("proposal", proposal));
+                return null;
+            });
+        }
+        return Map.of("message", "Пропозицію та її однакові повтори відхилено.");
     }
 
     @PostMapping("/{novel}/title")

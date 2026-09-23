@@ -65,7 +65,7 @@ test('owner launches budgeted translation and sees persisted queue', async ({ pa
     const tasks: object[] = [];
     await page.route('**/api/tasks**', route => {
         if (route.request().method() === 'POST') {
-            expect(route.request().postDataJSON()).toMatchObject({ operation: 'translate', novelId: novel.id, first: 1, last: 10, budgetUsd: .5 });
+            expect(route.request().postDataJSON()).toMatchObject({ operation: 'translate', novelId: novel.id, first: 1, last: 10, budgetUsd: .5, dictionarySearchLimit: 12 });
             tasks.push({ id: 'task1', novel_id: novel.id, operation: 'translate', state: 'queued', spent_usd: 0, username: owner.username });
             return route.fulfill({ json: { id: 'task1' } });
         }
@@ -76,6 +76,10 @@ test('owner launches budgeted translation and sees persisted queue', async ({ pa
     await page.getByRole('option', { name: 'Водяний маг · n0022gd', exact: true }).click();
     await page.getByLabel('Остання глава').fill('10');
     await page.getByLabel('Додатковий бюджет').fill('.5');
+    await expect(page.getByRole('button', { name: 'Додати в чергу' })).toBeDisabled();
+    await page.getByLabel('Дозволяю платні запити').check();
+    await page.getByText('Додаткові опції словника', { exact: true }).click();
+    await page.getByLabel('Ліміт звернень до словника', { exact: true }).fill('12');
     await expect(page.getByRole('button', { name: 'Додати в чергу' })).toBeDisabled();
     await page.getByLabel('Дозволяю платні запити').check();
     await page.getByRole('button', { name: 'Додати в чергу' }).click();
@@ -104,9 +108,9 @@ test('owner edits reader metadata and sees an explained legacy task failure', as
         } });
     });
     await page.goto('/#/manage');
-    await expect(page.getByText('ШІ потребує уточнення словника')).toBeVisible();
+    await expect(page.getByText('Попередній запуск зупинився на ліміті пошуків')).toBeVisible();
     await page.getByRole('article', { name: 'Переклад n0022gd' }).getByText('Подробиці').click();
-    await expect(page.getByText('до 6 пошуків у словнику')).toBeVisible();
+    await expect(page.getByText('Раніше запит понад 6 пошуків у словнику', { exact: false })).toBeVisible();
     await page.getByRole('combobox', { name: 'Новела', exact: true }).click();
     await page.getByRole('option', { name: 'Водяний маг · n0022gd', exact: true }).click();
     await page.getByRole('button', { name: 'Дані новели', exact: true }).click();

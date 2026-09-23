@@ -72,7 +72,7 @@ public final class TaskWorker {
                 }
                 return;
             }
-            var ai = factory.create(db.calls(), settings);
+            var ai = factory.create(db.calls(), settings, request.dictionarySearchLimit());
             var pipeline = new Pipeline(db, (job, segment, stage, glossary, payload, budget) -> {
                 check(queue, task, actor);
                 return ai.generate(job, segment, stage, glossary, payload, budget);

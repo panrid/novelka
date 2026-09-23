@@ -4,4 +4,5 @@ export interface TaskPreset {
     chapter: number;
     jobId?: string;
     force?: boolean;
+    dictionarySearchLimit?: number;
 }

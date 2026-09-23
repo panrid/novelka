@@ -20,6 +20,7 @@ import java.util.*;
 import static panrid.space.novelka.core.support.Hashes.hash;
 
 public final class OpenRouter implements AiClient {
+    private int dictionarySearchLimit = 6;
     private final AiCallRepository calls;
     private final HttpClient http;
     private final URI endpoint;
@@ -41,6 +42,21 @@ public final class OpenRouter implements AiClient {
 
     public OpenRouter(AiCallRepository calls, String key, String model, URI endpoint) {
         this(calls, key, model, endpoint, "NOVELKA_");
+    }
+
+    public OpenRouter(AiCallRepository calls, String key, String model, URI endpoint, int dictionarySearchLimit) {
+        this(calls, key, model, endpoint);
+        this.dictionarySearchLimit = checkedSearchLimit(dictionarySearchLimit);
+    }
+
+    public OpenRouter(AiCallRepository calls, String key, String model, double inputRate, double outputRate, int dictionarySearchLimit) {
+        this(calls, key, model, inputRate, outputRate);
+        this.dictionarySearchLimit = checkedSearchLimit(dictionarySearchLimit);
+    }
+
+    private static int checkedSearchLimit(int limit) {
+        if (limit < 0 || limit > 30) throw new IllegalArgumentException("Ліміт звернень до словника: від 0 до 30.");
+        return limit;
     }
 
     private OpenRouter(AiCallRepository calls, String key, String model, URI endpoint, String ratePrefix) {
@@ -116,20 +132,28 @@ public final class OpenRouter implements AiClient {
                                 "name",
                                 "dictionary_search",
                                 "description",
-                                "Search novel dictionary by name, alias, term or relationship. Returns bounded"
-                                        + " records; empty result means unknown.",
+                                "Search the novel dictionary for ALL missing names, aliases, terms or relationships in one batch. "
+                                        + "Use queries with up to 20 terms. Results are bounded and grouped by query; do not repeat searches already answered.",
                                 "parameters",
                                 Map.of(
                                         "type",
                                         "object",
                                         "properties",
-                                        Map.of("query", Map.of("type", "string")),
+                                        Map.of("queries", Map.of("type", "array", "items", Map.of("type", "string", "maxLength", 200),
+                                                "minItems", 1, "maxItems", 20)),
                                         "required",
-                                        List.of("query"),
+                                        List.of("queries"),
                                         "additionalProperties",
                                         false)));
         int toolUses = 0;
-        for (int round = 0; round < 4; round++) {
+        for (int round = 0; round <= dictionarySearchLimit; round++) {
+            boolean finishWithoutTools = toolUses >= dictionarySearchLimit;
+            if (finishWithoutTools) {
+                messages.add(Map.of("role", "system", "content",
+                        "Dictionary lookup is finished. Return the final JSON now using the source and context already provided. "
+                                + "Do not request more tools or invent missing facts. Preserve uncertainty, especially gender. "
+                                + "A search_limit result means the query was not executed, not that the entry is absent."));
+            }
             var request = new LinkedHashMap<String, Object>();
             request.put("model", model);
             request.put("messages", messages);
@@ -139,7 +163,7 @@ public final class OpenRouter implements AiClient {
             request.put("provider", Map.of("require_parameters", true));
             if (!glossary.entries().isEmpty()) {
                 request.put("tools", List.of(tool));
-                request.put("tool_choice", round == 3 ? "none" : "auto");
+                request.put("tool_choice", finishWithoutTools ? "none" : "auto");
             }
             String snapshot =
                     Json.write(Map.of("request", request, "glossaryRevision", glossary.revision()));
@@ -149,17 +173,24 @@ public final class OpenRouter implements AiClient {
             var message = choice.path("message");
             var calls = message.path("tool_calls");
             if (calls.isArray() && !calls.isEmpty()) {
-                if (round == 3 || toolUses + calls.size() > 6)
+                if (finishWithoutTools)
                     throw new IllegalStateException(
-                            "ШІ перевищив ліміт пошуків у словнику: на один етап доступно до 6 пошуків. "
-                                    + "Завершені частини перекладу збережено. Уточніть імена або терміни у словнику "
-                                    + "та відновіть переклад за ID job.");
+                            "Модель запросила пошук у словнику навіть після вимкнення інструментів (tool_choice=none). "
+                                    + "Збережений прогрес не втрачено. Виберіть іншу модель для цього етапу в налаштуваннях "
+                                    + "і відновіть завдання. Доповнювати словник через цю помилку не потрібно.");
                 messages.add(Json.M.convertValue(message, Object.class));
                 for (var tc : calls) {
                     if (!tc.path("function").path("name").asText().equals("dictionary_search"))
                         throw new IllegalStateException("ШІ запросив непідтримуваний інструмент. Спробуйте відновити переклад пізніше.");
-                    String query =
-                            Json.read(tc.path("function").path("arguments").asText()).path("query").asText();
+                    Object result;
+                    if (toolUses < dictionarySearchLimit) {
+                        result = searchDictionary(glossary, tc.path("function").path("arguments").asText());
+                        toolUses++;
+                    } else {
+                        // Every requested tool call needs a reply, including calls beyond our local budget.
+                        result = Map.of("status", "search_limit", "message",
+                                "Query not executed. Use the dictionary and source already provided; preserve unknown facts.");
+                    }
                     messages.add(
                             Map.of(
                                     "role",
@@ -167,8 +198,7 @@ public final class OpenRouter implements AiClient {
                                     "tool_call_id",
                                     tc.path("id").asText(),
                                     "content",
-                                    Json.write(Dictionary.search(glossary, query, 1500))));
-                    toolUses++;
+                                    Json.write(result)));
                 }
             } else {
                 if (!"stop".equals(choice.path("finish_reason").asText()))
@@ -179,8 +209,45 @@ public final class OpenRouter implements AiClient {
             }
         }
         throw new IllegalStateException(
-                "ШІ не зміг завершити відповідь після чотирьох раундів уточнення словника. "
-                        + "Доповніть словник потрібними іменами або термінами та відновіть переклад за ID job.");
+                "ШІ не завершив відповідь у межах налаштованих звернень до словника. Відновіть завдання або змініть модель.");
+    }
+
+    private Object searchDictionary(Glossary glossary, String arguments) {
+        try {
+            var input = Json.read(arguments);
+            // Accept legacy single-query responses as well as the current batch contract.
+            if (input.path("query").isTextual() && !input.has("queries"))
+                return Dictionary.search(glossary, input.path("query").asText(), 1500);
+            var queries = input.path("queries");
+            if (!queries.isArray() || queries.isEmpty() || queries.size() > 20)
+                return Map.of("status", "invalid_queries", "message", "Provide 1–20 queries in a single array.");
+            var terms = new LinkedHashSet<String>();
+            for (var query : queries) {
+                if (!query.isTextual() || query.asText().isBlank() || query.asText().length() > 200)
+                    return Map.of("status", "invalid_queries", "message", "Each query must be a nonempty string of at most 200 characters.");
+                terms.add(query.asText().strip());
+            }
+            var results = new LinkedHashMap<String, Object>();
+            var entries = new LinkedHashMap<String, Object>();
+            int tokens = 0;
+            for (String query : terms) {
+                var keys = new ArrayList<String>();
+                for (var entry : Dictionary.search(glossary, query, 1500)) {
+                    int size = panrid.space.novelka.core.support.Tokens.count(Json.write(entry));
+                    if (!entries.containsKey(entry.key())) {
+                        if (tokens + size > 1500) continue;
+                        entries.put(entry.key(), entry);
+                        tokens += size;
+                    }
+                    keys.add(entry.key());
+                }
+                results.put(query, keys);
+            }
+            return Map.of("matches", results, "entries", entries, "note",
+                    "Matches reference entries by key. Shared context is bounded; empty matches do not prove an entity is absent. Preserve unknown facts.");
+        } catch (IllegalArgumentException error) {
+            return Map.of("status", "invalid_queries", "message", "Provide a JSON object with a queries array.");
+        }
     }
 
     static Object responseFormat(String stage, Object payload) {

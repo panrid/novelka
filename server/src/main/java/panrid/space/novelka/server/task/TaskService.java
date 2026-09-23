@@ -25,6 +25,8 @@ public final class TaskService {
                 || request.operation() == null || !Set.of("import", "translate", "proofread", "resume").contains(request.operation()))
             throw new IllegalArgumentException("Невідома операція або ключ запиту.");
         var snapshot = settings.read();
+        if (request.dictionarySearchLimit() < 0 || request.dictionarySearchLimit() > 30)
+            throw new IllegalArgumentException("Ліміт звернень до словника: від 0 до 30.");
         if (!request.operation().equals("import") && (!Double.isFinite(request.budgetUsd())
                 || request.budgetUsd() <= 0 || request.budgetUsd() > snapshot.maxBudgetUsd()))
             throw new IllegalArgumentException("Вкажіть додатний бюджет до $" + snapshot.maxBudgetUsd() + ".");
@@ -44,7 +46,7 @@ public final class TaskService {
                     throw new IllegalArgumentException("Діапазон перевищує кількість глав.");
             }
             var normalized = new TaskRequest(request.requestKey(), request.operation(), id, request.url(), request.first(),
-                    request.last(), request.jobId(), request.force(), request.retryUncertain(), request.budgetUsd());
+                    request.last(), request.jobId(), request.force(), request.retryUncertain(), request.budgetUsd(), request.dictionarySearchLimit());
             return jdbc.transaction(() -> {
                 String task = new TaskRepository(jdbc).enqueue(actor.id(), normalized, snapshot);
                 new AuditRepository(jdbc).add(actor.id(), "task.enqueue", task, Map.of("operation", request.operation(), "budget", request.budgetUsd()));
