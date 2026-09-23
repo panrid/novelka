@@ -56,7 +56,7 @@ export function App() {
                 {permits(auth.user, 'ADMIN') && <><a className="nav-link" href="#/manage">Майстерня</a><a className="nav-link" href="#/accounts">Користувачі</a></>}
                 {permits(auth.user, 'OWNER') && <a className="nav-link" href="#/settings">Налаштування</a>}
             </nav>
-            <div className="session-controls"><ThemePicker />
+            <div className="session-controls"><ThemePicker compact />
                 {auth.user ? <><NotificationBell key={auth.user.id + ':' + auth.user.role} /><span>{auth.user.username} · {roleNames[auth.user.role]}</span><button disabled={action.busy} onClick={() => { void action.run(auth.logout, 'Ви вийшли.'); }}>Вийти</button></> : <a className="nav-link" href="#/login">Увійти</a>}
             </div>
         </header>
