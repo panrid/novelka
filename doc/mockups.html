@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Новелка — макети</title>
+<style>
+:root {
+  --bg: #121412; --surface: #1b1e1b; --surface-2: #242824; --line: #2f342f;
+  --text: #e9e7df; --muted: #9a9d94; --faint: #6d7069;
+  --accent: #8fb07f; --accent-ink: #10150e; --warn: #d9a45b; --danger: #d9776b;
+  --add: rgba(143,176,127,.22); --del: rgba(217,119,107,.22);
+  --page: #0b0c0b; --page-text: #c9c8c0;
+  --serif: "Literata", Georgia, "Times New Roman", serif;
+  --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--page); color: var(--page-text); font: 15px/1.5 var(--sans); padding: 32px 16px 64px; }
+.intro { max-width: 900px; margin: 0 auto 32px; }
+.intro h1 { font: 600 28px/1.2 var(--serif); color: var(--text); margin-bottom: 8px; }
+.intro p { color: var(--muted); max-width: 680px; }
+.grid { display: flex; flex-wrap: wrap; gap: 40px 32px; justify-content: center; }
+figure { width: 360px; max-width: 100%; }
+figcaption { margin-top: 12px; font-size: 13.5px; color: var(--muted); }
+figcaption b { display: block; color: var(--text); font-size: 15px; margin-bottom: 4px; }
+figcaption ul { padding-left: 18px; }
+
+/* phone */
+.phone { position: relative; height: 740px; border-radius: 28px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--text); overflow: hidden; display: flex; flex-direction: column; }
+.status { height: 28px; flex: none; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; padding: 6px 20px 0; }
+.screen { flex: 1; overflow: hidden; position: relative; }
+.pad { padding: 0 16px; }
+.top { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; flex: none; }
+.top h2 { font: 600 17px/1 var(--sans); flex: 1; }
+.top .ic { color: var(--muted); font-size: 18px; }
+.logo { font: 700 19px/1 var(--serif); flex: 1; }
+.logo i { color: var(--accent); font-style: normal; }
+.tabbar { flex: none; height: 60px; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(5,1fr);
+  font-size: 10.5px; color: var(--faint); text-align: center; padding-top: 8px; background: var(--bg); }
+.tabbar span::before { content: attr(data-i); display: block; font-size: 18px; line-height: 22px; }
+.tabbar .on { color: var(--text); }
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); vertical-align: top; }
+
+h3 { font: 600 15px/1.2 var(--sans); display: flex; justify-content: space-between; align-items: baseline; margin: 18px 0 10px; }
+h3 small { font-weight: 400; font-size: 12.5px; color: var(--muted); }
+.muted { color: var(--muted); } .faint { color: var(--faint); } .sm { font-size: 12.5px; } .xs { font-size: 11px; }
+.row { display: flex; gap: 10px; align-items: center; }
+.between { justify-content: space-between; }
+
+.cover { flex: none; border-radius: 6px; aspect-ratio: 2/3; position: relative; overflow: hidden;
+  display: flex; align-items: flex-end; padding: 6px; font: 600 11px/1.15 var(--serif); color: #fff;
+  background: linear-gradient(160deg, var(--c1, #3c5a73), var(--c2, #1d2b38)); }
+.cover::after { content: ""; position: absolute; right: -20%; top: 12%; width: 55%; aspect-ratio: 1; border-radius: 50%; background: rgba(255,255,255,.18); }
+.c2 { --c1: #7a4b5c; --c2: #2d1a22; } .c3 { --c1: #5c6e3c; --c2: #1f2915; } .c4 { --c1: #8a6a3a; --c2: #2e2213; } .c5 { --c1: #4b4d7a; --c2: #1a1b2f; }
+.shelf { display: flex; gap: 10px; overflow: hidden; }
+.shelf > div { width: 96px; flex: none; }
+.shelf .cover { width: 96px; }
+.shelf p { font-size: 12.5px; line-height: 1.25; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.continue { display: flex; gap: 12px; background: var(--surface); border-radius: 12px; padding: 10px; align-items: center; }
+.continue .cover { width: 44px; }
+.bar { height: 3px; background: var(--line); border-radius: 2px; margin-top: 6px; } .bar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+
+.rel { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); align-items: center; }
+.rel .cover { width: 38px; }
+.rel b { font-weight: 500; font-size: 14px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rel > div:not(.cover) { min-width: 0; flex: 1; }
+
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 9px; border-radius: 99px; background: var(--surface-2); color: var(--text); white-space: nowrap; }
+.chip.ghost { background: none; border: 1px solid var(--line); color: var(--muted); }
+.chip.acc { background: var(--add); color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 46px; border-radius: 12px;
+  background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 15px; }
+.btn.sec { background: var(--surface-2); color: var(--text); font-weight: 500; }
+.btn.sm { height: 34px; font-size: 13.5px; border-radius: 9px; padding: 0 12px; }
+.btn.danger { background: var(--surface-2); color: var(--danger); }
+
+.card { background: var(--surface); border-radius: 12px; padding: 12px; }
+.field { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+.label { font-size: 12.5px; color: var(--muted); margin: 14px 0 6px; }
+.list > div { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.list > div:last-child { border: 0; }
+.list .v { color: var(--muted); font-size: 13px; }
+.seg { display: grid; grid-auto-flow: column; background: var(--surface); border-radius: 10px; padding: 3px; font-size: 13px; text-align: center; }
+.seg span { padding: 6px 0; border-radius: 8px; color: var(--muted); }
+.seg .on { background: var(--surface-2); color: var(--text); }
+
+.fab { position: absolute; right: 16px; bottom: 16px; height: 44px; padding: 0 16px; border-radius: 22px; background: var(--surface-2);
+  display: flex; align-items: center; gap: 6px; font-size: 13.5px; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+
+/* reader */
+.reader { font: 17px/1.75 var(--serif); color: #dcdad1; }
+.reader p { margin-bottom: 14px; }
+.reader h4 { font: 600 20px/1.3 var(--serif); margin: 8px 0 18px; }
+.overlay-top, .overlay-bottom { position: absolute; left: 0; right: 0; background: rgba(27,30,27,.97); backdrop-filter: blur(6px); }
+.overlay-top { top: 0; height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--line); }
+.overlay-bottom { bottom: 0; padding: 10px 16px 14px; border-top: 1px solid var(--line); }
+.sel { background: rgba(143,176,127,.35); border-radius: 2px; }
+.pop { position: absolute; background: var(--surface-2); border-radius: 10px; display: flex; font-size: 13px; box-shadow: 0 8px 22px rgba(0,0,0,.5); }
+.pop span { padding: 9px 12px; } .pop span + span { border-left: 1px solid var(--line); }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 18px 18px 0 0; padding: 10px 16px 16px; box-shadow: 0 -10px 30px rgba(0,0,0,.5); }
+.grab { width: 36px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 12px; }
+.mark { border-left: 3px solid var(--warn); padding-left: 10px; margin-left: -13px; }
+ins { text-decoration: none; background: var(--add); color: #cfe3c4; border-radius: 2px; }
+del { background: var(--del); color: #f0c2bb; border-radius: 2px; }
+
+.editor { font: 14.5px/1.65 var(--serif); color: #dcdad1; }
+.editor p { margin-bottom: 12px; }
+.imgblock { border: 1px dashed var(--line); border-radius: 10px; height: 110px; display: flex; align-items: center; justify-content: center; color: var(--muted); font: 13px var(--sans); margin-bottom: 12px;
+  background: linear-gradient(135deg, #2a3240, #1b2027); }
+.toolbar { position: absolute; left: 0; right: 0; bottom: 0; border-top: 1px solid var(--line); background: var(--surface); display: flex; gap: 4px; padding: 8px 10px; font-size: 13px; }
+.toolbar span { padding: 7px 10px; border-radius: 8px; background: var(--surface-2); }
+
+.stat { background: var(--surface); border-radius: 12px; padding: 12px; }
+.stat b { font-size: 20px; display: block; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.money { font: 600 34px/1 var(--sans); letter-spacing: -.5px; }
+.pos { color: var(--accent); } .neg { color: var(--text); }
+.av { width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 13px; flex: none; }
+.big-av { width: 64px; height: 64px; font-size: 26px; background: linear-gradient(135deg, #5c6e3c, #2d3a1c); }
+.pill-state { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: var(--surface-2); color: var(--muted); }
+.pill-state.ok { color: var(--accent); } .pill-state.run { color: var(--warn); }
+.range { position: relative; height: 26px; margin: 8px 0 2px; }
+.range::before { content: ""; position: absolute; left: 0; right: 0; top: 11px; height: 4px; border-radius: 2px; background: var(--line); }
+.range .done { position: absolute; left: 0; top: 11px; height: 4px; width: 30%; background: var(--faint); border-radius: 2px; }
+.range .new { position: absolute; left: 30%; top: 11px; height: 4px; width: 20%; background: var(--accent); }
+.range .knob { position: absolute; left: calc(50% - 11px); top: 2px; width: 22px; height: 22px; border-radius: 50%; background: var(--text); }
+.stepper { display: flex; align-items: center; justify-content: space-between; background: var(--surface); border-radius: 12px; padding: 6px; }
+.stepper span { width: 40px; height: 40px; border-radius: 9px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.stepper b { font-size: 26px; }
+.quote { border-radius: 12px; background: var(--surface); padding: 14px; }
+.quote .money { font-size: 28px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+td { padding: 7px 0; border-bottom: 1px solid var(--line); }
+td:last-child { text-align: right; }
+.section-title { max-width: 900px; margin: 48px auto 20px; font: 600 20px/1.2 var(--serif); color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>Новелка — макети ключових екранів</h1>
+  <p>Mobile-first, темна тема за замовчуванням. Показано структуру й щільність, а не остаточний візуальний стиль.
+     Тексти — чернетка. Карта сайту: <code>doc/sitemap.md</code>.</p>
+</div>
+
+<h2 class="section-title">Читач</h2>
+<div class="grid">
+
+<!-- 1. Головна -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><div class="logo">новелка<i>.</i></div><span class="ic">⌕</span></div>
+  <div class="screen pad">
+    <div class="continue">
+      <div class="cover c3"></div>
+      <div style="flex:1;min-width:0">
+        <div class="sm muted">Продовжити</div>
+        <b style="font-weight:500">Маг води</b>
+        <div class="sm muted">Глава 12 з 40 · 64%</div>
+        <div class="bar"><i style="width:64%"></i></div>
+      </div>
+      <span class="btn sm">▶</span>
+    </div>
+
+    <h3>Популярне <small>усе →</small></h3>
+    <div class="shelf">
+      <div><div class="cover">★ 4.8</div><p>Маг води</p></div>
+      <div><div class="cover c2">★ 4.6</div><p>Відьма з чайної крамниці</p></div>
+      <div><div class="cover c4">★ 4.5</div><p>Останній алхімік королівства</p></div>
+      <div><div class="cover c5">★ 4.4</div><p>Сто ночей</p></div>
+    </div>
+
+    <h3>Нові глави <small>усе →</small></h3>
+    <div class="rel"><div class="cover c2"></div><div><b>Відьма з чайної крамниці</b><span class="sm muted">Глава 31 · 2 год тому</span></div><span class="chip ghost">ШІ</span></div>
+    <div class="rel"><div class="cover"></div><div><b>Маг води</b><span class="sm muted">Глави 41–44 · 5 год тому</span></div><span class="chip ghost">ШІ</span></div>
+    <div class="rel"><div class="cover c4"></div><div><b>Останній алхімік королівства</b><span class="sm muted">Глава 8 · вчора · kitsune_team</span></div></div>
+    <div class="rel"><div class="cover c5"></div><div><b>Сто ночей</b><span class="sm muted">Глава 102 · вчора</span></div></div>
+  </div>
+  <div class="tabbar"><span class="on" data-i="⌂">Головна</span><span data-i="⌕">Пошук</span><span data-i="❏">Бібліотека</span><span data-i="✉">Вхідні <i class="dot"></i></span><span data-i="◯">Я</span></div>
+</div>
+<figcaption><b>1 · Головна</b>
+  <ul><li>Перший екран — одразу вибір: «Продовжити», «Популярне» стрічкою, «Нові глави».</li>
+  <li>Без героблоку й фільтрів. Пошук — значок угорі або вкладка «Пошук».</li>
+  <li>«ШІ» — позначка машинного перекладу (властивість перекладу, а не тег).</li></ul>
+</figcaption>
+</figure>
+
+<!-- 2. Новела -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><h2></h2><span class="ic">⋯</span></div>
+  <div class="screen pad">
+    <div class="row" style="align-items:flex-start;gap:14px">
+      <div class="cover" style="width:104px"></div>
+      <div style="min-width:0">
+        <div style="font:600 21px/1.2 var(--serif)">Маг води</div>
+        <div class="sm faint" style="margin:2px 0 8px">水属性の魔法使い</div>
+        <div class="chips" style="margin-bottom:6px"><span class="chip">✎ Тадаші Хісахо</span></div>
+        <div class="chips"><span class="chip acc">⚑ panrid</span><span class="chip ghost">ШІ</span></div>
+        <div class="sm muted" style="margin-top:8px">★ 4.8 · 44 гл. з 935 · триває</div>
+      </div>
+    </div>
+    <div class="row" style="margin:16px 0 0;gap:8px">
+      <div class="btn" style="flex:1">Продовжити · гл. 12</div>
+      <div class="btn sec" style="width:46px">❏</div>
+    </div>
+    <div class="chips" style="margin:14px 0 10px"><span class="chip ghost">фентезі</span><span class="chip ghost">перевтілення</span><span class="chip ghost">магія</span><span class="chip ghost">+3</span></div>
+    <p class="sm" style="color:#cfcdc5">Рьо дуже радів, що перевтілився у фантастичний світ під назвою «Фі», де, як він думав, зможе жити спокійним життям, навчаючись магії води… <span class="muted">ще</span></p>
+
+    <h3>Глави <small>від першої ↑↓</small></h3>
+    <div class="list">
+      <div><span>44 · Нічний ринок</span><span class="v">5 год</span></div>
+      <div><span>43 · Лист від майстра</span><span class="v">5 год</span></div>
+      <div><span>42 · Повернення</span><span class="v">5 год</span></div>
+      <div><span class="muted">12 · Спокійне життя ✓</span><span class="v">тут зупинились</span></div>
+    </div>
+  </div>
+  <div class="fab" style="bottom:76px">💬 36</div>
+  <div class="tabbar"><span data-i="⌂">Головна</span><span class="on" data-i="⌕">Пошук</span><span data-i="❏">Бібліотека</span><span data-i="✉">Вхідні</span><span data-i="◯">Я</span></div>
+</div>
+<figcaption><b>2 · Новела</b>
+  <ul><li>Обкладинка, назва, оригінальна назва, автор і команда чипами, одна велика кнопка — на першому екрані.</li>
+  <li>Опис згорнуто до трьох рядків. Номери глав — власні, без «0001» із джерела.</li>
+  <li>Обговорення — плаваюча кнопка. Для команди в меню «⋯»: «Керувати», «Перекласти далі».</li></ul>
+</figcaption>
+</figure>
+
+<!-- 3. Читалка -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="screen pad reader" style="padding-top:62px">
+    <h4>12. Спокійне життя</h4>
+    <p>«Це вперше, коли я бачу стелю».</p>
+    <p>Перше слово в новому житті… мабуть, одне з класичних висловлювань. Хоча й трохи інакше.</p>
+    <p>Дерев'яна підлога, на якій розстелено солому, а зверху лише один шматок тканини.</p>
+    <p>Сучасні японські стандарти, звичайно, вважають це бідним ліжком.</p>
+  </div>
+  <div class="overlay-top"><span>←</span><div style="flex:1;min-width:0"><div class="sm" style="font-family:var(--sans)">Маг води</div><div class="xs muted" style="font-family:var(--sans)">Глава 12 з 44</div></div><span class="muted">Аа</span><span class="muted">☰</span></div>
+  <div class="overlay-bottom">
+    <div class="row between xs muted" style="margin-bottom:6px"><span>64%</span><span>~6 хв до кінця глави</span></div>
+    <div class="bar" style="margin:0 0 12px"><i style="width:64%"></i></div>
+    <div class="row" style="gap:8px">
+      <div class="btn sec sm" style="flex:1">← 11</div>
+      <div class="btn sec sm" style="flex:1">💬 4</div>
+      <div class="btn sec sm" style="flex:1">✎</div>
+      <div class="btn sm" style="flex:1">13 →</div>
+    </div>
+  </div>
+</div>
+<figcaption><b>3 · Читалка — панель показана</b>
+  <ul><li>За замовчуванням лише текст. Дотик по центру показує панелі: зміст, розмір і тема («Аа»), прогрес, сусідні глави, коментарі.</li>
+  <li>Позиція читання синхронізується між пристроями.</li></ul>
+</figcaption>
+</figure>
+
+<!-- 4. Читалка: правка -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="screen pad reader" style="padding-top:14px">
+    <p>«Це вперше, коли я бачу стелю».</p>
+    <p>Перше слово в новому житті… мабуть, одне з класичних висловлювань.</p>
+    <p style="position:relative">Але це не була <span class="sel">розкішна ліжко</span> з балдахіном.</p>
+    <div class="pop" style="left:60px;top:188px"><span>✎ Виправити</span><span>⇄ Замінити всюди</span><span>❝</span></div>
+  </div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="row between"><b style="font-size:15px">Правка абзацу</b><span class="muted sm">глава 12</span></div>
+    <div class="field" style="margin-top:10px;font:15px/1.6 var(--serif)">Але це не було <ins>розкішне ліжко</ins> з балдахіном.</div>
+    <div class="sm muted" style="margin:8px 0 4px">Було: Але це не <del>була розкішна ліжко</del> з балдахіном.</div>
+    <div class="field muted sm" style="margin-top:8px">Пояснення (необов'язково)</div>
+    <div class="row" style="gap:8px;margin-top:12px">
+      <div class="btn sec" style="flex:1">Скасувати</div>
+      <div class="btn" style="flex:1.4">Надіслати</div>
+    </div>
+    <div class="xs faint" style="margin-top:8px;text-align:center">Правка йде редакторам одразу. Пакетів і «Надіслати правки» наприкінці більше немає.</div>
+  </div>
+</div>
+<figcaption><b>4 · Читалка — запропонувати правку</b>
+  <ul><li>Виділив → «Виправити» → шторка з абзацом і підсвіченою різницею.</li>
+  <li>«Замінити всюди» — та сама шторка з лічильником входжень у главі чи в усьому перекладі.</li>
+  <li>Відкрите питання 7 у plan.md: чи лишати пакети правок.</li></ul>
+</figcaption>
+</figure>
+
+<!-- 5. Читалка: перевірка -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">✕</span><h2 style="font-size:15px">Перевірка · 3 правки в главі</h2><span class="ic sm">1/3 ↓</span></div>
+  <div class="screen pad reader" style="font-size:16px">
+    <p>Перше слово в новому житті… мабуть, одне з класичних висловлювань.</p>
+    <div class="mark">
+      <p style="margin-bottom:8px">Але це не <del>була розкішна ліжко</del> <ins>було розкішне ліжко</ins> з балдахіном.</p>
+      <div class="row sm" style="font-family:var(--sans);gap:8px;margin-bottom:6px"><span class="av" style="width:22px;height:22px;font-size:11px">m</span><span class="muted">mika · «рід слова»</span></div>
+      <div class="row" style="gap:6px;margin-bottom:16px;font-family:var(--sans)">
+        <span class="btn sm">✓ Прийняти</span><span class="btn sec sm">Змінити</span><span class="btn danger sm">✕</span>
+      </div>
+    </div>
+    <p>Звичайно, класика важлива.</p>
+    <div class="mark"><p>Сучасні японські стандарти, звичайно, вважають це <del>бідним</del> <ins>убогим</ins> ліжком.</p></div>
+    <p>Дерев'яна підлога, на якій розстелено солому…</p>
+  </div>
+  <div class="overlay-bottom" style="position:static"><div class="row" style="gap:8px"><div class="btn sec sm" style="flex:1">← Попередня</div><div class="btn sm" style="flex:1.3">Прийняти всі (3)</div></div></div>
+</div>
+<figcaption><b>5 · Читалка — перевірка правок редактором</b>
+  <ul><li>Перевірка — у тому самому тексті, з контекстом сусідніх абзаців. Окремої таблиці-черги немає.</li>
+  <li>Прийняті правки дають одну нову ревізію глави з авторством кожної правки.</li>
+  <li>Черга в Студії — лише список глав із лічильниками, клік веде сюди.</li></ul>
+</figcaption>
+</figure>
+
+</div>
+
+<h2 class="section-title">Перекладач і команда</h2>
+<div class="grid">
+
+<!-- 6. Запуск перекладу -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><h2>Автопереклад</h2></div>
+  <div class="screen pad">
+    <div class="seg"><span class="on">Посилання</span><span>Моя новела</span></div>
+    <div class="field" style="margin-top:12px">ncode.syosetu.com/n0022gd/</div>
+    <div class="card row" style="margin-top:10px;gap:12px">
+      <div class="cover" style="width:40px"></div>
+      <div style="flex:1;min-width:0"><b style="font-weight:500">水属性の魔法使い</b><div class="sm muted">935 глав в оригіналі · ваш переклад: 1–44</div></div>
+    </div>
+
+    <div class="label">Перекласти до глави</div>
+    <div class="stepper"><span>−</span><div style="text-align:center"><b>50</b><div class="xs muted">глави 45–50 · 6 нових</div></div><span>+</span></div>
+    <div class="range"><div class="done"></div><div class="new"></div><div class="knob"></div></div>
+    <div class="row between xs faint"><span>1</span><span>44 готові</span><span>935</span></div>
+
+    <div class="quote" style="margin-top:16px">
+      <div class="row between"><span class="muted sm">Вартість</span><span class="xs faint">≈ 6,3 ₴ за главу</span></div>
+      <div class="row between" style="align-items:baseline;margin-top:4px"><span class="money">≈ 38 ₴</span><span class="sm muted">не більше 45 ₴</span></div>
+      <table style="margin-top:10px">
+        <tr><td class="muted">Бюджет команди panrid</td><td>12 ₴</td></tr>
+        <tr><td class="muted">Докласти з вашого балансу</td><td>33 ₴</td></tr>
+      </table>
+    </div>
+    <div class="btn" style="margin-top:14px">Запустити за ≈ 38 ₴</div>
+    <div class="xs faint" style="text-align:center;margin-top:8px">Списується фактична вартість, решта повертається. Скасувати можна будь-коли.</div>
+  </div>
+</div>
+<figcaption><b>6 · Запуск автоперекладу</b>
+  <ul><li>Одне питання: «до якої глави». Перекладається з першої неперекладеної. Готові глави не чіпаються.</li>
+  <li>Ціна в гривнях — до запуску. Якщо бюджету команди бракує, власник докладає різницю тут же.</li>
+  <li>Модель, словник і вичитка — налаштування перекладу в Студії, не в цій формі.</li></ul>
+</figcaption>
+</figure>
+
+<!-- 7. Редактор -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><div style="flex:1;min-width:0"><b style="font-size:15px">Глава 12</b><div class="xs muted">чернетка · збережено щойно</div></div><span class="btn sm">Опублікувати</span></div>
+  <div class="screen pad editor" style="padding-top:4px">
+    <div class="field" style="font:600 16px var(--serif);margin-bottom:12px">Спокійне життя</div>
+    <p>«Це вперше, коли я бачу стелю».</p>
+    <p>Перше слово в новому житті… мабуть, одне з класичних висловлювань. Хоча й трохи інакше.</p>
+    <p>Але це не було розкішне ліжко з балдахіном.<span style="border-right:2px solid var(--accent)"></span></p>
+    <div class="imgblock">🖼 Ілюстрація · «Рьо прокидається в хатині»</div>
+    <p>Дерев'яна підлога, на якій розстелено солому, а зверху лише один шматок тканини.</p>
+    <p>Сучасні японські стандарти, звичайно, вважають це убогим ліжком.</p>
+  </div>
+  <div class="toolbar"><span>↶</span><span>Оригінал</span><span>Зміни · 3</span><span>🖼 +</span><span>⋯</span></div>
+</div>
+<figcaption><b>7 · Повний редактор глави</b>
+  <ul><li>Глава редагується як один текст. Абзаци розділяються порожнім рядком, автозбереження — чернетка.</li>
+  <li>«Оригінал» показує японський абзац поруч із поточним (на desktop — дві колонки).</li>
+  <li>«Зміни» — diff із опублікованою ревізією. «🖼 +» — завантажити або згенерувати картинку за виділеним фрагментом (лише перекладачі).</li></ul>
+</figcaption>
+</figure>
+
+<!-- 8. Студія: огляд перекладу -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><h2>Маг води</h2><span class="ic">↗</span></div>
+  <div class="screen pad">
+    <div class="card">
+      <div class="row between"><span class="sm">Переклад глав 45–50</span><span class="pill-state run">триває</span></div>
+      <div class="bar" style="margin:10px 0 6px"><i style="width:45%"></i></div>
+      <div class="row between xs muted"><span>глава 47 · вичитка</span><span>витрачено 17 ₴ з 45</span></div>
+    </div>
+    <div class="stats" style="margin-top:10px">
+      <div class="stat"><b>44 / 935</b><span class="sm muted">глав опубліковано</span></div>
+      <div class="stat"><b>7</b><span class="sm muted">правок чекають</span></div>
+    </div>
+    <div class="list" style="margin-top:8px">
+      <div><span>↻ Автопереклад</span><span class="v">›</span></div>
+      <div><span>☰ Глави</span><span class="v">44 ›</span></div>
+      <div><span>✎ Правки на перевірку</span><span class="v"><span class="chip acc">7</span> ›</span></div>
+      <div><span>Аあ Словник</span><span class="v">212 ›</span></div>
+      <div><span>ⓘ Дані перекладу</span><span class="v">›</span></div>
+      <div><span>⚑ Команда panrid</span><span class="v">3 людини ›</span></div>
+      <div><span>₴ Бюджет команди</span><span class="v">12 ₴ ›</span></div>
+    </div>
+  </div>
+  <div class="tabbar"><span data-i="⌂">Головна</span><span data-i="⌕">Пошук</span><span data-i="❏">Бібліотека</span><span data-i="✉">Вхідні</span><span class="on" data-i="◯">Я</span></div>
+</div>
+<figcaption><b>8 · Студія: переклад</b>
+  <ul><li>Один рівень: огляд і список розділів замість вкладок у вкладках.</li>
+  <li>Поточний автопереклад і прогрес видно одразу, оновлення — через SSE.</li>
+  <li>Сюди веде «Керувати» зі сторінки новели і «Я → Студія».</li></ul>
+</figcaption>
+</figure>
+
+<!-- 9. Команда -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><h2>Команда</h2></div>
+  <div class="screen pad">
+    <div class="label" style="margin-top:4px">Назва (якщо порожньо — ваш нік)</div>
+    <div class="field">panrid</div>
+    <h3>Учасники <small>+ Додати</small></h3>
+    <div class="list">
+      <div><span class="row"><span class="av">p</span>panrid</span><span class="v">власник</span></div>
+      <div><span class="row"><span class="av">m</span>mika</span><span class="v">перекладач ▾</span></div>
+      <div><span class="row"><span class="av">o</span>oleh_k</span><span class="v">редактор ▾</span></div>
+    </div>
+    <h3>Хто редагує</h3>
+    <div class="seg"><span class="on">Лише вибрані</span><span>Усі користувачі</span></div>
+    <h3>Внесок <small>30 днів</small></h3>
+    <table>
+      <tr><td>mika</td><td class="muted">42 правки · 11 глав</td></tr>
+      <tr><td>oleh_k</td><td class="muted">17 правок · 6 глав</td></tr>
+      <tr><td>читачі</td><td class="muted">23 прийняті правки</td></tr>
+    </table>
+    <h3>Бюджет <small>історія →</small></h3>
+    <div class="row between"><span class="money" style="font-size:26px">12 ₴</span><span class="btn sec sm">Поповнити зі свого</span></div>
+  </div>
+</div>
+<figcaption><b>9 · Команда</b>
+  <ul><li>Назва, ролі, режим редакторів, внесок і бюджет — на одній сторінці.</li>
+  <li>Команду тегають як <code>@panrid</code>. Сповіщення отримують власник і перекладачі.</li></ul>
+</figcaption>
+</figure>
+
+</div>
+
+<h2 class="section-title">Акаунт і адміністрування</h2>
+<div class="grid">
+
+<!-- 10. Профіль -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><h2></h2><span class="ic">⋯</span></div>
+  <div class="screen pad">
+    <div class="row" style="gap:14px"><div class="av big-av">m</div><div><div style="font:600 20px var(--serif)">mika</div><div class="sm muted">з березня 2026 · перекладачка в panrid</div></div></div>
+    <p class="sm" style="margin:14px 0;color:#cfcdc5">Перекладаю ісекаї та слайс-оф-лайф. Люблю, коли героїні говорять по-людськи. Пишіть у чат, якщо знайшли ляп 🙂</p>
+    <div class="stats">
+      <div class="stat"><b>59</b><span class="sm muted">правок прийнято</span></div>
+      <div class="stat"><b>2</b><span class="sm muted">переклади</span></div>
+    </div>
+    <h3>Переклади</h3>
+    <div class="rel"><div class="cover"></div><div><b>Маг води</b><span class="sm muted">перекладачка · 44 глави</span></div></div>
+    <div class="rel"><div class="cover c2"></div><div><b>Відьма з чайної крамниці</b><span class="sm muted">редакторка · 31 глава</span></div></div>
+    <h3>Читає зараз</h3>
+    <div class="shelf"><div><div class="cover c4"></div></div><div><div class="cover c5"></div></div><div><div class="cover c3"></div></div></div>
+  </div>
+  <div class="tabbar"><span data-i="⌂">Головна</span><span data-i="⌕">Пошук</span><span data-i="❏">Бібліотека</span><span data-i="✉">Вхідні</span><span data-i="◯">Я</span></div>
+</div>
+<figcaption><b>10 · Публічний профіль</b>
+  <ul><li>«Про себе», команди, внесок, переклади. «Читає зараз» — лише якщо користувач це дозволив.</li></ul>
+</figcaption>
+</figure>
+
+<!-- 11. Баланс -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><h2>Баланс</h2></div>
+  <div class="screen pad">
+    <div class="card" style="padding:16px">
+      <div class="sm muted">Доступно</div>
+      <div class="money" style="margin:6px 0 2px">127,40 ₴</div>
+      <div class="xs faint">ще 45 ₴ зарезервовано під переклад «Маг води»</div>
+    </div>
+    <div class="label">Поповнити</div>
+    <div class="chips" style="gap:8px"><span class="chip" style="padding:8px 14px">100 ₴</span><span class="chip acc" style="padding:8px 14px">200 ₴</span><span class="chip" style="padding:8px 14px">500 ₴</span><span class="chip ghost" style="padding:8px 14px">інша</span></div>
+    <div class="btn" style="margin-top:12px">Оплатити 200 ₴</div>
+    <div class="xs faint" style="text-align:center;margin-top:6px">≈ 30 глав автоперекладу середньої довжини</div>
+    <h3>Історія</h3>
+    <table>
+      <tr><td>Резерв · Маг води 45–50<div class="xs faint">сьогодні</div></td><td>−45,00</td></tr>
+      <tr><td>Переклад · Маг води 41–44<div class="xs faint">вчора, повернено 4,10</div></td><td>−23,90</td></tr>
+      <tr><td>У бюджет команди panrid<div class="xs faint">12 вер</div></td><td>−20,00</td></tr>
+      <tr><td>Поповнення карткою<div class="xs faint">10 вер</div></td><td class="pos">+200,00</td></tr>
+      <tr><td>Нараховано адміністрацією<div class="xs faint">1 вер</div></td><td class="pos">+50,00</td></tr>
+    </table>
+  </div>
+</div>
+<figcaption><b>11 · Баланс і поповнення</b>
+  <ul><li>Залишок, поповнення й історія — на одній сторінці («Я → Баланс»).</li>
+  <li>Історія — рядки книги записів людською мовою. Резерв видно окремо.</li>
+  <li>Кнопка оплати веде до платіжного сервісу, який ще не вибрано.</li></ul>
+</figcaption>
+</figure>
+
+<!-- 12. Адмінка -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><h2>Адміністрування</h2></div>
+  <div class="screen pad">
+    <div class="stats">
+      <div class="stat"><b>3</b><span class="sm muted">скарги</span></div>
+      <div class="stat"><b>2</b><span class="sm muted">переклади в черзі</span></div>
+      <div class="stat"><b>$41.20</b><span class="sm muted">OpenRouter</span></div>
+      <div class="stat"><b>+1 480 ₴</b><span class="sm muted">надходження, вересень</span></div>
+    </div>
+    <div class="list" style="margin-top:8px">
+      <div><span>⚠ Модерація</span><span class="v"><span class="chip acc">3</span> ›</span></div>
+      <div><span>👤 Користувачі й ролі</span><span class="v">›</span></div>
+      <div><span>₴ Фінанси</span><span class="v">›</span></div>
+      <div><span>⚙ Моделі й налаштування</span><span class="v">›</span></div>
+      <div><span>☷ Журнал дій</span><span class="v">›</span></div>
+    </div>
+    <h3>Фінанси · ціни</h3>
+    <div class="card">
+      <div class="row between sm"><span class="muted">Націнка</span><b>35%</b></div>
+      <div class="row between sm" style="margin-top:8px"><span class="muted">Курс USD→UAH (НБУ + 3%)</span><b>42,85</b></div>
+      <div class="row between sm" style="margin-top:8px"><span class="muted">Модель перекладу</span><b>gpt-4o-mini</b></div>
+    </div>
+  </div>
+</div>
+<figcaption><b>12 · Адміністрування</b>
+  <ul><li>Окремий розділ у меню «Я», видимий лише модераторам і вище.</li>
+  <li>Модератор бачить лише модерацію, адміністратор — ще користувачів, власник — усе.</li></ul>
+</figcaption>
+</figure>
+
+</div>
+</body>
+</html>
