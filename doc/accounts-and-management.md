@@ -157,6 +157,27 @@ ID або тексту відповідного блока спричиняє 40
 
 ## Майстерня перекладу
 
+Майстерня (`#/manage`) доступна кожному користувачу. Перекладач бачить і змінює
+лише власні новели, свої завдання та витрати своїх новел; ADMIN/OWNER — усе.
+Хто вручну створив новелу або вперше імпортував її з Syosetu, стає її перекладачем.
+Перевірку прав робить `NovelAccessService` для кожного запиту `/api/manage/{novel}/…`,
+а воркер повторює її перед кожним етапом завдання.
+
+### Баланс перекладу
+
+Автоматичний переклад оплачується з особистого балансу (V18). Баланс кожного
+нового користувача — $0, тож без поповнення він не запустить платне завдання;
+імпорт безкоштовний. Поповнює (або виправляє від'ємною сумою) лише OWNER у панелі
+користувача; кожна зміна потрапляє в аудит. Завдання OWNER оплачуються з бюджету
+сайту й не списуються.
+
+Зберігаються лише поповнення (`balance_topups`). Доступно = поповнення − бюджети
+активних завдань (`queued`/`running`) − фактичні витрати завершених. Постановка в
+чергу резервує бюджет під блокуванням рядка акаунта, тож два завдання не
+витратять ті самі гроші; після завершення лишається тільки реальна вартість.
+Повтор запиту з тим самим ключем повертає наявне завдання без повторного списання.
+Завдання до V18 (`charged=false`) нікому не списуються.
+
 - **Переклад**: два основні кроки — імпорт Syosetu і переклад діапазону до 100 глав.
   Повторна вичитка та відновлення за job ID зібрані в «Додаткових операціях».
 - **Дані новели**: українські назва, автор і опис, які бачать читачі; аліаси
@@ -337,12 +358,15 @@ job не збільшує історичну суму попереднього �
 | POST /api/comments/{id}; DELETE /api/comments/{id} | Автор редагує; автор або ADMIN/OWNER м'яко видаляє (модерація потрапляє в аудит) |
 | GET /api/chat?before=; GET /api/chat/updates?after= | READER, історія по 30 повідомлень від нових; нові після ID і нещодавно видалені |
 | POST /api/chat; DELETE /api/chat/{id} | READER надсилає (до 1000 символів, не частіше ніж раз на 2 с); автор або ADMIN/OWNER видаляє |
-| POST /api/manage/novels | ADMIN, створити новелу вручну (українські дані, теги) |
-| GET /api/manage/{novel}/manual; GET /api/manage/{novel}/manual/{n} | ADMIN, чернетки й опубліковані глави ручної новели; чернетка та опублікований текст глави |
-| POST/DELETE /api/manage/{novel}/manual/{n} | ADMIN, зберегти або видалити приватну чернетку глави |
-| POST /api/manage/{novel}/manual/{n}/publish | ADMIN, опублікувати чернетку як наступну ревізію |
-| POST /api/manage/{novel}/tags | ADMIN, замінити набір тегів новели (до 12) |
-| GET /api/models | ADMIN, каталог моделей провайдера: придатність, ціни за млн токенів, час оновлення |
+| POST /api/manage/novels | READER, створити новелу вручну (українські дані, теги); автор стає перекладачем |
+| GET /api/manage/novels?q= | READER, до 25 новел, якими акаунт керує (ADMIN — усі), для майстерні |
+| GET /api/balance | READER, власний баланс: `available`, `toppedUp`, `reserved`, `spent`, `unlimited` |
+| GET/POST /api/accounts/{id}/balance | OWNER, баланс та останні 50 поповнень; поповнення `amountUsd` (±1000, не 0) і `note` |
+| GET /api/manage/{novel}/manual; GET /api/manage/{novel}/manual/{n} | Перекладач новели або ADMIN, чернетки й опубліковані глави ручної новели; чернетка та опублікований текст глави |
+| POST/DELETE /api/manage/{novel}/manual/{n} | Перекладач новели або ADMIN, зберегти або видалити приватну чернетку глави |
+| POST /api/manage/{novel}/manual/{n}/publish | Перекладач новели або ADMIN, опублікувати чернетку як наступну ревізію |
+| POST /api/manage/{novel}/tags | Перекладач новели або ADMIN, замінити набір тегів новели (до 12) |
+| GET /api/models | READER, каталог моделей провайдера: придатність, ціни за млн токенів, час оновлення |
 | POST /api/models/refresh | OWNER, примусово оновити каталог моделей |
 | GET /api/corrections/authors | Рецензент, автори правок для фільтра (ID і поточне ім'я) |
 | GET /api/corrections/{id} | Автор правки або рецензент новели: тексти, пояснення, базова й опублікована ревізії |
@@ -354,18 +378,18 @@ job не збільшує історичну суму попереднього �
 | GET /api/accounts/{id} | ADMIN, нік, email, роль і дата реєстрації для панелі користувача |
 | GET /api/accounts/audit | OWNER, журнал дій |
 | GET/POST /api/settings | ADMIN читає; OWNER змінює |
-| GET/POST /api/tasks; POST /api/tasks/{id}/cancel | ADMIN, фонові операції |
-| GET /api/tasks/{id} | ADMIN, конкретне завдання, модель (`model`, `model_override`) та доступність швидких дій |
-| GET /api/tasks/defaults | ADMIN, моделі етапів за замовчуванням і максимальний бюджет для форми запуску |
+| GET/POST /api/tasks; POST /api/tasks/{id}/cancel | READER: власні завдання (ADMIN — усі); запуск — перекладач новели або ADMIN, платні з балансу (402, якщо коштів бракує) |
+| GET /api/tasks/{id} | Автор завдання або ADMIN (інакше 404): конкретне завдання, модель (`model`, `model_override`) та доступність швидких дій |
+| GET /api/tasks/defaults | READER, моделі етапів за замовчуванням і максимальний бюджет для форми запуску |
 | GET /api/notifications?before=ID | READER, до 30 подій, unread, latestId і nextCursor |
 | POST /api/notifications/{id}/read | READER, позначити доступну подію прочитаною |
 | POST /api/notifications/read-all?through=ID | READER, прочитати доступні події до ID включно |
-| GET /api/manage/{novel}; GET /api/manage/costs | ADMIN, стан / витрати |
-| GET /api/manage/{novel}/jobs, /glossary/entries, /proposals | ADMIN, сторінки ревізій, словника й пропозицій |
-| GET /api/manage/{novel}/glossary/similar | ADMIN, пошук схожих записів для ручного вибору |
-| POST /api/manage/{novel}/glossary/merge | ADMIN, явне об'єднання двох записів з перевіркою revision |
-| POST /api/manage/{novel}/metadata, /title, /aliases, /text, /glossary | ADMIN, редагування |
-| POST /api/manage/{novel}/proposals/{id}/dismiss | ADMIN, збережене відхилення групи однакових пропозицій |
+| GET /api/manage/{novel}; GET /api/manage/costs | Перекладач новели або ADMIN, стан / витрати (без `novel` перекладач бачить свої новели, ADMIN — усі) |
+| GET /api/manage/{novel}/jobs, /glossary/entries, /proposals | Перекладач новели або ADMIN, сторінки ревізій, словника й пропозицій |
+| GET /api/manage/{novel}/glossary/similar | Перекладач новели або ADMIN, пошук схожих записів для ручного вибору |
+| POST /api/manage/{novel}/glossary/merge | Перекладач новели або ADMIN, явне об'єднання двох записів з перевіркою revision |
+| POST /api/manage/{novel}/metadata, /title, /aliases, /text, /glossary | Перекладач новели або ADMIN, редагування |
+| POST /api/manage/{novel}/proposals/{id}/dismiss | Перекладач новели або ADMIN, збережене відхилення групи однакових пропозицій |
 | DELETE /api/manage/{novel}/aliases/{alias} | ADMIN |
 | GET /api/manage/{novel}/export?format=epub\|html | ADMIN |
 

@@ -289,7 +289,7 @@ class AccessIntegrationTest {
         assertEquals(1, event.path("task_first").asInt());
         assertEquals(1, event.path("task_last").asInt());
         assertEquals(200, get(owner, "/tasks/" + task).statusCode());
-        try (var reader = registered()) { assertEquals(403, get(reader, "/tasks/" + task).statusCode()); }
+        try (var reader = registered()) { assertEquals(404, get(reader, "/tasks/" + task).statusCode(), "other people's tasks stay hidden"); }
     }
 
     @Test
@@ -355,7 +355,7 @@ class AccessIntegrationTest {
             assertEquals(403, get(reader, "/accounts").statusCode());
             assertEquals(403, get(reader, "/settings").statusCode());
             assertEquals(403, get(reader, "/settings/openrouter-credits").statusCode());
-            assertEquals(403, post(reader, "/tasks", task("novel", UUID.randomUUID().toString(), .1)).statusCode());
+            assertEquals(403, post(reader, "/tasks", task(seed(), UUID.randomUUID().toString(), .1)).statusCode(), "only the translator or an administrator");
             var withoutCsrf = reader.send(HttpRequest.newBuilder(URI.create(base + "/auth/logout"))
                     .POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
             assertEquals(403, withoutCsrf.statusCode());
@@ -565,7 +565,7 @@ class AccessIntegrationTest {
 
     @Test
     void modelCatalogIsCachedKeepsLastListOnFailureAndPricesNewTasks() throws Exception {
-        try (var reader = registered()) { assertEquals(403, get(reader, "/models").statusCode()); }
+        try (var anonymous = browser()) { assertEquals(401, get(anonymous, "/models").statusCode()); }
         var catalog = body(get(owner, "/models"));
         assertEquals("openrouter", catalog.path("provider").asText());
         assertFalse(catalog.path("refreshedAt").isNull());
@@ -611,7 +611,7 @@ class AccessIntegrationTest {
         assertEquals(200, get(owner, "/models").statusCode(), "catalog is filled from the stub provider");
         var defaults = body(get(owner, "/tasks/defaults"));
         String defaultModel = defaults.path("models").path("translate").asText();
-        try (var reader = registered()) { assertEquals(403, get(reader, "/tasks/defaults").statusCode()); }
+        try (var anonymous = browser()) { assertEquals(401, get(anonymous, "/tasks/defaults").statusCode()); }
         String novel = seed();
         var overridden = overrideTask(novel, "translate", "good/model");
         var created = post(owner, "/tasks", overridden);
@@ -694,7 +694,7 @@ class AccessIntegrationTest {
         String novel = body(created).path("id").asText();
         assertEquals("машинний переклад", body(get(owner, "/novels/" + novel)).path("tags").get(0).path("slug").asText());
         try (var reader = registered(); var anonymous = browser()) {
-            assertEquals(403, post(reader, "/manage/novels", Map.of("titleUk", "x")).statusCode());
+            assertEquals(200, post(reader, "/manage/novels", Map.of("titleUk", "x")).statusCode(), "anyone publishes their own translation");
             assertEquals(403, post(reader, "/manage/" + novel + "/manual/1", Map.of("title", "x", "text", "y")).statusCode());
 
             assertEquals(200, post(owner, "/manage/" + novel + "/manual/1", Map.of("title", "Початок", "text", "Перший абзац.\n\nДругий абзац.")).statusCode());
@@ -997,6 +997,62 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void translatorsPayForAiTasksFromABalanceOnlyTheOwnerTopsUp() throws Exception {
+        String novel = seed();
+        String foreign = seed();
+        try (var translator = registered(); var other = registered(); var sql = jdbc()) {
+            String id = userId(translator);
+            sql.exec("UPDATE novels SET owner_id=? WHERE id=?", id, novel);
+            assertEquals(200, get(translator, "/manage/" + novel).statusCode());
+            assertEquals(403, get(translator, "/manage/" + foreign).statusCode());
+            assertEquals(403, get(other, "/manage/" + novel + "/jobs").statusCode());
+            var mine = body(get(translator, "/manage/novels")).path("items").findValuesAsText("id");
+            assertEquals(List.of(novel), mine, "the workshop lists only their own novels");
+            assertEquals(0, body(get(translator, "/manage/costs")).path("total").asLong());
+
+            var empty = body(get(translator, "/balance"));
+            assertEquals(0, empty.path("available").decimalValue().signum(), "every balance starts at zero");
+            assertFalse(empty.path("unlimited").asBoolean());
+            var refused = post(translator, "/tasks", task(novel, UUID.randomUUID().toString(), .1));
+            assertEquals(402, refused.statusCode());
+            assertTrue(body(refused).path("message").asText().contains("Недостатньо коштів"));
+
+            assertEquals(403, post(other, "/accounts/" + id + "/balance", Map.of("amountUsd", 5, "note", "")).statusCode());
+            assertEquals(400, post(owner, "/accounts/" + id + "/balance", Map.of("amountUsd", 0, "note", "")).statusCode());
+            assertEquals(400, post(owner, "/accounts/" + id + "/balance", Map.of("amountUsd", -1, "note", "")).statusCode(), "cannot go below zero");
+            assertEquals(0, new java.math.BigDecimal("0.25").compareTo(body(post(owner, "/accounts/" + id + "/balance",
+                    Map.of("amountUsd", 0.25, "note", "Старт"))).path("available").decimalValue()));
+            assertEquals("Старт", body(get(owner, "/accounts/" + id + "/balance")).path("topups").get(0).path("note").asText());
+            assertEquals(403, get(translator, "/accounts/" + id + "/balance").statusCode());
+
+            String key = UUID.randomUUID().toString();
+            var created = post(translator, "/tasks", task(novel, key, .1));
+            assertEquals(200, created.statusCode(), created.body());
+            String task = body(created).path("id").asText();
+            assertEquals(task, body(post(translator, "/tasks", task(novel, key, .1))).path("id").asText(), "a retry is not charged twice");
+            var reserved = body(get(translator, "/balance"));
+            assertEquals(0, new java.math.BigDecimal("0.25").compareTo(reserved.path("available").decimalValue()
+                    .add(reserved.path("reserved").decimalValue()).add(reserved.path("spent").decimalValue())));
+            assertTrue(reserved.path("available").decimalValue().compareTo(new java.math.BigDecimal("0.15")) <= 0);
+            assertEquals(402, post(translator, "/tasks", task(novel, UUID.randomUUID().toString(), .2)).statusCode());
+            assertEquals(403, post(translator, "/tasks", task(foreign, UUID.randomUUID().toString(), .01)).statusCode());
+
+            assertEquals(List.of(task), body(get(translator, "/tasks")).path("items").findValuesAsText("id"));
+            assertFalse(body(get(other, "/tasks")).path("items").findValuesAsText("id").contains(task));
+            assertTrue(body(get(owner, "/tasks?size=100")).path("items").findValuesAsText("id").contains(task));
+            assertEquals(404, post(other, "/tasks/" + task + "/cancel", Map.of()).statusCode());
+            assertEquals(200, post(translator, "/tasks/" + task + "/cancel", Map.of()).statusCode());
+            for (int attempt = 0; attempt < 100 && body(get(translator, "/balance")).path("reserved").decimalValue().signum() > 0; attempt++)
+                Thread.sleep(100);
+            var settled = body(get(translator, "/balance"));
+            assertEquals(0, settled.path("reserved").decimalValue().signum(), "a finished task keeps only what it spent");
+            assertEquals(0, new java.math.BigDecimal("0.25").compareTo(settled.path("available").decimalValue().add(settled.path("spent").decimalValue())));
+
+            assertTrue(body(get(owner, "/balance")).path("unlimited").asBoolean(), "the site owner uses the site budget");
+        }
+    }
+
+    @Test
     void selfApprovalSettingAppliesOnlyToAdminsAndIsEnforcedByBackend() throws Exception {
         String novel = seed();
         String job = body(get(owner, "/novels/" + novel + "/chapters/1")).path("jobId").asText();
@@ -1051,6 +1107,7 @@ class AccessIntegrationTest {
         try (var admin = registered()) {
             String account = userId(admin);
             post(owner, "/accounts/" + account + "/role", Map.of("role", "ADMIN"));
+            assertEquals(200, post(owner, "/accounts/" + account + "/balance", Map.of("amountUsd", 1, "note", "")).statusCode());
             String key = UUID.randomUUID().toString();
             var task = task(novel, key, .1);
             var created = post(admin, "/tasks", task);

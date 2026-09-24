@@ -19,7 +19,9 @@ import panrid.space.novelka.server.dto.GlossaryUpdate;
 import panrid.space.novelka.server.dto.GlossaryMerge;
 import panrid.space.novelka.server.dto.MetadataRequest;
 import panrid.space.novelka.server.dto.TextImportRequest;
+import panrid.space.novelka.server.novel.NovelAccessService;
 import panrid.space.novelka.server.repository.AuditRepository;
+import panrid.space.novelka.server.repository.NovelAccessRepository;
 import panrid.space.novelka.server.repository.TagRepository;
 import panrid.space.novelka.server.tag.TagNames;
 import panrid.space.novelka.server.tag.TagUpdate;
@@ -40,12 +42,32 @@ import java.util.Map;
 public final class ManagementController {
     private final ReaderDatabase database;
     private final AccessService access;
+    private final NovelAccessService novels;
 
-    public ManagementController(ReaderDatabase database, AccessService access) { this.database = database; this.access = access; }
+    public ManagementController(ReaderDatabase database, AccessService access, NovelAccessService novels) {
+        this.database = database; this.access = access; this.novels = novels;
+    }
+
+    /** The translator of the novel or an administrator; unknown novels are 404. */
+    private Account manage(Principal principal, String novel) throws Exception {
+        var account = access.require(principal, Role.READER);
+        try (var jdbc = database.open()) { novels.manageable(jdbc, account, novel); }
+        return account;
+    }
+
+    /** Novels the workshop may open: the account's own translations, or every novel for administrators. */
+    @GetMapping("/novels")
+    public Map<String, Object> manageable(Principal principal, @RequestParam(defaultValue = "") String q) throws Exception {
+        var account = access.require(principal, Role.READER);
+        if (q.length() > 200) throw new IllegalArgumentException("Пошук має містити до 200 символів.");
+        try (var jdbc = database.open()) {
+            return Map.of("items", new NovelAccessRepository(jdbc).manageable(account.role().includes(Role.ADMIN) ? null : account.id(), q.strip(), 25));
+        }
+    }
 
     @GetMapping("/{novel}")
     public Object detail(Principal principal, @PathVariable String novel) throws Exception {
-        access.require(principal, Role.ADMIN);
+        manage(principal, novel);
         try (var db = database.openDatabase(); var jdbc = database.open()) {
             String id = db.novels().resolveNovel(novel);
             return Json.M.convertValue(Map.of("novel", db.novels().novel(id), "aliases", db.novels().aliases(id),
@@ -63,7 +85,7 @@ public final class ManagementController {
             @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "25") int size,
             @RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "japanese") String sort,
             @RequestParam(defaultValue = "asc") String direction, @RequestParam(defaultValue = "") String kind) throws Exception {
-        access.require(principal, Role.ADMIN);
+        manage(principal, novel);
         try (var jdbc = database.open()) {
             String id = new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
             return new GlossaryEntryRepository(jdbc).list(id, new ListQuery(page, size, q, sort, direction), kind);
@@ -75,7 +97,7 @@ public final class ManagementController {
             @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "25") int size,
             @RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "created") String sort,
             @RequestParam(defaultValue = "desc") String direction) throws Exception {
-        access.require(principal, Role.ADMIN);
+        manage(principal, novel);
         try (var jdbc = database.open()) {
             String id = new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
             return new GlossaryProposalService(jdbc).page(id, new ListQuery(page, size, q, sort, direction));
@@ -85,7 +107,7 @@ public final class ManagementController {
     @GetMapping("/{novel}/glossary/similar")
     public Object similarEntries(Principal principal, @PathVariable String novel, @RequestParam String japanese,
             @RequestParam String ukrainian, @RequestParam String kind) throws Exception {
-        access.require(principal, Role.ADMIN);
+        manage(principal, novel);
         if (japanese.length() > 1000 || ukrainian.length() > 1000 || kind.length() > 50)
             throw new IllegalArgumentException("Запит на пошук схожих записів завеликий.");
         try (var jdbc = database.open()) {
@@ -101,7 +123,7 @@ public final class ManagementController {
             @RequestParam(defaultValue = "25") int size, @RequestParam(defaultValue = "") String q,
             @RequestParam(defaultValue = "updated") String sort, @RequestParam(defaultValue = "desc") String direction,
             @RequestParam(defaultValue = "") String state) throws Exception {
-        access.require(principal, Role.ADMIN);
+        manage(principal, novel);
         try (var jdbc = database.open()) {
             String id = new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
             return Json.M.convertValue(new JobListRepository(jdbc).list(id, new ListQuery(page, size, q, sort, direction), state), Object.class);
@@ -114,16 +136,18 @@ public final class ManagementController {
             @RequestParam(defaultValue = "25") int size, @RequestParam(defaultValue = "") String q,
             @RequestParam(defaultValue = "") String sort, @RequestParam(defaultValue = "desc") String direction,
             @RequestParam(defaultValue = "") String stage) throws Exception {
-        access.require(principal, Role.ADMIN);
+        var account = access.require(principal, Role.READER);
         try (var jdbc = database.open()) {
-            String id = novel == null || novel.isBlank() ? null : new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
-            return Json.M.convertValue(new CostRepository(jdbc).list(id, details, new ListQuery(page, size, q, sort, direction), stage), Object.class);
+            String id = novel == null || novel.isBlank() ? null : novels.manageable(jdbc, account, novel);
+            // Without a novel, translators see costs of their own novels; administrators see everything.
+            String owner = account.role().includes(Role.ADMIN) ? null : account.id();
+            return Json.M.convertValue(new CostRepository(jdbc).list(id, owner, details, new ListQuery(page, size, q, sort, direction), stage), Object.class);
         }
     }
 
     @PostMapping("/{novel}/proposals/{proposal}/dismiss")
     public Map<String, String> dismissProposal(Principal principal, @PathVariable String novel, @PathVariable long proposal) throws Exception {
-        var actor = access.require(principal, Role.ADMIN);
+        var actor = manage(principal, novel);
         try (var jdbc = database.open()) {
             String id = new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
             jdbc.transaction(() -> {
@@ -137,7 +161,7 @@ public final class ManagementController {
 
     @PostMapping("/{novel}/title")
     public Map<String, String> title(Principal principal, @PathVariable String novel, @RequestBody MetadataRequest request) throws Exception {
-        var actor = access.require(principal, Role.ADMIN);
+        var actor = manage(principal, novel);
         if (request.titleUk() == null || request.titleUk().isBlank() || request.titleUk().length() > 500)
             throw new IllegalArgumentException("Вкажіть українську назву до 500 символів.");
         return updateMetadata(actor, novel, request, true);
@@ -145,7 +169,7 @@ public final class ManagementController {
 
     @PostMapping("/{novel}/metadata")
     public Map<String, String> metadata(Principal principal, @PathVariable String novel, @RequestBody MetadataRequest request) throws Exception {
-        return updateMetadata(access.require(principal, Role.ADMIN), novel, request, false);
+        return updateMetadata(manage(principal, novel), novel, request, false);
     }
 
     private Map<String, String> updateMetadata(Account actor, String novel, MetadataRequest request, boolean preserveMissing) throws Exception {
@@ -177,7 +201,7 @@ public final class ManagementController {
 
     @PostMapping("/{novel}/tags")
     public Map<String, Object> tags(Principal principal, @PathVariable String novel, @RequestBody TagUpdate request) throws Exception {
-        var actor = access.require(principal, Role.ADMIN);
+        var actor = manage(principal, novel);
         var names = TagNames.names(request.tags());
         try (var jdbc = database.open()) {
             String id = new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
@@ -192,7 +216,7 @@ public final class ManagementController {
     @PostMapping("/{novel}/aliases")
     public Map<String, String> alias(Principal principal, @PathVariable String novel,
             @RequestBody Map<String, String> request) throws Exception {
-        var actor = access.require(principal, Role.ADMIN);
+        var actor = manage(principal, novel);
         try (var jdbc = database.open()) {
             var repository = new panrid.space.novelka.core.repository.NovelRepository(jdbc);
             String id = repository.resolveNovel(novel);
@@ -207,7 +231,7 @@ public final class ManagementController {
 
     @DeleteMapping("/{novel}/aliases/{alias}")
     public Map<String, String> removeAlias(Principal principal, @PathVariable String novel, @PathVariable String alias) throws Exception {
-        var actor = access.require(principal, Role.ADMIN);
+        var actor = manage(principal, novel);
         try (var jdbc = database.open()) {
             var repository = new panrid.space.novelka.core.repository.NovelRepository(jdbc);
             jdbc.transaction(() -> {
@@ -225,7 +249,7 @@ public final class ManagementController {
 
     @PostMapping("/{novel}/text")
     public Map<String, String> text(Principal principal, @PathVariable String novel, @RequestBody TextImportRequest request) throws Exception {
-        var actor = access.require(principal, Role.ADMIN);
+        var actor = manage(principal, novel);
         if (request.text() == null || request.text().isBlank() || request.text().length() > 300000) throw new IllegalArgumentException("Вкажіть текст до 300000 символів.");
         try (var jdbc = database.open()) {
             var novels = new panrid.space.novelka.core.repository.NovelRepository(jdbc);
@@ -246,7 +270,7 @@ public final class ManagementController {
 
     @PostMapping("/{novel}/glossary")
     public Map<String, String> glossary(Principal principal, @PathVariable String novel, @RequestBody GlossaryUpdate request) throws Exception {
-        var actor = access.require(principal, Role.ADMIN);
+        var actor = manage(principal, novel);
         if (request.entries() == null || request.entries().size() > 10000) throw new IllegalArgumentException("Некоректний словник.");
         try (var jdbc = database.open()) {
             String id = new panrid.space.novelka.core.repository.NovelRepository(jdbc).resolveNovel(novel);
@@ -282,7 +306,7 @@ public final class ManagementController {
 
     @PostMapping("/{novel}/glossary/merge")
     public Map<String, String> mergeGlossary(Principal principal, @PathVariable String novel, @RequestBody GlossaryMerge request) throws Exception {
-        var actor = access.require(principal, Role.ADMIN);
+        var actor = manage(principal, novel);
         if (request.keepKey() == null || request.removeKey() == null || request.keepKey().equals(request.removeKey()))
             throw new IllegalArgumentException("Виберіть два різні записи для об’єднання.");
         try (var jdbc = database.open()) {
@@ -331,7 +355,7 @@ public final class ManagementController {
     @GetMapping("/{novel}/export")
     public ResponseEntity<byte[]> export(Principal principal, @PathVariable String novel,
             @RequestParam(defaultValue = "epub") String format) throws Exception {
-        access.require(principal, Role.ADMIN);
+        manage(principal, novel);
         if (!List.of("html", "epub").contains(format)) throw new IllegalArgumentException("Оберіть HTML або EPUB.");
         var file = Files.createTempFile("novelka-export-", "." + format);
         try (var db = database.openDatabase()) {

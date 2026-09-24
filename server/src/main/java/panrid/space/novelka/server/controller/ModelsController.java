@@ -24,7 +24,7 @@ public final class ModelsController {
 
     @GetMapping
     public ModelCatalog list(Principal principal) throws Exception {
-        access.require(principal, Role.ADMIN);
+        access.require(principal, Role.READER);
         return catalog.catalog(false);
     }
 

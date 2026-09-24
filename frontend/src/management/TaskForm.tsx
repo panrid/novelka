@@ -5,6 +5,7 @@ import { useAction } from '../hooks/useAction';
 import { SelectField } from '../components/SelectField';
 import type { TaskPreset } from './TaskPreset';
 import { HelpField } from '../components/HelpField';
+import { BalanceSummary } from '../components/BalanceSummary';
 import { ModelPicker, type ModelCatalog } from '../components/ModelPicker';
 import { useResource } from '../hooks/useResource';
 
@@ -18,6 +19,8 @@ export function TaskForm({ novel, onCreated, preset }: { novel: string; onCreate
     const [force, setForce] = useState(preset?.force ?? false);
     const [retry, setRetry] = useState(false);
     const [confirmed, setConfirmed] = useState(false);
+    // Re-reads the balance after a task reserved its budget.
+    const [queued, setQueued] = useState(0);
     const [dictionarySearchLimit, setDictionarySearchLimit] = useState(preset?.dictionarySearchLimit ?? 6);
     const [model, setModel] = useState('');
     const defaults = useResource<{ models: Record<string, string>; maxBudgetUsd: number }>('/tasks/defaults');
@@ -43,6 +46,7 @@ export function TaskForm({ novel, onCreated, preset }: { novel: string; onCreate
                 if (request.current.signature !== signature) request.current = { signature, key: crypto.randomUUID() };
                 const created = await mutate<{ id: string }>('/tasks', { ...body, requestKey: request.current.key });
                 request.current = { signature: '', key: '' };
+                setQueued(value => value + 1);
                 setConfirmed(false);
                 onCreated(created.id);
             }, 'Завдання додано в чергу. Вкладку можна закрити.');
@@ -70,7 +74,7 @@ export function TaskForm({ novel, onCreated, preset }: { novel: string; onCreate
                     {id => <input id={id} type="number" min="0" max="30" step="1" required value={dictionarySearchLimit}
                         onChange={event => { setDictionarySearchLimit(Number(event.target.value)); setConfirmed(false); }} />}</HelpField>
             </details>}
-            {paid && <fieldset><legend>Ліміт витрат</legend><label>Додатковий бюджет для всього запуску, $<input type="number" required min="0.01" step="0.01" value={budget} onChange={event => { setBudget(event.target.value); setConfirmed(false); }} /></label>
+            {paid && <fieldset><legend>Ліміт витрат</legend><BalanceSummary key={queued} /><label>Додатковий бюджет для всього запуску, $<input type="number" required min="0.01" step="0.01" value={budget} onChange={event => { setBudget(event.target.value); setConfirmed(false); }} /></label>
                 <p className="muted">Це верхня межа нових запитів у цьому запуску. Оцінені й фактичні витрати залишаються в історії.</p>
                 <label className="check-label"><input required type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />Дозволяю платні запити OpenRouter у межах цього бюджету.</label></fieldset>}
             <button className="button" disabled={action.busy || (paid && !confirmed) || (['translate', 'proofread'].includes(operation) && !novel)}>Додати в чергу</button>

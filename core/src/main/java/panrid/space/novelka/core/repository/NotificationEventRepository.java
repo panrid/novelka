@@ -18,7 +18,10 @@ public final class NotificationEventRepository {
 
     public void taskFinished(String task, String novel, String state) throws Exception {
         if (java.util.Set.of("complete", "failed", "interrupted").contains(state))
-            add("task:" + task + ":" + state, "task_" + state, "ADMIN", novel, null, task, null);
+            // Administrators see every task result; account_id also delivers it to the author of the task.
+            jdbc.exec("INSERT INTO notifications(event_key,kind,audience,novel_id,task_id,account_id)"
+                    + " VALUES(?,?,'ADMIN',?,?,(SELECT actor_id FROM web_tasks WHERE id=?)) ON CONFLICT(event_key) DO NOTHING",
+                    "task:" + task + ":" + state, "task_" + state, novel, task, task);
     }
 
     private void add(String key, String kind, String audience, String novel, Integer chapter, String task, Integer count) throws Exception {

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import type { NovelCard } from '../api/types';
 import { useResource } from '../hooks/useResource';
 import { TaskForm } from '../management/TaskForm';
 import { TaskQueue } from '../management/TaskQueue';
@@ -8,13 +7,14 @@ import { CostReport } from '../management/CostReport';
 import { ManualNovelForm } from '../management/ManualNovelForm';
 import { ErrorState } from '../components/Status';
 import { SelectField } from '../components/SelectField';
-import { ListSearch, type PageData } from '../components/ListTools';
+import { ListSearch } from '../components/ListTools';
 import type { TaskPreset } from '../management/TaskPreset';
 
 export function ManagePage({ search = '' }: { search?: string }) {
     const params = new URLSearchParams(search);
     const [catalogQuery, setCatalogQuery] = useState('');
-    const catalog = useResource<PageData<NovelCard>>('/novels/search?size=25&q=' + encodeURIComponent(catalogQuery) + '&sort=title&direction=asc', true);
+    // Translators see their own novels; administrators see every novel.
+    const catalog = useResource<{ items: { id: string; title: string }[] }>('/manage/novels?q=' + encodeURIComponent(catalogQuery), true);
     const [novel, setNovel] = useState(params.get('novel') ?? '');
     const [selectedTitle, setSelectedTitle] = useState('');
     const [tab, setTab] = useState(params.get('tab') === 'glossary' ? 'novel' : 'tasks');
@@ -38,7 +38,7 @@ export function ManagePage({ search = '' }: { search?: string }) {
         }} />
             <TaskQueue version={version} onPrepare={prepare} taskId={taskId} /></>}
         {tab === 'novel' && (novel ? <NovelManager key={novel} novel={novel} initialTab={params.get('tab') === 'glossary' ? 'glossary' : 'info'} /> : <>
-            <p>Оберіть новелу вище. Новелу з Syosetu додає імпорт у вкладці «Переклад», а готовий переклад — форма нижче.</p>
+            <p>Оберіть новелу вище. Новелу з Syosetu додає імпорт у вкладці «Переклад», а власний готовий переклад — форма нижче. Хто додав новелу, стає її перекладачем.</p>
             <ManualNovelForm onCreated={(id, title) => { setNovel(id); setSelectedTitle(title); catalog.retry(); }} /></>)}
         {tab === 'costs' && <CostReport novel={novel} />}
     </div>;

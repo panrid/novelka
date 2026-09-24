@@ -17,11 +17,17 @@ public final class TaskRepository {
 
     public TaskRepository(JdbcSession jdbc) { this.jdbc = jdbc; }
 
-    public String enqueue(String actor, TaskRequest request, SiteSettings settings) throws Exception {
-        var rows = jdbc.rows("INSERT INTO web_tasks(id,actor_id,request_key,operation,novel_id,request,settings)"
-                + " VALUES(?,?,?,?,?,?::jsonb,?::jsonb) ON CONFLICT(actor_id,request_key) DO NOTHING RETURNING id",
+    public String byKey(String actor, String requestKey) throws Exception {
+        var rows = jdbc.rows("SELECT id FROM web_tasks WHERE actor_id=? AND request_key=?", actor, requestKey);
+        return rows.isEmpty() ? null : rows.getFirst().get("id").toString();
+    }
+
+    /** {@code charged}: the budget is reserved from the author's balance (every author except the site owner). */
+    public String enqueue(String actor, TaskRequest request, SiteSettings settings, boolean charged) throws Exception {
+        var rows = jdbc.rows("INSERT INTO web_tasks(id,actor_id,request_key,operation,novel_id,request,settings,charged)"
+                + " VALUES(?,?,?,?,?,?::jsonb,?::jsonb,?) ON CONFLICT(actor_id,request_key) DO NOTHING RETURNING id",
                 UUID.randomUUID().toString(), actor, request.requestKey(), request.operation(), request.novelId(),
-                Json.write(request), Json.write(settings));
+                Json.write(request), Json.write(settings), charged);
         if (!rows.isEmpty()) return rows.getFirst().get("id").toString();
         return jdbc.rows("SELECT id FROM web_tasks WHERE actor_id=? AND request_key=?", actor, request.requestKey())
                 .getFirst().get("id").toString();
@@ -39,7 +45,7 @@ public final class TaskRepository {
                         AND jsonb_array_length(latest_job.data->'segments')>0
                         AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(latest_job.data->'segments') s
                             WHERE jsonb_array_length(s->'draft')=0),false) AS can_proofread,
-                    t.request,t.created_at,t.updated_at,a.username,
+                    t.request,t.created_at,t.updated_at,a.username,t.actor_id,t.charged,
                     COALESCE((SELECT sum(GREATEST(0,COALESCE(j.final_usd,(SELECT sum(COALESCE(c.actual_usd,c.estimated_usd))
                         FROM ai_calls c WHERE c.job_id=j.job_id),0)-j.initial_usd))
                         FROM web_task_jobs j WHERE j.task_id=t.id),0) spent_usd
@@ -50,17 +56,18 @@ public final class TaskRepository {
                         AND j.chapter=current_job.chapter ORDER BY revision DESC LIMIT 1) latest_job ON true
                 """;
 
-    public ListPage<Map<String, Object>> list(ListQuery query, String state, String operation, String novel) throws Exception {
+    /** {@code actor} limits the list to one author's tasks (null: every task, for administrators). */
+    public ListPage<Map<String, Object>> list(String actor, ListQuery query, String state, String operation, String novel) throws Exception {
         if (!state.isEmpty() && !List.of("queued", "running", "complete", "failed", "interrupted", "cancelled").contains(state))
             throw new IllegalArgumentException("Невідомий стан завдання.");
         if (!operation.isEmpty() && !List.of("import", "translate", "proofread", "resume").contains(operation))
             throw new IllegalArgumentException("Невідома операція.");
-        String where = " WHERE (?='' OR t.state=?) AND (?='' OR t.operation=?) AND (?='' OR t.novel_id=?)"
+        String where = " WHERE (?::text IS NULL OR t.actor_id=?) AND (?='' OR t.state=?) AND (?='' OR t.operation=?) AND (?='' OR t.novel_id=?)"
                 + " AND (?='' OR t.novel_id ILIKE ? ESCAPE '\\' OR t.id ILIKE ? ESCAPE '\\')";
-        Object[] filters = {state, state, operation, operation, novel, novel, query.q(), query.pattern(), query.pattern()};
+        Object[] filters = {actor, actor, state, state, operation, operation, novel, novel, query.q(), query.pattern(), query.pattern()};
         long total = ((Number) jdbc.rows("SELECT count(*) total FROM web_tasks t" + where, filters).getFirst().get("total")).longValue();
         String order = query.order(Map.of("created", "t.created_at", "state", "t.state", "novel", "t.novel_id", "spent", "spent_usd"), "created", "t.id");
-        var items = jdbc.rows(TASK_SELECT + where + order + " LIMIT ? OFFSET ?", state, state, operation, operation, novel, novel,
+        var items = jdbc.rows(TASK_SELECT + where + order + " LIMIT ? OFFSET ?", actor, actor, state, state, operation, operation, novel, novel,
                 query.q(), query.pattern(), query.pattern(), query.size(), query.offset());
         return ListPage.of(items, query, total);
     }

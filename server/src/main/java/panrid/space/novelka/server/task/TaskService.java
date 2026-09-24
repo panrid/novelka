@@ -1,14 +1,18 @@
 package panrid.space.novelka.server.task;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import panrid.space.novelka.core.integration.source.syosetu.Syosetu;
 import panrid.space.novelka.core.repository.JobRepository;
 import panrid.space.novelka.core.repository.NovelRepository;
 import panrid.space.novelka.server.account.Account;
+import panrid.space.novelka.server.balance.BalanceService;
 import panrid.space.novelka.server.config.ReaderDatabase;
 import panrid.space.novelka.server.repository.AuditRepository;
 import panrid.space.novelka.server.repository.TaskRepository;
 import panrid.space.novelka.server.models.ModelCatalogService;
+import panrid.space.novelka.server.novel.NovelAccessService;
 import panrid.space.novelka.server.settings.SettingsService;
 import panrid.space.novelka.server.settings.SiteSettings;
 import panrid.space.novelka.server.settings.StageSettings;
@@ -22,9 +26,12 @@ public final class TaskService {
     private final SettingsService settings;
 
     private final ModelCatalogService models;
+    private final NovelAccessService novels;
+    private final BalanceService balances;
 
-    public TaskService(ReaderDatabase database, SettingsService settings, ModelCatalogService models) {
-        this.database = database; this.settings = settings; this.models = models;
+    public TaskService(ReaderDatabase database, SettingsService settings, ModelCatalogService models, NovelAccessService novels,
+            BalanceService balances) {
+        this.database = database; this.settings = settings; this.models = models; this.novels = novels; this.balances = balances;
     }
 
     /** A model override applies to every AI stage of this task; it must have known prices so the budget stays enforceable. */
@@ -71,10 +78,18 @@ public final class TaskService {
                         && request.last() > new NovelRepository(jdbc).novel(id).chapterCount())
                     throw new IllegalArgumentException("Діапазон перевищує кількість глав.");
             }
+            // Anyone may import a new novel and becomes its translator; everything else needs rights on the novel.
+            boolean exists = !jdbc.rows("SELECT 1 FROM novels WHERE id=?", id).isEmpty();
+            if (exists && !novels.canManage(jdbc, actor, id)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
             var normalized = new TaskRequest(request.requestKey(), request.operation(), id, request.url(), request.first(),
                     request.last(), request.jobId(), request.force(), request.retryUncertain(), request.budgetUsd(), request.dictionarySearchLimit(), overrides);
             return jdbc.transaction(() -> {
-                String task = new TaskRepository(jdbc).enqueue(actor.id(), normalized, snapshot);
+                var tasks = new TaskRepository(jdbc);
+                // A repeated request returns the task it already created instead of charging again.
+                String existing = tasks.byKey(actor.id(), normalized.requestKey());
+                if (existing != null) return existing;
+                boolean charged = !normalized.operation().equals("import") && balances.charge(jdbc, actor, normalized.budgetUsd());
+                String task = tasks.enqueue(actor.id(), normalized, snapshot, charged);
                 new AuditRepository(jdbc).add(actor.id(), "task.enqueue", task, overrides == null ? Map.of("operation", request.operation(), "budget", request.budgetUsd())
                         : Map.of("operation", request.operation(), "budget", request.budgetUsd(), "model", overrides.model()));
                 return task;

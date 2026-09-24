@@ -20,6 +20,15 @@ public final class NovelAccessRepository {
                 + " WHERE n.id=?", novel).getFirst();
     }
 
+    /** Novels the account translates, or every novel for {@code account == null} (administrators), by title or ID. */
+    public List<Map<String, Object>> manageable(String account, String q, int limit) throws Exception {
+        String pattern = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+        return jdbc.rows("SELECT id,COALESCE(NULLIF(data->>'titleUk',''),data->>'title') AS title FROM novels"
+                + " WHERE (?::text IS NULL OR owner_id=?) AND (?='' OR id ILIKE ? ESCAPE '\\'"
+                + " OR COALESCE(NULLIF(data->>'titleUk',''),data->>'title') ILIKE ? ESCAPE '\\')"
+                + " ORDER BY lower(COALESCE(NULLIF(data->>'titleUk',''),data->>'title')),id LIMIT ?", account, account, q, pattern, pattern, limit);
+    }
+
     public boolean isEditor(String novel, String account) throws Exception {
         return !jdbc.rows("SELECT 1 FROM novel_editors WHERE novel_id=? AND account_id=?", novel, account).isEmpty();
     }

@@ -123,7 +123,9 @@ public final class TaskWorker {
             throw new IllegalStateException("Операцію скасовано після останньої контрольної точки.");
         try (var jdbc = database.open()) {
             var account = new AccountRepository(jdbc).byId(actor);
-            if (account == null || !account.role().includes(Role.ADMIN))
+            var novel = jdbc.rows("SELECT owner_id FROM novels WHERE id=(SELECT novel_id FROM web_tasks WHERE id=?)", task);
+            // A new import has no novel yet; otherwise the author must still translate the novel or be an administrator.
+            if (account == null || !novel.isEmpty() && !account.role().includes(Role.ADMIN) && !actor.equals(novel.getFirst().get("owner_id")))
                 throw new IllegalStateException("Автор завдання більше не має права запускати переклад.");
         }
     }

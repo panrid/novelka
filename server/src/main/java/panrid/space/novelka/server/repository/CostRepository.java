@@ -12,11 +12,13 @@ public final class CostRepository {
 
     public CostRepository(JdbcSession jdbc) { this.jdbc = jdbc; }
 
-    public ListPage<Map<String, Object>> list(String novel, boolean details, ListQuery query, String stage) throws Exception {
+    /** {@code owner} limits the report to novels that account translates (null: every novel). */
+    public ListPage<Map<String, Object>> list(String novel, String owner, boolean details, ListQuery query, String stage) throws Exception {
         if (!stage.isEmpty() && !java.util.List.of("analyze", "translate", "proofread").contains(stage))
             throw new IllegalArgumentException("Невідомий етап витрат.");
         String base = " FROM ai_calls a JOIN jobs j ON j.id=a.job_id"
-                + " WHERE (?::text IS NULL OR j.novel_id=?) AND (?='' OR a.stage=?)"
+                + " WHERE (?::text IS NULL OR j.novel_id=?) AND (?::text IS NULL OR j.novel_id IN (SELECT id FROM novels WHERE owner_id=?))"
+                + " AND (?='' OR a.stage=?)"
                 + " AND (?='' OR j.novel_id ILIKE ? ESCAPE '\\' OR a.model ILIKE ? ESCAPE '\\')";
         String projection = details
                 ? "SELECT a.id,a.job_id,j.novel_id,j.chapter,a.stage,a.segment,a.model,a.provider,a.prompt_version,"
@@ -26,7 +28,7 @@ public final class CostRepository {
                     + "sum(a.actual_usd) known_actual_usd,count(*) FILTER(WHERE a.actual_usd IS NULL) unknown_cost_calls,"
                     + "sum(a.input_tokens) input_tokens,sum(a.output_tokens) output_tokens" + base
                     + " GROUP BY j.novel_id,j.chapter,a.stage,a.model";
-        Object[] filters = {novel, novel, stage, stage, query.q(), query.pattern(), query.pattern()};
+        Object[] filters = {novel, novel, owner, owner, stage, stage, query.q(), query.pattern(), query.pattern()};
         long total = ((Number) jdbc.rows("SELECT count(*) total FROM (" + projection + ") result", filters).getFirst().get("total")).longValue();
         var allowed = details
                 ? Map.ofEntries(Map.entry("created", "created_at"), Map.entry("novel_id", "novel_id"),
@@ -43,7 +45,7 @@ public final class CostRepository {
         if (query.sort().equals("actual_usd") || query.sort().equals("known_actual_usd"))
             order = order.replace(" " + query.direction() + ",", " " + query.direction() + " NULLS LAST,");
         var rows = jdbc.rows("SELECT * FROM (" + projection + ") result" + order + " LIMIT ? OFFSET ?",
-                novel, novel, stage, stage, query.q(), query.pattern(), query.pattern(), query.size(), query.offset());
+                novel, novel, owner, owner, stage, stage, query.q(), query.pattern(), query.pattern(), query.size(), query.offset());
         return ListPage.of(rows, query, total);
     }
 }

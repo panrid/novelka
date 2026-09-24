@@ -8,7 +8,8 @@ import java.util.Map;
 
 public final class NotificationRepository {
     private final JdbcSession jdbc;
-    private static final String VISIBLE = "n.created_at >= a.created_at AND (n.audience='READER' OR ?)";
+    /** Public notifications, administrator ones for administrators, and personal ones addressed to the account. */
+    private static final String VISIBLE = "n.created_at >= a.created_at AND (n.audience='READER' OR ? OR n.account_id=a.id)";
 
     public NotificationRepository(JdbcSession jdbc) { this.jdbc = jdbc; }
 

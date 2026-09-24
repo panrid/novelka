@@ -51,7 +51,7 @@ export function App() {
         else if (path === '/chat') content = guarded('READER', <ChatPage />);
         else if (section === '/library') content = guarded('READER', <LibraryPage />);
         else if (section === '/accounts') content = <Redirect to="/settings?section=users" />;
-        else if (path.split('?')[0] === '/manage') content = guarded('ADMIN', <ManagePage key={path} search={path.split('?')[1]} />);
+        else if (path.split('?')[0] === '/manage') content = guarded('READER', <ManagePage key={path} search={path.split('?')[1]} />);
         else if (section === '/settings') content = guarded('ADMIN', <SettingsPage search={path.split('?')[1]} />);
         else if (section === '/audit') content = guarded('OWNER', <AuditPage />);
     } catch { /* Malformed URL is handled by the not-found page. */ }
@@ -61,8 +61,8 @@ export function App() {
             <a className="brand" href="#/" aria-label="Новелка — каталог"><span className="brand-icon">н</span>новелка<span className="brand-dot">.</span></a>
             <nav aria-label="Основна навігація">
                 <a className="nav-link" href="#/">Каталог новел</a>
-                {auth.user && <><a className="nav-link" href="#/library">Бібліотека</a><a className="nav-link" href="#/corrections">Правки</a><a className="nav-link" href="#/chat">Чат</a></>}
-                {permits(auth.user, 'ADMIN') && <><a className="nav-link" href="#/manage">Майстерня</a><a className="nav-link" href="#/settings">Налаштування</a></>}
+                {auth.user && <><a className="nav-link" href="#/library">Бібліотека</a><a className="nav-link" href="#/corrections">Правки</a><a className="nav-link" href="#/chat">Чат</a><a className="nav-link" href="#/manage">Майстерня</a></>}
+                {permits(auth.user, 'ADMIN') && <a className="nav-link" href="#/settings">Налаштування</a>}
             </nav>
             <div className="session-controls"><ThemePicker compact />
                 {auth.user ? <><NotificationBell key={auth.user.id + ':' + auth.user.role} /><a className="nav-link profile-link" href="#/profile" title="Профіль"><span className="profile-avatar" aria-hidden="true">{auth.user.username.slice(0, 1).toUpperCase()}</span><span className="profile-name">{auth.user.username} · {roleNames[auth.user.role]}</span></a><button className="logout-button" aria-label="Вийти" title="Вийти" disabled={action.busy} onClick={() => { void action.run(auth.logout, 'Ви вийшли.'); }}><svg aria-hidden="true" className="logout-icon" viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 4H4v12h4" /><path d="M11 6l4 4-4 4" /><path d="M15 10H7" /></svg><span aria-hidden="true" className="logout-text">Вийти</span></button></> : <a className="nav-link" href="#/login">Увійти</a>}

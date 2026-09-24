@@ -27,10 +27,15 @@ public final class TasksController {
         this.database = database; this.access = access; this.service = service; this.settings = settings;
     }
 
+    /** Administrators see every task; everyone else only their own. */
+    private static String own(panrid.space.novelka.server.account.Account account) {
+        return account.role().includes(Role.ADMIN) ? null : account.id();
+    }
+
     /** What a new task uses unless overridden: administrators cannot read the owner's full settings. */
     @GetMapping("/defaults")
     public Map<String, Object> defaults(Principal principal) throws Exception {
-        access.require(principal, Role.ADMIN);
+        access.require(principal, Role.READER);
         var snapshot = settings.read();
         var models = new java.util.LinkedHashMap<String, String>();
         snapshot.stages().forEach(stage -> models.put(stage.stage(), stage.model()));
@@ -43,31 +48,34 @@ public final class TasksController {
             @RequestParam(defaultValue = "created") String sort, @RequestParam(defaultValue = "desc") String direction,
             @RequestParam(defaultValue = "") String state, @RequestParam(defaultValue = "") String operation,
             @RequestParam(defaultValue = "") String novel) throws Exception {
-        access.require(principal, Role.ADMIN);
+        var account = access.require(principal, Role.READER);
         try (var jdbc = database.open()) {
-            return Json.M.convertValue(new TaskRepository(jdbc).list(new ListQuery(page, size, q, sort, direction), state, operation, novel), Object.class);
+            return Json.M.convertValue(new TaskRepository(jdbc).list(own(account), new ListQuery(page, size, q, sort, direction), state, operation, novel), Object.class);
         }
     }
 
     @PostMapping
     public Map<String, String> create(Principal principal, @RequestBody TaskRequest request) throws Exception {
-        return Map.of("id", service.enqueue(access.require(principal, Role.ADMIN), request));
+        return Map.of("id", service.enqueue(access.require(principal, Role.READER), request));
     }
 
     @GetMapping("/{id}")
     public Object read(Principal principal, @PathVariable String id) throws Exception {
-        access.require(principal, Role.ADMIN);
+        var account = access.require(principal, Role.READER);
         try (var jdbc = database.open()) {
             var task = new TaskRepository(jdbc).find(id);
-            if (task == null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
+            if (task == null || own(account) != null && !account.id().equals(task.get("actor_id"))) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
             return Json.M.convertValue(task, Object.class);
         }
     }
 
     @PostMapping("/{id}/cancel")
     public Map<String, String> cancel(Principal principal, @PathVariable String id) throws Exception {
-        var actor = access.require(principal, Role.ADMIN);
+        var actor = access.require(principal, Role.READER);
         try (var jdbc = database.open()) {
+            var task = new TaskRepository(jdbc).find(id);
+            if (task == null || own(actor) != null && !actor.id().equals(task.get("actor_id")))
+                throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
             jdbc.transaction(() -> {
                 new TaskRepository(jdbc).cancel(id);
                 new AuditRepository(jdbc).add(actor.id(), "task.cancel", id, Map.of());

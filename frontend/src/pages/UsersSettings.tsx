@@ -5,6 +5,7 @@ import { mutate } from '../api/client';
 import { useAction } from '../hooks/useAction';
 import { ActionNotice } from '../components/ActionNotice';
 import { ErrorState, Loading } from '../components/Status';
+import { usd, type Balance } from '../components/BalanceSummary';
 import { ListEmpty, ListFilter, ListPages, ListSearch, TableHeader, listParams, useListState, type PageData } from '../components/ListTools';
 
 interface AdminAccount { id: string; username: string; email: string | null; role: Role; created_at: string }
@@ -88,8 +89,41 @@ function UserPanel({ id, close, refreshList }: { id: string; close: () => void; 
             {!!allowed.roles.length && <button className="button" disabled={action.busy || role === account.role}>Зберегти роль</button>}
             <ActionNotice {...action} />
         </form>
+        {user?.role === 'OWNER' && <BalancePanel id={account.id} />}
         <h4>Історія ніків</h4>
         <NicknameHistory id={account.id} />
+    </section>;
+}
+
+/** Owner-only: the user's translation balance, top-ups and corrections of a mistaken top-up. */
+function BalancePanel({ id }: { id: string }) {
+    const resource = useResource<{ balance: Balance; topups: { id: number; amount_usd: number; note: string; created_at: string; actor: string }[] }>('/accounts/' + id + '/balance');
+    const [amount, setAmount] = useState('');
+    const [note, setNote] = useState('');
+    const action = useAction();
+    if (resource.error) return <ErrorState message={resource.error} retry={resource.retry} />;
+    if (!resource.data) return <Loading />;
+    const { balance, topups } = resource.data;
+    return <section className="balance-panel" aria-labelledby={'balance-' + id}>
+        <h4 id={'balance-' + id}>Баланс перекладу</h4>
+        {balance.unlimited ? <p className="muted">Власник сайту використовує бюджет сайту.</p> : <>
+            <p>Доступно <strong>{usd.format(balance.available)}</strong> · зарезервовано {usd.format(balance.reserved)} · витрачено {usd.format(balance.spent)}</p>
+            <form className="inline-form" onSubmit={event => {
+                event.preventDefault();
+                void action.run(async () => {
+                    await mutate('/accounts/' + id + '/balance', { amountUsd: Number(amount), note });
+                    setAmount(''); setNote(''); resource.retry();
+                }, Number(amount) > 0 ? 'Баланс поповнено.' : 'Суму списано.');
+            }}>
+                <label>Сума, $<input type="number" required step="0.01" min="-1000" max="1000" value={amount} onChange={event => setAmount(event.target.value)} /></label>
+                <label>Коментар<input maxLength={500} value={note} onChange={event => setNote(event.target.value)} /></label>
+                <button className="button" disabled={action.busy || !Number(amount)}>{Number(amount) < 0 ? 'Списати' : 'Поповнити'}</button>
+            </form>
+            <ActionNotice {...action} />
+        </>}
+        {topups.length > 0 && <ul className="nickname-history">{topups.map(topup => <li key={topup.id}>
+            {Number(topup.amount_usd) > 0 ? '+' : ''}{usd.format(topup.amount_usd)}{topup.note && ' · ' + topup.note}
+            <span className="muted"> {topup.actor}, {new Date(topup.created_at).toLocaleString('uk-UA')}</span></li>)}</ul>}
     </section>;
 }
 

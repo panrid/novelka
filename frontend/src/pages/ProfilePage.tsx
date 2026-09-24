@@ -5,6 +5,7 @@ import { useResource } from '../hooks/useResource';
 import { useAction } from '../hooks/useAction';
 import { ActionNotice } from '../components/ActionNotice';
 import { ErrorState, Loading } from '../components/Status';
+import { BalanceSummary } from '../components/BalanceSummary';
 import { HelpTip } from '../components/HelpTip';
 
 interface Profile {
@@ -31,6 +32,10 @@ export function ProfilePage() {
             <div><dt>Email</dt><dd>{profile.email ?? <span className="muted">не вказано</span>}</dd></div>
             <div><dt>Роль</dt><dd>{roleNames[profile.role]}</dd></div>
         </dl>
+        <section className="profile-section" aria-labelledby="balance-title">
+            <h2 id="balance-title">Баланс перекладу<HelpTip label="Що таке баланс">З балансу оплачується автоматичний переклад ваших новел. Запуск резервує бюджет завдання, а після завершення списується лише фактична вартість. Баланс поповнює власник сайту.</HelpTip></h2>
+            <BalanceSummary />
+        </section>
         <section className="profile-section" aria-labelledby="nickname-title">
             <h2 id="nickname-title">Змінити нік<HelpTip label="Правила зміни ніка">Нік — публічне ім’я й спосіб входу. Перша зміна доступна одразу, друга — через 2 години, третя — через 2 тижні, далі — не частіше ніж раз на 2 місяці. Після зміни старий нік більше не підходить для входу, а email працює як раніше.</HelpTip></h2>
             <p className={waiting ? 'notice' : 'muted'} role="status">{waiting
