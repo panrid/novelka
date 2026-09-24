@@ -4,9 +4,12 @@ import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.NICK_CHANGE;
 
 import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import org.jooq.DSLContext;
+import org.jooq.Field;
 import org.jooq.Record;
 import org.springframework.stereotype.Repository;
 
@@ -81,11 +84,11 @@ public class AccountRepository {
         db.update(ACCOUNT).set(ACCOUNT.PASSWORD_HASH, passwordHash).where(ACCOUNT.ID.eq(id)).execute();
     }
 
+    /** Only called with an address already confirmed from the letter. */
     void updateEmail(long id, String email) {
         db.update(ACCOUNT)
                 .set(ACCOUNT.EMAIL, email)
                 .set(ACCOUNT.EMAIL_KEY, AccountRules.key(email))
-                .setNull(ACCOUNT.EMAIL_VERIFIED_AT)
                 .where(ACCOUNT.ID.eq(id))
                 .execute();
     }
@@ -103,6 +106,44 @@ public class AccountRepository {
                 .set(NICK_CHANGE.NEW_NICK, newNick)
                 .set(NICK_CHANGE.CHANGED_AT, at)
                 .execute();
+    }
+
+    void updateSettings(long id, String bio, String dmPolicy, Boolean showReading, OffsetDateTime adultConfirmedAt,
+            boolean adultChanged, Boolean showShah) {
+        Map<Field<?>, Object> changes = new HashMap<>();
+        if (bio != null) {
+            changes.put(ACCOUNT.BIO, bio);
+        }
+        if (dmPolicy != null) {
+            changes.put(ACCOUNT.DM_POLICY, dmPolicy);
+        }
+        if (showReading != null) {
+            changes.put(ACCOUNT.SHOW_READING, showReading);
+        }
+        if (adultChanged) {
+            changes.put(ACCOUNT.ADULT_CONFIRMED_AT, adultConfirmedAt);
+        }
+        if (showShah != null) {
+            changes.put(ACCOUNT.SHOW_SHAH, showShah);
+        }
+        if (!changes.isEmpty()) {
+            db.update(ACCOUNT).set(changes).where(ACCOUNT.ID.eq(id)).execute();
+        }
+    }
+
+    void setAvatar(long id, Long imageId) {
+        db.update(ACCOUNT).set(ACCOUNT.AVATAR_IMAGE_ID, imageId).where(ACCOUNT.ID.eq(id)).execute();
+    }
+
+    /** Current account for a nick, following renames: old links to /u/{old} keep working. */
+    Optional<Long> idByNickOrFormerNick(String nick) {
+        String key = AccountRules.key(nick);
+        return db.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.NICK_KEY.eq(key)).fetchOptional(r -> r.value1())
+                .or(() -> db.select(NICK_CHANGE.ACCOUNT_ID).from(NICK_CHANGE)
+                        .where(org.jooq.impl.DSL.lower(NICK_CHANGE.OLD_NICK).eq(key))
+                        .orderBy(NICK_CHANGE.CHANGED_AT.desc())
+                        .limit(1)
+                        .fetchOptional(r -> r.value1()));
     }
 
     /** Written at most every few minutes per account; used by the «естафета» inactivity rule. */

@@ -3,3 +3,5 @@ novelka:
     sign-ins-per-address: 1000
     sign-ins-per-login: 1000
     registrations-per-address: 1000
+  media:
+    dir: build/test-media

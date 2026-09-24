@@ -14,6 +14,10 @@ spring:
       # Local development only: `bootRun` starts PostgreSQL and the mail catcher itself.
       file: ../infra/compose.yaml
       lifecycle-management: start-only
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   session:
     timeout: 30d
     jdbc:
@@ -34,6 +38,8 @@ spring:
       republish-outstanding-events-on-restart: true
 
 novelka:
+  media:
+    dir: ${NOVELKA_MEDIA_DIR:data/media}
   public-url: ${NOVELKA_PUBLIC_URL:http://127.0.0.1:5173}
   mail-from: ${NOVELKA_MAIL_FROM:Новелка <no-reply@novelka.panrid.space>}
   owner:

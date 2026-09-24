@@ -26,7 +26,8 @@ class EmailTokens {
 
     enum Purpose {
         VERIFY("verify", Duration.ofHours(24)),
-        RESET("reset", Duration.ofMinutes(30));
+        RESET("reset", Duration.ofMinutes(30)),
+        CHANGE_EMAIL("change_email", Duration.ofHours(24));
 
         final String code;
         final Duration lifetime;

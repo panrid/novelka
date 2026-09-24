@@ -36,6 +36,9 @@ dependencies {
     implementation 'org.springframework.modulith:spring-modulith-starter-core'
     implementation 'org.springframework.modulith:spring-modulith-starter-jdbc'
     runtimeOnly 'org.postgresql:postgresql'
+    // Reads WebP and unusual JPEGs (CMYK, broken metadata) that plain ImageIO rejects.
+    runtimeOnly 'com.twelvemonkeys.imageio:imageio-webp:3.15.2'
+    runtimeOnly 'com.twelvemonkeys.imageio:imageio-jpeg:3.15.2'
 
     developmentOnly platform("org.springframework.boot:spring-boot-dependencies:$bootVersion")
     developmentOnly 'org.springframework.boot:spring-boot-docker-compose'

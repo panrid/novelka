@@ -41,6 +41,35 @@ class AccountMails {
                 """.formatted(nick, link("/reset", token)));
     }
 
+    Mail confirmNewEmail(String newEmail, String nick, String token) {
+        return new Mail(newEmail, "Підтвердіть нову пошту на Новелці", """
+                Привіт, %s!
+
+                Ви вказали цю адресу як нову пошту свого акаунта. Щоб підтвердити, відкрийте посилання:
+                %s
+
+                Доки ви цього не зробите, лишається чинною стара адреса. Посилання діє добу.
+                """.formatted(nick, link("/confirm-email", token)));
+    }
+
+    Mail emailChanged(String oldEmail, String nick, String newEmail) {
+        return new Mail(oldEmail, "Пошту акаунта на Новелці змінено", """
+                Привіт, %s!
+
+                Пошту вашого акаунта змінено на %s. Якщо це були не ви, відновіть пароль
+                через «Забули пароль?» на сторінці входу й напишіть адміністрації.
+                """.formatted(nick, newEmail));
+    }
+
+    Mail passwordChanged(String email, String nick) {
+        return new Mail(email, "Пароль на Новелці змінено", """
+                Привіт, %s!
+
+                Пароль вашого акаунта щойно змінено, а всі інші пристрої вийшли з акаунта.
+                Якщо це були не ви, відновіть пароль через «Забули пароль?» на сторінці входу.
+                """.formatted(nick));
+    }
+
     private String link(String path, String token) {
         return site.link(path + "?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8));
     }

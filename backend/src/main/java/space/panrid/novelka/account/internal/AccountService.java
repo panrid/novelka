@@ -143,6 +143,75 @@ class AccountService {
         return account.id();
     }
 
+    @Transactional
+    void changeNick(long id, String rawNick) {
+        String nick = AccountRules.nick(rawNick);
+        AccountRow account = accounts.byId(id).orElseThrow();
+        if (account.nick().equals(nick)) {
+            return;
+        }
+        OffsetDateTime now = now();
+        if (account.nickChangedAt() != null && account.nickChangedAt().plus(NICK_CHANGE_INTERVAL).isAfter(now)) {
+            String next = account.nickChangedAt().plus(NICK_CHANGE_INTERVAL)
+                    .format(java.time.format.DateTimeFormatter.ofPattern("d MMMM", java.util.Locale.forLanguageTag("uk")));
+            throw new UserFacingException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Нік можна змінювати раз на 30 днів. Наступного разу — з %s.".formatted(next));
+        }
+        // Changing only the letter case keeps the same nick key, so it is not "taken".
+        if (!AccountRules.key(account.nick()).equals(AccountRules.key(nick)) && accounts.nickTaken(nick)) {
+            throw UserFacingException.conflict("Цей нік уже зайнятий. Оберіть інший.");
+        }
+        accounts.changeNick(id, account.nick(), nick, now);
+    }
+
+    /** The new address gets a link; the old one stays in use until it is opened. */
+    @Transactional
+    void requestEmailChange(long id, String rawEmail, String password) {
+        String email = AccountRules.email(rawEmail);
+        AccountRow account = accounts.byId(id).orElseThrow();
+        requirePassword(account, password);
+        if (AccountRules.key(account.email()).equals(AccountRules.key(email))) {
+            throw UserFacingException.badRequest("Це й так ваша пошта.");
+        }
+        if (accounts.emailTaken(email)) {
+            throw UserFacingException.conflict("Ця пошта вже належить іншому акаунту.");
+        }
+        if (!tokens.mayIssue(id, Purpose.CHANGE_EMAIL)) {
+            throw UserFacingException.tooManyRequests();
+        }
+        String token = tokens.issue(id, Purpose.CHANGE_EMAIL, email);
+        AfterCommit.run(() -> mailer.send(mails.confirmNewEmail(email, account.nick(), token)));
+    }
+
+    @Transactional
+    long confirmEmailChange(String token) {
+        EmailTokens.Token used = tokens.consume(token, Purpose.CHANGE_EMAIL).orElseThrow(AccountService::staleLink);
+        AccountRow account = accounts.byId(used.accountId()).orElseThrow(AccountService::staleLink);
+        if (accounts.emailTaken(used.email())) {
+            throw UserFacingException.conflict("Ця пошта вже належить іншому акаунту.");
+        }
+        accounts.updateEmail(account.id(), used.email());
+        accounts.markEmailVerified(account.id(), now());
+        AfterCommit.run(() -> mailer.send(mails.emailChanged(account.email(), account.nick(), used.email())));
+        return account.id();
+    }
+
+    @Transactional
+    void changePassword(long id, String currentPassword, String rawNewPassword) {
+        AccountRow account = accounts.byId(id).orElseThrow();
+        requirePassword(account, currentPassword);
+        String password = AccountRules.password(rawNewPassword);
+        accounts.updatePassword(id, passwords.encode(password));
+        tokens.revokeAll(id, Purpose.RESET);
+        AfterCommit.run(() -> mailer.send(mails.passwordChanged(account.email(), account.nick())));
+    }
+
+    private void requirePassword(AccountRow account, String password) {
+        if (password == null || !passwords.matches(password, account.passwordHash())) {
+            throw UserFacingException.badRequest("Поточний пароль неправильний.");
+        }
+    }
+
     private OffsetDateTime now() {
         return OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC);
     }

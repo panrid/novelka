@@ -20,8 +20,7 @@ public class AccessPolicy {
 
     /** The signed-in person, or 401 «Увійдіть, щоб продовжити». */
     public Viewer requireSignedIn() {
-        return currentUser.viewer().orElseThrow(() ->
-                new UserFacingException(HttpStatus.UNAUTHORIZED, "Увійдіть, щоб продовжити."));
+        return currentUser.requireSignedIn();
     }
 
     /** The signed-in person whose site role is at least {@code role}, or 403. */

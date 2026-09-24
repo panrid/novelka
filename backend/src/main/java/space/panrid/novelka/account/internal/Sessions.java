@@ -47,8 +47,21 @@ class Sessions {
         SecurityContextHolder.clearContext();
     }
 
-    /** After a password change nobody who had the old password stays signed in. */
+    /** After a password reset nobody who had the old password stays signed in. */
     void signOutEverywhere(long accountId) {
         store.findByPrincipalName(Long.toString(accountId)).keySet().forEach(store::deleteById);
+    }
+
+    /** After a password change: every other device is out, this one stays in with a fresh session id. */
+    void signOutOtherDevices(long accountId, HttpServletRequest request) {
+        HttpSession current = request.getSession(false);
+        // The store still knows this session by its old id until the request ends.
+        String currentId = current == null ? null : current.getId();
+        store.findByPrincipalName(Long.toString(accountId)).keySet().stream()
+                .filter(id -> !id.equals(currentId))
+                .forEach(store::deleteById);
+        if (current != null) {
+            request.changeSessionId();
+        }
     }
 }
