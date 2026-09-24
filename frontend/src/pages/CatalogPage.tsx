@@ -6,6 +6,8 @@ import { ErrorState, Loading } from '../components/Status';
 import { ListPages, ListSearch, listParams, useListState, type PageData } from '../components/ListTools';
 import { TagInput } from '../components/TagInput';
 import { tagSlug } from '../lib/tags';
+import { HeroArt } from '../components/HeroArt';
+import { NovelCover } from '../components/NovelCover';
 
 export function CatalogPage() {
     const list = useListState('', 'title', ['readyOnly', 'tags'], 'asc');
@@ -26,10 +28,9 @@ export function CatalogPage() {
                 <p className="hero-description">Знайомі слова. Незнайомі світи. Оберіть історію<br className="desktop-break" /> й дозвольте собі трохи загубитися між рядками.</p>
                 <a className="text-link" href="#catalog" onClick={event => { event.preventDefault(); document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' }); }}>Знайти свою історію <span aria-hidden="true">↘</span></a>
             </div>
-            <div className="hero-art" aria-hidden="true">
-                <div className="art-sun" /><div className="art-orbit" />
-                <div className="art-book art-book-back" /><div className="art-book art-book-front"><span>物語</span><small>ІСТОРІЇ<br />МІЖ СВІТАМИ</small></div>
-                <span className="art-caption">Відкрийте наступну сторінку</span>
+            <div className="hero-art">
+                <HeroArt />
+                <span className="art-caption" aria-hidden="true">Відкрийте наступну сторінку</span>
             </div>
         </section>
         <section id="catalog" className="catalog-section" aria-labelledby="catalog-title">
@@ -52,8 +53,8 @@ export function CatalogPage() {
                 <span className="empty-symbol" aria-hidden="true">書</span>
                 <h3>{filtered ? 'Історію не знайдено' : 'Перша історія ще попереду'}</h3>
                 <p>{filtered ? 'Спробуйте іншу назву, автора, приберіть тег або вимкніть фільтр готових глав.' : 'Імпортуйте новелу в майстерні — вона з’явиться тут.'}</p>
-            </div> : <div className="novel-grid">{novels.map((novel, index) => <a className="novel-card" key={novel.id} href={'#' + novelPath(novel.id)}>
-                <div className={'book-cover cover-' + index % 4} aria-hidden="true"><div className="cover-circle" /><span className="cover-id">{novel.id}</span><span className="cover-letter">{novel.title.slice(0, 1)}</span><span className="cover-imprint">NOVELKA / STORIES</span></div>
+            </div> : <div className="novel-grid">{novels.map(novel => <a className="novel-card" key={novel.id} href={'#' + novelPath(novel.id)}>
+                <NovelCover id={novel.id} title={novel.title} />
                 <div className="card-body"><span className={'availability' + (novel.readyChapters ? ' available' : '')}>{novel.readyChapters ? 'Готово до читання' : 'Очікує перекладу'}</span>
                     <h3>{novel.title}</h3><p className="card-author">{novel.author}</p>{novel.description && <p className="card-description">{novel.description}</p>}
                     {novel.aliases.length > 0 && <p className="card-alias">{novel.aliases.join(' · ')}</p>}

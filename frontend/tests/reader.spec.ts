@@ -155,3 +155,11 @@ test('system theme follows OS changes while keeping explicit themes', async ({ p
     await page.emulateMedia({ colorScheme: 'dark' });
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
+
+test('tab icons are linked and served', async ({ page, request }) => {
+    await page.route('**/api/auth/me', route => route.fulfill({ json: { user: null, registrationOpen: true } }));
+    await page.goto('/');
+    await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute('href', '/favicon.svg');
+    await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/apple-touch-icon.png');
+    for (const path of ['/favicon.svg', '/favicon.ico', '/apple-touch-icon.png']) expect((await request.get(path)).status()).toBe(200);
+});

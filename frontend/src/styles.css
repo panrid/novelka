@@ -10,6 +10,7 @@
     --muted: #a2afa0;
     --line: #3a473e;
     --accent: #486b50;
+    --art-moon: #e5dfc9; --art-star: #e5dfc9; --art-line: #c9cdbb; --art-hill-3: #33473c; --art-hill-2: #2a3b32; --art-hill-1: #222f29; --art-river: #b6aa86; --art-book: #38523f; --art-page: #eee7d3; --art-page-line: #c8bfa6; --art-slip: #b8643f; --art-ink: #fbf6ea; --art-crane: #f1ecdc; --art-crane-edge: #1c2521;
     color-scheme: dark;
 }
 
@@ -60,14 +61,16 @@ h1, h2, h3, p { margin-top: 0; }
 .hero h1 em { font-weight: 400; color: #5c7558; }
 .hero-description { color: var(--muted); line-height: 1.85; font-size: 14px; margin-bottom: 25px; }
 .text-link { display: inline-flex; gap: 25px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--ink); padding-bottom: 7px; }
-.hero-art { height: 365px; position: relative; isolation: isolate; overflow: hidden; }
-.art-sun { position: absolute; width: 225px; height: 225px; border-radius: 50%; background: #e5dfc9; top: 43px; left: 20%; }
-.art-orbit { position: absolute; width: 340px; height: 235px; border: 1px solid #c9cdbb; border-radius: 50%; transform: rotate(-25deg); top: 82px; left: 4%; }
-.art-book { position: absolute; width: 138px; height: 213px; border-radius: 2px 5px 5px 2px; box-shadow: 14px 18px 28px #36412b20; border-left: 6px solid #ffffff16; }
-.art-book-back { background: #b6aa86; transform: rotate(15deg); top: 83px; left: 43%; border-right: 6px solid #ece6d5; }
-.art-book-front { background: #38523f; transform: rotate(-14deg); top: 67px; left: 24%; color: #eee7d3; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.art-book-front span { font: 38px Georgia, serif; writing-mode: vertical-rl; letter-spacing: 9px; margin-bottom: 25px; }
-.art-book-front small { font-size: 7px; letter-spacing: 2px; text-align: center; line-height: 1.8; }
+.hero-art { height: 365px; position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
+.hero-illustration { flex: 1; min-height: 0; width: 100%; max-width: 520px;
+    /* Hills fade into the page instead of ending in a hard rectangle. */
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12%, #000 88%, transparent 100%), linear-gradient(to bottom, #000 93%, transparent 100%);
+    -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, transparent 0, #000 12%, #000 88%, transparent 100%), linear-gradient(to bottom, #000 93%, transparent 100%); mask-composite: intersect; }
+.hero-art .art-caption { position: static; flex: none; padding-top: 6px; }
+.book-cover .cover-art { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cover-id, .cover-imprint, .cover-seal { z-index: 1; }
+.cover-id, .cover-imprint { text-shadow: 0 1px 2px #0006; }
+.cover-seal { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 6px; color: #fbf6ea; font: 20px/1 Georgia, serif; box-shadow: inset 0 0 0 2px #ffffff40, 0 2px 6px #0004; transform: rotate(4deg); }
 .art-caption { position: absolute; bottom: 22px; width: 100%; text-align: center; color: var(--muted); font: italic 12px Georgia, serif; }
 .catalog-section { padding: 47px 0 80px; }
 .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 28px; }
@@ -86,12 +89,6 @@ h1, h2, h3, p { margin-top: 0; }
 .novel-card { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; overflow: hidden; transition: transform .2s, box-shadow .2s; }
 .novel-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px #273c2e12; }
 .book-cover { height: 220px; background: #304b42; color: #f1edda; position: relative; overflow: hidden; }
-.cover-1 { background: #8c5d43; }
-.cover-2 { background: #555b75; }
-.cover-3 { background: #727257; }
-.cover-circle { position: absolute; height: 220px; width: 220px; border: 1px solid #ffffff28; border-radius: 50%; right: -25px; top: 40px; }
-.cover-circle::after { content: ""; display: block; width: 170px; height: 170px; margin: 25px; border: 1px solid #ffffff25; border-radius: 50%; }
-.cover-letter { position: absolute; right: 47px; top: 48px; font: 92px Georgia, serif; opacity: .65; }
 .cover-id { position: absolute; left: 22px; top: 20px; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; }
 .cover-imprint { position: absolute; bottom: 20px; left: 22px; font-size: 8px; letter-spacing: 3px; }
 .card-body { padding: 23px; }
@@ -153,8 +150,8 @@ h1, h2, h3, p { margin-top: 0; }
 .chapter-end { text-align: center; font-size: 30px; color: #a9946b; padding: 30px 0 55px; }
 .chapter-navigation { display: flex; justify-content: space-between; align-items: center; gap: 18px; max-width: 740px; margin: auto; border-top: 1px solid var(--line); padding-top: 28px; font-size: 13px; }
 .reader-footnote { color: var(--muted); text-align: center; font-size: 12px; margin: 40px 0 0; }
-:root[data-theme="light"] { --paper: #f5f2ea; --surface: #fbf9f4; --ink: #25382f; --muted: #72796f; --line: #dcded2; --accent: #345a45; color: var(--ink); background: var(--paper); color-scheme: light; }
-:root[data-theme="black"] { --paper: #000000; --surface: #111111; --ink: #e6e6e6; --muted: #ababab; --line: #333333; --accent: #486b50; color: var(--ink); background: var(--paper); color-scheme: dark; }
+:root[data-theme="light"] { --art-moon: #eadfc2; --art-star: #b6aa86; --art-line: #a9b19c; --art-hill-3: #cdd6c4; --art-hill-2: #b1c1ab; --art-hill-1: #93a98f; --art-river: #fbf9f4; --art-book: #38523f; --art-page: #fffdf6; --art-page-line: #d6cdb4; --art-slip: #c9774d; --art-ink: #fff8ec; --art-crane: #fffdf8; --art-crane-edge: #9aa38f; --paper: #f5f2ea; --surface: #fbf9f4; --ink: #25382f; --muted: #72796f; --line: #dcded2; --accent: #345a45; color: var(--ink); background: var(--paper); color-scheme: light; }
+:root[data-theme="black"] { --art-moon: #d9d3c0; --art-star: #d9d3c0; --art-line: #6b6b62; --art-hill-3: #1c211e; --art-hill-2: #141815; --art-hill-1: #0b0d0c; --art-river: #8f866a; --art-book: #2b3d31; --art-page: #d9d3c0; --art-page-line: #9d967f; --art-slip: #9b5234; --art-ink: #f5efe0; --art-crane: #e6e1d2; --art-crane-edge: #000000; --paper: #000000; --surface: #111111; --ink: #e6e6e6; --muted: #ababab; --line: #333333; --accent: #486b50; color: var(--ink); background: var(--paper); color-scheme: dark; }
 @media (min-width: 1450px) { .site-header, .site-footer { padding-left: calc((100vw - 1160px) / 2); padding-right: calc((100vw - 1160px) / 2); } }
 @media (max-width: 900px) {
     .hero h1 { font-size: 48px; }
@@ -173,8 +170,6 @@ h1, h2, h3, p { margin-top: 0; }
     .hero-description { font-size: 13px; }
     .hero-art { height: 290px; transform: scale(.9); margin: -5px -5% -15px; }
     .art-caption { display: none; }
-    .art-book-front { top: 40px; left: 25%; }
-    .art-book-back { top: 53px; }
     .catalog-section { padding-top: 32px; }
     .catalog-tools { flex-direction: column; gap: 12px; }
     .filter-button { align-self: flex-start; padding: 12px 15px; }
@@ -549,9 +544,6 @@ summary { cursor: pointer; font-weight: 600; margin-bottom: 18px; }
 /* Layout review: denser workshop form, wider catalog grid, compact mobile header. */
 .novel-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 20px; }
 .book-cover { height: 150px; }
-.cover-letter { top: 22px; right: 30px; font-size: 72px; line-height: 1; }
-.cover-circle { top: 16px; width: 180px; height: 180px; }
-.cover-circle::after { width: 140px; height: 140px; margin: 19px; }
 .card-body { padding: 18px; }
 .card-bottom { margin-top: 16px; padding-top: 12px; }
 .card-bottom span.card-score { font-size: inherit; color: var(--muted); }
@@ -563,7 +555,6 @@ summary { cursor: pointer; font-weight: 600; margin-bottom: 18px; }
 .task-form fieldset input[type="number"] { max-width: 220px; }
 @media (max-width: 600px) {
     .book-cover { height: 120px; }
-    .cover-letter { top: 18px; font-size: 60px; }
     .site-header { padding-top: 10px; padding-bottom: 10px; gap: 10px; }
     .site-header nav { flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding-bottom: 4px; scrollbar-width: none; }
     .site-header nav a { flex: none; white-space: nowrap; }
