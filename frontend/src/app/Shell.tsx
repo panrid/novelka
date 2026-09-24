@@ -1,5 +1,7 @@
 import { HeadContent, Link, Outlet } from '@tanstack/react-router';
 import { BookOpen, Home, Inbox, Search, User, type LucideIcon } from 'lucide-react';
+import { useMe } from '../auth/me';
+import { Avatar } from '../ui/Avatar';
 import styles from './Shell.module.css';
 
 type Tab = { to: '/' | '/catalog' | '/library' | '/inbox' | '/me'; label: string; icon: LucideIcon };
@@ -35,6 +37,7 @@ export function Shell() {
 }
 
 function Tabs({ className }: { className: string | undefined }) {
+    const me = useMe();
     return (
         <nav className={className} aria-label="Розділи">
             {TABS.map(({ to, label, icon: Icon }) => (
@@ -45,7 +48,7 @@ function Tabs({ className }: { className: string | undefined }) {
                     activeProps={{ className: styles.active, 'aria-current': 'page' }}
                     activeOptions={{ exact: to === '/' }}
                 >
-                    <Icon aria-hidden size={22} strokeWidth={1.75} />
+                    {to === '/me' && me ? <Avatar nick={me.nick} url={me.avatarUrl} size={24} /> : <Icon aria-hidden size={22} strokeWidth={1.75} />}
                     <span>{label}</span>
                 </Link>
             ))}

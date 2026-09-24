@@ -5,11 +5,14 @@
 
 export class ApiError extends Error {
     readonly status: number;
+    /** A stable code from the server for cases the page reacts to, e.g. 'email-not-verified'. */
+    readonly reason: string | undefined;
 
-    constructor(status: number, message: string) {
+    constructor(status: number, message: string, reason?: string) {
         super(message);
         this.name = 'ApiError';
         this.status = status;
+        this.reason = reason;
     }
 }
 
@@ -22,16 +25,17 @@ function csrfToken(): string | undefined {
     return cookie ? decodeURIComponent(cookie.slice('XSRF-TOKEN='.length)) : undefined;
 }
 
-async function problemMessage(response: Response): Promise<string> {
+async function problem(response: Response): Promise<ApiError> {
     try {
         const body: unknown = await response.json();
         if (body && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string') {
-            return body.detail;
+            const reason = 'reason' in body && typeof body.reason === 'string' ? body.reason : undefined;
+            return new ApiError(response.status, body.detail, reason);
         }
     } catch {
         // Not JSON (a proxy page, an empty body): fall through to the generic text.
     }
-    return FALLBACK_MESSAGE;
+    return new ApiError(response.status, FALLBACK_MESSAGE);
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -55,7 +59,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
         throw new ApiError(0, OFFLINE_MESSAGE);
     }
     if (!response.ok) {
-        throw new ApiError(response.status, await problemMessage(response));
+        throw await problem(response);
     }
     if (response.status === 204) {
         return undefined as T;

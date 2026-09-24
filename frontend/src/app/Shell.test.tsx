@@ -1,15 +1,6 @@
-import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
-import { render, screen, within } from '@testing-library/react';
+import { renderAt } from '../test/render';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { createAppRouter } from './router';
-
-async function renderAt(path: string) {
-    const router = createAppRouter();
-    router.update({ history: createMemoryHistory({ initialEntries: [path] }) });
-    await router.load();
-    render(<RouterProvider router={router} />);
-    return router;
-}
 
 describe('Shell', () => {
     it('offers the five sections in Ukrainian', async () => {

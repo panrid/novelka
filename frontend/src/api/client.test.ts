@@ -23,6 +23,12 @@ describe('api', () => {
         await expect(api('/api/x')).rejects.toEqual(new ApiError(404, 'Такої сторінки немає.'));
     });
 
+    it('keeps the reason code for pages that react to it', async () => {
+        vi.stubGlobal('fetch', respond(403, { detail: 'Спершу підтвердьте пошту.', reason: 'email-not-verified' }));
+
+        await expect(api('/api/auth/login')).rejects.toMatchObject({ status: 403, reason: 'email-not-verified' });
+    });
+
     it('falls back to a generic message when the body is not a problem detail', async () => {
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>502</html>', { status: 502 })));
 

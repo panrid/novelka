@@ -1,0 +1,211 @@
+/* Shared form and control styles. Sizes follow the mockups: 44–46 px touch targets. */
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 46px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: var(--radius);
+    font: 600 15px/1.2 var(--font-ui);
+    text-decoration: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.button[data-disabled] {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.button[data-pressed] {
+    opacity: 0.8;
+}
+
+.primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+}
+
+.secondary {
+    background: var(--surface-2);
+    color: var(--text);
+    font-weight: 500;
+}
+
+.danger {
+    background: var(--surface-2);
+    color: var(--danger);
+    font-weight: 500;
+}
+
+.quiet {
+    min-height: 36px;
+    padding: 0 4px;
+    background: none;
+    color: var(--muted);
+    font-weight: 500;
+}
+
+.wide {
+    width: 100%;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.label {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.input {
+    width: 100%;
+    min-height: 46px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    font: 16px/1.4 var(--font-ui); /* 16 px keeps iOS from zooming into the field */
+}
+
+.input:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: -1px;
+}
+
+.input[data-invalid] {
+    border-color: var(--danger);
+}
+
+textarea.input {
+    min-height: 96px;
+    resize: vertical;
+}
+
+.hint {
+    font-size: 12.5px;
+    color: var(--faint);
+}
+
+.fieldError {
+    font-size: 13px;
+    color: var(--danger);
+}
+
+.notice {
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.error {
+    background: color-mix(in srgb, var(--danger) 16%, transparent);
+    color: var(--text);
+}
+
+.success {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--text);
+}
+
+.info {
+    background: var(--surface);
+    color: var(--text);
+}
+
+.avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--avatar-bg, var(--surface-2));
+    color: #fff;
+    font-weight: 600;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.segmented {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--surface);
+}
+
+.segment {
+    padding: 9px 6px;
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 14px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.segment[data-selected] {
+    background: var(--surface-2);
+    color: var(--text);
+}
+
+.segment[data-focus-visible] {
+    outline: 2px solid var(--focus);
+}
+
+.switchRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 48px;
+    cursor: pointer;
+}
+
+.track {
+    flex: none;
+    width: 44px;
+    height: 26px;
+    padding: 3px;
+    border-radius: 13px;
+    background: var(--line);
+    transition: background 0.15s;
+}
+
+.thumb {
+    display: block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--text);
+    transition: transform 0.15s;
+}
+
+.switchRow[data-selected] .track {
+    background: var(--accent);
+}
+
+.switchRow[data-selected] .thumb {
+    transform: translateX(18px);
+    background: var(--accent-ink);
+}
+
+.switchRow[data-focus-visible] .track {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}

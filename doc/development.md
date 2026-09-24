@@ -49,3 +49,21 @@ Vite пересилає `/api` на 8080.
 | `NOVELKA_DB_USER` / `NOVELKA_DB_PASSWORD` | `novelka` / `novelka` |
 | `NOVELKA_SERVER_ADDRESS` | `127.0.0.1` |
 | `NOVELKA_SERVER_PORT` | `8080` |
+| `NOVELKA_PUBLIC_URL` | `http://127.0.0.1:5173` — адреса сайту для посилань у листах |
+| `NOVELKA_SECURE_COOKIES` | `false`; у production — `true` (лише HTTPS) |
+| `NOVELKA_MEDIA_DIR` | `data/media` — завантажені картинки |
+| `NOVELKA_MAIL_HOST` / `NOVELKA_MAIL_PORT` | `127.0.0.1` / `1025` (Mailpit) |
+| `NOVELKA_MAIL_USER` / `NOVELKA_MAIL_PASSWORD` | порожні |
+| `NOVELKA_MAIL_AUTH` / `NOVELKA_MAIL_STARTTLS` | `false` / `false` |
+| `NOVELKA_MAIL_FROM` | `Новелка <no-reply@novelka.panrid.space>` |
+| `NOVELKA_OWNER_NICK` / `NOVELKA_OWNER_EMAIL` / `NOVELKA_OWNER_PASSWORD` | порожні |
+
+### Власник сайту
+Під час першого запуску, якщо власника ще немає й задано всі три `NOVELKA_OWNER_*`,
+створюється підтверджений акаунт власника. Наявний акаунт ніколи не підвищується
+автоматично: якщо нік чи пошта зайняті, запуск зупиниться з поясненням. Після
+створення приберіть `NOVELKA_OWNER_*` з оточення.
+
+### Тестовий акаунт локально
+Листи не йдуть назовні, їх ловить Mailpit: http://127.0.0.1:8025. Зареєструйтеся на
+http://127.0.0.1:5173/register і відкрийте посилання з листа в Mailpit.

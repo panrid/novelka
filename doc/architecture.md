@@ -212,7 +212,8 @@
 
 ### account
 ```
-account          id, nick, nick_key unique, email unique, email_verified_at,
+account          id, nick (3–30: латиниця або кирилиця, не впереміш), nick_key unique,
+                 email, email_key unique, email_verified_at,
                  password_hash, site_role (reader|moderator|admin|owner),
                  bio, avatar_image_id, last_seen_at, dm_policy (everyone|nobody),
                  adult_confirmed_at null,               -- підтвердив 18+
@@ -336,7 +337,10 @@ image            id, owner_account_id, team_id null,
                  hidden_at, hidden_by, hidden_reason
 ```
 Завантаження: перевірка вмісту файлу (не лише розширення), до 5 МБ, обрізання на клієнті
-(обкладинка 2:3, аватарка 1:1), перекодування в WebP на сервері, метадані EXIF видаляються.
+(обкладинка 2:3, аватарка 1:1), на сервері — повторне обрізання, кілька розмірів і перекодування
+в JPEG (або PNG, якщо є прозорість). Приймаються JPEG, PNG і WebP. Метадані EXIF не переносяться.
+Віддавати WebP не вийшло: у Java немає вбудованого кодувальника WebP. Якщо трафік картинок стане
+проблемою, перекодування можна перенести в окремий інструмент.
 Картинку в главі задає блок `{type: "image", imageId}` ревізії.
 
 ### reading
