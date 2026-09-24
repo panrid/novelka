@@ -30,6 +30,7 @@ export interface NovelDetail {
     tags: TagView[];
     rating: { score: number; mine: number };
     libraryStatus?: string | null;
+    translator?: string | null;
 }
 
 export interface Block {

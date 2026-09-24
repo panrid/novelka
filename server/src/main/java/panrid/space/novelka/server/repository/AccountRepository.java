@@ -70,6 +70,13 @@ public final class AccountRepository {
         return row == null ? null : account(row);
     }
 
+    /** Up to 10 nicknames starting with (then containing) the query, for pickers and mentions. */
+    public List<Map<String, Object>> nicknames(String q) throws Exception {
+        String escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        return jdbc.rows("SELECT id,username FROM accounts WHERE username ILIKE ? ESCAPE '\\'"
+                + " ORDER BY (username ILIKE ? ESCAPE '\\') DESC,lower(username),id LIMIT 10", "%" + escaped + "%", escaped + "%");
+    }
+
     public Account byId(String id) throws Exception {
         var rows = jdbc.rows("SELECT id,username,role FROM accounts WHERE id=?", id);
         return rows.isEmpty() ? null : account(rows.getFirst());
@@ -87,7 +94,7 @@ public final class AccountRepository {
 
     /** Administrative list: search by nickname or email, filter by role; email is returned only here. */
     public ListPage<Map<String, Object>> list(ListQuery query, String role) throws Exception {
-        if (!role.isEmpty() && !List.of("READER", "EDITOR", "ADMIN", "OWNER").contains(role))
+        if (!role.isEmpty() && !List.of("READER", "MODERATOR", "ADMIN", "OWNER").contains(role))
             throw new IllegalArgumentException("Невідома роль.");
         String where = " WHERE (?='' OR username ILIKE ? ESCAPE '\\' OR email ILIKE ? ESCAPE '\\') AND (?='' OR role=?)";
         Object[] filters = {query.q(), query.pattern(), query.pattern(), role, role};

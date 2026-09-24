@@ -154,12 +154,12 @@ class PipelineIntegrationTest {
                 var schemaInspection = new JdbcSession(url, "postgres", "")) {
             assertEquals(store.novels().novel(novel), upgraded.novels().novel(novel));
             upgraded.novels().saveAlias(novel, "upgraded");
-            assertEquals(16, schemaInspection.rows("SELECT version FROM schema_versions").size());
+            assertEquals(17, schemaInspection.rows("SELECT version FROM schema_versions").size());
         }
         try (var reopened = new DatabaseSession(url, "postgres", "");
                 var schemaInspection = new JdbcSession(url, "postgres", "")) {
             assertEquals(novel, reopened.novels().resolveNovel("UPGRADED"));
-            assertEquals(16, schemaInspection.rows("SELECT version FROM schema_versions").size());
+            assertEquals(17, schemaInspection.rows("SELECT version FROM schema_versions").size());
         }
     }
 

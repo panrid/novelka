@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { pageData } from './pageData';
 
-const editor = { id: 'editor', username: 'editor', role: 'EDITOR' };
+const editor = { id: 'editor', username: 'editor', role: 'READER' };
 const novels = [{ id: 'n1', title: 'Водяний маг' }, { id: 'n2', title: 'Тінь міста' }];
 const corrections = Array.from({ length: 30 }, (_, index) => ({
     id: 'c' + (index + 1), author_id: index % 3 ? 'reader' : 'writer', author: index % 3 ? 'reader' : 'writer',
@@ -13,7 +13,7 @@ const corrections = Array.from({ length: 30 }, (_, index) => ({
 async function workspace(page: Page, options: { failing?: () => boolean; empty?: boolean } = {}) {
     const requests: URLSearchParams[] = [];
     let approved = false;
-    await page.route('**/api/auth/me', route => route.fulfill({ json: { user: editor, registrationOpen: true } }));
+    await page.route('**/api/auth/me', route => route.fulfill({ json: { user: editor, registrationOpen: true, canReview: true } }));
     await page.route('**/api/auth/csrf', route => route.fulfill({ json: { token: 'csrf-test', headerName: 'X-CSRF-TOKEN' } }));
     await page.route('**/api/notifications?*', route => route.fulfill({ json: { items: [], unread: 0, latestId: 0, nextCursor: 0 } }));
     await page.route('**/api/novels/search?**', route => {

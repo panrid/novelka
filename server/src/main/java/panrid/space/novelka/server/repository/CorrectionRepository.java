@@ -69,7 +69,8 @@ public final class CorrectionRepository {
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
-    public ListPage<Map<String, Object>> list(String owner, ListQuery query, String state, String novel,
+    /** {@code owner} limits to one author's corrections; {@code reviewer} to novels that account may review (null: all). */
+    public ListPage<Map<String, Object>> list(String owner, String reviewer, ListQuery query, String state, String novel,
             int chapter, String authorId, String dateFrom, String dateTo) throws Exception {
         if (!state.isEmpty() && !List.of("draft", "pending", "approved", "rejected").contains(state))
             throw new IllegalArgumentException("Невідомий стан правки.");
@@ -93,14 +94,16 @@ public final class CorrectionRepository {
                 )
                 """;
         String where = """
-                 WHERE (?::text IS NULL OR author_id=?) AND (?::text IS NOT NULL OR state<>'draft') AND (?='' OR state=?) AND (?='' OR novel_id=?)
+                 WHERE (?::text IS NULL OR author_id=?) AND (?::text IS NOT NULL OR state<>'draft')
+                """ + "   AND (?::text IS NULL OR " + NovelAccessRepository.REVIEWABLE.formatted("novel_id") + ")" + """
+                   AND (?='' OR state=?) AND (?='' OR novel_id=?)
                    AND (?=0 OR chapter=?) AND (?='' OR author_id=?)
                    AND (?='' OR created_at>=?::timestamptz) AND (?='' OR created_at<?::timestamptz)
                    AND (?='' OR novel_title ILIKE ? ESCAPE '\\' OR chapter_title ILIKE ? ESCAPE '\\'
                        OR chapter::text LIKE ? ESCAPE '\\' OR author ILIKE ? ESCAPE '\\'
                        OR original ILIKE ? ESCAPE '\\' OR replacement ILIKE ? ESCAPE '\\')
                 """;
-        Object[] filters = {owner, owner, owner, state, state, novel, novel, chapter, chapter, authorId, authorId,
+        Object[] filters = {owner, owner, owner, reviewer, reviewer, reviewer, state, state, novel, novel, chapter, chapter, authorId, authorId,
                 fromDate, fromDate, toDate, toDate, query.q(), query.pattern(), query.pattern(), query.pattern(),
                 query.pattern(), query.pattern(), query.pattern()};
         long total = ((Number) jdbc.rows(base + "SELECT count(*) total FROM correction_list" + where, filters).getFirst().get("total")).longValue();
@@ -123,13 +126,14 @@ public final class CorrectionRepository {
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
-    public List<Map<String, Object>> authors(String owner, String q) throws Exception {
+    public List<Map<String, Object>> authors(String owner, String reviewer, String q) throws Exception {
         var query = new ListQuery(1, 20, q, "", "asc");
         return jdbc.rows("""
                 SELECT DISTINCT a.id,a.username FROM corrections c JOIN accounts a ON a.id=c.author_id
                 WHERE (?::text IS NULL OR c.author_id=?) AND (?='' OR a.username ILIKE ? ESCAPE '\\')
+                """ + "  AND (?::text IS NULL OR " + NovelAccessRepository.REVIEWABLE.formatted("c.novel_id") + ")" + """
                 ORDER BY a.username,a.id LIMIT 20
-                """, owner, owner, query.q(), query.pattern());
+                """, owner, owner, query.q(), query.pattern(), reviewer, reviewer, reviewer);
     }
 
     private String date(String value) {

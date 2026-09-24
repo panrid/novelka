@@ -26,8 +26,13 @@ export function Autocomplete({ id, value, onChange, onPick, suggestions, placeho
         const place = () => {
             const rect = input.current!.getBoundingClientRect();
             const viewport = window.visualViewport;
-            const bottom = (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight);
-            setPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width, maxHeight: Math.max(120, Math.min(300, bottom - rect.bottom - 16)) });
+            const top = viewport?.offsetTop ?? 0;
+            const bottom = top + (viewport?.height ?? window.innerHeight);
+            const below = bottom - rect.bottom - 16, above = rect.top - top - 16;
+            // Open upwards when the field sits near the bottom of the screen, so suggestions never land off-screen.
+            setPosition(below < 160 && above > below
+                ? { bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width, maxHeight: Math.min(300, above) }
+                : { top: rect.bottom + 4, left: rect.left, width: rect.width, maxHeight: Math.max(120, Math.min(300, below)) });
         };
         place();
         window.addEventListener('resize', place);

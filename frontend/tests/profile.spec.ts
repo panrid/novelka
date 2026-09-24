@@ -44,7 +44,7 @@ test('profile shows nickname cooldown and changes nickname and email', async ({ 
     await page.getByRole('button', { name: 'Змінити нік' }).click();
     await expect(page.getByText(/Наступна зміна буде доступна/)).toBeVisible();
     await expect(page.getByLabel('Новий нік')).toBeDisabled();
-    await expect(page.getByRole('link', { name: /renamed · Читач/ })).toHaveAttribute('href', '#/profile');
+    await expect(page.getByRole('link', { name: /renamed · Користувач/ })).toHaveAttribute('href', '#/profile');
     await page.getByLabel('Новий email').fill('fresh@example.test');
     await page.getByLabel('Поточний пароль').fill('current-password');
     await page.getByRole('button', { name: 'Змінити email' }).click();
@@ -84,7 +84,7 @@ test('user panel explains roles, saves allowed changes and blocks protected acco
         await page.route('**/api/accounts/' + account.id + '/nicknames', route => route.fulfill({ json: { items: [] } }));
     }
     await page.route('**/api/accounts/a1/role', route => {
-        changed = route.request().postDataJSON(); accounts[0] = { ...accounts[0], role: 'EDITOR' };
+        changed = route.request().postDataJSON(); accounts[0] = { ...accounts[0], role: 'MODERATOR' };
         return route.fulfill({ json: accounts[0] });
     });
     await page.goto('/#/settings');
@@ -100,12 +100,12 @@ test('user panel explains roles, saves allowed changes and blocks protected acco
     await expect(page).toHaveURL(/user=a1/);
     const panel = page.getByRole('region', { name: 'reader' });
     await expect(panel.getByRole('radio', { name: /Адміністратор/ })).toBeDisabled();
-    await expect(panel.getByText('Усе, що читач, а також черга всіх правок', { exact: false })).toBeVisible();
-    await panel.getByRole('radio', { name: /Редактор/ }).check();
+    await expect(panel.getByText('Усе, що користувач, а також модерує коментарі й чат', { exact: false })).toBeVisible();
+    await panel.getByRole('radio', { name: /Модератор/ }).check();
     await panel.getByRole('button', { name: 'Зберегти роль' }).click();
     await expect(panel.getByText('Роль змінено.')).toBeVisible();
-    expect(changed).toEqual({ role: 'EDITOR' });
-    await expect(page.locator('tr[aria-selected="true"]')).toContainText('Редактор');
+    expect(changed).toEqual({ role: 'MODERATOR' });
+    await expect(page.locator('tr[aria-selected="true"]')).toContainText('Модератор');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -123,6 +123,6 @@ test('logout notice does not survive signing in again', async ({ page }) => {
     await page.getByLabel('Email або нік', { exact: true }).fill('reader');
     await page.getByLabel('Пароль', { exact: true }).fill('long-enough-password');
     await page.getByRole('button', { name: 'Увійти', exact: true }).click();
-    await expect(page.getByRole('link', { name: /reader · Читач/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /reader · Користувач/ })).toBeVisible();
     await expect(page.getByText('Ви вийшли.')).toHaveCount(0);
 });

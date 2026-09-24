@@ -6,6 +6,7 @@ import { useAction } from '../hooks/useAction';
 import { useResource } from '../hooks/useResource';
 import { GlossaryEditor, type Glossary } from './GlossaryEditor';
 import { JobTable } from './JobTable';
+import { NovelEditors } from './NovelEditors';
 import { NovelTags } from './NovelTags';
 import { ManualChapters } from './ManualChapters';
 import type { TagView } from '../api/types';
@@ -32,7 +33,7 @@ export function NovelManager({ novel, initialTab = 'info' }: { novel: string; in
     const path = '/manage/' + encodeURIComponent(novel);
     const resource = useResource<Detail>(path, true);
     const action = useAction();
-    const [tab, setTab] = useState<'info' | 'glossary' | 'materials'>(initialTab);
+    const [tab, setTab] = useState<'info' | 'glossary' | 'materials' | 'editors'>(initialTab);
     const [alias, setAlias] = useState('');
     const [chapter, setChapter] = useState(1);
     const [text, setText] = useState('');
@@ -48,7 +49,7 @@ export function NovelManager({ novel, initialTab = 'info' }: { novel: string; in
     }, 'Українські дані новели збережено.');
 
     return <><section className="panel novel-management"><div className="panel-heading"><div><p className="eyebrow">{data.novel.id}</p><h2>{data.novel.titleUk || data.novel.title}</h2><p className="muted">Оригінал: {data.novel.title} · {data.novel.author} · {data.novel.chapterCount} глав</p></div></div>
-        <nav className="tab-bar compact-tabs" aria-label="Керування новелою"><button aria-pressed={tab === 'info'} onClick={() => setTab('info')}>Дані новели</button><button aria-pressed={tab === 'glossary'} onClick={() => setTab('glossary')}>Словник</button><button aria-pressed={tab === 'materials'} onClick={() => setTab('materials')}>Глави й експорт</button></nav>
+        <nav className="tab-bar compact-tabs" aria-label="Керування новелою"><button aria-pressed={tab === 'info'} onClick={() => setTab('info')}>Дані новели</button><button aria-pressed={tab === 'glossary'} onClick={() => setTab('glossary')}>Словник</button><button aria-pressed={tab === 'materials'} onClick={() => setTab('materials')}>Глави й експорт</button><button aria-pressed={tab === 'editors'} onClick={() => setTab('editors')}>Редактори</button></nav>
         {tab === 'info' && <><p>Ці поля бачать читачі в каталозі й на сторінці новели. Порожнє поле прибирає локалізований варіант.</p>
             <form className="stack-form" onSubmit={event => { event.preventDefault(); void saveMetadata(event.currentTarget); }}>
                 <label>Українська назва<input name="titleUk" maxLength={500} defaultValue={data.novel.titleUk || ''} placeholder={data.novel.title} /></label>
@@ -62,6 +63,7 @@ export function NovelManager({ novel, initialTab = 'info' }: { novel: string; in
                 <form className="inline-form" onSubmit={event => { event.preventDefault(); void action.run(async () => { await mutate(path + '/aliases', { alias }); setAlias(''); resource.retry(); }); }}><label>Новий аліас<input required value={alias} onChange={event => setAlias(event.target.value)} /></label><button disabled={action.busy}>Додати аліас</button></form>
             </details>
         </>}
+        {tab === 'editors' && <NovelEditors novel={novel} />}
         {tab === 'glossary' && <GlossaryEditor novel={novel} glossary={data.glossary} refresh={resource.retry} />}
         {tab === 'materials' && <><p>Імпортовано оригіналів: {data.importedChapters}. Кожен переклад має окрему ревізію.</p>
             <div className="button-row"><a className="button secondary" href={'/api' + path + '/export?format=epub'}>Завантажити EPUB</a><a className="button secondary" href={'/api' + path + '/export?format=html'}>Завантажити HTML</a></div>

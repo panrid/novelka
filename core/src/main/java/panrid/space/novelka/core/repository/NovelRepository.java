@@ -24,7 +24,7 @@ public final class NovelRepository {
                 throw new IllegalArgumentException("Novel ID conflicts with existing alias: " + n.id());
             }
             jdbc.exec(
-                    "INSERT INTO novels VALUES(?,?::jsonb) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+                    "INSERT INTO novels(id,data) VALUES(?,?::jsonb) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
                     n.id(),
                     Json.write(n));
             return null;

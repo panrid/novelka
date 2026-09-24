@@ -374,14 +374,14 @@ class AccessIntegrationTest {
         try (var admin = registered(); var editor = registered()) {
             String adminId = userId(admin), editorId = userId(editor), ownerId = userId(owner);
             assertEquals(200, post(owner, "/accounts/" + adminId + "/role", Map.of("role", "ADMIN")).statusCode());
-            assertEquals(200, post(admin, "/accounts/" + editorId + "/role", Map.of("role", "EDITOR")).statusCode());
-            assertEquals(200, get(editor, "/corrections?queue=true").statusCode());
+            assertEquals(200, post(admin, "/accounts/" + editorId + "/role", Map.of("role", "MODERATOR")).statusCode());
+            assertEquals(400, post(admin, "/accounts/" + editorId + "/role", Map.of("role", "EDITOR")).statusCode(), "the global editor role is gone");
+            assertEquals(403, get(editor, "/corrections?queue=true").statusCode(), "moderators review nothing until a novel grants it");
             assertEquals(403, post(admin, "/accounts/" + editorId + "/role", Map.of("role", "ADMIN")).statusCode());
             assertEquals(403, post(admin, "/accounts/" + ownerId + "/role", Map.of("role", "READER")).statusCode());
             assertEquals(403, post(owner, "/accounts/" + ownerId + "/role", Map.of("role", "READER")).statusCode());
             assertEquals(403, post(owner, "/accounts/" + editorId + "/role", Map.of("role", "OWNER")).statusCode());
             assertEquals(200, post(admin, "/accounts/" + editorId + "/role", Map.of("role", "READER")).statusCode());
-            assertEquals(403, get(editor, "/corrections?queue=true").statusCode());
             assertEquals(403, get(admin, "/accounts/audit").statusCode());
             assertEquals(200, get(owner, "/accounts/audit").statusCode());
         }
@@ -941,11 +941,67 @@ class AccessIntegrationTest {
     private static String enc(String value) { return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8); }
 
     @Test
+    void translatorChoosesWhoReviewsCorrectionsOfTheirNovel() throws Exception {
+        String novel = seed();
+        String other = seed();
+        try (var translator = registered(); var writer = registered(); var editor = registered(); var stranger = registered(); var sql = jdbc()) {
+            sql.exec("UPDATE novels SET owner_id=? WHERE id=?", userId(translator), novel);
+            String job = body(get(writer, "/novels/" + novel + "/chapters/1")).path("jobId").asText();
+            String otherJob = body(get(writer, "/novels/" + other + "/chapters/1")).path("jobId").asText();
+            String proposal = propose(writer, novel, job, 1, "Він ішов.", "Він крокував.");
+            String elsewhere = propose(writer, other, otherJob, 1, "Він ішов.", "Він біг.");
+            assertTrue(body(get(translator, "/auth/me")).path("canReview").asBoolean());
+            assertFalse(body(get(editor, "/auth/me")).path("canReview").asBoolean());
+            assertEquals(403, get(editor, "/corrections?queue=true").statusCode());
+            assertEquals(403, get(editor, "/manage/" + novel + "/editors").statusCode());
+            assertEquals(403, post(stranger, "/manage/" + novel + "/editors", Map.of("accountId", userId(stranger))).statusCode());
+            assertEquals(404, get(translator, "/manage/missing-novel/editors").statusCode());
+            assertEquals(403, get(translator, "/manage/" + other + "/editors").statusCode(), "only their own novel");
+            assertEquals(userId(translator), body(get(translator, "/manage/" + novel + "/editors")).path("owner").path("id").asText());
+            String strangerName = body(get(stranger, "/auth/me")).path("user").path("username").asText();
+            var found = body(get(translator, "/users/search?q=" + strangerName)).path("items").get(0);
+            assertEquals(strangerName, found.path("username").asText());
+            assertTrue(found.path("email").isMissingNode(), "search never exposes email");
+            assertEquals(401, get(browser(), "/users/search?q=" + strangerName).statusCode());
+
+            var added = body(post(translator, "/manage/" + novel + "/editors", Map.of("accountId", userId(editor))));
+            assertEquals(userId(editor), added.path("editors").get(0).path("id").asText());
+            assertEquals(400, post(translator, "/manage/" + novel + "/editors", Map.of("accountId", "missing")).statusCode());
+            assertTrue(body(get(editor, "/auth/me")).path("canReview").asBoolean());
+            var queue = body(get(editor, "/corrections?queue=true&size=100")).path("items").findValuesAsText("id");
+            assertTrue(queue.contains(proposal));
+            assertFalse(queue.contains(elsewhere), "editors see only novels they review");
+            assertEquals(403, get(editor, "/corrections/" + elsewhere).statusCode());
+            assertTrue(body(get(editor, "/corrections/" + proposal)).path("can_review").asBoolean());
+            assertEquals(403, post(editor, "/corrections/" + elsewhere + "/review", Map.of("approve", true, "note", "")).statusCode());
+
+            String own = propose(translator, novel, job, 0, "Пролог", "Початок");
+            assertTrue(body(get(translator, "/corrections/" + own)).path("can_review").asBoolean(), "the translator approves their own text");
+            assertEquals(200, post(translator, "/corrections/" + own + "/review", Map.of("approve", true, "note", "")).statusCode());
+            assertEquals(200, post(editor, "/corrections/" + proposal + "/review", Map.of("approve", false, "note", "Ні")).statusCode());
+
+            assertEquals(200, post(translator, "/manage/" + novel + "/editors", Map.of("accountId", userId(editor))).statusCode(), "idempotent");
+            assertEquals(0, body(delete(translator, "/manage/" + novel + "/editors/" + userId(editor))).path("editors").size());
+            assertEquals(403, get(editor, "/corrections?queue=true").statusCode());
+
+            assertTrue(body(post(translator, "/manage/" + novel + "/review-access", Map.of("open", true))).path("openReview").asBoolean());
+            String late = propose(writer, novel, body(get(writer, "/novels/" + novel + "/chapters/1")).path("jobId").asText(), 1, "Він ішов.", "Він ступав.");
+            assertTrue(body(get(stranger, "/corrections/" + late)).path("can_review").asBoolean(), "open review includes everyone");
+            assertFalse(body(get(writer, "/corrections/" + late)).path("can_review").asBoolean(), "but not their own corrections");
+            assertEquals(200, post(stranger, "/corrections/" + late + "/review", Map.of("approve", true, "note", "")).statusCode());
+            assertEquals(200, post(translator, "/manage/" + novel + "/review-access", Map.of("open", false)).statusCode());
+            assertEquals(403, get(stranger, "/corrections?queue=true").statusCode());
+            assertEquals(body(get(translator, "/auth/me")).path("user").path("username").asText(),
+                    body(get(stranger, "/novels/" + novel)).path("translator").asText());
+        }
+    }
+
+    @Test
     void selfApprovalSettingAppliesOnlyToAdminsAndIsEnforcedByBackend() throws Exception {
         String novel = seed();
         String job = body(get(owner, "/novels/" + novel + "/chapters/1")).path("jobId").asText();
         try (var editor = registered()) {
-            post(owner, "/accounts/" + userId(editor) + "/role", Map.of("role", "EDITOR"));
+            assertEquals(200, post(owner, "/manage/" + novel + "/editors", Map.of("accountId", userId(editor))).statusCode());
             String own = propose(owner, novel, job, 1, "Він ішов.", "Він крокував.");
             String edited = propose(editor, novel, job, 0, "Пролог", "Початок");
             assertFalse(body(get(owner, "/corrections/" + own)).path("can_review").asBoolean());
@@ -977,7 +1033,7 @@ class AccessIntegrationTest {
             String a = propose(first, novel, job, 1, "Він ішов.", "Він крокував.");
             String b = propose(second, novel, job, 1, "Він ішов.", "Він поспішав.");
             String c = propose(second, novel, job, 0, "Пролог", "Початок");
-            post(owner, "/accounts/" + userId(first) + "/role", Map.of("role", "EDITOR"));
+            assertEquals(200, post(owner, "/manage/" + novel + "/editors", Map.of("accountId", userId(first))).statusCode());
             assertEquals(403, post(first, "/corrections/" + a + "/review", Map.of("approve", true, "note", "")).statusCode());
             assertEquals(200, post(owner, "/corrections/" + a + "/review", Map.of("approve", true, "note", "")).statusCode());
             var personal = body(get(second, "/novels/" + novel + "/chapters/1")).path("personalReplacements");

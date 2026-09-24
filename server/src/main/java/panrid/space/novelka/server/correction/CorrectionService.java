@@ -11,11 +11,10 @@ import panrid.space.novelka.core.repository.JobRepository;
 import panrid.space.novelka.core.repository.NovelRepository;
 import panrid.space.novelka.core.repository.ReaderRepository;
 import panrid.space.novelka.server.account.Account;
-import panrid.space.novelka.server.account.Role;
 import panrid.space.novelka.server.config.ReaderDatabase;
 import panrid.space.novelka.server.repository.AuditRepository;
 import panrid.space.novelka.server.repository.CorrectionRepository;
-import panrid.space.novelka.server.settings.SettingsService;
+import panrid.space.novelka.server.novel.NovelAccessService;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,15 +32,10 @@ import java.util.UUID;
 @Service
 public final class CorrectionService {
     private final ReaderDatabase database;
-    private final SettingsService settings;
+    private final NovelAccessService access;
 
-    public CorrectionService(ReaderDatabase database, SettingsService settings) {
-        this.database = database; this.settings = settings;
-    }
-
-    /** Editors never approve their own work; ADMIN and OWNER may when the owner enabled it in settings. */
-    public boolean mayReview(Account reviewer, String author) throws Exception {
-        return !reviewer.id().equals(author) || reviewer.role().includes(Role.ADMIN) && settings.read().adminSelfApproval();
+    public CorrectionService(ReaderDatabase database, NovelAccessService access) {
+        this.database = database; this.access = access;
     }
 
     /** Saves a paragraph draft; a second proposal for the same paragraph updates the author's open correction. */
@@ -159,14 +153,14 @@ public final class CorrectionService {
 
     private void decide(JdbcSession jdbc, Account reviewer, String novel, ReviewRequest request, CorrectionSelection selection) throws Exception {
         if (request.note() == null || request.note().length() > 2000) throw new IllegalArgumentException("Завеликий коментар.");
-        boolean selfApproval = reviewer.role().includes(Role.ADMIN) && settings.read().adminSelfApproval();
+        if (!access.canReview(jdbc, reviewer, novel)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         try (var lock = jdbc.lock(novel)) {
             jdbc.transaction(() -> {
                 var repository = new CorrectionRepository(jdbc);
                 var rows = selection.rows(repository);
                 for (var row : rows) {
                     if (!"pending".equals(row.get("state"))) throw conflict();
-                    if (row.get("author_id").equals(reviewer.id()) && !selfApproval)
+                    if (!access.mayDecide(jdbc, reviewer, novel, (String) row.get("author_id")))
                         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Власну правку має перевірити інший редактор.");
                 }
                 var published = request.approve() ? apply(jdbc, novel, rows) : Map.<Integer, String>of();

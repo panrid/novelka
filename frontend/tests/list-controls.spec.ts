@@ -4,7 +4,7 @@ import { pageData } from './pageData';
 test('accounts combine backend search, role, sorting and pages with restorable URL', async ({ page }, testInfo) => {
     const accounts = Array.from({ length: 28 }, (_, index) => ({
         id: `a${String(index + 1).padStart(2, '0')}`, username: `reader-${String(index + 1).padStart(2, '0')}`,
-        role: index % 2 ? 'EDITOR' : 'READER',
+        role: index % 2 ? 'MODERATOR' : 'READER',
     }));
     let queries = 0;
     let failure = false;
@@ -39,11 +39,11 @@ test('accounts combine backend search, role, sorting and pages with restorable U
     await expect(page.getByText('Сторінка 1 з 1')).toBeVisible();
     expect(queries).toBe(1);
     await page.getByRole('combobox', { name: 'Роль', exact: true }).click();
-    await page.getByRole('option', { name: 'Редактор' }).click();
+    await page.getByRole('option', { name: 'Модератор' }).click();
     await expect(page.locator('tbody tr')).toHaveCount(4);
     await page.reload();
     await expect(page.locator('tbody tr')).toHaveCount(4);
-    await expect(page).toHaveURL(/role=EDITOR/);
+    await expect(page).toHaveURL(/role=MODERATOR/);
     await page.getByRole('button', { name: 'Очистити фільтр' }).click();
     await expect(page.locator('tbody tr')).toHaveCount(9);
     await page.getByRole('searchbox', { name: 'Нік або email' }).fill('nobody');

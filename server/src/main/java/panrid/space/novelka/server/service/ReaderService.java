@@ -14,6 +14,7 @@ import panrid.space.novelka.server.dto.NovelDetail;
 import panrid.space.novelka.server.dto.ReaderChapter;
 import panrid.space.novelka.server.repository.CatalogRepository;
 import panrid.space.novelka.server.repository.LibraryRepository;
+import panrid.space.novelka.server.repository.NovelAccessRepository;
 import panrid.space.novelka.server.repository.TagRepository;
 import panrid.space.novelka.server.repository.VoteRepository;
 import panrid.space.novelka.server.tag.TagNames;
@@ -61,7 +62,8 @@ public final class ReaderService {
             return new NovelDetail(id, novel.displayTitle(), novel.displayAuthor(), description(novel), novel.chapterCount(),
                     ((Number) stats.get("ready")).longValue(), stats.get("first_chapter") == null ? null : ((Number) stats.get("first_chapter")).intValue(),
                     resume != null && resume > 0 && reader.hasChapter(id, resume) ? resume : null, new TagRepository(jdbc).forNovel(id),
-                    new VoteRepository(jdbc).summary("novel", id, viewer), new LibraryRepository(jdbc).status(viewer, id));
+                    new VoteRepository(jdbc).summary("novel", id, viewer), new LibraryRepository(jdbc).status(viewer, id),
+                    (String) new NovelAccessRepository(jdbc).novel(id).get("owner_name"));
         }
     }
 

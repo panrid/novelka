@@ -626,3 +626,9 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { height: v
 .library-card .library-control { min-width: 0; }
 .tab-count { color: var(--muted); font-variant-numeric: tabular-nums; }
 .tab-bar button[aria-pressed="true"] .tab-count { color: inherit; opacity: .8; }
+
+/* Novel editors */
+.novel-editors { display: grid; gap: 14px; max-width: 640px; }
+.editor-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.editor-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.novel-translator { color: var(--muted); }

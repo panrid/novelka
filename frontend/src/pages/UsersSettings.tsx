@@ -9,11 +9,11 @@ import { ListEmpty, ListFilter, ListPages, ListSearch, TableHeader, listParams, 
 
 interface AdminAccount { id: string; username: string; email: string | null; role: Role; created_at: string }
 
-const roleOrder: Role[] = ['READER', 'EDITOR', 'ADMIN', 'OWNER'];
+const roleOrder: Role[] = ['READER', 'MODERATOR', 'ADMIN', 'OWNER'];
 const roleAbilities: Record<Role, string> = {
-    READER: 'Читає переклади, пропонує правки й бачить стан власних пропозицій.',
-    EDITOR: 'Усе, що читач, а також черга всіх правок: погоджує чи відхиляє чужі пропозиції.',
-    ADMIN: 'Усе, що редактор, а також майстерня: імпорт, переклад, словник, витрати, експорт; призначає читачів і редакторів.',
+    READER: 'Читає, пропонує правки, коментує. Правки конкретної новели перевіряє, якщо її перекладач так вирішив.',
+    MODERATOR: 'Усе, що користувач, а також модерує коментарі й чат.',
+    ADMIN: 'Усе, що модератор, а також повний доступ до кожної новели: майстерня, словник, правки, витрати; призначає модераторів.',
     OWNER: 'Усе, що адміністратор, а також призначає адміністраторів, керує реєстрацією, налаштуваннями ШІ й журналом дій. Один на сайт.',
 };
 
@@ -22,8 +22,8 @@ function assignable(actor: User | null, target: AdminAccount): { roles: Role[]; 
     if (!actor) return { roles: [] };
     if (actor.id === target.id) return { roles: [], reason: 'Власну роль змінити не можна.' };
     if (target.role === 'OWNER') return { roles: [], reason: 'Роль власника захищена від змін через сайт.' };
-    if (actor.role === 'OWNER') return { roles: ['READER', 'EDITOR', 'ADMIN'] };
-    if (actor.role === 'ADMIN' && target.role !== 'ADMIN') return { roles: ['READER', 'EDITOR'] };
+    if (actor.role === 'OWNER') return { roles: ['READER', 'MODERATOR', 'ADMIN'] };
+    if (actor.role === 'ADMIN' && target.role !== 'ADMIN') return { roles: ['READER', 'MODERATOR'] };
     return { roles: [], reason: 'Адміністратор не змінює роль іншого адміністратора.' };
 }
 

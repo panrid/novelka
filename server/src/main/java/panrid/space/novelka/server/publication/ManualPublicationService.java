@@ -16,6 +16,7 @@ import panrid.space.novelka.core.support.Hashes;
 import panrid.space.novelka.server.account.Account;
 import panrid.space.novelka.server.config.ReaderDatabase;
 import panrid.space.novelka.server.repository.AuditRepository;
+import panrid.space.novelka.server.repository.NovelAccessRepository;
 import panrid.space.novelka.server.repository.CorrectionRepository;
 import panrid.space.novelka.server.repository.ManualDraftRepository;
 import panrid.space.novelka.server.repository.TagRepository;
@@ -54,6 +55,7 @@ public final class ManualPublicationService {
             jdbc.transaction(() -> {
                 new NovelRepository(jdbc).save(new Novel(id, title == null ? titleUk : title, titleUk,
                         author != null ? author : authorUk == null ? "" : authorUk, authorUk, description, SOURCE + id, 0, false));
+                new NovelAccessRepository(jdbc).owner(id, actor.id());
                 if (!tags.isEmpty()) new TagRepository(jdbc).replace(id, tags);
                 new AuditRepository(jdbc).add(actor.id(), "novel.create-manual", id, Map.of("titleUk", titleUk));
                 return null;

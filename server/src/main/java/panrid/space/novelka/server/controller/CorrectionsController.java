@@ -5,6 +5,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import panrid.space.novelka.core.support.Json;
 import panrid.space.novelka.server.account.AccessService;
+import panrid.space.novelka.server.account.Account;
+import panrid.space.novelka.server.novel.NovelAccessService;
 import panrid.space.novelka.server.account.Role;
 import panrid.space.novelka.server.config.ReaderDatabase;
 import panrid.space.novelka.server.correction.CorrectionEdit;
@@ -25,9 +27,16 @@ public final class CorrectionsController {
     private final AccessService access;
     private final CorrectionService service;
     private final ReaderDatabase database;
+    private final NovelAccessService novels;
 
-    public CorrectionsController(AccessService access, CorrectionService service, ReaderDatabase database) {
-        this.access = access; this.service = service; this.database = database;
+    public CorrectionsController(AccessService access, CorrectionService service, ReaderDatabase database, NovelAccessService novels) {
+        this.access = access; this.service = service; this.database = database; this.novels = novels;
+    }
+
+    /** The queue shows corrections of novels the account may review; null means every novel (administrators). */
+    private String reviewer(Account account) throws Exception {
+        if (!novels.reviewsAnything(account)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        return account.role().includes(Role.ADMIN) ? null : account.id();
     }
 
     @GetMapping
@@ -38,18 +47,19 @@ public final class CorrectionsController {
             @RequestParam(defaultValue = "") String novel, @RequestParam(defaultValue = "0") int chapter,
             @RequestParam(defaultValue = "") String authorId, @RequestParam(defaultValue = "") String dateFrom,
             @RequestParam(defaultValue = "") String dateTo) throws Exception {
-        var account = access.require(principal, queue ? Role.EDITOR : Role.READER);
+        var account = access.require(principal, Role.READER);
+        String reviewer = queue ? reviewer(account) : null;
         try (var jdbc = database.open()) {
-            return Json.M.convertValue(new CorrectionRepository(jdbc).list(queue ? null : account.id(),
+            return Json.M.convertValue(new CorrectionRepository(jdbc).list(queue ? null : account.id(), reviewer,
                     new ListQuery(page, size, q, sort, direction), state, novel, chapter, authorId, dateFrom, dateTo), Object.class);
         }
     }
 
     @GetMapping("/authors")
     public Object authors(Principal principal, @RequestParam(defaultValue = "") String q) throws Exception {
-        access.require(principal, Role.EDITOR);
+        String reviewer = reviewer(access.require(principal, Role.READER));
         try (var jdbc = database.open()) {
-            return Map.of("items", new CorrectionRepository(jdbc).authors(null, q));
+            return Map.of("items", new CorrectionRepository(jdbc).authors(null, reviewer, q));
         }
     }
 
@@ -59,10 +69,11 @@ public final class CorrectionsController {
         try (var jdbc = database.open()) {
             var detail = new CorrectionRepository(jdbc).detail(id);
             if (detail == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-            if (!account.id().equals(detail.get("author_id"))) access.require(principal, Role.EDITOR);
+            String novel = (String) detail.get("novel_id");
+            if (!account.id().equals(detail.get("author_id")) && !novels.canReview(jdbc, account, novel))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN);
             var result = new java.util.LinkedHashMap<>(detail);
-            result.put("can_review", account.role().includes(Role.EDITOR) && "pending".equals(detail.get("state"))
-                    && service.mayReview(account, (String) detail.get("author_id")));
+            result.put("can_review", "pending".equals(detail.get("state")) && novels.mayDecide(jdbc, account, novel, (String) detail.get("author_id")));
             return result;
         }
     }
@@ -103,13 +114,13 @@ public final class CorrectionsController {
 
     @PostMapping("/batches/{batch}/review")
     public Map<String, String> reviewBatch(Principal principal, @PathVariable String batch, @RequestBody ReviewRequest request) throws Exception {
-        service.reviewBatch(access.require(principal, Role.EDITOR), batch, request);
+        service.reviewBatch(access.require(principal, Role.READER), batch, request);
         return Map.of("message", "Рішення щодо пакета збережено.");
     }
 
     @PostMapping("/{id}/review")
     public Map<String, String> review(Principal principal, @PathVariable String id, @RequestBody ReviewRequest request) throws Exception {
-        service.review(access.require(principal, Role.EDITOR), id, request);
+        service.review(access.require(principal, Role.READER), id, request);
         return Map.of("message", "Рішення збережено.");
     }
 }

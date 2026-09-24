@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { permits, useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/AuthContext';
 import { useResource } from '../hooks/useResource';
 import { mutate } from '../api/client';
 import { ErrorState, Loading } from '../components/Status';
@@ -82,9 +82,9 @@ function ReviewDetail({ correction, queue, refresh }: { correction: Correction; 
 }
 
 export function CorrectionsPage() {
-    const { user } = useAuth();
+    const { canReview } = useAuth();
     const list = useListState('', 'created', ['queue', 'state', 'novel', 'chapter', 'authorId', 'dateFrom', 'dateTo']);
-    const queue = list.state.filters.queue === 'true' && permits(user, 'EDITOR');
+    const queue = list.state.filters.queue === 'true' && canReview;
     const [openId, setOpenId] = useState<string | null>(null);
     const resource = useResource<PageData<Correction>>('/corrections?' + listParams(list.state, { queue }), true);
     const data = resource.data;
@@ -93,7 +93,7 @@ export function CorrectionsPage() {
     const clear = () => list.update({ page: 1, q: '', filters: { queue: queue ? 'true' : '', state: '', novel: '', chapter: '', authorId: '', dateFrom: '', dateTo: '' } });
     return <div className="page workspace corrections-page">
         <p className="eyebrow">Спільна робота над текстом</p><h1>Редакторські правки</h1>
-        {permits(user, 'EDITOR') && <div className="tab-bar"><button aria-pressed={!queue} onClick={() => list.setFilter('queue', '')}>Мої правки</button>
+        {canReview && <div className="tab-bar"><button aria-pressed={!queue} onClick={() => list.setFilter('queue', '')}>Мої правки</button>
             <button aria-pressed={queue} onClick={() => list.setFilter('queue', 'true')}>Черга редактора</button></div>}
         <div className="correction-filters">
             <ListSearch label="Назва, глава, автор або текст правки" value={list.state.q} onChange={q => list.update({ q, page: 1 })} />

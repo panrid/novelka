@@ -10,6 +10,7 @@ import panrid.space.novelka.core.service.translation.Pipeline;
 import panrid.space.novelka.core.support.Json;
 import panrid.space.novelka.server.account.Role;
 import panrid.space.novelka.server.config.ReaderDatabase;
+import panrid.space.novelka.server.repository.NovelAccessRepository;
 import panrid.space.novelka.server.repository.AccountRepository;
 import panrid.space.novelka.server.repository.TaskRepository;
 import panrid.space.novelka.server.settings.SiteSettings;
@@ -66,6 +67,8 @@ public final class TaskWorker {
                 db.novels().save(new Novel(imported.id(), imported.title(), existing == null ? null : existing.titleUk(),
                         imported.author(), existing == null ? null : existing.authorUk(),
                         existing == null ? null : existing.descriptionUk(), imported.url(), imported.chapterCount(), imported.shortStory()));
+                // Whoever imports a new novel from the web becomes its translator.
+                if (existing == null) try (var jdbc = database.open()) { new NovelAccessRepository(jdbc).owner(imported.id(), actor); }
                 for (int chapter = request.first(); chapter > 0 && chapter <= request.last(); chapter++) {
                     check(queue, task, actor);
                     db.chapters().save(imported.id(), source.fetch(imported, chapter));

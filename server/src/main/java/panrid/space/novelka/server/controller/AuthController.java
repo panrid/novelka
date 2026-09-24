@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import panrid.space.novelka.server.account.AccessService;
 import panrid.space.novelka.server.account.AccountService;
 import panrid.space.novelka.server.account.Credentials;
+import panrid.space.novelka.server.novel.NovelAccessService;
 import panrid.space.novelka.server.settings.SettingsService;
 
 import java.security.Principal;
@@ -23,11 +24,13 @@ public final class AuthController {
     private final AccessService access;
     private final AccountService accounts;
     private final SettingsService settings;
+    private final NovelAccessService novels;
 
-    public AuthController(AccessService access, AccountService accounts, SettingsService settings) {
+    public AuthController(AccessService access, AccountService accounts, SettingsService settings, NovelAccessService novels) {
         this.access = access;
         this.accounts = accounts;
         this.settings = settings;
+        this.novels = novels;
     }
 
     @GetMapping("/csrf")
@@ -38,7 +41,10 @@ public final class AuthController {
     @GetMapping("/me")
     public Map<String, Object> me(Principal principal) throws Exception {
         var result = new LinkedHashMap<String, Object>();
-        result.put("user", access.current(principal));
+        var user = access.current(principal);
+        result.put("user", user);
+        // Whether the correction queue is available: the account translates, edits or reviews at least one novel.
+        result.put("canReview", user != null && novels.reviewsAnything(user));
         result.put("registrationOpen", settings.read().registrationOpen());
         return result;
     }
