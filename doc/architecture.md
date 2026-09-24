@@ -42,7 +42,7 @@
 | `media` | Сховище картинок: обкладинки, аватарки, ілюстрації; перевірка, розміри | platform |
 | `illustration` | Генерація картинок за фрагментом глави | ai, billing, text, media |
 | `community` | Коментарі, чат, розмітка, згадки людей і команд, голоси, скарги | account, team |
-| `messaging` | Особисті повідомлення, блокування, «хто може писати» | account, community (розмітка) |
+| `messaging` | Розмови: особисті, групи, чат команди; блокування, «хто може писати» | account, team, community (розмітка) |
 | `notification` | Вхідні, розсилка подій одержувачам, SSE | усі через події |
 | `admin` | Налаштування сайту, модерація, журнал дій | усі |
 
@@ -122,7 +122,9 @@
 
 ### Розмітка коментарів, чату й повідомлень
 Джерело — простий текст із маркерами `**жирний**`, `*курсив*`, `__підкреслений__`,
-`~~закреслений~~`, `||спойлер||`, `> цитата`, згадки `<@u:id>` / `<@t:id>`.
+`~~закреслений~~`, `||спойлер||`, `> цитата`. Згадки зберігаються як `<@u:id>` (людина)
+і `<$t:id>` (команда), а показуються як `@нік` і `$команда`. Поле вводу підказує людей
+після `@` і команди після `$`.
 Власний невеликий парсер (однаковий на бекенді й фронтенді за спільними тестами)
 будує дерево, React рендерить його. HTML ніколи не вставляється.
 
@@ -136,7 +138,7 @@
 ```
 account          id, nick, nick_key unique, email unique, email_verified_at,
                  password_hash, site_role (reader|moderator|admin|owner),
-                 bio, avatar_image_id, last_seen_at, dm_policy (everyone|nobody),
+                 bio, avatar_image_id, last_seen_at, dm_policy (everyone|nobody),  -- писати й додавати в групи
                  created_at, deleted_at
 account_block    blocker_id, blocked_id, created_at, pk (blocker_id, blocked_id)
 nick_change      account_id, old_nick, new_nick, changed_at
@@ -256,7 +258,7 @@ translation_rating account_id, translation_id, score (1..5)
 comment          id, target (translation|chapter), target_id, author_id, reply_to,
                  body, edited_at, deleted_at, hidden_at, hidden_by, hidden_reason
 chat_message     id, author_id, reply_to, body, deleted_at, hidden_*
-mention          source (comment|chat), source_id, account_id null, team_id null
+mention          source (comment|chat|message), source_id, account_id null, team_id null
 vote             account_id, target (comment|translation), target_id, value (-1|1)
 report           id, reporter_id, target (comment|chat|dm|image), target_id, reason,
                  state (open|resolved|dismissed), resolved_by, created_at
@@ -264,12 +266,20 @@ report           id, reporter_id, target (comment|chat|dm|image), target_id, rea
 
 ### messaging
 ```
-conversation     id, account_low, account_high, created_at, last_message_at,
-                 unique (account_low, account_high)          -- розмова двох людей
-conversation_member conversation_id, account_id, last_read_message_id, muted, archived
-direct_message   id, conversation_id, author_id, reply_to, body, created_at,
-                 edited_at, deleted_at
+conversation     id, kind (direct|group|team), title null, avatar_image_id null,
+                 direct_key unique null     -- "min:max" id двох людей, лише для direct
+                 team_id unique null        -- лише для team
+                 created_by, created_at, last_message_at
+conversation_member conversation_id, account_id, role (admin|member), joined_at,
+                 added_by, left_at null, last_read_message_id, muted,
+                 pk (conversation_id, account_id)
+message          id, conversation_id, author_id null, kind (text|system),
+                 reply_to, body, created_at, edited_at, deleted_at
+                 -- system: «mika додала oleh_k», «назву змінено»
 ```
+Чат команди створюється в тій самій транзакції, що й команда. Склад синхронізує
+обробник подій `TeamMemberAdded/Removed`. Для групи діють `dm_policy` і блокування
+кожного, кого додають.
 
 ### notification і admin
 ```

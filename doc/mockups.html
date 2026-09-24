@@ -483,7 +483,8 @@ td:last-child { text-align: right; }
 </div>
 <figcaption><b>9 · Команда</b>
   <ul><li>Назва, ролі, внесок і бюджет — на одній сторінці. Поповнює бюджет лише власник команди.</li>
-  <li>Команду тегають як <code>@panrid</code>. Сповіщення отримують власник і перекладачі.</li></ul>
+  <li>Команду тегають як <code>$panrid</code>, людину — <code>@panrid</code>. Про тег команди дізнаються власник і перекладачі.</li>
+  <li>Разом із командою створюється її чат.</li></ul>
 </figcaption>
 </figure>
 
@@ -564,7 +565,7 @@ td:last-child { text-align: right; }
     <div class="field sm" style="height:70px;overflow:hidden">Перекладаю ісекаї та слайс-оф-лайф. Люблю, коли героїні говорять по-людськи.</div>
     <div class="xs faint" style="text-align:right;margin-top:4px">86 / 500</div>
     <h3>Приватність</h3>
-    <div class="label" style="margin-top:0">Хто може мені писати</div>
+    <div class="label" style="margin-top:0">Хто може мені писати й додавати в групи</div>
     <div class="seg"><span class="on">Усі</span><span>Ніхто</span></div>
     <div class="list" style="margin-top:6px">
       <div><span>Показувати «Читає зараз»</span><span class="v">так ›</span></div>
@@ -588,16 +589,19 @@ td:last-child { text-align: right; }
     <div style="margin-top:6px">
       <div class="rel"><div class="av photo" style="width:44px;height:44px"></div><div><b>mika</b><span class="sm" style="color:var(--text)">Глянь 12-ту главу, я там переписала сцену…</span></div><div class="meta"><div class="xs muted">14:02</div><span class="chip acc" style="margin-top:4px">2</span></div></div>
       <div class="rel"><div class="av" style="width:44px;height:44px">o</div><div><b>oleh_k</b><span class="sm muted">Ви: Дякую, прийняв усі правки</span></div><div class="xs muted meta">вчора</div></div>
+      <div class="rel"><div class="av" style="width:44px;height:44px;background:#5c6e3c;border-radius:12px">$</div><div><b>$panrid · чат команди</b><span class="sm" style="color:var(--text)">oleh_k: 13-ту вичитав, можна публікувати</span></div><div class="meta"><div class="xs muted">13:40</div><span class="chip acc" style="margin-top:4px">5</span></div></div>
+      <div class="rel"><div class="av" style="width:44px;height:44px;background:#7a4b5c;border-radius:12px">К</div><div><b>Книжковий клуб 📚</b><span class="sm muted">ara-ara: хто вже дочитав «Сто ночей»?</span></div><div class="xs muted meta">вчора</div></div>
       <div class="rel"><div class="av" style="width:44px;height:44px;background:#4b4d7a">к</div><div><b>kitsune_team</b><span class="sm muted">Добре, словник передамо 🙂</span></div><div class="xs muted meta">пн</div></div>
       <div class="rel"><div class="av" style="width:44px;height:44px">a</div><div><b>ara-ara</b><span class="sm muted">А коли буде продовження?</span></div><div class="xs muted meta">12 вер</div></div>
     </div>
   </div>
   <div class="tabbar"><span data-i="⌂">Головна</span><span data-i="⌕">Пошук</span><span data-i="❏">Бібліотека</span><span class="on" data-i="✉">Вхідні <i class="dot"></i></span><span data-i="◯">Я</span></div>
 </div>
-<figcaption><b>10c · Вхідні: особисті повідомлення</b>
+<figcaption><b>10c · Вхідні: повідомлення</b>
   <ul><li>Сповіщення, особисті повідомлення й загальний чат — в одному місці, трьома вкладками.</li>
   <li>Непрочитані розмови вгорі, лічильник — на значку «Вхідні».</li>
-  <li>«✎» — нова розмова: пошук людини за ніком.</li></ul>
+  <li>Особисті, групи й чати команд — в одному списку. Групи з квадратною аватаркою, чат команди позначено <code>$</code>.</li>
+  <li>«✎» — «Нова розмова» (пошук людини) або «Нова група».</li></ul>
 </figcaption>
 </figure>
 
@@ -620,6 +624,37 @@ td:last-child { text-align: right; }
   <ul><li>Та сама розмітка, що в чаті: жирний, курсив, підкреслений, закреслений, спойлер. Також відповіді й цитати.</li>
   <li>Нові повідомлення приходять одразу, без оновлення сторінки.</li>
   <li>У «⋯» — «Вимкнути сповіщення», «Заблокувати», «Поскаржитися».</li></ul>
+</figcaption>
+</figure>
+
+
+<!-- 10e. Група -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><h2>Про групу</h2></div>
+  <div class="screen pad">
+    <div style="text-align:center">
+      <div class="av" style="width:80px;height:80px;margin:0 auto;border-radius:20px;font-size:30px;background:#7a4b5c">К</div>
+      <div style="font:600 19px var(--serif);margin-top:10px">Книжковий клуб 📚</div>
+      <div class="sm muted">група · 5 учасників</div>
+    </div>
+    <div class="row" style="gap:8px;margin-top:14px"><div class="btn sec sm" style="flex:1">🔕 Без звуку</div><div class="btn sec sm" style="flex:1">✎ Змінити</div></div>
+    <h3>Учасники <small>+ Додати</small></h3>
+    <div class="list">
+      <div><span class="row"><span class="av photo"></span>mika</span><span class="v">адмін</span></div>
+      <div><span class="row"><span class="av">a</span>ara-ara</span><span class="v">адмін</span></div>
+      <div><span class="row"><span class="av">o</span>oleh_k</span><span class="v">⋯</span></div>
+      <div><span class="row"><span class="av">g</span>ggfff</span><span class="v">⋯</span></div>
+      <div><span class="row"><span class="av">p</span>panrid <span class="xs faint">це ви</span></span><span class="v"></span></div>
+    </div>
+    <div class="btn danger" style="margin-top:12px">Вийти з групи</div>
+  </div>
+</div>
+<figcaption><b>10e · Група</b>
+  <ul><li>Групу створює будь-хто: друзі, читачі одного перекладу. Адміністратори додають і видаляють людей, змінюють назву й аватарку.</li>
+  <li>Додати можна лише тих, хто дозволив «мені можуть писати» і не заблокував вас.</li>
+  <li>Чат команди виглядає так само, але склад бере з команди, а вийти з нього можна лише разом із командою.</li></ul>
 </figcaption>
 </figure>
 
