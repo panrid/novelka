@@ -32,7 +32,7 @@
 | `team` | Команди, учасники, ролі | account |
 | `catalog` | Новели (оригінали), переклади, естафета, теги, каталог, стрічки головної | team |
 | `text` | Глави, ревізії, публікація, diff, редактор з форматуванням, імпорт `.txt`/`.md`, внесок | catalog, access, media |
-| `suggestion` | Правки читачів, заміни «всі входження», перевірка | text, access |
+| `suggestion` | Правки читачів: абзац або заміна в межах глави, перевірка | text, access |
 | `reading` | Бібліотека, прогрес читання між пристроями, оцінки перекладу | catalog |
 | `source` | Джерела оригіналів: Syosetu, ручний текст; імпорт і блоки | — |
 | `ai` | Клієнт OpenRouter, каталог моделей і цін, журнал викликів | platform |
@@ -280,7 +280,8 @@ contribution     revision_id, account_id, blocks_changed, chars_changed
 suggestion       id, chapter_id, base_revision_id, author_id,
                  batch_id, kind (block|replace|chapter), block_id, original_text, proposed_text,
                  proposed_blocks jsonb null (для kind = chapter — повний редактор),
-                 find, replacement, scope (chapter|edition), note,
+                 find, replacement,                 -- заміна лише в межах однієї глави
+                 note,
                  state (draft|pending|accepted|rejected|withdrawn|stale),
                  -- draft збирається в пакет; надсилається пакетом; прийнятий пакет = 1 ревізія на главу
                  reviewer_id, reviewed_at, review_note, applied_revision_id
