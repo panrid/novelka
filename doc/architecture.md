@@ -47,6 +47,10 @@
 | `notification` | Вхідні, розсилка подій одержувачам, SSE | усі через події |
 | `admin` | Налаштування сайту, модерація, журнал дій | усі |
 
+**Читання й запис.** Запити на читання (головна, каталог, сторінка новели) можуть
+з'єднувати таблиці різних модулів через jOOQ: так головна будується одним-двома
+запитами, а не десятком викликів API. Змінює таблицю лише сервіс модуля-власника.
+
 Модулі спілкуються викликами публічного API або подіями Spring (`ChapterPublished`,
 `SuggestionReviewed`, `MentionCreated`…). Події пишуться в таблицю в тій самій
 транзакції (outbox Spring Modulith), тож сповіщення не губляться.
@@ -227,7 +231,8 @@ spring_session*  таблиці Spring Session JDBC
 
 ### team
 ```
-team             id, name (null → нік власника), slug unique, owner_id → account, created_at
+team             id, name (null → нік власника), handle, handle_key unique (для $згадок і /team/{handle}),
+                 owner_id → account, personal (особиста команда за замовчуванням), created_at
 team_member      team_id, account_id, role (translator|editor), added_by, added_at,
                  pk (team_id, account_id)
                  -- пропонувати правки може кожен; погоджують перекладачі й редактори

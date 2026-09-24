@@ -10,6 +10,8 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
+import java.util.List;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -81,6 +83,19 @@ class ImageService implements Images {
                 .from(IMAGE)
                 .where(IMAGE.ID.eq(imageId).and(IMAGE.HIDDEN_AT.isNull()))
                 .fetchOptional(r -> new StoredImage(imageId, urls(json.readValue(r.value1().data(),
+                        new TypeReference<Map<Integer, String>>() { }))));
+    }
+
+    @Override
+    public Map<Long, StoredImage> findAll(Collection<Long> imageIds) {
+        List<Long> ids = imageIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return db.select(IMAGE.ID, IMAGE.VARIANTS)
+                .from(IMAGE)
+                .where(IMAGE.ID.in(ids).and(IMAGE.HIDDEN_AT.isNull()))
+                .fetchMap(r -> r.value1(), r -> new StoredImage(r.value1(), urls(json.readValue(r.value2().data(),
                         new TypeReference<Map<Integer, String>>() { }))));
     }
 

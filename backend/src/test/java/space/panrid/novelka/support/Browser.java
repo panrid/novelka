@@ -50,14 +50,28 @@ public class Browser {
         return change("PATCH", path, "application/json", HttpRequest.BodyPublishers.ofString(json));
     }
 
+    public Response put(String path, String json) {
+        return change("PUT", path, "application/json", HttpRequest.BodyPublishers.ofString(json));
+    }
+
     public Response delete(String path) {
         return change("DELETE", path, "application/json", HttpRequest.BodyPublishers.noBody());
     }
 
     /** A multipart/form-data upload of one file, like an <input type=file>. */
     public Response upload(String path, String field, String filename, String contentType, byte[] content) {
+        return upload(path, java.util.Map.of(), field, filename, contentType, content);
+    }
+
+    /** A form with text fields and one file. */
+    public Response upload(String path, java.util.Map<String, String> fields, String field, String filename,
+            String contentType, byte[] content) {
         String boundary = "----novelka" + System.nanoTime();
-        byte[] head = ("--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + field + "\"; filename=\""
+        StringBuilder text = new StringBuilder();
+        fields.forEach((name, value) -> text.append("--").append(boundary)
+                .append("\r\nContent-Disposition: form-data; name=\"").append(name).append("\"\r\n\r\n")
+                .append(value).append("\r\n"));
+        byte[] head = (text + "--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + field + "\"; filename=\""
                 + filename + "\"\r\nContent-Type: " + contentType + "\r\n\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
         byte[] tail = ("\r\n--" + boundary + "--\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
         byte[] body = new byte[head.length + content.length + tail.length];
