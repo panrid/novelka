@@ -7,7 +7,10 @@ import panrid.space.novelka.core.support.Json;
 import panrid.space.novelka.server.account.AccessService;
 import panrid.space.novelka.server.account.Role;
 import panrid.space.novelka.server.config.ReaderDatabase;
+import panrid.space.novelka.server.correction.CorrectionEdit;
 import panrid.space.novelka.server.correction.CorrectionRequest;
+import panrid.space.novelka.server.correction.ReplaceRequest;
+import panrid.space.novelka.server.correction.SubmitRequest;
 import panrid.space.novelka.server.correction.CorrectionService;
 import panrid.space.novelka.server.correction.ReviewRequest;
 import panrid.space.novelka.server.repository.CorrectionRepository;
@@ -67,6 +70,41 @@ public final class CorrectionsController {
     @PostMapping
     public Map<String, String> propose(Principal principal, @RequestBody CorrectionRequest request) throws Exception {
         return Map.of("id", service.propose(access.require(principal, Role.READER), request));
+    }
+
+    @PostMapping("/replace")
+    public Map<String, String> replace(Principal principal, @RequestBody ReplaceRequest request) throws Exception {
+        return Map.of("id", service.proposeReplace(access.require(principal, Role.READER), request));
+    }
+
+    @GetMapping("/replace-preview")
+    public Map<String, Object> preview(Principal principal, @RequestParam String novel, @RequestParam(defaultValue = "0") int chapter,
+            @RequestParam String find, @RequestParam(defaultValue = "chapter") String scope) throws Exception {
+        access.require(principal, Role.READER);
+        return service.preview(novel, chapter, find, scope);
+    }
+
+    @PostMapping("/submit")
+    public Map<String, Object> submit(Principal principal, @RequestBody SubmitRequest request) throws Exception {
+        return service.submit(access.require(principal, Role.READER), request);
+    }
+
+    @PostMapping("/{id}")
+    public Map<String, String> edit(Principal principal, @PathVariable String id, @RequestBody CorrectionEdit request) throws Exception {
+        service.edit(access.require(principal, Role.READER), id, request);
+        return Map.of("message", "Правку змінено.");
+    }
+
+    @DeleteMapping("/{id}")
+    public Map<String, String> withdraw(Principal principal, @PathVariable String id) throws Exception {
+        service.withdraw(access.require(principal, Role.READER), id);
+        return Map.of("message", "Правку відкликано.");
+    }
+
+    @PostMapping("/batches/{batch}/review")
+    public Map<String, String> reviewBatch(Principal principal, @PathVariable String batch, @RequestBody ReviewRequest request) throws Exception {
+        service.reviewBatch(access.require(principal, Role.EDITOR), batch, request);
+        return Map.of("message", "Рішення щодо пакета збережено.");
     }
 
     @PostMapping("/{id}/review")

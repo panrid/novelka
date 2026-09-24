@@ -132,3 +132,59 @@ test('own correction shows who must review it when backend denies self-review', 
     await expect(page.getByText('Вашу правку має перевірити інший редактор.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Погодити й опублікувати' })).toHaveCount(0);
 });
+
+test('editor approves a whole batch and a reader edits a replacement in their queue', async ({ page }) => {
+    await workspace(page);
+    let batchReviewed = false;
+    await page.route('**/api/corrections?**', route => route.fulfill({ json: pageData([{
+        id: 'r1', author_id: 'reader', author: 'reader', novel_id: 'n1', novel_title: 'Водяний маг', chapter: 2, chapter_title: 'Пролог',
+        state: batchReviewed ? 'approved' : 'pending', created_at: '2026-09-01T10:00:00Z', reviewed_at: null,
+        kind: 'replace', scope: 'novel', batch_id: 'b1',
+    }]) }));
+    await page.route('**/api/corrections/r1', route => route.fulfill({ json: {
+        id: 'r1', author_id: 'reader', novel_id: 'n1', state: batchReviewed ? 'approved' : 'pending', kind: 'replace', scope: 'novel',
+        batch_id: 'b1', batch_size: 3, original: 'Ліна', replacement: 'Ріна', reason: '', review_note: null,
+        base_revision: 1, published_revision: null, can_review: !batchReviewed,
+    } }));
+    await page.route('**/api/corrections/batches/b1/review', route => {
+        expect(route.request().postDataJSON()).toEqual({ approve: true, note: '' });
+        batchReviewed = true;
+        return route.fulfill({ json: { message: 'Рішення збережено.' } });
+    });
+    await page.goto('/#/corrections?queue=true');
+    await page.getByRole('button', { name: 'Показати diff' }).click();
+    await expect(page.locator('.replace-summary')).toContainText('Заміна в усіх главах новели');
+    await expect(page.locator('.replace-summary del')).toHaveText('Ліна');
+    await page.getByRole('button', { name: 'Погодити весь пакет (3)' }).click();
+    await expect(page.getByRole('button', { name: 'Погодити весь пакет (3)' })).toHaveCount(0);
+    expect(batchReviewed).toBe(true);
+});
+
+test('author changes and withdraws their own pending correction', async ({ page }) => {
+    await workspace(page);
+    let withdrawn = false;
+    const edits: unknown[] = [];
+    await page.route('**/api/corrections?**', route => route.fulfill({ json: pageData(withdrawn ? [] : [{
+        id: 'c2', author_id: 'editor', author: 'editor', novel_id: 'n1', novel_title: 'Водяний маг', chapter: 1, chapter_title: 'Пролог',
+        state: 'pending', created_at: '2026-09-01T10:00:00Z', reviewed_at: null, kind: 'block', scope: 'chapter', batch_id: 'b2',
+    }]) }));
+    await page.route('**/api/corrections/c2', route => {
+        if (route.request().method() === 'DELETE') { withdrawn = true; return route.fulfill({ status: 204 }); }
+        if (route.request().method() === 'POST') { edits.push(route.request().postDataJSON()); return route.fulfill({ json: { message: 'ok' } }); }
+        return route.fulfill({ json: {
+            id: 'c2', author_id: 'editor', novel_id: 'n1', state: 'pending', kind: 'block', scope: 'chapter', batch_id: 'b2', batch_size: 1,
+            original: 'Було.', replacement: edits.length ? 'Стало краще.' : 'Стало.', reason: '', review_note: null,
+            base_revision: 1, published_revision: null, can_review: false,
+        } });
+    });
+    await page.goto('/#/corrections');
+    await page.getByRole('button', { name: 'Показати diff' }).click();
+    await page.getByRole('button', { name: 'Змінити правку' }).click();
+    await page.getByLabel('Виправлений абзац').fill('Стало краще.');
+    await page.getByRole('button', { name: 'Зберегти', exact: true }).click();
+    await expect(page.getByText('Правку змінено.')).toBeVisible();
+    expect(edits).toEqual([{ replacement: 'Стало краще.', reason: '' }]);
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Відкликати' }).click();
+    await expect(page.getByText('Правок поки немає.')).toBeVisible();
+});

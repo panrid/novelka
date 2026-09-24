@@ -89,14 +89,22 @@ public final class ReaderService {
             String title = blocks.stream().filter(block -> block.kind().equals("heading"))
                     .map(block -> block.text()).findFirst().orElse("Глава " + number);
             var personal = new java.util.LinkedHashMap<Integer, String>();
+            var states = new java.util.LinkedHashMap<Integer, String>();
+            var ids = new java.util.LinkedHashMap<Integer, String>();
+            int drafts = 0;
             if (authorId != null) {
-                for (var row : new panrid.space.novelka.server.repository.CorrectionRepository(jdbc).pending(authorId, work))
+                var corrections = new panrid.space.novelka.server.repository.CorrectionRepository(jdbc);
+                for (var row : corrections.pending(authorId, work)) {
                     personal.put(((Number) row.get("block_index")).intValue(), (String) row.get("replacement"));
+                    states.put(((Number) row.get("block_index")).intValue(), (String) row.get("state"));
+                    ids.put(((Number) row.get("block_index")).intValue(), (String) row.get("id"));
+                }
+                drafts = corrections.draftCount(authorId, id);
             }
             var neighbours = new ReaderRepository(jdbc).neighbours(id, number);
             return new ReaderChapter(id, number, work.revision(), title, blocks, work.id(), personal,
                     neighbours.get("previous") == null ? null : ((Number) neighbours.get("previous")).intValue(),
-                    neighbours.get("next") == null ? null : ((Number) neighbours.get("next")).intValue());
+                    neighbours.get("next") == null ? null : ((Number) neighbours.get("next")).intValue(), states, ids, drafts);
         }
     }
 

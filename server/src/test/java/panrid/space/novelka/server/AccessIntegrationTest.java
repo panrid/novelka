@@ -415,8 +415,13 @@ class AccessIntegrationTest {
             var submitted = post(reader, "/corrections", proposal);
             assertEquals(200, submitted.statusCode(), submitted.body());
             String correction = body(submitted).path("id").asText();
-            assertEquals(409, post(reader, "/corrections", proposal).statusCode());
+            assertEquals(correction, body(post(reader, "/corrections", proposal)).path("id").asText(), "a second edit updates the open draft");
             assertEquals("Він крокував.", body(get(reader, path)).path("personalReplacements").path("1").asText());
+            assertEquals("draft", body(get(reader, path)).path("personalStates").path("1").asText());
+            assertEquals(1, body(get(reader, path)).path("draftCount").asInt());
+            assertEquals(409, post(owner, "/corrections/" + correction + "/review", Map.of("approve", true, "note", "")).statusCode(), "drafts are not reviewable");
+            assertEquals(200, post(reader, "/corrections/submit", Map.of("novelId", novel, "chapter", 1)).statusCode());
+            assertEquals("pending", body(get(reader, path)).path("personalStates").path("1").asText());
             assertTrue(body(get(stranger, path)).path("personalReplacements").isEmpty());
             assertEquals("Він ішов.", body(get(stranger, path)).path("blocks").get(1).path("text").asText());
             assertEquals(403, post(reader, "/corrections/" + correction + "/review", Map.of("approve", true, "note", "")).statusCode());
@@ -855,6 +860,54 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void batchedCorrectionsAndReplacementsPublishOneRevisionPerChapter() throws Exception {
+        String novel = seed();
+        String path = "/novels/" + novel + "/chapters/1";
+        try (var reader = registered(); var other = registered()) {
+            String job = body(get(reader, path)).path("jobId").asText();
+            var draft = post(reader, "/corrections", Map.of("novelId", novel, "chapter", 1, "baseJobId", job, "blockIndex", 1,
+                    "original", "Він ішов.", "replacement", "Він ішов повільно.", "reason", ""));
+            String paragraph = body(draft).path("id").asText();
+            var preview = body(get(reader, "/corrections/replace-preview?novel=" + novel + "&chapter=1&find=" + enc("Пролог") + "&scope=novel"));
+            assertEquals(1, preview.path("total").asInt());
+            assertEquals(400, post(reader, "/corrections/replace", Map.of("novelId", novel, "chapter", 1, "baseJobId", job,
+                    "find", "Немає такого", "replacement", "x", "scope", "chapter", "reason", "")).statusCode());
+            String replace = body(post(reader, "/corrections/replace", Map.of("novelId", novel, "chapter", 1, "baseJobId", job,
+                    "find", "Пролог", "replacement", "Вступ", "scope", "novel", "reason", "Єдина назва"))).path("id").asText();
+
+            assertEquals(403, post(other, "/corrections/" + paragraph, Map.of("replacement", "Чужа", "reason", "")).statusCode());
+            assertEquals(200, post(reader, "/corrections/" + paragraph, Map.of("replacement", "Він ішов неквапом.", "reason", "")).statusCode());
+            assertEquals("Він ішов неквапом.", body(get(reader, path)).path("personalReplacements").path("1").asText());
+            assertEquals(2, body(get(reader, path)).path("draftCount").asInt());
+            assertEquals(0, body(get(owner, "/corrections?queue=true&novel=" + novel)).path("total").asInt(), "drafts stay out of the queue");
+
+            var submitted = body(post(reader, "/corrections/submit", Map.of("novelId", novel)));
+            assertEquals(2, submitted.path("count").asInt());
+            assertEquals(400, post(reader, "/corrections/submit", Map.of("novelId", novel)).statusCode(), "nothing left to submit");
+            String batch = submitted.path("batchId").asText();
+            assertEquals(2, body(get(owner, "/corrections/" + paragraph)).path("batch_size").asInt());
+            assertEquals(403, post(reader, "/corrections/batches/" + batch + "/review", Map.of("approve", true, "note", "")).statusCode());
+            assertEquals(200, post(owner, "/corrections/batches/" + batch + "/review", Map.of("approve", true, "note", "")).statusCode());
+
+            var chapter = body(get(other, path));
+            assertEquals(2, chapter.path("revision").asInt(), "one revision for the whole batch");
+            assertEquals("Вступ", chapter.path("blocks").get(0).path("text").asText());
+            assertEquals("Він ішов неквапом.", chapter.path("blocks").get(1).path("text").asText());
+            assertEquals("approved", body(get(owner, "/corrections/" + replace)).path("state").asText());
+            assertEquals(409, post(reader, "/corrections/" + paragraph, Map.of("replacement", "Пізно", "reason", "")).statusCode(), "reviewed corrections are final");
+
+            String job2 = chapter.path("jobId").asText();
+            String withdrawn = body(post(other, "/corrections", Map.of("novelId", novel, "chapter", 1, "baseJobId", job2, "blockIndex", 1,
+                    "original", "Він ішов неквапом.", "replacement", "Він біг.", "reason", ""))).path("id").asText();
+            assertEquals(200, delete(other, "/corrections/" + withdrawn).statusCode());
+            assertEquals(404, get(other, "/corrections/" + withdrawn).statusCode());
+            assertEquals(0, body(get(other, path)).path("draftCount").asInt());
+        }
+    }
+
+    private static String enc(String value) { return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8); }
+
+    @Test
     void selfApprovalSettingAppliesOnlyToAdminsAndIsEnforcedByBackend() throws Exception {
         String novel = seed();
         String job = body(get(owner, "/novels/" + novel + "/chapters/1")).path("jobId").asText();
@@ -1053,6 +1106,8 @@ class AccessIntegrationTest {
     private static String propose(HttpClient client, String novel, String job, int index, String original, String replacement) throws Exception {
         var response = post(client, "/corrections", Map.of("novelId", novel, "chapter", 1, "baseJobId", job, "blockIndex", index, "original", original, "replacement", replacement, "reason", ""));
         assertEquals(200, response.statusCode(), response.body());
+        var submitted = post(client, "/corrections/submit", Map.of("novelId", novel, "chapter", 1));
+        assertEquals(200, submitted.statusCode(), submitted.body());
         return body(response).path("id").asText();
     }
     private static String seed() throws Exception {

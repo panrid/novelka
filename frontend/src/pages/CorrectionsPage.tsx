@@ -14,12 +14,14 @@ import { CorrectionLookupFilter } from './CorrectionLookupFilter';
 interface Correction {
     id: string; author_id: string; author: string; novel_id: string; novel_title: string;
     chapter: number; chapter_title: string; state: string; created_at: string; reviewed_at: string | null;
+    kind?: 'block' | 'replace'; scope?: 'chapter' | 'novel'; batch_id?: string | null;
 }
 interface CorrectionDetail {
     id: string; author_id: string; original: string; replacement: string; reason: string; can_review: boolean;
     review_note: string | null; base_revision: number; published_revision?: number | null;
+    novel_id: string; state: string; kind: 'block' | 'replace'; scope: 'chapter' | 'novel'; batch_id: string | null; batch_size: number;
 }
-const stateLabels: Record<string, string> = { pending: 'Очікує перевірки', approved: 'Погоджено', rejected: 'Відхилено' };
+const stateLabels: Record<string, string> = { draft: 'Чернетка', pending: 'Очікує перевірки', approved: 'Погоджено', rejected: 'Відхилено' };
 const sortLabels: Record<string, string> = { created: 'Дата подання', novel: 'Новела', chapter: 'Глава', author: 'Автор', state: 'Стан' };
 const dateTime = new Intl.DateTimeFormat('uk-UA', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -28,14 +30,19 @@ function ReviewDetail({ correction, queue, refresh }: { correction: Correction; 
     const { data, error, loading, retry } = useResource<CorrectionDetail>('/corrections/' + correction.id);
     const action = useAction();
     const [note, setNote] = useState('');
-    const review = (approve: boolean) => { void action.run(async () => {
-        await mutate('/corrections/' + correction.id + '/review', { approve, note });
+    const [edit, setEdit] = useState<{ replacement: string; reason: string } | null>(null);
+    const review = (approve: boolean, batch = false) => { void action.run(async () => {
+        await mutate(batch && data?.batch_id ? '/corrections/batches/' + data.batch_id + '/review' : '/corrections/' + correction.id + '/review', { approve, note });
         refresh(); retry();
     }); };
+    const own = data?.author_id === user?.id && ['draft', 'pending'].includes(data?.state ?? '');
     if (error) return <ErrorState message={error} retry={retry} />;
     if (!data || loading) return <Loading />;
     return <div className="correction-detail">
-        <TextDiff before={data.original} after={data.replacement} />
+        {data.kind === 'replace'
+            ? <p className="replace-summary"><strong>Заміна {data.scope === 'novel' ? 'в усіх главах новели' : 'в цій главі'}:</strong>{' '}
+                <del>{data.original}</del> → <ins>{data.replacement || '(порожньо)'}</ins></p>
+            : <TextDiff before={data.original} after={data.replacement} />}
         {data.reason && <p><strong>Пояснення автора:</strong> {data.reason}</p>}
         {data.review_note && <p><strong>Рішення редактора:</strong> {data.review_note}</p>}
         <p className="muted correction-origin">Порівняно з абзацом ревізії {data.base_revision}, на яку спиралася правка.
@@ -44,7 +51,31 @@ function ReviewDetail({ correction, queue, refresh }: { correction: Correction; 
             <label>Коментар рішення<input maxLength={2000} value={note} onChange={event => setNote(event.target.value)} /></label>
             <div className="button-row"><button className="button" disabled={action.busy} onClick={() => review(true)}>Погодити й опублікувати</button>
                 <button disabled={action.busy} onClick={() => review(false)}>Відхилити</button></div>
+            {data.batch_size > 1 && <div className="button-row batch-actions">
+                <span className="muted">Правка з пакета з {data.batch_size}. Пакет публікується однією ревізією на главу.</span>
+                <button className="button" disabled={action.busy} onClick={() => review(true, true)}>Погодити весь пакет ({data.batch_size})</button>
+                <button disabled={action.busy} onClick={() => review(false, true)}>Відхилити пакет</button></div>}
         </div>}
+        {own && !edit && <div className="button-row">
+            <button type="button" onClick={() => setEdit({ replacement: data.replacement, reason: data.reason })}>Змінити правку</button>
+            <button type="button" disabled={action.busy} onClick={() => {
+                if (!window.confirm('Відкликати цю правку?')) return;
+                void action.run(async () => { await mutate('/corrections/' + data.id, undefined, 'DELETE'); refresh(); }, 'Правку відкликано.');
+            }}>Відкликати</button>
+            {data.state === 'draft' && <button type="button" className="button" disabled={action.busy} onClick={() => void action.run(async () => {
+                await mutate('/corrections/submit', { novelId: data.novel_id }); refresh(); retry();
+            }, 'Чернетки цієї новели надіслано редакторам.')}>Надіслати чернетки новели</button>}
+        </div>}
+        {own && edit && <form className="stack-form" onSubmit={event => {
+            event.preventDefault();
+            void action.run(async () => { await mutate('/corrections/' + data.id, edit); setEdit(null); retry(); }, 'Правку змінено.');
+        }}>
+            <label>{data.kind === 'replace' ? 'Замінити на' : 'Виправлений абзац'}{data.kind === 'replace'
+                ? <input maxLength={200} value={edit.replacement} onChange={event => setEdit({ ...edit, replacement: event.target.value })} />
+                : <textarea rows={5} required maxLength={20000} value={edit.replacement} onChange={event => setEdit({ ...edit, replacement: event.target.value })} />}</label>
+            <label>Пояснення<input maxLength={2000} value={edit.reason} onChange={event => setEdit({ ...edit, reason: event.target.value })} /></label>
+            <div className="button-row"><button className="button" disabled={action.busy}>Зберегти</button><button type="button" onClick={() => setEdit(null)}>Скасувати</button></div>
+        </form>}
         {queue && !data.can_review && correction.state === 'pending' && correction.author_id === user?.id && <p className="muted">Вашу правку має перевірити інший редактор.</p>}
         <ActionNotice {...action} />
     </div>;
@@ -97,7 +128,8 @@ export function CorrectionsPage() {
                     <TableHeader label="Перегляд" help="Відкриває порівняння текстів і, за наявності прав, дії редактора." />
                 </tr></thead>{data.items.map(correction => <tbody key={correction.id}>
                     <tr><td data-label="Новела"><a href={'#' + novelPath(correction.novel_id)} title={correction.novel_title}>{correction.novel_title || correction.novel_id}</a></td>
-                        <td data-label="Глава"><a href={'#' + chapterPath(correction.novel_id, correction.chapter)} title={correction.chapter_title}>{correction.chapter}. {correction.chapter_title || 'Глава ' + correction.chapter}</a></td>
+                        <td data-label="Глава">{correction.kind === 'replace' && correction.scope === 'novel' ? <span className="muted">Уся новела · заміна</span>
+                            : <a href={'#' + chapterPath(correction.novel_id, correction.chapter)} title={correction.chapter_title}>{correction.kind === 'replace' ? 'Заміна · ' : ''}{correction.chapter}. {correction.chapter_title || 'Глава ' + correction.chapter}</a>}</td>
                         <td data-label="Автор">{correction.author}</td><td data-label="Стан"><span className={'badge correction-state ' + correction.state}>{stateLabels[correction.state] || correction.state}</span></td>
                         <td data-label="Подано"><time dateTime={correction.created_at}>{dateTime.format(new Date(correction.created_at))}</time></td>
                         <td data-label="Перегляд"><button type="button" aria-expanded={openId === correction.id} aria-controls={'correction-' + correction.id}

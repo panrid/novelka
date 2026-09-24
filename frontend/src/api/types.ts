@@ -40,6 +40,9 @@ export interface Block {
 export interface ReaderChapter {
     jobId: string;
     personalReplacements: Record<number, string>;
+    personalStates?: Record<number, 'draft' | 'pending'>;
+    personalIds?: Record<number, string>;
+    draftCount?: number;
     novelId: string;
     number: number;
     revision: number;

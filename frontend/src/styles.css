@@ -598,3 +598,22 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { height: v
 .correction-sort button, .correction-clear { min-height: var(--control-height); }
 .autocomplete-popup .select-option { flex-direction: column; align-items: flex-start; gap: 2px; }
 .autocomplete-popup .select-option small { font-size: 12px; overflow-wrap: anywhere; }
+
+/* Reader corrections: private drafts, their actions and the batch submit bar. */
+.draft-block { border-left-style: dashed; }
+.personal-note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.personal-note button.plain-button { min-height: 0; padding: 0; border: 0; background: none; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; font-size: 12px; }
+.suggest-actions { position: absolute; right: 0; bottom: 0; display: flex; gap: 4px; }
+.suggest-actions .suggest-button { position: static; }
+.replace-scope { display: grid; gap: 6px; border: 0; padding: 0; margin: 0; min-inline-size: auto; }
+.replace-scope legend { margin-bottom: 6px; font-size: 14px; }
+.draft-bar { position: sticky; bottom: 12px; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+    max-width: 740px; margin: 24px auto 0; padding: 12px 14px; border: 1px solid var(--accent); border-radius: 8px; background: var(--surface); box-shadow: 0 8px 24px #0003; font-size: 14px; }
+.draft-bar .button { gap: 10px; padding: 10px 16px; }
+.draft-bar kbd { font: 11px/1 inherit; opacity: .8; padding: 2px 5px; border: 1px solid #fffaf055; border-radius: 3px; }
+.draft-bar .form-success, .draft-bar .form-error { margin: 0; flex-basis: 100%; }
+.replace-summary { margin: 0 0 10px; overflow-wrap: anywhere; }
+.replace-summary del { text-decoration-thickness: 2px; background: color-mix(in srgb, #ae6e60 25%, transparent); }
+.replace-summary ins { text-decoration: underline; text-decoration-thickness: 2px; background: color-mix(in srgb, #6b986e 25%, transparent); }
+.batch-actions { flex-basis: 100%; }
+.correction-state.draft { border-left: 3px dashed var(--muted); }

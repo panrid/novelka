@@ -56,10 +56,70 @@ test('reader submits a revision-bound private correction without rendering html'
     await page.getByRole('button', { name: 'Запропонувати правку' }).click();
     await expect(page.locator('.correction-form blockquote')).toHaveText('Він ішов.');
     await page.getByLabel('Виправлений абзац').fill('Він крокував. <b>Текст</b>');
-    await page.getByRole('button', { name: 'Надіслати', exact: true }).click();
-    await expect(page.getByText('Ваша версія · очікує перевірки')).toBeVisible();
+    await page.getByRole('button', { name: 'Зберегти правку' }).click();
+    await expect(page.getByText('Ваша чернетка · ще не надіслана')).toBeVisible();
     await expect(page.getByText('Він крокував. <b>Текст</b>', { exact: true })).toBeVisible();
     await expect(page.locator('.reading-text b')).toHaveCount(0);
+    await page.route('**/api/corrections/submit', route => {
+        expect(route.request().postDataJSON()).toMatchObject({ novelId: novel.id });
+        return route.fulfill({ json: { batchId: 'batch1', count: 1 } });
+    });
+    const bar = page.getByRole('region', { name: 'Неподані правки' });
+    await expect(bar).toContainText('Неподаних правок: 1');
+    await page.locator('body').click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press('ControlOrMeta+Enter');
+    await expect(bar).toContainText('Правки надіслано редакторам.');
+    await expect(page.getByText('Ваша версія · очікує перевірки')).toBeVisible();
+});
+
+test('reader edits, withdraws and replaces every occurrence as drafts', async ({ page }) => {
+    await session(page, reader);
+    await page.route('**/api/novels/n0022gd', route => route.fulfill({ json: { ...novel, chapters: [{ number: 1, title: 'Пролог', revision: 1 }] } }));
+    await page.route('**/api/novels/n0022gd/chapters/1', route => route.fulfill({ json: {
+        novelId: novel.id, number: 1, revision: 1, jobId: 'job1', title: 'Пролог', draftCount: 1,
+        personalReplacements: { 1: 'Він біг.' }, personalStates: { 1: 'draft' }, personalIds: { 1: 'c1' },
+        blocks: [{ id: 'title', kind: 'heading', text: 'Пролог' }, { id: 'p1', kind: 'paragraph', text: 'Він ішов. Ліна мовчала.' }],
+    } }));
+    const edits: unknown[] = [];
+    await page.route('**/api/corrections', route => { edits.push(route.request().postDataJSON()); return route.fulfill({ json: { id: 'c1' } }); });
+    await page.route('**/api/corrections/c1', route => {
+        expect(route.request().method()).toBe('DELETE');
+        return route.fulfill({ status: 204 });
+    });
+    await page.route('**/api/corrections/replace-preview**', route => route.fulfill({ json: { total: 3, chapters: [{ chapter: 1, count: 1 }, { chapter: 2, count: 2 }] } }));
+    await page.route('**/api/corrections/replace', route => {
+        expect(route.request().postDataJSON()).toMatchObject({ find: 'Ліна', replacement: 'Ріна', scope: 'novel', baseJobId: 'job1' });
+        return route.fulfill({ json: { id: 'r1' } });
+    });
+    await page.goto('/#/novels/n0022gd/chapters/1');
+    await expect(page.getByText('Ваша чернетка · ще не надіслана')).toBeVisible();
+    await page.getByRole('button', { name: 'Змінити', exact: true }).click();
+    await expect(page.getByLabel('Виправлений абзац')).toHaveValue('Він біг.');
+    await page.getByLabel('Виправлений абзац').fill('Він побіг.');
+    await page.getByRole('button', { name: 'Зберегти правку' }).click();
+    await expect(page.getByText('Він побіг.', { exact: true })).toBeVisible();
+    await expect.poll(() => edits.length).toBe(1);
+    await expect(page.getByRole('region', { name: 'Неподані правки' })).toContainText('Неподаних правок: 1');
+    await page.getByRole('button', { name: 'Відкликати' }).click();
+    await expect(page.getByText('Він ішов. Ліна мовчала.', { exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Неподані правки' })).toHaveCount(0);
+
+    await page.locator('.reading-text .editable-content p').evaluate(element => {
+        const text = element.firstChild!;
+        const start = text.textContent!.indexOf('Ліна');
+        const range = document.createRange();
+        range.setStart(text, start);
+        range.setEnd(text, start + 4);
+        window.getSelection()?.removeAllRanges();
+        window.getSelection()?.addRange(range);
+    });
+    await page.getByRole('button', { name: 'Замінити всі входження' }).click();
+    await expect(page.getByLabel('Замінити')).toHaveValue('Ліна');
+    await page.getByLabel('На', { exact: true }).fill('Ріна');
+    await page.getByLabel('В усіх опублікованих главах новели').check();
+    await expect(page.getByText('Знайдено 3 входжень у 2 главах.')).toBeVisible();
+    await page.getByRole('button', { name: 'Зберегти заміну' }).click();
+    await expect(page.getByRole('region', { name: 'Неподані правки' })).toContainText('Неподаних правок: 1');
 });
 
 test('owner launches budgeted translation and sees persisted queue', async ({ page }, testInfo) => {
