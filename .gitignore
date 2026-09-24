@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.idea/
+*.iml
+.DS_Store
+build/
+out/
+.gradle/
+node_modules/
+dist/
+.claude/settings.local.json
