@@ -7,6 +7,7 @@ import { ErrorState, Loading } from '../components/Status';
 import { ListEmpty, ListPages, ListSearch, listParams, useListState, type PageData } from '../components/ListTools';
 import { VoteControl } from '../components/VoteControl';
 import { Comments } from '../components/Comments';
+import { NovelCover } from '../components/NovelCover';
 
 export function NovelPage({ id }: { id: string }) {
     const last = Number(readPreference('chapter:' + id));
@@ -19,12 +20,12 @@ export function NovelPage({ id }: { id: string }) {
     const first = data.resumeChapter ?? data.firstChapter;
     return <div className="page novel-page">
         <a className="back-link" href="#/">← До каталогу</a>
-        <section className="novel-intro"><div className="eyebrow">Японська новела · {data.id}</div><h1>{data.title}</h1><p className="novel-author">{data.author}</p>
+        <section className="novel-intro"><NovelCover id={data.id} title={data.title} className="novel-intro-cover" /><div className="novel-intro-text"><div className="eyebrow">Японська новела · {data.id}</div><h1>{data.title}</h1><p className="novel-author">{data.author}</p>
             <VoteControl key={data.id} type="novel" target={data.id} initial={data.rating ?? { score: 0, mine: 0 }} label="Рейтинг новели" />{data.tags.length > 0 && <p className="novel-tags" aria-label="Теги">{data.tags.map(tag =>
             <a className="tag-chip" key={tag.slug} href={'#/?tags=' + encodeURIComponent(tag.slug)}>{tag.name}</a>)}</p>}{data.description && <p className="novel-description">{data.description}</p>}
             <p className="muted">{data.readyChapters} готових глав із {data.chapterCount} в оригіналі</p>
             {first && <a className="button" href={'#' + chapterPath(data.id, first)}>{data.resumeChapter ? 'Продовжити читання' : 'Почати читання'} <span aria-hidden="true">→</span></a>}
-        </section>
+        </div></section>
         <section className="contents-section"><div className="section-heading"><h2>Зміст</h2><span className="count-label">Український переклад</span></div>
             {data.readyChapters > 0 && <div className="list-toolbar"><ListSearch label="Знайти главу за назвою або номером" value={list.state.q} onChange={q => list.update({ q, page: 1 })} />
                 <button onClick={() => list.update({ page: 1, direction: list.state.direction === 'asc' ? 'desc' : 'asc' })}>Номер {list.state.direction === 'asc' ? '↑' : '↓'}</button></div>}
