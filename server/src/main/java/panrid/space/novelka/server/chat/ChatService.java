@@ -14,7 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Community chat for signed-in users. Authors delete their messages; ADMIN and OWNER moderate. */
+/** Community chat for signed-in users. Authors delete their messages; moderators hide messages, which readers can still reveal. */
 @Service
 public final class ChatService {
     static final int PAGE = 30;
@@ -36,7 +36,8 @@ public final class ChatService {
         if (after < 0) throw new IllegalArgumentException("Некоректний курсор.");
         try (var jdbc = database.open()) {
             var chat = new ChatRepository(jdbc);
-            return Map.of("items", decorate(viewer, chat.after(after, 100)), "deleted", chat.recentlyDeleted());
+            return Map.of("items", decorate(viewer, chat.after(after, 100)), "deleted", chat.recentlyDeleted(),
+                    "moderated", decorate(viewer, chat.recentlyModerated()));
         }
     }
 
@@ -55,11 +56,22 @@ public final class ChatService {
             var chat = new ChatRepository(jdbc);
             var message = chat.get(id);
             if (message == null || message.get("deleted_at") != null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-            boolean own = actor.id().equals(message.get("author_id"));
-            if (!own && !actor.role().includes(Role.ADMIN)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+            if (!actor.id().equals(message.get("author_id")))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Видалити можна лише власне повідомлення. Модератори приховують чужі.");
+            chat.delete(id, actor.id());
+        }
+    }
+
+    public void hide(Account moderator, long id, boolean hidden, String reason) throws Exception {
+        if (!moderator.role().includes(Role.MODERATOR)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        try (var jdbc = database.open()) {
+            var chat = new ChatRepository(jdbc);
+            var message = chat.get(id);
+            if (message == null || message.get("deleted_at") != null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
             jdbc.transaction(() -> {
-                chat.delete(id, actor.id());
-                if (!own) new AuditRepository(jdbc).add(actor.id(), "chat.moderate", String.valueOf(id), Map.of("author", message.get("author_id")));
+                chat.hide(id, moderator.id(), hidden, reason);
+                new AuditRepository(jdbc).add(moderator.id(), hidden ? "chat.hide" : "chat.unhide", String.valueOf(id),
+                        Map.of("author", message.get("author_id"), "reason", reason));
                 return null;
             });
         }
@@ -69,7 +81,8 @@ public final class ChatService {
         var items = new ArrayList<Map<String, Object>>();
         for (var row : rows) {
             var item = new LinkedHashMap<>(row);
-            item.put("can_delete", viewer.id().equals(row.get("author_id")) || viewer.role().includes(Role.ADMIN));
+            item.put("can_delete", viewer.id().equals(row.get("author_id")));
+            item.put("can_moderate", viewer.role().includes(Role.MODERATOR));
             items.add(item);
         }
         return items;

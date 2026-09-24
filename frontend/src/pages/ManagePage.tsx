@@ -14,7 +14,7 @@ export function ManagePage({ search = '' }: { search?: string }) {
     const params = new URLSearchParams(search);
     const [catalogQuery, setCatalogQuery] = useState('');
     // Translators see their own novels; administrators see every novel.
-    const catalog = useResource<{ items: { id: string; title: string }[] }>('/manage/novels?q=' + encodeURIComponent(catalogQuery), true);
+    const catalog = useResource<{ items: { id: string; title: string; hidden?: boolean }[] }>('/manage/novels?q=' + encodeURIComponent(catalogQuery), true);
     const [novel, setNovel] = useState(params.get('novel') ?? '');
     const [selectedTitle, setSelectedTitle] = useState('');
     const [tab, setTab] = useState(params.get('tab') === 'glossary' ? 'novel' : 'tasks');
@@ -26,8 +26,8 @@ export function ManagePage({ search = '' }: { search?: string }) {
     return <div className="page workspace"><p className="eyebrow">Від оригіналу до публікації</p><h1>Майстерня перекладу</h1>
         <div className="workspace-toolbar"><ListSearch label="Знайти новелу" value={catalogQuery} onChange={setCatalogQuery} />
             <SelectField label="Новела" value={novel} onChange={value => { setNovel(value); setSelectedTitle(catalog.data?.items.find(item => item.id === value)?.title || value); setPreset(undefined); setFormVersion(value => value + 1); }}
-            options={[{ value: '', label: 'Оберіть новелу' }, ...(novel ? [{ value: novel, label: `${selectedTitle || catalog.data?.items.find(item => item.id === novel)?.title || novel} · ${novel}` }] : []),
-                ...(catalog.data?.items ?? []).filter(item => item.id !== novel).map(item => ({ value: item.id, label: `${item.title} · ${item.id}` }))]} />
+            options={[{ value: '', label: 'Оберіть новелу' }, ...(novel ? [{ value: novel, label: `${selectedTitle || catalog.data?.items.find(item => item.id === novel)?.title || novel} · ${novel}${catalog.data?.items.find(item => item.id === novel)?.hidden ? ' · приховано' : ''}` }] : []),
+                ...(catalog.data?.items ?? []).filter(item => item.id !== novel).map(item => ({ value: item.id, label: `${item.title} · ${item.id}${item.hidden ? ' · приховано' : ''}` }))]} />
             <button onClick={catalog.retry}>Оновити каталог</button></div>
         {catalog.error && <ErrorState message={catalog.error} retry={catalog.retry} />}
         <nav className="tab-bar" aria-label="Керування перекладами">{Object.entries({ tasks: 'Переклад', novel: 'Дані новели', costs: 'Витрати' }).map(([key, label]) => <button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</button>)}</nav>

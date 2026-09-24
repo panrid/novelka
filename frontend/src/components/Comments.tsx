@@ -5,10 +5,12 @@ import { useAction } from '../hooks/useAction';
 import { ActionNotice } from './ActionNotice';
 import { ErrorState, Loading } from './Status';
 import { VoteControl, type VoteSummary } from './VoteControl';
+import { HiddenContent } from './HiddenContent';
+import { ModerationControls } from './ModerationControls';
 
 interface Comment {
     id: number; author_id: string; author: string; body: string; created_at: string; edited_at: string | null;
-    rating: VoteSummary; can_edit: boolean; can_delete: boolean;
+    rating: VoteSummary; can_edit: boolean; can_delete: boolean; can_moderate?: boolean; hidden?: boolean; hidden_reason?: string;
 }
 interface CommentPage { items: Comment[]; nextCursor: number }
 const dateTime = new Intl.DateTimeFormat('uk-UA', { dateStyle: 'medium', timeStyle: 'short' });
@@ -73,12 +75,14 @@ function CommentItem({ comment, onChanged }: { comment: Comment; onChanged: () =
             <textarea id={'comment-edit-' + comment.id} rows={3} maxLength={5000} required value={body} onChange={event => setBody(event.target.value)} />
             <div className="button-row"><button className="button" disabled={action.busy || !body.trim()}>Зберегти</button>
                 <button type="button" onClick={() => { setEditing(false); setBody(comment.body); }}>Скасувати</button></div>
-        </form> : <p className="comment-body">{comment.body}</p>}
+        </form> : <HiddenContent hidden={!!comment.hidden} reason={comment.hidden_reason}><p className="comment-body">{comment.body}</p></HiddenContent>}
         <div className="comment-actions">
             <VoteControl type="comment" target={String(comment.id)} initial={comment.rating} label={'Рейтинг коментаря ' + comment.author} />
             {comment.can_edit && !editing && <button type="button" className="plain-button" onClick={() => setEditing(true)}>Редагувати</button>}
+            {comment.can_moderate && !comment.can_edit && <ModerationControls path={'/comments/' + comment.id} hidden={!!comment.hidden}
+                author={comment.author} onChanged={onChanged} />}
             {comment.can_delete && <button type="button" className="plain-button" disabled={action.busy} onClick={() => {
-                if (!window.confirm(comment.can_edit ? 'Видалити ваш коментар?' : 'Видалити коментар користувача ' + comment.author + '?')) return;
+                if (!window.confirm('Видалити ваш коментар?')) return;
                 void action.run(async () => { await mutate('/comments/' + comment.id, undefined, 'DELETE'); onChanged(); });
             }}>Видалити</button>}
         </div>

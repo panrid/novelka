@@ -7,6 +7,7 @@ import panrid.space.novelka.core.repository.NovelRepository;
 import panrid.space.novelka.server.account.Account;
 import panrid.space.novelka.server.account.Role;
 import panrid.space.novelka.server.config.ReaderDatabase;
+import panrid.space.novelka.server.novel.NovelAccessService;
 import panrid.space.novelka.server.repository.AuditRepository;
 import panrid.space.novelka.server.repository.CommentRepository;
 import panrid.space.novelka.server.repository.VoteRepository;
@@ -16,20 +17,22 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Novel and chapter discussions. Authors edit and delete their own comments; ADMIN and OWNER moderate.
- * Deletion is soft, so audit and votes keep valid references, and a nickname change never breaks a comment.
+ * Novel and chapter discussions. Authors edit and delete their own comments; moderators hide comments instead of
+ * deleting them, so a reader can still reveal one for themselves. Deletion is soft, so audit and votes keep valid
+ * references, and a nickname change never breaks a comment.
  */
 @Service
 public final class CommentService {
     static final int PAGE = 20;
     private final ReaderDatabase database;
+    private final NovelAccessService novels;
 
-    public CommentService(ReaderDatabase database) { this.database = database; }
+    public CommentService(ReaderDatabase database, NovelAccessService novels) { this.database = database; this.novels = novels; }
 
     public Map<String, Object> page(String reference, int chapter, long before, Account viewer) throws Exception {
         if (chapter < 0 || before < 0) throw new IllegalArgumentException("Некоректна глава або курсор.");
         try (var jdbc = database.open()) {
-            String novel = new NovelRepository(jdbc).resolveNovel(reference);
+            String novel = novels.visible(jdbc, viewer, reference);
             var rows = new CommentRepository(jdbc).page(novel, chapter, before, PAGE + 1);
             boolean more = rows.size() > PAGE;
             if (more) rows = rows.subList(0, PAGE);
@@ -41,7 +44,8 @@ public final class CommentService {
                 boolean own = viewer != null && viewer.id().equals(row.get("author_id"));
                 item.put("rating", votes.get(String.valueOf(row.get("id"))));
                 item.put("can_edit", own);
-                item.put("can_delete", own || viewer != null && viewer.role().includes(Role.ADMIN));
+                item.put("can_delete", own);
+                item.put("can_moderate", viewer != null && viewer.role().includes(Role.MODERATOR));
                 items.add(item);
             }
             return Map.of("items", items, "nextCursor", more ? ((Number) rows.getLast().get("id")).longValue() : 0);
@@ -52,9 +56,8 @@ public final class CommentService {
         int chapter = request.chapter() == null ? 0 : request.chapter();
         String body = body(request.body());
         try (var jdbc = database.open()) {
-            var novels = new NovelRepository(jdbc);
-            String novel = novels.resolveNovel(reference);
-            if (chapter < 0 || chapter > novels.novel(novel).chapterCount()) throw new IllegalArgumentException("Некоректний номер глави.");
+            String novel = novels.visible(jdbc, author, reference);
+            if (chapter < 0 || chapter > new NovelRepository(jdbc).novel(novel).chapterCount()) throw new IllegalArgumentException("Некоректний номер глави.");
             var comments = new CommentRepository(jdbc);
             if (comments.recentlyPosted(author.id()))
                 throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Зачекайте кілька секунд перед наступним коментарем.");
@@ -76,11 +79,22 @@ public final class CommentService {
         try (var jdbc = database.open()) {
             var comments = new CommentRepository(jdbc);
             var comment = live(comments, id);
-            boolean own = actor.id().equals(comment.get("author_id"));
-            if (!own && !actor.role().includes(Role.ADMIN)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+            if (!actor.id().equals(comment.get("author_id")))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Видалити можна лише власний коментар. Модератори приховують чужі.");
+            comments.delete(id, actor.id());
+        }
+    }
+
+    /** Moderators hide or restore a comment; each decision is audited. */
+    public void hide(Account moderator, long id, boolean hidden, String reason) throws Exception {
+        if (!moderator.role().includes(Role.MODERATOR)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        try (var jdbc = database.open()) {
+            var comments = new CommentRepository(jdbc);
+            var comment = live(comments, id);
             jdbc.transaction(() -> {
-                comments.delete(id, actor.id());
-                if (!own) new AuditRepository(jdbc).add(actor.id(), "comment.moderate", String.valueOf(id), Map.of("author", comment.get("author_id")));
+                comments.hide(id, moderator.id(), hidden, reason);
+                new AuditRepository(jdbc).add(moderator.id(), hidden ? "comment.hide" : "comment.unhide", String.valueOf(id),
+                        Map.of("author", comment.get("author_id"), "reason", reason));
                 return null;
             });
         }

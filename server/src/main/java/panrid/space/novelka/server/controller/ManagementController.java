@@ -70,10 +70,12 @@ public final class ManagementController {
         manage(principal, novel);
         try (var db = database.openDatabase(); var jdbc = database.open()) {
             String id = db.novels().resolveNovel(novel);
+            var rights = new NovelAccessRepository(jdbc).novel(id);
             return Json.M.convertValue(Map.of("novel", db.novels().novel(id), "aliases", db.novels().aliases(id),
                     "importedChapters", ((Number) jdbc.rows("SELECT count(*) total FROM chapters WHERE novel_id=?", id).getFirst().get("total")).longValue(),
                     "glossary", new Glossary(db.glossaries().glossary(id).revision(), List.of()), "proposals", List.of(),
                     "tags", new TagRepository(jdbc).forNovel(id),
+                    "hidden", Boolean.TRUE.equals(rights.get("hidden")), "hiddenReason", rights.get("hidden_reason"),
                     // Novelka produced at least one translation: the UI suggests the machine translation tag, never sets it silently.
                     "aiTranslated", !jdbc.rows("SELECT 1 FROM jobs WHERE novel_id=? AND state IN ('complete','needs-review') LIMIT 1", id).isEmpty()),
                     Object.class);

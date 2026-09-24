@@ -3,8 +3,13 @@ import { getJson, mutate } from '../api/client';
 import { useAction } from '../hooks/useAction';
 import { ActionNotice } from '../components/ActionNotice';
 import { ErrorState, Loading } from '../components/Status';
+import { HiddenContent } from '../components/HiddenContent';
+import { ModerationControls } from '../components/ModerationControls';
 
-interface Message { id: number; author_id: string; author: string; body: string; created_at: string; can_delete: boolean }
+interface Message {
+    id: number; author_id: string; author: string; body: string; created_at: string; can_delete: boolean;
+    can_moderate?: boolean; hidden?: boolean; hidden_reason?: string;
+}
 const POLL_MS = 4000;
 const time = new Intl.DateTimeFormat('uk-UA', { dateStyle: 'short', timeStyle: 'short' });
 
@@ -22,6 +27,8 @@ export function ChatPage() {
     const list = useRef<HTMLOListElement>(null);
     const stick = useRef(true);
     const newest = useRef(0);
+    const messagesRef = useRef<Message[] | undefined>(undefined);
+    messagesRef.current = messages;
 
     const merge = useCallback((incoming: Message[], deleted: number[] = []) => setMessages(current => {
         const known = new Map((current ?? []).map(item => [item.id, item]));
@@ -33,8 +40,10 @@ export function ChatPage() {
     }), []);
 
     const poll = useCallback(async () => {
-        const update = await getJson<{ items: Message[]; deleted: number[] }>('/chat/updates?after=' + newest.current);
-        merge(update.items, update.deleted);
+        const update = await getJson<{ items: Message[]; deleted: number[]; moderated?: Message[] }>('/chat/updates?after=' + newest.current);
+        // Hidden or restored messages replace the copies already on screen; unknown older ones are ignored.
+        const shown = new Set((messagesRef.current ?? []).map(item => item.id));
+        merge([...update.items, ...(update.moderated ?? []).filter(item => shown.has(item.id))], update.deleted);
     }, [merge]);
 
     useEffect(() => {
@@ -87,8 +96,10 @@ export function ChatPage() {
                             onClick={() => {
                                 if (!window.confirm('Видалити це повідомлення?')) return;
                                 void action.run(async () => { await mutate('/chat/' + message.id, undefined, 'DELETE'); merge([], [message.id]); });
-                            }}>Видалити</button>}</div>
-                    <p>{message.body}</p>
+                            }}>Видалити</button>}
+                        {message.can_moderate && !message.can_delete && <ModerationControls path={'/chat/' + message.id} hidden={!!message.hidden}
+                            author={message.author} onChanged={() => void poll().catch(() => {})} />}</div>
+                    <HiddenContent hidden={!!message.hidden} reason={message.hidden_reason}><p>{message.body}</p></HiddenContent>
                 </li>) : <li className="muted chat-empty">Поки тихо. Напишіть перше повідомлення.</li>}
             </ol>
             <form className="chat-form" onSubmit={event => { event.preventDefault(); send(); }}>

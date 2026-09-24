@@ -16,14 +16,15 @@ public final class NovelAccessRepository {
 
     /** owner_id (nullable) and open_review of an existing novel. */
     public Map<String, Object> novel(String novel) throws Exception {
-        return jdbc.rows("SELECT n.owner_id,n.open_review,a.username AS owner_name FROM novels n LEFT JOIN accounts a ON a.id=n.owner_id"
+        return jdbc.rows("SELECT n.owner_id,n.open_review,a.username AS owner_name,(n.hidden_at IS NOT NULL) AS hidden,n.hidden_reason"
+                + " FROM novels n LEFT JOIN accounts a ON a.id=n.owner_id"
                 + " WHERE n.id=?", novel).getFirst();
     }
 
     /** Novels the account translates, or every novel for {@code account == null} (administrators), by title or ID. */
     public List<Map<String, Object>> manageable(String account, String q, int limit) throws Exception {
         String pattern = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
-        return jdbc.rows("SELECT id,COALESCE(NULLIF(data->>'titleUk',''),data->>'title') AS title FROM novels"
+        return jdbc.rows("SELECT id,COALESCE(NULLIF(data->>'titleUk',''),data->>'title') AS title,(hidden_at IS NOT NULL) AS hidden FROM novels"
                 + " WHERE (?::text IS NULL OR owner_id=?) AND (?='' OR id ILIKE ? ESCAPE '\\'"
                 + " OR COALESCE(NULLIF(data->>'titleUk',''),data->>'title') ILIKE ? ESCAPE '\\')"
                 + " ORDER BY lower(COALESCE(NULLIF(data->>'titleUk',''),data->>'title')),id LIMIT ?", account, account, q, pattern, pattern, limit);
@@ -54,6 +55,11 @@ public final class NovelAccessRepository {
 
     public void openReview(String novel, boolean open) throws Exception {
         jdbc.exec("UPDATE novels SET open_review=? WHERE id=?", open, novel);
+    }
+
+    public void hide(String novel, String actor, boolean hidden, String reason) throws Exception {
+        jdbc.exec("UPDATE novels SET hidden_at=CASE WHEN ? THEN now() END,hidden_by=CASE WHEN ? THEN ? END,hidden_reason=? WHERE id=?",
+                hidden, hidden, actor, hidden ? reason : "", novel);
     }
 
     public void owner(String novel, String account) throws Exception {

@@ -637,3 +637,15 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { height: v
 .balance-summary { margin: 0 0 10px; }
 .balance-panel { display: grid; gap: 10px; margin: 18px 0; padding-top: 14px; border-top: 1px solid var(--line); }
 .balance-panel .inline-form { margin: 0; align-items: flex-end; }
+
+/* Moderation: hidden messages and novels */
+.hidden-content { border-left: 3px solid var(--line); padding-left: 10px; }
+.hidden-note { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin: 4px 0; color: var(--muted); font-style: italic; }
+.hidden-note .plain-button { font-style: normal; }
+.moderation-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; width: 100%; }
+.moderation-form label { flex-basis: 100%; font-size: 13px; color: var(--muted); }
+.moderation-form input { flex: 1 1 200px; }
+.novel-visibility { display: grid; gap: 8px; margin: 16px 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; }
+.novel-visibility h3 { margin: 0; }
+.novel-visibility.hidden-novel, .hidden-novel-banner { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.hidden-novel-banner { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--accent); border-radius: 8px; }

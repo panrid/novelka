@@ -11,6 +11,7 @@ import panrid.space.novelka.server.account.AccessService;
 import panrid.space.novelka.server.account.Role;
 import panrid.space.novelka.server.comment.CommentRequest;
 import panrid.space.novelka.server.comment.CommentService;
+import panrid.space.novelka.server.moderation.HideRequest;
 
 import java.security.Principal;
 import java.util.Map;
@@ -41,6 +42,18 @@ public final class CommentsController {
     public Map<String, String> edit(Principal principal, @PathVariable long id, @RequestBody CommentRequest request) throws Exception {
         comments.edit(access.require(principal, Role.READER), id, request);
         return Map.of("message", "Коментар змінено.");
+    }
+
+    @PostMapping("/api/comments/{id}/hide")
+    public Map<String, String> hide(Principal principal, @PathVariable long id, @RequestBody HideRequest request) throws Exception {
+        comments.hide(access.require(principal, Role.MODERATOR), id, true, request.normalized());
+        return Map.of("message", "Коментар приховано.");
+    }
+
+    @PostMapping("/api/comments/{id}/unhide")
+    public Map<String, String> unhide(Principal principal, @PathVariable long id) throws Exception {
+        comments.hide(access.require(principal, Role.MODERATOR), id, false, "");
+        return Map.of("message", "Коментар знову видно.");
     }
 
     @DeleteMapping("/api/comments/{id}")

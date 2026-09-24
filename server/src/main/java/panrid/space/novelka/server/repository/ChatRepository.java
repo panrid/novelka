@@ -7,7 +7,7 @@ import java.util.Map;
 
 public final class ChatRepository {
     private static final String SELECT = """
-            SELECT m.id,m.author_id,a.username AS author,m.body,m.created_at FROM chat_messages m
+            SELECT m.id,m.author_id,a.username AS author,m.body,m.created_at,(m.hidden_at IS NOT NULL) AS hidden,m.hidden_reason FROM chat_messages m
             JOIN accounts a ON a.id=m.author_id WHERE m.deleted_at IS NULL
             """;
     private final JdbcSession jdbc;
@@ -28,6 +28,16 @@ public final class ChatRepository {
     public List<Long> recentlyDeleted() throws Exception {
         return jdbc.rows("SELECT id FROM chat_messages WHERE deleted_at>now()-interval '15 minutes' ORDER BY id").stream()
                 .map(row -> ((Number) row.get("id")).longValue()).toList();
+    }
+
+    /** Messages hidden or restored recently, with their current state, so open chats update them in place. */
+    public List<Map<String, Object>> recentlyModerated() throws Exception {
+        return jdbc.rows(SELECT + " AND m.moderated_at>now()-interval '15 minutes' ORDER BY m.id");
+    }
+
+    public void hide(long id, String actor, boolean hidden, String reason) throws Exception {
+        jdbc.exec("UPDATE chat_messages SET hidden_at=CASE WHEN ? THEN now() END,hidden_by=CASE WHEN ? THEN ? END,hidden_reason=?,"
+                + "moderated_at=now() WHERE id=? AND deleted_at IS NULL", hidden, hidden, actor, hidden ? reason : "", id);
     }
 
     public Map<String, Object> get(long id) throws Exception {

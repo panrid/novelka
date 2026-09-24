@@ -8,6 +8,7 @@ import { GlossaryEditor, type Glossary } from './GlossaryEditor';
 import { JobTable } from './JobTable';
 import { NovelEditors } from './NovelEditors';
 import { NovelTags } from './NovelTags';
+import { NovelVisibility } from './NovelVisibility';
 import { ManualChapters } from './ManualChapters';
 import type { TagView } from '../api/types';
 
@@ -27,6 +28,8 @@ interface Detail {
     glossary: Glossary;
     tags: TagView[];
     aiTranslated: boolean;
+    hidden?: boolean;
+    hiddenReason?: string;
 }
 
 export function NovelManager({ novel, initialTab = 'info' }: { novel: string; initialTab?: 'info' | 'glossary' }) {
@@ -50,6 +53,7 @@ export function NovelManager({ novel, initialTab = 'info' }: { novel: string; in
 
     return <><section className="panel novel-management"><div className="panel-heading"><div><p className="eyebrow">{data.novel.id}</p><h2>{data.novel.titleUk || data.novel.title}</h2><p className="muted">Оригінал: {data.novel.title} · {data.novel.author} · {data.novel.chapterCount} глав</p></div></div>
         <nav className="tab-bar compact-tabs" aria-label="Керування новелою"><button aria-pressed={tab === 'info'} onClick={() => setTab('info')}>Дані новели</button><button aria-pressed={tab === 'glossary'} onClick={() => setTab('glossary')}>Словник</button><button aria-pressed={tab === 'materials'} onClick={() => setTab('materials')}>Глави й експорт</button><button aria-pressed={tab === 'editors'} onClick={() => setTab('editors')}>Редактори</button></nav>
+        <NovelVisibility path={path} hidden={!!data.hidden} reason={data.hiddenReason ?? ''} onChanged={resource.retry} />
         {tab === 'info' && <><p>Ці поля бачать читачі в каталозі й на сторінці новели. Порожнє поле прибирає локалізований варіант.</p>
             <form className="stack-form" onSubmit={event => { event.preventDefault(); void saveMetadata(event.currentTarget); }}>
                 <label>Українська назва<input name="titleUk" maxLength={500} defaultValue={data.novel.titleUk || ''} placeholder={data.novel.title} /></label>

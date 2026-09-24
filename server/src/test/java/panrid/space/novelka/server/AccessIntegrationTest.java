@@ -834,8 +834,21 @@ class AccessIntegrationTest {
             assertEquals(1, body(post(other, "/votes/comment/" + novelComment, Map.of("value", 1))).path("score").asLong());
             assertEquals(1, body(get(other, "/novels/" + novel + "/comments")).path("items").get(0).path("rating").path("mine").asInt());
             assertEquals(403, delete(other, "/comments/" + novelComment).statusCode());
-            assertEquals(200, delete(owner, "/comments/" + chapterComment).statusCode(), "admin moderates");
-            assertEquals(1, sql.rows("SELECT 1 FROM audit_events WHERE action='comment.moderate' AND target=?", String.valueOf(chapterComment)).size());
+            assertEquals(403, delete(owner, "/comments/" + chapterComment).statusCode(), "moderators hide, they never delete other people's words");
+            assertEquals(403, post(other, "/comments/" + chapterComment + "/hide", Map.of("reason", "")).statusCode());
+            assertFalse(body(get(other, "/novels/" + novel + "/comments?chapter=1")).path("items").get(0).path("can_moderate").asBoolean());
+            post(owner, "/accounts/" + userId(other) + "/role", Map.of("role", "MODERATOR"));
+            assertTrue(body(get(other, "/novels/" + novel + "/comments?chapter=1")).path("items").get(0).path("can_moderate").asBoolean());
+            assertEquals(400, post(other, "/comments/" + chapterComment + "/hide", Map.of("reason", "x".repeat(301))).statusCode());
+            assertEquals(200, post(other, "/comments/" + chapterComment + "/hide", Map.of("reason", "Спойлер")).statusCode());
+            assertEquals(1, sql.rows("SELECT 1 FROM audit_events WHERE action='comment.hide' AND target=?", String.valueOf(chapterComment)).size());
+            var hidden = body(get(anonymous, "/novels/" + novel + "/comments?chapter=1")).path("items").get(0);
+            assertTrue(hidden.path("hidden").asBoolean());
+            assertEquals("Спойлер", hidden.path("hidden_reason").asText());
+            assertEquals("Про главу", hidden.path("body").asText(), "readers can still reveal a hidden comment");
+            assertEquals(200, post(other, "/comments/" + chapterComment + "/unhide", Map.of()).statusCode());
+            assertFalse(body(get(anonymous, "/novels/" + novel + "/comments?chapter=1")).path("items").get(0).path("hidden").asBoolean());
+            assertEquals(200, delete(author, "/comments/" + chapterComment).statusCode());
             assertEquals(0, body(get(anonymous, "/novels/" + novel + "/comments?chapter=1")).path("items").size());
             assertEquals(404, post(other, "/votes/comment/" + chapterComment, Map.of("value", 1)).statusCode());
             assertEquals(200, delete(author, "/comments/" + novelComment).statusCode());
@@ -870,11 +883,23 @@ class AccessIntegrationTest {
             assertEquals(List.of(first, second), List.of(updates.get(0).path("id").asLong(), updates.get(1).path("id").asLong()), "oldest first");
             assertEquals("Привіт усім", updates.get(0).path("body").asText());
             assertFalse(updates.get(0).path("can_delete").asBoolean());
-            assertTrue(body(get(owner, "/chat/updates?after=" + start)).path("items").get(0).path("can_delete").asBoolean());
+            assertFalse(updates.get(0).path("can_moderate").asBoolean());
+            var forOwner = body(get(owner, "/chat/updates?after=" + start)).path("items").get(0);
+            assertFalse(forOwner.path("can_delete").asBoolean());
+            assertTrue(forOwner.path("can_moderate").asBoolean());
 
             assertEquals(403, delete(other, "/chat/" + first).statusCode());
-            assertEquals(200, delete(owner, "/chat/" + first).statusCode());
-            assertEquals(1, sql.rows("SELECT 1 FROM audit_events WHERE action='chat.moderate' AND target=?", String.valueOf(first)).size());
+            assertEquals(403, delete(owner, "/chat/" + first).statusCode());
+            assertEquals(403, post(other, "/chat/" + first + "/hide", Map.of("reason", "")).statusCode());
+            assertEquals(200, post(owner, "/chat/" + first + "/hide", Map.of("reason", "Реклама")).statusCode());
+            assertEquals(1, sql.rows("SELECT 1 FROM audit_events WHERE action='chat.hide' AND target=?", String.valueOf(first)).size());
+            var moderated = body(get(other, "/chat/updates?after=" + second)).path("moderated");
+            assertEquals(first, moderated.get(0).path("id").asLong(), "open chats learn about the change");
+            assertTrue(moderated.get(0).path("hidden").asBoolean());
+            assertEquals("Реклама", moderated.get(0).path("hidden_reason").asText());
+            assertEquals(200, post(owner, "/chat/" + first + "/unhide", Map.of()).statusCode());
+            assertFalse(body(get(other, "/chat/updates?after=" + second)).path("moderated").get(0).path("hidden").asBoolean());
+            assertEquals(200, delete(author, "/chat/" + first).statusCode());
             var after = body(get(other, "/chat/updates?after=" + start));
             assertEquals(1, after.path("items").size());
             assertTrue(after.path("deleted").toString().contains(String.valueOf(first)));
@@ -1049,6 +1074,39 @@ class AccessIntegrationTest {
             assertEquals(0, new java.math.BigDecimal("0.25").compareTo(settled.path("available").decimalValue().add(settled.path("spent").decimalValue())));
 
             assertTrue(body(get(owner, "/balance")).path("unlimited").asBoolean(), "the site owner uses the site budget");
+        }
+    }
+
+    @Test
+    void hiddenNovelIsVisibleOnlyToItsTranslatorAndAdministrators() throws Exception {
+        String novel = seed();
+        try (var translator = registered(); var reader = registered(); var anonymous = browser(); var sql = jdbc()) {
+            sql.exec("UPDATE novels SET owner_id=? WHERE id=?", userId(translator), novel);
+            assertEquals(200, post(reader, "/library/" + novel, Map.of("status", "reading")).statusCode());
+            assertEquals(403, post(translator, "/manage/" + novel + "/hide", Map.of("reason", "")).statusCode(), "only administrators hide novels");
+            assertEquals(200, post(owner, "/manage/" + novel + "/hide", Map.of("reason", "Порушення правил")).statusCode());
+            assertEquals(1, sql.rows("SELECT 1 FROM audit_events WHERE action='novel.hide' AND target=?", novel).size());
+
+            for (var client : List.of(reader, anonymous)) {
+                assertEquals(404, get(client, "/novels/" + novel).statusCode());
+                assertEquals(404, get(client, "/novels/" + novel + "/contents").statusCode());
+                assertEquals(404, get(client, "/novels/" + novel + "/chapters/1").statusCode());
+                assertEquals(404, get(client, "/novels/" + novel + "/comments").statusCode());
+                assertFalse(body(get(client, "/novels/search?q=" + novel)).path("items").findValuesAsText("id").contains(novel));
+            }
+            assertEquals(404, post(reader, "/votes/novel/" + novel, Map.of("value", 1)).statusCode());
+            assertEquals(0, body(get(reader, "/library")).path("total").asLong(), "the library skips hidden novels");
+            var forTranslator = body(get(translator, "/novels/" + novel));
+            assertTrue(forTranslator.path("hidden").asBoolean());
+            assertEquals("Порушення правил", forTranslator.path("hiddenReason").asText());
+            assertEquals(200, get(translator, "/novels/" + novel + "/chapters/1").statusCode());
+            assertTrue(body(get(owner, "/novels/" + novel)).path("hidden").asBoolean());
+            assertTrue(body(get(translator, "/manage/novels")).path("items").get(0).path("hidden").asBoolean());
+
+            assertEquals(200, post(owner, "/manage/" + novel + "/unhide", Map.of()).statusCode());
+            assertEquals(200, get(reader, "/novels/" + novel).statusCode());
+            assertFalse(body(get(reader, "/novels/" + novel)).path("hidden").asBoolean());
+            assertEquals(1, body(get(reader, "/library")).path("total").asLong());
         }
     }
 

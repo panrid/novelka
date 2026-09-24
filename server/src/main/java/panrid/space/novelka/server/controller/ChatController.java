@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import panrid.space.novelka.server.account.AccessService;
 import panrid.space.novelka.server.account.Role;
+import panrid.space.novelka.server.moderation.HideRequest;
 import panrid.space.novelka.server.chat.ChatMessageRequest;
 import panrid.space.novelka.server.chat.ChatService;
 
@@ -40,6 +41,18 @@ public final class ChatController {
     @PostMapping
     public Map<String, Long> send(Principal principal, @RequestBody ChatMessageRequest request) throws Exception {
         return Map.of("id", chat.send(access.require(principal, Role.READER), request));
+    }
+
+    @PostMapping("/{id}/hide")
+    public Map<String, String> hide(Principal principal, @PathVariable long id, @RequestBody HideRequest request) throws Exception {
+        chat.hide(access.require(principal, Role.MODERATOR), id, true, request.normalized());
+        return Map.of("message", "Повідомлення приховано.");
+    }
+
+    @PostMapping("/{id}/unhide")
+    public Map<String, String> unhide(Principal principal, @PathVariable long id) throws Exception {
+        chat.hide(access.require(principal, Role.MODERATOR), id, false, "");
+        return Map.of("message", "Повідомлення знову видно.");
     }
 
     @DeleteMapping("/{id}")

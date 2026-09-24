@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import panrid.space.novelka.server.account.AccessService;
 import panrid.space.novelka.server.account.Role;
+import panrid.space.novelka.server.moderation.HideRequest;
 import panrid.space.novelka.server.novel.EditorRequest;
 import panrid.space.novelka.server.novel.NovelAccessService;
 import panrid.space.novelka.server.novel.NovelEditors;
@@ -41,6 +42,18 @@ public final class NovelAccessController {
     @DeleteMapping("/editors/{account}")
     public NovelEditors remove(Principal principal, @PathVariable String novel, @PathVariable String account) throws Exception {
         return novels.removeEditor(access.require(principal, Role.READER), novel, account);
+    }
+
+    @PostMapping("/hide")
+    public java.util.Map<String, String> hide(Principal principal, @PathVariable String novel, @RequestBody HideRequest request) throws Exception {
+        novels.hide(access.require(principal, Role.ADMIN), novel, true, request.normalized());
+        return java.util.Map.of("message", "Новелу приховано. Її бачать лише перекладач і адміністратори.");
+    }
+
+    @PostMapping("/unhide")
+    public java.util.Map<String, String> unhide(Principal principal, @PathVariable String novel) throws Exception {
+        novels.hide(access.require(principal, Role.ADMIN), novel, false, "");
+        return java.util.Map.of("message", "Новела знову в каталозі.");
     }
 
     @PostMapping("/review-access")

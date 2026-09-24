@@ -31,6 +31,8 @@ export interface NovelDetail {
     rating: { score: number; mine: number };
     libraryStatus?: string | null;
     translator?: string | null;
+    hidden?: boolean;
+    hiddenReason?: string;
 }
 
 export interface Block {

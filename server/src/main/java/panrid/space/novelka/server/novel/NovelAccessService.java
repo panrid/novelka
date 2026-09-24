@@ -94,14 +94,41 @@ public final class NovelAccessService {
         }
     }
 
-    /** Resolves an ID or alias to the canonical ID and requires management rights; unknown novels are 404. */
-    public String manageable(JdbcSession jdbc, Account account, String reference) throws Exception {
-        String novel;
+    /**
+     * Resolves an ID or alias for reading. A hidden novel exists only for its translator and administrators;
+     * for everyone else it is 404, exactly like an unknown one.
+     */
+    public String visible(JdbcSession jdbc, Account viewer, String reference) throws Exception {
+        String novel = resolve(jdbc, reference);
+        if (Boolean.TRUE.equals(new NovelAccessRepository(jdbc).novel(novel).get("hidden")) && (viewer == null || !canManage(jdbc, viewer, novel)))
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        return novel;
+    }
+
+    /** Only administrators hide or restore a novel; the reason is shown to its translator. */
+    public void hide(Account admin, String reference, boolean hidden, String reason) throws Exception {
+        if (!admin.role().includes(Role.ADMIN)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        try (var jdbc = database.open()) {
+            String novel = resolve(jdbc, reference);
+            jdbc.transaction(() -> {
+                new NovelAccessRepository(jdbc).hide(novel, admin.id(), hidden, reason);
+                new AuditRepository(jdbc).add(admin.id(), hidden ? "novel.hide" : "novel.unhide", novel, Map.of("reason", reason));
+                return null;
+            });
+        }
+    }
+
+    private static String resolve(JdbcSession jdbc, String reference) throws Exception {
         try {
-            novel = new NovelRepository(jdbc).resolveNovel(reference);
+            return new NovelRepository(jdbc).resolveNovel(reference);
         } catch (IllegalArgumentException error) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
+    }
+
+    /** Resolves an ID or alias to the canonical ID and requires management rights; unknown novels are 404. */
+    public String manageable(JdbcSession jdbc, Account account, String reference) throws Exception {
+        String novel = resolve(jdbc, reference);
         if (!canManage(jdbc, account, novel)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         return novel;
     }

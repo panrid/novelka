@@ -43,21 +43,20 @@ public final class ReaderController {
     @GetMapping("/{novel}")
     public NovelDetail novel(@PathVariable("novel") String novel, @RequestParam(required = false) Integer resume,
             java.security.Principal principal) throws Exception {
-        var account = access.current(principal);
-        return service.novel(novel, resume, account == null ? null : account.id());
+        return service.novel(novel, resume, access.current(principal));
     }
 
     @GetMapping("/{novel}/contents")
     public Object contents(@PathVariable String novel, @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "25") int size, @RequestParam(defaultValue = "") String q,
-            @RequestParam(defaultValue = "number") String sort, @RequestParam(defaultValue = "asc") String direction) throws Exception {
-        return service.contents(novel, new ListQuery(page, size, q, sort, direction));
+            @RequestParam(defaultValue = "number") String sort, @RequestParam(defaultValue = "asc") String direction,
+            java.security.Principal principal) throws Exception {
+        return service.contents(novel, new ListQuery(page, size, q, sort, direction), access.current(principal));
     }
 
     @GetMapping("/{novel}/chapters/{chapter}")
     public ReaderChapter chapter(@PathVariable("novel") String novel,
             @PathVariable("chapter") int chapter, java.security.Principal principal) throws Exception {
-        var account = access.current(principal);
-        return service.chapter(novel, chapter, account == null ? null : account.id());
+        return service.chapter(novel, chapter, access.current(principal));
     }
 }

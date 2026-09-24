@@ -7,7 +7,7 @@ import panrid.space.novelka.server.list.ListQuery;
 import java.util.Map;
 
 public final class CatalogRepository {
-    /** Catalog cards with ready chapter counts and ratings; the library reuses it for its rows. */
+    /** Catalog cards of visible (not hidden) novels with ready chapter counts and ratings; the library reuses it for its rows. */
     static final String BASE = """
             WITH published AS (
                 SELECT DISTINCT ON (j.novel_id,j.chapter) j.novel_id,j.chapter
@@ -21,7 +21,7 @@ public final class CatalogRepository {
                     COALESCE(NULLIF(n.data->>'titleUk',''),n.data->>'title') display_title,
                     COALESCE(NULLIF(n.data->>'authorUk',''),n.data->>'author') display_author,
                     COALESCE((SELECT sum(v.value) FROM votes v WHERE v.target_type='novel' AND v.target_id=n.id),0) score
-                FROM novels n LEFT JOIN ready r ON r.novel_id=n.id
+                FROM novels n LEFT JOIN ready r ON r.novel_id=n.id WHERE n.hidden_at IS NULL
             )
             """;
     private static final String FILTER = " WHERE (?='' OR id ILIKE ? ESCAPE '\\' OR display_title ILIKE ? ESCAPE '\\'"

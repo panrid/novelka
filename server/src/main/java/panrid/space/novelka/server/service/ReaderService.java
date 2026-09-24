@@ -7,11 +7,13 @@ import panrid.space.novelka.core.model.Novel;
 import panrid.space.novelka.core.repository.NovelRepository;
 import panrid.space.novelka.core.repository.ReaderRepository;
 import panrid.space.novelka.core.support.Json;
+import panrid.space.novelka.server.account.Account;
 import panrid.space.novelka.server.config.ReaderDatabase;
 import panrid.space.novelka.server.dto.ChapterSummary;
 import panrid.space.novelka.server.dto.NovelCard;
 import panrid.space.novelka.server.dto.NovelDetail;
 import panrid.space.novelka.server.dto.ReaderChapter;
+import panrid.space.novelka.server.novel.NovelAccessService;
 import panrid.space.novelka.server.repository.CatalogRepository;
 import panrid.space.novelka.server.repository.LibraryRepository;
 import panrid.space.novelka.server.repository.NovelAccessRepository;
@@ -28,9 +30,11 @@ import java.util.stream.StreamSupport;
 @Service
 public final class ReaderService {
     private final ReaderDatabase database;
+    private final NovelAccessService access;
 
-    public ReaderService(ReaderDatabase database) {
+    public ReaderService(ReaderDatabase database, NovelAccessService access) {
         this.database = database;
+        this.access = access;
     }
 
     public ListPage<NovelCard> catalog(ListQuery query, boolean readyOnly, List<String> tags) throws Exception {
@@ -52,10 +56,12 @@ public final class ReaderService {
         }
     }
 
-    public NovelDetail novel(String reference, Integer resume, String viewer) throws Exception {
+    public NovelDetail novel(String reference, Integer resume, Account account) throws Exception {
+        String viewer = account == null ? null : account.id();
         try (var jdbc = database.open()) {
             var novels = new NovelRepository(jdbc);
-            String id = resolve(novels, reference);
+            String id = access.visible(jdbc, account, reference);
+            var rights = new NovelAccessRepository(jdbc).novel(id);
             var novel = novels.novel(id);
             var reader = new ReaderRepository(jdbc);
             var stats = reader.chapterStats(id);
@@ -63,14 +69,14 @@ public final class ReaderService {
                     ((Number) stats.get("ready")).longValue(), stats.get("first_chapter") == null ? null : ((Number) stats.get("first_chapter")).intValue(),
                     resume != null && resume > 0 && reader.hasChapter(id, resume) ? resume : null, new TagRepository(jdbc).forNovel(id),
                     new VoteRepository(jdbc).summary("novel", id, viewer), new LibraryRepository(jdbc).status(viewer, id),
-                    (String) new NovelAccessRepository(jdbc).novel(id).get("owner_name"));
+                    (String) rights.get("owner_name"), Boolean.TRUE.equals(rights.get("hidden")), (String) rights.get("hidden_reason"));
         }
     }
 
-    public ListPage<ChapterSummary> contents(String reference, ListQuery query) throws Exception {
+    public ListPage<ChapterSummary> contents(String reference, ListQuery query, Account viewer) throws Exception {
         if (!query.sort().isEmpty() && !query.sort().equals("number")) throw new IllegalArgumentException("Глави можна сортувати за номером.");
         try (var jdbc = database.open()) {
-            String id = resolve(new NovelRepository(jdbc), reference);
+            String id = access.visible(jdbc, viewer, reference);
             var reader = new ReaderRepository(jdbc);
             long total = reader.chapterCount(id, query.pattern());
             var chapters = reader.chapterPage(id, query.pattern(), query.direction(), query.size(), query.offset()).stream()
@@ -80,10 +86,11 @@ public final class ReaderService {
         }
     }
 
-    public ReaderChapter chapter(String reference, int number, String authorId) throws Exception {
+    public ReaderChapter chapter(String reference, int number, Account viewer) throws Exception {
         if (number < 1) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        String authorId = viewer == null ? null : viewer.id();
         try (var jdbc = database.open()) {
-            String id = resolve(new NovelRepository(jdbc), reference);
+            String id = access.visible(jdbc, viewer, reference);
             var work = new ReaderRepository(jdbc).chapter(id, number);
             if (work == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
             var blocks = work.segments().stream()
@@ -111,13 +118,6 @@ public final class ReaderService {
         }
     }
 
-    private String resolve(NovelRepository novels, String reference) throws Exception {
-        try {
-            return novels.resolveNovel(reference);
-        } catch (IllegalArgumentException error) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        }
-    }
 
     private String description(Novel novel) {
         return novel.descriptionUk() == null ? "" : novel.descriptionUk();

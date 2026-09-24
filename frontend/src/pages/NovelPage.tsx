@@ -21,6 +21,8 @@ export function NovelPage({ id }: { id: string }) {
     const first = data.resumeChapter ?? data.firstChapter;
     return <div className="page novel-page">
         <a className="back-link" href="#/">← До каталогу</a>
+        {data.hidden && <p className="hidden-novel-banner" role="status"><strong>Новелу приховано адміністратором.</strong> Її бачите лише ви й адміністратори.
+            {data.hiddenReason && <> Причина: {data.hiddenReason}.</>}</p>}
         <section className="novel-intro"><NovelCover id={data.id} title={data.title} className="novel-intro-cover" /><div className="novel-intro-text"><div className="eyebrow">Японська новела · {data.id}</div><h1>{data.title}</h1><p className="novel-author">{data.author}{data.translator && <span className="novel-translator"> · переклад: {data.translator}</span>}</p>
             <VoteControl key={data.id} type="novel" target={data.id} initial={data.rating ?? { score: 0, mine: 0 }} label="Рейтинг новели" />{data.tags.length > 0 && <p className="novel-tags" aria-label="Теги">{data.tags.map(tag =>
             <a className="tag-chip" key={tag.slug} href={'#/?tags=' + encodeURIComponent(tag.slug)}>{tag.name}</a>)}</p>}{data.description && <p className="novel-description">{data.description}</p>}
