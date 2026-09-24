@@ -37,10 +37,12 @@
 | `source` | Джерела оригіналів: Syosetu, ручний текст; імпорт і блоки | — |
 | `ai` | Клієнт OpenRouter, каталог моделей і цін, журнал викликів | platform |
 | `autotranslate` | Кошторис, запуск «до глави N», конвеєр аналіз → переклад → вичитка, словник | source, text, ai, billing |
-| `billing` | Книга записів у кроках, баланси, резерви, пакети, собівартість | account, team |
+| `billing` | Книга записів у шагах, баланси, резерви, пакети, собівартість | account, team |
 | `payment` | Адаптери платіжних сервісів (спершу — лише ручне нарахування) | billing |
-| `illustration` | Завантаження й генерація картинок за фрагментом | ai, billing, text |
-| `community` | Коментарі, чат, розмітка, згадки людей і команд, голоси | account, team |
+| `media` | Сховище картинок: обкладинки, аватарки, ілюстрації; перевірка, розміри | platform |
+| `illustration` | Генерація картинок за фрагментом глави | ai, billing, text, media |
+| `community` | Коментарі, чат, розмітка, згадки людей і команд, голоси, скарги | account, team |
+| `messaging` | Особисті повідомлення, блокування, «хто може писати» | account, community (розмітка) |
 | `notification` | Вхідні, розсилка подій одержувачам, SSE | усі через події |
 | `admin` | Налаштування сайту, модерація, журнал дій | усі |
 
@@ -70,13 +72,13 @@
 
 ### Автопереклад
 - **Кошторис:** оригінали потрібних глав завантажуються безкоштовно. Ціна глави
-  в кроках = ⌈знаків оригіналу / 10 000⌉ (межа — налаштування сайту). Користувач
-  бачить точну суму: «6 глав · 7 кроків».
-- **Запуск:** кроки резервуються на весь діапазон. Після публікації кожної глави
-  списується її ціна. Якщо запуск скасовано або глава не вдалася, кроки неперекладених
+  в шагах = ⌈знаків оригіналу / 10 000⌉ (межа — налаштування сайту). Користувач
+  бачить точну суму: «6 глав · 7 шагів».
+- **Запуск:** шаги резервуються на весь діапазон. Після публікації кожної глави
+  списується її ціна. Якщо запуск скасовано або глава не вдалася, шаги неперекладених
   глав повертаються.
 - **Собівартість** у доларах пишеться в `ai_call` і не впливає на ціну для користувача.
-  Звіт «собівартість кроку» в адмінці показує, чи вистачає запасу.
+  Звіт «собівартість шагу» в адмінці показує, чи вистачає запасу.
 - **Черга в Postgres:** `job` і `job_step` (глава × етап). Воркери беруть етапи через
   `FOR UPDATE SKIP LOCKED`. Кожен етап ідемпотентний. Журнал `ai_call` зі станами
   `pending/complete/failed/uncertain`: невідомий результат автоматично не повторюється,
@@ -86,15 +88,15 @@
 - Переклад завершеної глави створює ревізію й одразу її публікує. Діапазон:
   від першої неперекладеної глави до вказаної. Уже перекладені глави не чіпаються.
 
-### Кроки й гроші
-- Облік — **книга записів** (подвійний запис) у **кроках**. Кожна операція —
+### Шаги й гроші
+- Облік — **книга записів** (подвійний запис) у **шагах**. Кожна операція —
   транзакція з кількох рядків, сума рядків = 0. Баланс рахунку = сума його рядків.
   Кешований `balance` на рахунку оновлюється в тій самій транзакції під блокуванням рядка.
 - Рахунки: `user:{id}`, `team:{id}` і системні (`sold` — продані пакети,
-  `granted` — ручні нарахування, `spent` — витрачені кроки, `holds` — резерви).
-- Користувач бачить лише кроки. Гривні — тільки в ціні пакета під час оплати.
-- Гроші окремо від кроків: `payment` зберігає суму в копійках і кількість нарахованих
-  кроків. Собівартість — у мікродоларах в `ai_call`.
+  `granted` — ручні нарахування, `spent` — витрачені шаги, `holds` — резерви).
+- Користувач бачить лише шаги. Гривні — тільки в ціні пакета під час оплати.
+- Гроші окремо від шагів: `payment` зберігає суму в копійках і кількість нарахованих
+  шагів. Собівартість — у мікродоларах в `ai_call`.
 - Модуль `payment` має порт `PaymentProvider` (створити платіж, перевірити webhook).
   Перший адаптер — ручне нарахування власником. Paddle, Lemon Squeezy тощо
   додаються без змін у `billing`.
@@ -107,7 +109,18 @@
   `first_number`. Читалка за цим зв'язком веде з останньої глави старого перекладу
   на наступну нового. Словник можна скопіювати при створенні.
 
-### Розмітка коментарів і чату
+### Мова й технічні дані в інтерфейсі
+- API для сайту ніколи не віддає японський текст, ID джерела, аліаси, UUID чи назви
+  етапів. Зовнішні адреси — з `slug`. Внутрішні `id` лишаються в JSON для запитів,
+  але не показуються.
+- При імпорті з Syosetu назва, опис і назви глав одразу перекладаються ШІ, ім'я автора
+  транслітерується за українськими правилами. Це входить у переклад, окремо не
+  оплачується.
+- Словник у Студії показує лише українську частину запису. Японська — поле для ШІ.
+- Повідомлення про помилки — з людським текстом і дією («Спробувати ще раз»,
+  «Шаги повернено»), без кодів і стек-трейсів.
+
+### Розмітка коментарів, чату й повідомлень
 Джерело — простий текст із маркерами `**жирний**`, `*курсив*`, `__підкреслений__`,
 `~~закреслений~~`, `||спойлер||`, `> цитата`, згадки `<@u:id>` / `<@t:id>`.
 Власний невеликий парсер (однаковий на бекенді й фронтенді за спільними тестами)
@@ -116,14 +129,16 @@
 ## Схема даних
 
 Скорочено: `id bigint generated always as identity`, `created_at timestamptz` —
-скрізь, де не сказано інше. Кроки — `bigint`. Гривні — `bigint` копійок.
+скрізь, де не сказано інше. Шаги — `bigint`. Гривні — `bigint` копійок.
 Долари — `bigint` мікродоларів.
 
 ### account
 ```
 account          id, nick, nick_key unique, email unique, email_verified_at,
                  password_hash, site_role (reader|moderator|admin|owner),
-                 bio, avatar_image_id, last_seen_at, created_at, deleted_at
+                 bio, avatar_image_id, last_seen_at, dm_policy (everyone|nobody),
+                 created_at, deleted_at
+account_block    blocker_id, blocked_id, created_at, pk (blocker_id, blocked_id)
 nick_change      account_id, old_nick, new_nick, changed_at
 email_token      token_hash pk, account_id, purpose (verify|reset), email, expires_at, used_at
 spring_session*  таблиці Spring Session JDBC
@@ -140,10 +155,12 @@ team_member      team_id, account_id, role (translator|editor), added_by, added_
 ### catalog
 ```
 novel            id, source (syosetu|manual), source_key unique null, source_url,
-                 title_original, author_original, source_chapter_count, cover_image_id,
-                 slug unique
+                 title_original, author_original,        -- лише для ШІ, в інтерфейсі не показуються
+                 title_uk, author_uk, description_uk,    -- машинний переклад / транслітерація при імпорті
+                 source_chapter_count, slug unique       -- slug з української назви: mag-vody
 novel_tag        novel_id, tag_id           tag: id, name, slug unique
-translation      id, novel_id, team_id, title_uk, author_uk, description_uk,
+translation      id, novel_id, team_id, title_uk, author_uk, description_uk (null → з novel),
+                 cover_image_id null,
                  kind (human|machine|mixed), status (ongoing|completed|paused|abandoned),
                  continues_translation_id null, first_number (1 або N+1 для естафети),
                  last_published_at, hidden_at, hidden_reason, created_at,
@@ -191,7 +208,7 @@ glossary_entry   id, translation_id, key, japanese, reading, ukrainian, aliases 
 glossary_proposal id, translation_id, job_id, payload jsonb, fingerprint, state
 job              id, translation_id, requested_by, kind (translate|proofread|illustrate),
                  first_number, last_number, state (queued|running|done|failed|cancelled),
-                 quote_steps, hold_tx_id, charged_steps,
+                 quote_shah, hold_tx_id, charged_shah,
                  settings jsonb (моделі й ціни на момент запуску), error, created_at, finished_at
 job_step         id, job_id, chapter_number, stage (fetch|analyze|translate|proofread|publish),
                  segment, state, attempts, locked_until, result jsonb
@@ -203,23 +220,27 @@ model_catalog    model, prices jsonb, capabilities jsonb, fetched_at
 
 ### billing і payment
 ```
-ledger_account   id, kind (user|team|system), owner_id null, code null, balance_steps,
+ledger_account   id, kind (user|team|system), owner_id null, code null, balance_shah,
                  unique (kind, owner_id), unique (code)
 ledger_tx        id, kind (purchase|grant|hold|capture|release|transfer|refund|adjust),
                  actor_id, job_id null, payment_id null, memo, created_at
-ledger_entry     tx_id, account_id, amount_steps   -- sum(amount_steps) по tx = 0
-step_pack        id, steps, price_kop, active       -- пакети задає власник сайту
+ledger_entry     tx_id, account_id, amount_shah   -- sum(amount_shah) по tx = 0
+shah_pack        id, shah, price_kop, active       -- пакети задає власник сайту
 fx_rate          day pk, usd_uah, source            -- лише для звіту собівартості
-payment          id, provider, external_id, account_id, pack_id, amount_kop, steps, state
+payment          id, provider, external_id, account_id, pack_id, amount_kop, shah, state
                  (created|paid|failed|refunded), raw jsonb, created_at,
                  unique (provider, external_id)
 ```
 
 ### illustration
 ```
-image            id, owner_account_id, team_id null, storage_key, mime, width, height,
-                 kind (cover|avatar|illustration), prompt null, fragment null, job_id null
+image            id, owner_account_id, team_id null, kind (cover|avatar|illustration),
+                 storage_key, variants jsonb (розміри: 96, 320, 640…), mime, width, height,
+                 sha256, prompt null, fragment null, job_id null,
+                 hidden_at, hidden_by, hidden_reason
 ```
+Завантаження: перевірка вмісту файлу (не лише розширення), до 5 МБ, обрізання на клієнті
+(обкладинка 2:3, аватарка 1:1), перекодування в WebP на сервері, метадані EXIF видаляються.
 Картинку в главі задає блок `{type: "image", imageId}` ревізії.
 
 ### reading
@@ -237,6 +258,17 @@ comment          id, target (translation|chapter), target_id, author_id, reply_t
 chat_message     id, author_id, reply_to, body, deleted_at, hidden_*
 mention          source (comment|chat), source_id, account_id null, team_id null
 vote             account_id, target (comment|translation), target_id, value (-1|1)
+report           id, reporter_id, target (comment|chat|dm|image), target_id, reason,
+                 state (open|resolved|dismissed), resolved_by, created_at
+```
+
+### messaging
+```
+conversation     id, account_low, account_high, created_at, last_message_at,
+                 unique (account_low, account_high)          -- розмова двох людей
+conversation_member conversation_id, account_id, last_read_message_id, muted, archived
+direct_message   id, conversation_id, author_id, reply_to, body, created_at,
+                 edited_at, deleted_at
 ```
 
 ### notification і admin

@@ -65,7 +65,9 @@ h3 small { font-weight: 400; font-size: 12.5px; color: var(--muted); }
 .rel { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); align-items: center; }
 .rel .cover { width: 38px; }
 .rel b { font-weight: 500; font-size: 14px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rel > div:not(.cover) { min-width: 0; flex: 1; }
+.rel > div:not(.cover):not(.av):not(.meta) { min-width: 0; flex: 1; }
+.rel .meta { flex: none; text-align: right; }
+.rel span.sm { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 9px; border-radius: 99px; background: var(--surface-2); color: var(--text); white-space: nowrap; }
 .chip.ghost { background: none; border: 1px solid var(--line); color: var(--muted); }
@@ -137,6 +139,16 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; }
 td { padding: 7px 0; border-bottom: 1px solid var(--line); }
 td:last-child { text-align: right; }
 .section-title { max-width: 900px; margin: 48px auto 20px; font: 600 20px/1.2 var(--serif); color: var(--text); }
+.photo { background: radial-gradient(circle at 50% 38%, #e3c9a8 0 22%, transparent 23%), radial-gradient(circle at 50% 100%, #6b4a3a 0 45%, transparent 46%), linear-gradient(160deg, #7a8fa6, #3b4a5c) !important; color: transparent !important; }
+.crop { position: relative; border-radius: 12px; overflow: hidden; background: #0e100e; height: 250px; display: flex; align-items: center; justify-content: center; }
+.crop .cover { width: 150px; outline: 2px solid var(--text); outline-offset: 0; box-shadow: 0 0 0 999px rgba(0,0,0,.55); }
+.bubble { max-width: 78%; padding: 8px 12px; border-radius: 16px; font-size: 14px; line-height: 1.45; margin-bottom: 6px; }
+.bubble.in { background: var(--surface-2); border-bottom-left-radius: 5px; }
+.bubble.out { background: #2f4a2a; margin-left: auto; border-bottom-right-radius: 5px; }
+.bubble .q { border-left: 2px solid var(--accent); padding-left: 8px; color: var(--muted); font-size: 12.5px; margin-bottom: 4px; }
+.spoiler { background: var(--muted); color: transparent; border-radius: 3px; }
+.composer { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; padding: 8px 12px 12px; border-top: 1px solid var(--line); background: var(--bg); }
+.composer .field { flex: 1; border-radius: 20px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -144,7 +156,7 @@ td:last-child { text-align: right; }
 <div class="intro">
   <h1>Новелка — макети ключових екранів</h1>
   <p>Mobile-first, темна тема за замовчуванням. Показано структуру й щільність, а не остаточний візуальний стиль.
-     Тексти — чернетка. Карта сайту: <code>doc/sitemap.md</code>.</p>
+     Тексти — чернетка. На сайті немає японської й технічних ID. Кольорові прямокутники — місце для обкладинок, які завантажують команди. Карта сайту: <code>doc/sitemap.md</code>.</p>
 </div>
 
 <h2 class="section-title">Читач</h2>
@@ -200,7 +212,7 @@ td:last-child { text-align: right; }
       <div class="cover" style="width:104px"></div>
       <div style="min-width:0">
         <div style="font:600 21px/1.2 var(--serif)">Маг води</div>
-        <div class="sm faint" style="margin:2px 0 8px">水属性の魔法使い</div>
+        <div class="sm faint" style="margin:2px 0 8px">з японської · 2012</div>
         <div class="chips" style="margin-bottom:6px"><span class="chip">✎ Тадаші Хісахо</span></div>
         <div class="chips"><span class="chip acc">⚑ panrid</span><span class="chip ghost">ШІ</span></div>
         <div class="sm muted" style="margin-top:8px">★ 4.8 · 44 гл. з 935 · триває</div>
@@ -225,7 +237,7 @@ td:last-child { text-align: right; }
   <div class="tabbar"><span data-i="⌂">Головна</span><span class="on" data-i="⌕">Пошук</span><span data-i="❏">Бібліотека</span><span data-i="✉">Вхідні</span><span data-i="◯">Я</span></div>
 </div>
 <figcaption><b>2 · Новела</b>
-  <ul><li>Обкладинка, назва, оригінальна назва, автор і команда чипами, одна велика кнопка — на першому екрані.</li>
+  <ul><li>Обкладинка, назва, автор і команда чипами, одна велика кнопка — на першому екрані. Японської назви немає.</li>
   <li>Опис згорнуто до трьох рядків. Номери глав — власні, без «0001» із джерела.</li>
   <li>Обговорення — плаваюча кнопка. Для команди в меню «⋯»: «Керувати», «Перекласти далі».</li></ul>
 </figcaption>
@@ -333,7 +345,7 @@ td:last-child { text-align: right; }
     <div class="field" style="margin-top:12px">ncode.syosetu.com/n0022gd/</div>
     <div class="card row" style="margin-top:10px;gap:12px">
       <div class="cover" style="width:40px"></div>
-      <div style="flex:1;min-width:0"><b style="font-weight:500">水属性の魔法使い</b><div class="sm muted">935 глав в оригіналі · ваш переклад: 1–44</div></div>
+      <div style="flex:1;min-width:0"><b style="font-weight:500">Маг води</b><div class="sm muted">Тадаші Хісахо · 935 глав · ваш переклад: 1–44</div></div>
     </div>
 
     <div class="label">Перекласти до глави</div>
@@ -342,20 +354,20 @@ td:last-child { text-align: right; }
     <div class="row between xs faint"><span>1</span><span>44 готові</span><span>935</span></div>
 
     <div class="quote" style="margin-top:16px">
-      <div class="row between"><span class="muted sm">Вартість</span><span class="xs faint">1 крок = 1 глава до 10 000 знаків</span></div>
-      <div class="row between" style="align-items:baseline;margin-top:4px"><span class="money">7 кроків</span><span class="sm muted">6 глав, одна довга</span></div>
+      <div class="row between"><span class="muted sm">Вартість</span><span class="xs faint">1 шаг = 1 глава до 10 000 знаків</span></div>
+      <div class="row between" style="align-items:baseline;margin-top:4px"><span class="money">7 шагів</span><span class="sm muted">6 глав, одна довга</span></div>
       <table style="margin-top:10px">
-        <tr><td class="muted">Бюджет команди panrid</td><td>86 кроків</td></tr>
-        <tr><td class="muted">Лишиться після запуску</td><td>79 кроків</td></tr>
+        <tr><td class="muted">Бюджет команди panrid</td><td>86 шагів</td></tr>
+        <tr><td class="muted">Лишиться після запуску</td><td>79 шагів</td></tr>
       </table>
     </div>
-    <div class="btn" style="margin-top:14px">Запустити за 7 кроків</div>
-    <div class="xs faint" style="text-align:center;margin-top:8px">Кроки за глави, які не вдалося перекласти або скасовано, повертаються.</div>
+    <div class="btn" style="margin-top:14px">Запустити за 7 шагів</div>
+    <div class="xs faint" style="text-align:center;margin-top:8px">Шаги за глави, які не вдалося перекласти або скасовано, повертаються.</div>
   </div>
 </div>
 <figcaption><b>6 · Запуск автоперекладу</b>
   <ul><li>Одне питання: «до якої глави». Перекладається з першої неперекладеної. Готові глави не чіпаються.</li>
-  <li>Ціна в кроках — точна, до запуску. Якщо бюджету бракує, власник команди поповнює його тут же зі своїх кроків.</li>
+  <li>Ціна в шагах — точна, до запуску. Якщо бюджету бракує, власник команди поповнює його тут же зі своїх шагів.</li>
   <li>Модель, словник і вичитка — налаштування перекладу в Студії, не в цій формі.</li></ul>
 </figcaption>
 </figure>
@@ -374,11 +386,11 @@ td:last-child { text-align: right; }
     <p>Дерев'яна підлога, на якій розстелено солому, а зверху лише один шматок тканини.</p>
     <p>Сучасні японські стандарти, звичайно, вважають це убогим ліжком.</p>
   </div>
-  <div class="toolbar"><span>↶</span><span>Оригінал</span><span>Зміни · 3</span><span>🖼 +</span><span>⋯</span></div>
+  <div class="toolbar"><span>↶</span><span>↷</span><span>Зміни · 3</span><span>🖼 +</span><span>⋯</span></div>
 </div>
 <figcaption><b>7 · Повний редактор глави</b>
   <ul><li>Глава редагується як один текст. Абзаци розділяються порожнім рядком, автозбереження — чернетка.</li>
-  <li>«Оригінал» показує японський абзац поруч із поточним (на desktop — дві колонки).</li>
+  <li>Оригіналу японською в редакторі немає. Сайт увесь українською, японський текст бачить лише ШІ.</li>
   <li>«Зміни» — diff із опублікованою ревізією. «🖼 +» — завантажити або згенерувати картинку за виділеним фрагментом (лише перекладачі).</li></ul>
 </figcaption>
 </figure>
@@ -392,7 +404,7 @@ td:last-child { text-align: right; }
     <div class="card">
       <div class="row between"><span class="sm">Переклад глав 45–50</span><span class="pill-state run">триває</span></div>
       <div class="bar" style="margin:10px 0 6px"><i style="width:45%"></i></div>
-      <div class="row between xs muted"><span>глава 47 · вичитка</span><span>3 з 7 кроків</span></div>
+      <div class="row between xs muted"><span>глава 47 · вичитка</span><span>3 з 7 шагів</span></div>
     </div>
     <div class="stats" style="margin-top:10px">
       <div class="stat"><b>44 / 935</b><span class="sm muted">глав опубліковано</span></div>
@@ -402,10 +414,10 @@ td:last-child { text-align: right; }
       <div><span>↻ Автопереклад</span><span class="v">›</span></div>
       <div><span>☰ Глави</span><span class="v">44 ›</span></div>
       <div><span>✎ Правки на перевірку</span><span class="v"><span class="chip acc">7</span> ›</span></div>
-      <div><span>Аあ Словник</span><span class="v">212 ›</span></div>
+      <div><span>Аа Словник</span><span class="v">212 ›</span></div>
       <div><span>ⓘ Дані перекладу</span><span class="v">›</span></div>
       <div><span>⚑ Команда panrid</span><span class="v">3 людини ›</span></div>
-      <div><span>◆ Бюджет команди</span><span class="v">79 кроків ›</span></div>
+      <div><span>◆ Бюджет команди</span><span class="v">79 шагів ›</span></div>
       <div><span>⇢ Естафета</span><span class="v">1 запит ›</span></div>
     </div>
   </div>
@@ -413,8 +425,34 @@ td:last-child { text-align: right; }
 </div>
 <figcaption><b>8 · Студія: переклад</b>
   <ul><li>Один рівень: огляд і список розділів замість вкладок у вкладках.</li>
-  <li>Поточний автопереклад і прогрес видно одразу, оновлення — через SSE.</li>
+  <li>Поточний автопереклад і прогрес видно одразу, сторінка оновлюється сама.</li>
   <li>Сюди веде «Керувати» зі сторінки новели і «Я → Студія».</li></ul>
+</figcaption>
+</figure>
+
+
+<!-- 8b. Дані перекладу -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><h2>Дані перекладу</h2><span class="btn sm">Зберегти</span></div>
+  <div class="screen pad">
+    <div class="label" style="margin-top:0">Обкладинка</div>
+    <div class="crop"><div class="cover c3" style="font-size:14px">Маг води</div></div>
+    <div class="row" style="gap:8px;margin-top:8px"><div class="btn sec sm" style="flex:1">Завантажити іншу</div><div class="btn sec sm" style="flex:1">Прибрати</div></div>
+    <div class="xs faint" style="margin-top:6px">Посуньте й збільште картинку, щоб рамка 2:3 охопила потрібне. JPEG, PNG або WebP до 5 МБ.</div>
+    <div class="label">Назва</div>
+    <div class="field">Маг води</div>
+    <div class="label">Опис</div>
+    <div class="field sm" style="height:64px;overflow:hidden">Рьо дуже радів, що перевтілився у фантастичний світ під назвою «Фі»…</div>
+    <div class="label">Стан перекладу</div>
+    <div class="seg"><span class="on">Триває</span><span>Пауза</span><span>Завершено</span><span>Покинуто</span></div>
+  </div>
+</div>
+<figcaption><b>8b · Дані перекладу й обкладинка</b>
+  <ul><li>Обкладинку обрізають одразу під час завантаження. Без неї показується заглушка з назвою.</li>
+  <li>Назву й опис при імпорті заповнює машинний переклад, команда може їх виправити.</li>
+  <li>«Покинуто» відкриває естафету для інших команд.</li></ul>
 </figcaption>
 </figure>
 
@@ -440,7 +478,7 @@ td:last-child { text-align: right; }
       <tr><td>читачі</td><td class="muted">23 прийняті правки</td></tr>
     </table>
     <h3>Бюджет <small>історія →</small></h3>
-    <div class="row between"><span class="money" style="font-size:26px">79 кроків</span><span class="btn sec sm">Поповнити зі своїх</span></div>
+    <div class="row between"><span class="money" style="font-size:26px">79 шагів</span><span class="btn sec sm">Поповнити зі своїх</span></div>
   </div>
 </div>
 <figcaption><b>9 · Команда</b>
@@ -479,7 +517,7 @@ td:last-child { text-align: right; }
 
 </div>
 
-<h2 class="section-title">Акаунт і адміністрування</h2>
+<h2 class="section-title">Акаунт, повідомлення й адміністрування</h2>
 <div class="grid">
 
 <!-- 10. Профіль -->
@@ -488,7 +526,8 @@ td:last-child { text-align: right; }
   <div class="status"><span>9:41</span><span>●●● ▮</span></div>
   <div class="top"><span class="ic">←</span><h2></h2><span class="ic">⋯</span></div>
   <div class="screen pad">
-    <div class="row" style="gap:14px"><div class="av big-av">m</div><div><div style="font:600 20px var(--serif)">mika</div><div class="sm muted">з березня 2026 · перекладачка в panrid</div></div></div>
+    <div class="row" style="gap:14px"><div class="av big-av photo">m</div><div style="flex:1"><div style="font:600 20px var(--serif)">mika</div><div class="sm muted">з березня 2026 · перекладачка в panrid</div></div></div>
+    <div class="row" style="gap:8px;margin-top:12px"><div class="btn sm" style="flex:1">✉ Написати</div><div class="btn sec sm" style="width:40px">⋯</div></div>
     <p class="sm" style="margin:14px 0;color:#cfcdc5">Перекладаю ісекаї та слайс-оф-лайф. Люблю, коли героїні говорять по-людськи. Пишіть у чат, якщо знайшли ляп 🙂</p>
     <div class="stats">
       <div class="stat"><b>59</b><span class="sm muted">правок прийнято</span></div>
@@ -503,7 +542,84 @@ td:last-child { text-align: right; }
   <div class="tabbar"><span data-i="⌂">Головна</span><span data-i="⌕">Пошук</span><span data-i="❏">Бібліотека</span><span data-i="✉">Вхідні</span><span data-i="◯">Я</span></div>
 </div>
 <figcaption><b>10 · Публічний профіль</b>
-  <ul><li>«Про себе», команди, внесок, переклади. «Читає зараз» — лише якщо користувач це дозволив.</li></ul>
+  <ul><li>Аватарка, «про себе», команди, внесок, переклади. «Читає зараз» — лише якщо користувач це дозволив.</li>
+  <li>«Написати» відкриває особисту розмову. У «⋯» — «Заблокувати» й «Поскаржитися».</li></ul>
+</figcaption>
+</figure>
+
+
+<!-- 10b. Налаштування профілю -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><h2>Профіль</h2><span class="btn sm">Зберегти</span></div>
+  <div class="screen pad">
+    <div style="text-align:center;margin:4px 0 6px">
+      <div class="av big-av photo" style="width:96px;height:96px;margin:0 auto"></div>
+      <div class="row" style="gap:8px;justify-content:center;margin-top:10px"><span class="btn sec sm">Змінити фото</span><span class="btn sec sm">Прибрати</span></div>
+    </div>
+    <div class="label">Нік</div>
+    <div class="field">mika</div>
+    <div class="label">Про себе</div>
+    <div class="field sm" style="height:70px;overflow:hidden">Перекладаю ісекаї та слайс-оф-лайф. Люблю, коли героїні говорять по-людськи.</div>
+    <div class="xs faint" style="text-align:right;margin-top:4px">86 / 500</div>
+    <h3>Приватність</h3>
+    <div class="label" style="margin-top:0">Хто може мені писати</div>
+    <div class="seg"><span class="on">Усі</span><span>Ніхто</span></div>
+    <div class="list" style="margin-top:6px">
+      <div><span>Показувати «Читає зараз»</span><span class="v">так ›</span></div>
+      <div><span>Заблоковані</span><span class="v">2 ›</span></div>
+    </div>
+  </div>
+</div>
+<figcaption><b>10b · Налаштування профілю</b>
+  <ul><li>Аватарку обрізають до кола під час завантаження. Без неї показується перша літера ніка.</li>
+  <li>Заблокована людина не може писати, згадувати й відповідати вам.</li></ul>
+</figcaption>
+</figure>
+
+<!-- 10c. Повідомлення -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><h2>Вхідні</h2><span class="ic">✎</span></div>
+  <div class="screen pad">
+    <div class="seg"><span>Сповіщення</span><span class="on">Повідомлення · 2</span><span>Чат</span></div>
+    <div style="margin-top:6px">
+      <div class="rel"><div class="av photo" style="width:44px;height:44px"></div><div><b>mika</b><span class="sm" style="color:var(--text)">Глянь 12-ту главу, я там переписала сцену…</span></div><div class="meta"><div class="xs muted">14:02</div><span class="chip acc" style="margin-top:4px">2</span></div></div>
+      <div class="rel"><div class="av" style="width:44px;height:44px">o</div><div><b>oleh_k</b><span class="sm muted">Ви: Дякую, прийняв усі правки</span></div><div class="xs muted meta">вчора</div></div>
+      <div class="rel"><div class="av" style="width:44px;height:44px;background:#4b4d7a">к</div><div><b>kitsune_team</b><span class="sm muted">Добре, словник передамо 🙂</span></div><div class="xs muted meta">пн</div></div>
+      <div class="rel"><div class="av" style="width:44px;height:44px">a</div><div><b>ara-ara</b><span class="sm muted">А коли буде продовження?</span></div><div class="xs muted meta">12 вер</div></div>
+    </div>
+  </div>
+  <div class="tabbar"><span data-i="⌂">Головна</span><span data-i="⌕">Пошук</span><span data-i="❏">Бібліотека</span><span class="on" data-i="✉">Вхідні <i class="dot"></i></span><span data-i="◯">Я</span></div>
+</div>
+<figcaption><b>10c · Вхідні: особисті повідомлення</b>
+  <ul><li>Сповіщення, особисті повідомлення й загальний чат — в одному місці, трьома вкладками.</li>
+  <li>Непрочитані розмови вгорі, лічильник — на значку «Вхідні».</li>
+  <li>«✎» — нова розмова: пошук людини за ніком.</li></ul>
+</figcaption>
+</figure>
+
+<!-- 10d. Розмова -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><div class="av photo" style="width:30px;height:30px"></div><div style="flex:1"><b style="font-size:15px">mika</b><div class="xs muted">була 5 хв тому</div></div><span class="ic">⋯</span></div>
+  <div class="screen pad" style="padding-top:8px">
+    <div class="xs faint" style="text-align:center;margin-bottom:10px">Сьогодні</div>
+    <div class="bubble in">Привіт! Глянь 12-ту главу, я там переписала сцену з ліжком 😅</div>
+    <div class="bubble in">Там <b>рід</b> плутався через усю главу</div>
+    <div class="bubble out"><div class="q">mika: Там рід плутався через усю главу</div>Бачу, прийняв. Тільки кінцівку не спойлерь у коментарях — там <span class="spoiler">Рьо знаходить учителя</span></div>
+    <div class="bubble in">Ок, сховаю під спойлер 👌</div>
+    <div class="xs faint" style="text-align:right">переглянуто</div>
+  </div>
+  <div class="composer"><div class="field">Повідомлення…</div><span class="btn sm">➤</span></div>
+</div>
+<figcaption><b>10d · Розмова</b>
+  <ul><li>Та сама розмітка, що в чаті: жирний, курсив, підкреслений, закреслений, спойлер. Також відповіді й цитати.</li>
+  <li>Нові повідомлення приходять одразу, без оновлення сторінки.</li>
+  <li>У «⋯» — «Вимкнути сповіщення», «Заблокувати», «Поскаржитися».</li></ul>
 </figcaption>
 </figure>
 
@@ -511,29 +627,29 @@ td:last-child { text-align: right; }
 <figure>
 <div class="phone">
   <div class="status"><span>9:41</span><span>●●● ▮</span></div>
-  <div class="top"><span class="ic">←</span><h2>Кроки</h2></div>
+  <div class="top"><span class="ic">←</span><h2>Шаги</h2></div>
   <div class="screen pad">
     <div class="card" style="padding:16px">
       <div class="sm muted">Доступно</div>
-      <div class="money" style="margin:6px 0 2px">127 кроків</div>
-      <div class="xs faint">1 крок — одна глава автоперекладу</div>
+      <div class="money" style="margin:6px 0 2px">127 шагів</div>
+      <div class="xs faint">1 шаг — одна глава автоперекладу</div>
     </div>
     <div class="label">Поповнити</div>
-    <div class="chips" style="gap:8px"><span class="chip" style="padding:8px 14px">50 кроків</span><span class="chip acc" style="padding:8px 14px">100 кроків</span><span class="chip" style="padding:8px 14px">300 кроків</span></div>
-    <div class="btn" style="margin-top:12px">Купити 100 кроків · — ₴</div>
-    <div class="xs faint" style="text-align:center;margin-top:6px">Ціни пакетів з'являться після статистики. Поки кроки нараховує адміністрація.</div>
+    <div class="chips" style="gap:8px"><span class="chip" style="padding:8px 14px">50 шагів</span><span class="chip acc" style="padding:8px 14px">100 шагів</span><span class="chip" style="padding:8px 14px">300 шагів</span></div>
+    <div class="btn" style="margin-top:12px">Купити 100 шагів · — ₴</div>
+    <div class="xs faint" style="text-align:center;margin-top:6px">Ціни пакетів з'являться після статистики. Поки шаги нараховує адміністрація.</div>
     <h3>Історія</h3>
     <table>
       <tr><td>У бюджет команди panrid<div class="xs faint">сьогодні</div></td><td>−50</td></tr>
       <tr><td>Переклад · Сто ночей 101–102<div class="xs faint">вчора</div></td><td>−2</td></tr>
       <tr><td>Повернено · Сто ночей 103<div class="xs faint">вчора, глава не вдалася</div></td><td class="pos">+1</td></tr>
-      <tr><td>Пакет «100 кроків»<div class="xs faint">10 вер</div></td><td class="pos">+100</td></tr>
+      <tr><td>Пакет «100 шагів»<div class="xs faint">10 вер</div></td><td class="pos">+100</td></tr>
       <tr><td>Нараховано адміністрацією<div class="xs faint">1 вер</div></td><td class="pos">+78</td></tr>
     </table>
   </div>
 </div>
-<figcaption><b>11 · Кроки</b>
-  <ul><li>Залишок, купівля й історія — на одній сторінці («Я → Кроки»). Гривні — лише в ціні пакета.</li>
+<figcaption><b>11 · Шаги</b>
+  <ul><li>Залишок, купівля й історія — на одній сторінці («Я → Шаги»). Гривні — лише в ціні пакета.</li>
   <li>Історія — рядки книги записів людською мовою.</li>
   <li>Кнопка купівлі веде до платіжного сервісу, який ще не вибрано.</li></ul>
 </figcaption>
@@ -548,20 +664,20 @@ td:last-child { text-align: right; }
     <div class="stats">
       <div class="stat"><b>3</b><span class="sm muted">скарги</span></div>
       <div class="stat"><b>2</b><span class="sm muted">переклади в черзі</span></div>
-      <div class="stat"><b>$41.20</b><span class="sm muted">OpenRouter</span></div>
-      <div class="stat"><b>$0,021</b><span class="sm muted">собівартість кроку, 30 днів</span></div>
+      <div class="stat"><b>$41,20</b><span class="sm muted">залишок у постачальника ШІ</span></div>
+      <div class="stat"><b>$0,021</b><span class="sm muted">собівартість шагу, 30 днів</span></div>
     </div>
     <div class="list" style="margin-top:8px">
       <div><span>⚠ Модерація</span><span class="v"><span class="chip acc">3</span> ›</span></div>
       <div><span>👤 Користувачі й ролі</span><span class="v">›</span></div>
-      <div><span>◆ Кроки й фінанси</span><span class="v">›</span></div>
+      <div><span>◆ Шаги й фінанси</span><span class="v">›</span></div>
       <div><span>⚙ Моделі й налаштування</span><span class="v">›</span></div>
       <div><span>☷ Журнал дій</span><span class="v">›</span></div>
     </div>
-    <h3>Кроки</h3>
+    <h3>Шаги</h3>
     <div class="card">
       <div class="row between sm"><span class="muted">Перекладено глав</span><b>312 / 1000 для статистики</b></div>
-      <div class="row between sm" style="margin-top:8px"><span class="muted">Нараховано вручну, вересень</span><b>1 200 кроків</b></div>
+      <div class="row between sm" style="margin-top:8px"><span class="muted">Нараховано вручну, вересень</span><b>1 200 шагів</b></div>
       <div class="row between sm" style="margin-top:8px"><span class="muted">Межа довгої глави</span><b>10 000 знаків</b></div>
       <div class="row between sm" style="margin-top:8px"><span class="muted">Модель перекладу</span><b>gpt-4o-mini</b></div>
     </div>
