@@ -617,3 +617,12 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { height: v
 .replace-summary ins { text-decoration: underline; text-decoration-thickness: 2px; background: color-mix(in srgb, #6b986e 25%, transparent); }
 .batch-actions { flex-basis: 100%; }
 .correction-state.draft { border-left: 3px dashed var(--muted); }
+
+/* Reader library */
+.novel-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; }
+.library-control { display: grid; gap: 6px; min-width: 200px; }
+.library-control.in-library .select-trigger { border-color: var(--accent); }
+.library-card { display: grid; gap: 10px; align-content: start; }
+.library-card .library-control { min-width: 0; }
+.tab-count { color: var(--muted); font-variant-numeric: tabular-nums; }
+.tab-bar button[aria-pressed="true"] .tab-count { color: inherit; opacity: .8; }

@@ -317,6 +317,8 @@ job не збільшує історичну суму попереднього �
 | POST /api/profile/email | READER, зміна email із поточним паролем |
 | GET /api/accounts/{id}/nicknames | ADMIN, історія ніків користувача |
 | GET /api/tags?q= | Публічний, теги з кількістю новел для фільтра й підказок |
+| GET /api/library?status=&q=&sort=updated\|title\|ready; GET /api/library/counts | READER, власні новели в одному зі списків `reading`, `planned`, `completed`, `on_hold`, `dropped`; кількість у кожному |
+| POST /api/library/{novel} | READER, `status` переносить новелу (ID або аліас) у список; порожній рядок прибирає; невідома новела — 404 |
 | POST /api/votes/{type}/{id} | READER, голос `value` 1/-1/0 за новелу (`novel`) чи коментар (`comment`); відповідь — `score` і власний `mine` |
 | GET /api/novels/{novel}/comments?chapter=&before= | Публічний, 20 коментарів від нових до старих; `nextCursor` для старіших |
 | POST /api/novels/{novel}/comments | READER, коментар до новели (`chapter` 0) чи глави; не частіше ніж раз на 5 с |

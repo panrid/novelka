@@ -769,6 +769,39 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void libraryKeepsOnePrivateShelfPerNovel() throws Exception {
+        String reading = seed();
+        String planned = seed();
+        String alias = "a" + UUID.randomUUID().toString().substring(0, 8);
+        assertEquals(200, post(owner, "/manage/" + reading + "/aliases", Map.of("alias", alias)).statusCode());
+        try (var anonymous = browser(); var reader = registered(); var other = registered()) {
+            assertEquals(401, post(anonymous, "/library/" + reading, Map.of("status", "reading")).statusCode());
+            assertEquals(401, get(anonymous, "/library").statusCode());
+            assertEquals("reading", body(post(reader, "/library/" + alias, Map.of("status", "reading"))).path("status").asText());
+            assertEquals(200, post(reader, "/library/" + planned, Map.of("status", "completed")).statusCode());
+            assertEquals("planned", body(post(reader, "/library/" + planned, Map.of("status", "planned"))).path("status").asText(), "changing a shelf replaces it");
+            assertEquals(400, post(reader, "/library/" + planned, Map.of("status", "favourite")).statusCode());
+            assertEquals(404, post(reader, "/library/missing-novel", Map.of("status", "reading")).statusCode());
+
+            var counts = body(get(reader, "/library/counts"));
+            assertEquals(1, counts.path("reading").asLong());
+            assertEquals(1, counts.path("planned").asLong());
+            assertEquals(0, counts.path("completed").asLong());
+            var shelf = body(get(reader, "/library?status=reading"));
+            assertEquals(1, shelf.path("total").asLong());
+            assertEquals(reading, shelf.path("items").get(0).path("id").asText());
+            assertEquals(2, body(get(reader, "/library?sort=title&direction=asc")).path("total").asLong());
+            assertEquals(400, get(reader, "/library?status=favourite").statusCode());
+            assertEquals("reading", body(get(reader, "/novels/" + reading)).path("libraryStatus").asText());
+            assertTrue(body(get(anonymous, "/novels/" + reading)).path("libraryStatus").isNull());
+            assertEquals(0, body(get(other, "/library")).path("total").asLong(), "shelves are private");
+
+            assertTrue(body(post(reader, "/library/" + reading, Map.of("status", ""))).path("status").isNull());
+            assertEquals(0, body(get(reader, "/library/counts")).path("reading").asLong());
+        }
+    }
+
+    @Test
     void commentsSeparateNovelAndChapterThreadsFollowNicknamesAndAreModerated() throws Exception {
         String novel = seed();
         try (var author = registered(); var other = registered(); var anonymous = browser(); var sql = jdbc()) {

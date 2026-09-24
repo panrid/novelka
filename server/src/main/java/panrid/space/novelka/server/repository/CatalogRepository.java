@@ -7,7 +7,8 @@ import panrid.space.novelka.server.list.ListQuery;
 import java.util.Map;
 
 public final class CatalogRepository {
-    private static final String BASE = """
+    /** Catalog cards with ready chapter counts and ratings; the library reuses it for its rows. */
+    static final String BASE = """
             WITH published AS (
                 SELECT DISTINCT ON (j.novel_id,j.chapter) j.novel_id,j.chapter
                 FROM jobs j JOIN chapters c ON c.novel_id=j.novel_id AND c.number=j.chapter

@@ -29,6 +29,7 @@ export interface NovelDetail {
     resumeChapter: number | null;
     tags: TagView[];
     rating: { score: number; mine: number };
+    libraryStatus?: string | null;
 }
 
 export interface Block {
