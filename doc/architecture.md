@@ -31,7 +31,7 @@
 | `access` | `AccessPolicy`: єдине місце, де вирішується «чи можна» | account, team |
 | `team` | Команди, учасники, ролі | account |
 | `catalog` | Новели (оригінали), переклади, естафета, теги, каталог, стрічки головної | team |
-| `text` | Глави, ревізії, публікація, diff, повний редактор, внесок | catalog, access |
+| `text` | Глави, ревізії, публікація, diff, редактор з форматуванням, імпорт `.txt`/`.docx`, внесок | catalog, access, media |
 | `suggestion` | Правки читачів, заміни «всі входження», перевірка | text, access |
 | `reading` | Бібліотека, прогрес читання між пристроями, оцінки перекладу | catalog |
 | `source` | Джерела оригіналів: Syosetu, ручний текст; імпорт і блоки | — |
@@ -41,6 +41,7 @@
 | `payment` | Адаптери платіжних сервісів (спершу — лише ручне нарахування) | billing |
 | `media` | Сховище картинок: обкладинки, аватарки, ілюстрації; перевірка, розміри | platform |
 | `illustration` | Генерація картинок за фрагментом глави | ai, billing, text, media |
+| `monetization` | Донати, правила доступу до глав, покупки, ранній доступ | billing, text, team |
 | `community` | Коментарі, чат, розмітка, згадки людей і команд, голоси, скарги | account, team |
 | `messaging` | Розмови: особисті, групи, чат команди; блокування, «хто може писати» | account, team, community (розмітка) |
 | `notification` | Вхідні, розсилка подій одержувачам, SSE | усі через події |
@@ -54,7 +55,10 @@
 
 ### Текст глави
 - Глава — послідовність **блоків** зі стабільними ID: `heading`, `paragraph`, `preface`,
-  `afterword`, `separator`, `image`. Зберігається в `jsonb` ревізії.
+  `afterword`, `separator`, `image`. Зберігається в `jsonb` ревізії. Текст блока —
+  фрагменти з позначками `bold`, `italic`, `underline`, `strike`:
+  `{"id":"p7","type":"paragraph","content":[{"text":"Рьо ","marks":[]},{"text":"прокинувся","marks":["italic"]}]}`.
+  Посилань, кольорів, розмірів і довільного HTML немає.
 - **Ревізія не змінюється.** Кожне збереження редактора, прийнята правка чи результат
   автоперекладу створюють нову ревізію з `parent_id`.
 - **Публікація — явна:** `chapter.published_revision_id`. Незавершений переклад і
@@ -62,12 +66,25 @@
 - **Diff** рахується між двома ревізіями: спершу по блоках (за ID), усередині блока —
   по словах. Статистика змін (скільки блоків, хто) пишеться в ревізію при створенні.
   Звідси беремо «внесок кожного».
-- **Повний редактор** працює з главою як з одним текстом: абзаци розділені порожнім
-  рядком, картинка — окремий рядок-маркер. При збереженні абзаци знову
-  зіставляються з блоками: незмінні зберігають ID, змінені отримують новий текст
-  з тим самим ID, нові — новий ID. Правки, що чекають на перевірку, прив'язані до ID
-  і точного тексту блока. Якщо текст блока змінився, правка стає `stale` і показується
-  автору.
+- **Редактор** — TipTap (ProseMirror) з урізаною схемою: лише ці блоки й позначки.
+  Вставлений з Word чи сайту текст очищується до цієї схеми. ID блока зберігається
+  як атрибут вузла: незмінні абзаци зберігають ID, нові отримують новий.
+  Сервер повторно перевіряє документ за схемою й не довіряє клієнту.
+  Правки, що чекають на перевірку, прив'язані до ID і точного тексту блока. Якщо текст
+  блока змінився, правка стає `stale` і показується автору.
+- Той самий редактор і формат — для опису новели (`description` у `jsonb`).
+- **Імпорт власного перекладу:** `.txt` (абзаци — порожній рядок, глави — рядок-
+  роздільник або окремі файли) і `.docx` (Apache POI; жирний, курсив, підкреслений,
+  закреслений і вбудовані картинки зберігаються). Перед публікацією показується
+  розбиття на глави для перевірки.
+- **Картинка за посиланням:** сервер сам завантажує файл і зберігає копію.
+  Захист від SSRF:
+  - лише `https`;
+  - заборонені приватні й локальні адреси, перевірка після DNS;
+  - ліміти часу й розміру (5 МБ);
+  - перевірка, що вміст — справжня картинка.
+
+  Читачі завжди отримують картинку з нашого сховища.
 - Автозбереження чернетки редактора — окремий рядок `editor_draft`, а не ревізія.
 
 ### Автопереклад
@@ -100,6 +117,18 @@
 - Модуль `payment` має порт `PaymentProvider` (створити платіж, перевірити webhook).
   Перший адаптер — ручне нарахування власником. Paddle, Lemon Squeezy тощо
   додаються без змін у `billing`.
+
+### Донати й платні глави
+- Донат — транзакція книги записів `donation`: з рахунку користувача на рахунок
+  команди, з повідомленням і позначкою «анонімно».
+- Правило доступу задається на рівні перекладу, глава може його перевизначити:
+  `free`, `paid` (ціна в шагах за пакет із K глав), `early` (ціна за пакет, глава
+  безкоштовна через D днів після публікації). Чи відкрита глава, вирішує `AccessPolicy`:
+  команда, покупка або `now() >= first_published_at + D`.
+- Покупка пакета — транзакція `purchase_chapters` з рахунку читача на рахунок команди.
+  Відкриває K наступних закритих глав, які читач ще не купив, починаючи з поточної.
+- Закрита глава: API віддає назву, перші 3 абзаци й ціну, решту тексту — ні.
+  Коментарі й правки доступні лише тим, у кого глава відкрита.
 
 ### Естафета перекладу
 - `translation.status = abandoned` ставить власник. «Вільний для продовження» не
@@ -158,10 +187,12 @@ team_member      team_id, account_id, role (translator|editor), added_by, added_
 ```
 novel            id, source (syosetu|manual), source_key unique null, source_url,
                  title_original, author_original,        -- лише для ШІ, в інтерфейсі не показуються
-                 title_uk, author_uk, description_uk,    -- машинний переклад / транслітерація при імпорті
+                 title_uk, author_uk, description jsonb, -- машинний переклад / транслітерація при імпорті
                  source_chapter_count, slug unique       -- slug з української назви: mag-vody
 novel_tag        novel_id, tag_id           tag: id, name, slug unique
-translation      id, novel_id, team_id, title_uk, author_uk, description_uk (null → з novel),
+translation      id, novel_id, team_id, title_uk, author_uk, description jsonb (null → з novel),
+                 access_mode (free|paid|early), access_price_shah, access_pack_size,
+                 access_free_after_days null, free_first_chapters,
                  cover_image_id null,
                  kind (human|machine|mixed), status (ongoing|completed|paused|abandoned),
                  continues_translation_id null, first_number (1 або N+1 для естафети),
@@ -181,6 +212,7 @@ source_chapter_history   source_chapter_id, blocks, source_hash, replaced_at
 ### text
 ```
 chapter          id, translation_id, number, source_chapter_id null,
+                 access_override (free|paid|early) null,
                  published_revision_id null, first_published_at, updated_at,
                  unique (translation_id, number)
 revision         id, chapter_id, parent_id null, title, blocks jsonb,
@@ -224,7 +256,8 @@ model_catalog    model, prices jsonb, capabilities jsonb, fetched_at
 ```
 ledger_account   id, kind (user|team|system), owner_id null, code null, balance_shah,
                  unique (kind, owner_id), unique (code)
-ledger_tx        id, kind (purchase|grant|hold|capture|release|transfer|refund|adjust),
+ledger_tx        id, kind (purchase|grant|hold|capture|release|transfer|refund|adjust|
+                 donation|purchase_chapters),
                  actor_id, job_id null, payment_id null, memo, created_at
 ledger_entry     tx_id, account_id, amount_shah   -- sum(amount_shah) по tx = 0
 shah_pack        id, shah, price_kop, active       -- пакети задає власник сайту
@@ -234,9 +267,18 @@ payment          id, provider, external_id, account_id, pack_id, amount_kop, sha
                  unique (provider, external_id)
 ```
 
+### monetization
+```
+donation         ledger_tx_id pk, from_account_id, team_id, translation_id null, amount_shah,
+                 message null, anonymous, created_at
+chapter_unlock   account_id, chapter_id, ledger_tx_id, created_at, pk (account_id, chapter_id)
+```
+
 ### illustration
 ```
-image            id, owner_account_id, team_id null, kind (cover|avatar|illustration),
+image            id, owner_account_id, team_id null,
+                 kind (cover|avatar|group_avatar|illustration|message),
+                 source_url null,                   -- якщо додано за посиланням
                  storage_key, variants jsonb (розміри: 96, 320, 640…), mime, width, height,
                  sha256, prompt null, fragment null, job_id null,
                  hidden_at, hidden_by, hidden_reason
@@ -275,6 +317,7 @@ conversation_member conversation_id, account_id, role (admin|member), joined_at,
                  pk (conversation_id, account_id)
 message          id, conversation_id, author_id null, kind (text|system),
                  reply_to, body, created_at, edited_at, deleted_at
+message_image    message_id, image_id, position     -- до 10 картинок
                  -- system: «mika додала oleh_k», «назву змінено»
 ```
 Чат команди створюється в тій самій транзакції, що й команда. Склад синхронізує

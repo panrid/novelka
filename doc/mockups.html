@@ -149,6 +149,16 @@ td:last-child { text-align: right; }
 .spoiler { background: var(--muted); color: transparent; border-radius: 3px; }
 .composer { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; padding: 8px 12px 12px; border-top: 1px solid var(--line); background: var(--bg); }
 .composer .field { flex: 1; border-radius: 20px; color: var(--muted); }
+.fmt { position: absolute; left: 0; right: 0; bottom: 0; border-top: 1px solid var(--line); background: var(--surface); display: flex; justify-content: space-between; padding: 8px 10px 10px; font-size: 15px; }
+.fmt span { width: 38px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.fmt .on { background: var(--surface-2); color: var(--accent); }
+.choice { display: flex; gap: 12px; align-items: flex-start; background: var(--surface); border-radius: 14px; padding: 14px; margin-bottom: 10px; border: 1px solid transparent; }
+.choice.on { border-color: var(--accent); }
+.choice .ico { font-size: 22px; width: 28px; text-align: center; }
+.lock { position: relative; }
+.lock::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 120px; background: linear-gradient(transparent, var(--bg)); }
+.cam { position: absolute; right: -4px; bottom: -4px; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.msgimg { width: 180px; height: 120px; border-radius: 12px; margin: 4px 0 2px; background: linear-gradient(135deg, #3c5a73, #7a8fa6 60%, #e3c9a8); }
 </style>
 </head>
 <body>
@@ -330,10 +340,84 @@ td:last-child { text-align: right; }
 </figcaption>
 </figure>
 
+<!-- 5b. Закрита глава -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><div style="flex:1"><div class="sm">Маг води</div><div class="xs muted">Глава 45 з 58</div></div></div>
+  <div class="screen pad">
+    <div class="reader lock">
+      <h4>45. Нічний ринок</h4>
+      <p>Ліхтарі на ринку спалахнули одночасно, ніби хтось змахнув рукою.</p>
+      <p>Рьо зупинився біля першого ж прилавка, де продавали сушену рибу й дивні сині яблука.</p>
+      <p>— Не торкайся, — прошепотіла Абель. — Тут за кожен погляд просять гроші.</p>
+    </div>
+    <div class="card" style="text-align:center;padding:16px">
+      <div style="font-size:22px">🔒</div>
+      <div style="font-weight:600;margin:4px 0">Ранній доступ</div>
+      <div class="sm muted">Глава відкриється безкоштовно <b style="color:var(--text)">8 жовтня</b></div>
+      <div class="btn" style="margin-top:12px">Відкрити 3 глави за 1 шаг</div>
+      <div class="xs faint" style="margin-top:6px">У вас 127 шагів · глави 45–47</div>
+    </div>
+    <div class="btn sec" style="margin-top:10px">♥ Підтримати $panrid</div>
+  </div>
+</div>
+<figcaption><b>5b · Закрита глава</b>
+  <ul><li>Читач бачить назву й перші абзаци, ціну, дату безкоштовного відкриття й свій залишок.</li>
+  <li>Одне натискання відкриває пакет глав назавжди.</li>
+  <li>«Підтримати» — донат шагів команді з коротким повідомленням, можна анонімно. Така ж кнопка є на сторінці команди й наприкінці глави.</li></ul>
+</figcaption>
+</figure>
+
+<!-- 5c. Донат -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="screen pad reader" style="padding-top:14px;opacity:.35">
+    <p>…і Рьо зачинив за собою двері бібліотеки.</p><p>Мрії розширюються!</p>
+  </div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="row" style="gap:10px"><div class="av" style="background:#5c6e3c;border-radius:10px">$</div><div><b>Підтримати $panrid</b><div class="xs muted">переклад «Маг води»</div></div></div>
+    <div class="chips" style="gap:8px;margin-top:14px"><span class="chip" style="padding:8px 14px">5</span><span class="chip acc" style="padding:8px 14px">10</span><span class="chip" style="padding:8px 14px">25</span><span class="chip ghost" style="padding:8px 14px">інша</span></div>
+    <div class="field muted sm" style="margin-top:12px">Повідомлення команді (необов'язково)</div>
+    <div class="row between sm" style="margin-top:12px"><span>Не показувати моє ім'я</span><span class="chip ghost">вимк.</span></div>
+    <div class="btn" style="margin-top:14px">Подарувати 10 шагів</div>
+    <div class="xs faint" style="text-align:center;margin-top:6px">Шаги йдуть у бюджет команди на автопереклад та ілюстрації.</div>
+  </div>
+</div>
+<figcaption><b>5c · Донат команді</b>
+  <ul><li>Шторка з сумою в шагах, повідомленням і «анонімно».</li>
+  <li>Власник команди отримує сповіщення, донати видно в бюджеті команди.</li></ul>
+</figcaption>
+</figure>
+
 </div>
 
 <h2 class="section-title">Перекладач і команда</h2>
 <div class="grid">
+
+<!-- 6a. Новий переклад -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><h2>Новий переклад</h2></div>
+  <div class="screen pad">
+    <div class="choice on"><div class="ico">✎</div><div><b style="font-weight:600">Свій переклад</b><div class="sm muted">Ви перекладаєте самі. Створіть новелу й додавайте глави: пишіть у редакторі, вставляйте текст або завантажуйте файли .txt і .docx.</div></div></div>
+    <div class="choice"><div class="ico">↻</div><div><b style="font-weight:600">Автопереклад із Syosetu</b><div class="sm muted">Вставте посилання на новелу, виберіть, до якої глави перекласти, і заплатіть шагами.</div></div></div>
+    <div class="choice"><div class="ico">⇢</div><div><b style="font-weight:600">Продовжити покинутий</b><div class="sm muted">Переклади, які команди покинули. Ви продовжите з наступної глави.</div></div></div>
+    <div class="label">Назва новели</div>
+    <div class="field">Сто ночей у крамниці ліхтарів</div>
+    <div class="label">Автор</div>
+    <div class="field muted">Ім'я автора українською</div>
+    <div class="btn" style="margin-top:16px">Далі: обкладинка й опис →</div>
+  </div>
+</div>
+<figcaption><b>6a · Новий переклад</b>
+  <ul><li>Автопереклад — лише один із трьох шляхів. Для власного перекладу оригінал не потрібен.</li>
+  <li>Далі — обкладинка, опис у редакторі, теги, а потім перша глава або завантаження файлів.</li></ul>
+</figcaption>
+</figure>
 
 <!-- 6. Запуск перекладу -->
 <figure>
@@ -381,17 +465,46 @@ td:last-child { text-align: right; }
     <div class="field" style="font:600 16px var(--serif);margin-bottom:12px">Спокійне життя</div>
     <p>«Це вперше, коли я бачу стелю».</p>
     <p>Перше слово в новому житті… мабуть, одне з класичних висловлювань. Хоча й трохи інакше.</p>
-    <p>Але це не було розкішне ліжко з балдахіном.<span style="border-right:2px solid var(--accent)"></span></p>
+    <p>Але це не було <b>розкішне ліжко</b> з <i>балдахіном</i>.<span style="border-right:2px solid var(--accent)"></span></p>
     <div class="imgblock">🖼 Ілюстрація · «Рьо прокидається в хатині»</div>
     <p>Дерев'яна підлога, на якій розстелено солому, а зверху лише один шматок тканини.</p>
-    <p>Сучасні японські стандарти, звичайно, вважають це убогим ліжком.</p>
+    <p>Сучасні японські стандарти, звичайно, вважають це <u>убогим</u> ліжком.</p>
   </div>
-  <div class="toolbar"><span>↶</span><span>↷</span><span>Зміни · 3</span><span>🖼 +</span><span>⋯</span></div>
+  <div class="fmt"><span class="on"><b>Ж</b></span><span><i>К</i></span><span><u>П</u></span><span><s>З</s></span><span>🖼</span><span>🔗</span><span>↶</span><span class="xs">Зміни</span></div>
 </div>
-<figcaption><b>7 · Повний редактор глави</b>
-  <ul><li>Глава редагується як один текст. Абзаци розділяються порожнім рядком, автозбереження — чернетка.</li>
+<figcaption><b>7 · Редактор глави</b>
+  <ul><li>Команда править текст напряму, як у звичайному текстовому редакторі. Автозбереження — чернетка, читачі бачать лише опубліковане.</li>
+  <li>Панель над клавіатурою: <b>Ж</b>ирний, <i>К</i>урсив, <u>П</u>ідкреслений, <s>З</s>акреслений, картинка з файлу, картинка за посиланням. Той самий редактор — для опису новели.</li>
   <li>Оригіналу японською в редакторі немає. Сайт увесь українською, японський текст бачить лише ШІ.</li>
-  <li>«Зміни» — diff із опублікованою ревізією. «🖼 +» — завантажити або згенерувати картинку за виділеним фрагментом (лише перекладачі).</li></ul>
+  <li>«Зміни» — diff із опублікованою ревізією. «🖼» — завантажити або згенерувати картинку за виділеним фрагментом. «🔗» — вставити посилання на картинку, сайт збереже копію в себе.</li></ul>
+</figcaption>
+</figure>
+
+
+<!-- 7b. Доступ до глав -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="top"><span class="ic">←</span><h2>Доступ до глав</h2><span class="btn sm">Зберегти</span></div>
+  <div class="screen pad">
+    <div class="seg"><span>Безкоштовно</span><span>Платно</span><span class="on">Ранній доступ</span></div>
+    <div class="sm muted" style="margin:10px 0 4px">Нова глава перші дні платна, потім відкривається всім.</div>
+    <div class="label">Безкоштовно через</div>
+    <div class="seg"><span class="on">7 днів</span><span>14 днів</span><span>інше</span></div>
+    <div class="label">Ціна</div>
+    <div class="row" style="gap:8px"><div class="stepper" style="flex:1"><span>−</span><b style="font-size:20px">1</b><span>+</span></div><div class="sm muted" style="flex:1">шаг за</div><div class="stepper" style="flex:1"><span>−</span><b style="font-size:20px">3</b><span>+</span></div><div class="sm muted">глави</div></div>
+    <div class="label">Перші глави безкоштовно</div>
+    <div class="field">10</div>
+    <div class="card" style="margin-top:14px">
+      <div class="sm muted">Так побачить читач</div>
+      <div style="margin-top:6px;font-size:14px">🔒 Глава 45 · відкрити 3 глави за 1 шаг<br><span class="muted sm">або безкоштовно з 8 жовтня</span></div>
+    </div>
+    <div class="xs faint" style="margin-top:10px">Куплені глави лишаються відкритими назавжди. Шаги йдуть у бюджет команди.</div>
+  </div>
+</div>
+<figcaption><b>7b · Доступ до глав</b>
+  <ul><li>Власник команди обирає правило для перекладу: безкоштовно, платно (N шагів за пакет глав) або ранній доступ на 7–14 днів.</li>
+  <li>Окрему главу можна зробити безкоштовною чи платною в списку глав.</li></ul>
 </figcaption>
 </figure>
 
@@ -615,14 +728,14 @@ td:last-child { text-align: right; }
     <div class="bubble in">Привіт! Глянь 12-ту главу, я там переписала сцену з ліжком 😅</div>
     <div class="bubble in">Там <b>рід</b> плутався через усю главу</div>
     <div class="bubble out"><div class="q">mika: Там рід плутався через усю главу</div>Бачу, прийняв. Тільки кінцівку не спойлерь у коментарях — там <span class="spoiler">Рьо знаходить учителя</span></div>
-    <div class="bubble in">Ок, сховаю під спойлер 👌</div>
+    <div class="bubble in">Ок, сховаю під спойлер 👌<div class="msgimg"></div>ось як я уявляю хатину</div>
     <div class="xs faint" style="text-align:right">переглянуто</div>
   </div>
   <div class="composer"><div class="field">Повідомлення…</div><span class="btn sm">➤</span></div>
 </div>
 <figcaption><b>10d · Розмова</b>
   <ul><li>Та сама розмітка, що в чаті: жирний, курсив, підкреслений, закреслений, спойлер. Також відповіді й цитати.</li>
-  <li>Нові повідомлення приходять одразу, без оновлення сторінки.</li>
+  <li>Нові повідомлення приходять одразу, без оновлення сторінки. Можна надсилати картинки, до 10 за раз.</li>
   <li>У «⋯» — «Вимкнути сповіщення», «Заблокувати», «Поскаржитися».</li></ul>
 </figcaption>
 </figure>
@@ -635,7 +748,7 @@ td:last-child { text-align: right; }
   <div class="top"><span class="ic">←</span><h2>Про групу</h2></div>
   <div class="screen pad">
     <div style="text-align:center">
-      <div class="av" style="width:80px;height:80px;margin:0 auto;border-radius:20px;font-size:30px;background:#7a4b5c">К</div>
+      <div style="position:relative;width:80px;margin:0 auto"><div class="av photo" style="width:80px;height:80px;border-radius:20px"></div><span class="cam">📷</span></div>
       <div style="font:600 19px var(--serif);margin-top:10px">Книжковий клуб 📚</div>
       <div class="sm muted">група · 5 учасників</div>
     </div>
@@ -652,7 +765,7 @@ td:last-child { text-align: right; }
   </div>
 </div>
 <figcaption><b>10e · Група</b>
-  <ul><li>Групу створює будь-хто: друзі, читачі одного перекладу. Адміністратори додають і видаляють людей, змінюють назву й аватарку.</li>
+  <ul><li>Групу створює будь-хто: друзі, читачі одного перекладу. Адміністратори додають і видаляють людей, змінюють назву й картинку групи («📷»: завантажити й обрізати).</li>
   <li>Додати можна лише тих, хто дозволив «мені можуть писати» і не заблокував вас.</li>
   <li>Чат команди виглядає так само, але склад бере з команди, а вийти з нього можна лише разом із командою.</li></ul>
 </figcaption>
