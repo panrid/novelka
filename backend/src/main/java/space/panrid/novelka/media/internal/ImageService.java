@@ -35,14 +35,16 @@ class ImageService implements Images {
 
     private final DSLContext db;
     private final MediaStorage storage;
+    private final RemoteImages remote;
     private final JsonMapper json;
     private final Clock clock;
     private final RateLimiter uploads;
     private final SecureRandom random = new SecureRandom();
 
-    ImageService(DSLContext db, MediaStorage storage, JsonMapper json, Clock clock) {
+    ImageService(DSLContext db, MediaStorage storage, RemoteImages remote, JsonMapper json, Clock clock) {
         this.db = db;
         this.storage = storage;
+        this.remote = remote;
         this.json = json;
         this.clock = clock;
         this.uploads = new RateLimiter(60, Duration.ofHours(1), clock);
@@ -75,6 +77,17 @@ class ImageService implements Images {
                 .returning(IMAGE.ID)
                 .fetchOne(IMAGE.ID);
         return new StoredImage(id, urls(keys));
+    }
+
+    @Override
+    @Transactional
+    public StoredImage storeFromUrl(long ownerAccountId, ImageKind kind, String url) {
+        if (!uploads.tryAcquire(Long.toString(ownerAccountId))) {
+            throw UserFacingException.tooManyRequests();
+        }
+        StoredImage image = store(ownerAccountId, kind, remote.fetch(url));
+        db.update(IMAGE).set(IMAGE.SOURCE_URL, url).where(IMAGE.ID.eq(image.id())).execute();
+        return image;
     }
 
     @Override

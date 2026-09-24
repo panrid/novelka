@@ -2,49 +2,25 @@ package space.panrid.novelka.account.internal;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
-import java.util.Set;
 import java.util.regex.Pattern;
 
+import space.panrid.novelka.platform.text.Handles;
 import space.panrid.novelka.platform.web.UserFacingException;
 
 /** What counts as a valid nick, email and password. Messages are shown to people as is. */
 final class AccountRules {
 
-    static final int NICK_MIN = 3;
-    static final int NICK_MAX = 30;
     static final int PASSWORD_MIN = 10;
     static final int PASSWORD_MAX_BYTES = 72; // BCrypt ignores anything longer
     static final int BIO_MAX = 500;
 
-    // Latin or Ukrainian Cyrillic letters, digits, "_" and "-"; starts with a letter or digit.
-    private static final Pattern NICK = Pattern.compile("^[\\p{IsLatin}\\p{IsCyrillic}\\d][\\p{IsLatin}\\p{IsCyrillic}\\d_-]*$");
-    private static final Pattern LATIN = Pattern.compile("\\p{IsLatin}");
-    private static final Pattern CYRILLIC = Pattern.compile("\\p{IsCyrillic}");
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
-    private static final Set<String> RESERVED = Set.of(
-            "admin", "administrator", "moderator", "owner", "support", "system", "novelka", "новелка",
-            "адмін", "модератор", "api", "me", "null", "undefined");
 
     private AccountRules() {
     }
 
     static String nick(String raw) {
-        String nick = raw == null ? "" : raw.strip();
-        if (nick.length() < NICK_MIN || nick.length() > NICK_MAX) {
-            throw UserFacingException.badRequest("Нік має бути від %d до %d символів.".formatted(NICK_MIN, NICK_MAX));
-        }
-        if (!NICK.matcher(nick).matches()) {
-            throw UserFacingException.badRequest(
-                    "У ніку можуть бути лише літери, цифри, «_» і «-», і починатися він має з літери чи цифри.");
-        }
-        // «раnrid» with a Cyrillic «а» would pass for «panrid»: one alphabet per nick.
-        if (LATIN.matcher(nick).find() && CYRILLIC.matcher(nick).find()) {
-            throw UserFacingException.badRequest("Нік має бути або латиницею, або кирилицею, не впереміш.");
-        }
-        if (RESERVED.contains(key(nick))) {
-            throw UserFacingException.badRequest("Цей нік зарезервовано. Оберіть інший.");
-        }
-        return nick;
+        return Handles.check(raw, "Нік");
     }
 
     static String email(String raw) {

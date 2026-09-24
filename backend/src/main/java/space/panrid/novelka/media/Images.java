@@ -14,6 +14,9 @@ public interface Images {
      */
     StoredImage store(long ownerAccountId, ImageKind kind, byte[] content);
 
+    /** Downloads a picture by an https link (safely, see RemoteImages) and stores it like an upload. */
+    StoredImage storeFromUrl(long ownerAccountId, ImageKind kind, String url);
+
     /** URLs of a picture, unless moderators hid it. */
     Optional<StoredImage> find(long imageId);
 

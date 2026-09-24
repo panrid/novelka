@@ -2,6 +2,14 @@ package space.panrid.novelka.text;
 
 import java.util.List;
 
+import space.panrid.novelka.platform.text.Block;
+import space.panrid.novelka.text.EditorModels.Contribution;
+import space.panrid.novelka.text.EditorModels.EditorState;
+import space.panrid.novelka.text.EditorModels.RevisionInfo;
+import space.panrid.novelka.text.EditorModels.RevisionText;
+import space.panrid.novelka.text.EditorModels.StudioChapter;
+
+/** Chapter text for the Studio. Callers check team rights first (AccessPolicy). */
 public interface Chapters {
 
     /**
@@ -11,4 +19,30 @@ public interface Chapters {
      * @return numbers given to the chapters, in order
      */
     List<Integer> publishNew(long editionId, List<ChapterFiles.ParsedChapter> chapters, String origin, Long authorId);
+
+    /** A new empty chapter at the end, unpublished until its first «Опублікувати». */
+    int createChapter(long editionId);
+
+    EditorState editorState(long editionId, int number, long accountId);
+
+    void saveDraft(long editionId, int number, long accountId, String title, List<Block> blocks, Long baseRevisionId);
+
+    void discardDraft(long editionId, int number, long accountId);
+
+    /**
+     * Publishes the text as a new revision. Fails with 409 if someone else published the
+     * chapter after {@code baseRevisionId}, so no one silently overwrites a colleague.
+     *
+     * @param mayAddPictures whether the author may add pictures that are not in the current text
+     */
+    long publish(long editionId, int number, long accountId, String title, List<Block> blocks, Long baseRevisionId,
+            boolean mayAddPictures);
+
+    List<StudioChapter> studioChapters(long editionId, long accountId, int page, int size);
+
+    List<RevisionInfo> revisions(long editionId, int number);
+
+    RevisionText revision(long editionId, int number, long revisionId);
+
+    List<Contribution> contributions(long editionId);
 }

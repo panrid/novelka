@@ -7,21 +7,31 @@ import static space.panrid.novelka.jooq.Tables.TAG;
 
 import java.text.Normalizer;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.jooq.DSLContext;
+import org.jooq.Field;
 import org.jooq.JSONB;
+import org.jooq.Record;
+import org.jooq.impl.DSL;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import space.panrid.novelka.catalog.Catalog;
+import space.panrid.novelka.catalog.EditionChanges;
+import space.panrid.novelka.catalog.EditionData;
 import space.panrid.novelka.catalog.EditionRef;
 import space.panrid.novelka.catalog.NewNovel;
+import space.panrid.novelka.platform.text.Block;
 import space.panrid.novelka.platform.text.Slugs;
 import space.panrid.novelka.platform.web.UserFacingException;
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 @Service
@@ -30,6 +40,8 @@ class CatalogService implements Catalog {
     static final int MAX_TAGS = 12;
     static final int TAG_MAX_LENGTH = 40;
     private static final Set<String> KINDS = Set.of("human", "machine", "mixed", "original");
+    private static final Set<String> STATUSES = Set.of("ongoing", "completed", "paused", "abandoned");
+    private static final TypeReference<List<Block>> BLOCKS = new TypeReference<>() { };
 
     private final DSLContext db;
     private final JsonMapper json;
@@ -42,10 +54,7 @@ class CatalogService implements Catalog {
     @Override
     @Transactional
     public EditionRef createNovel(NewNovel novel) {
-        String title = novel.title() == null ? "" : novel.title().strip();
-        if (title.isEmpty() || title.length() > 200) {
-            throw UserFacingException.badRequest("Назва новели — від 1 до 200 символів.");
-        }
+        String title = title(novel.title() == null ? "" : novel.title());
         if (!KINDS.contains(novel.kind())) {
             throw UserFacingException.badRequest("Невідомий вид перекладу.");
         }
@@ -78,6 +87,92 @@ class CatalogService implements Catalog {
                 .set(EDITION.LAST_PUBLISHED_AT, at)
                 .where(EDITION.ID.eq(editionId))
                 .execute();
+    }
+
+    @Override
+    public Optional<EditionData> edition(long editionId) {
+        Record row = db.select(EDITION.ID, NOVEL.ID, NOVEL.SLUG, EDITION.TEAM_ID, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE),
+                        NOVEL.AUTHOR, DSL.coalesce(EDITION.DESCRIPTION, NOVEL.DESCRIPTION), EDITION.KIND, EDITION.STATUS,
+                        EDITION.ADULT, EDITION.COVER_IMAGE_ID, EDITION.CHAPTER_COUNT, NOVEL.SOURCE)
+                .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
+                .where(EDITION.ID.eq(editionId))
+                .fetchOne();
+        if (row == null) {
+            return Optional.empty();
+        }
+        long novelId = row.get(NOVEL.ID);
+        List<String> tags = db.select(TAG.NAME).from(NOVEL_TAG).join(TAG).on(TAG.ID.eq(NOVEL_TAG.TAG_ID))
+                .where(NOVEL_TAG.NOVEL_ID.eq(novelId)).orderBy(TAG.NAME).fetch(TAG.NAME);
+        return Optional.of(new EditionData(row.get(EDITION.ID), novelId, row.get(NOVEL.SLUG), row.get(EDITION.TEAM_ID),
+                row.get(4, String.class), row.get(NOVEL.AUTHOR),
+                json.readValue(row.get(6, JSONB.class).data(), BLOCKS), tags, row.get(EDITION.KIND),
+                row.get(EDITION.STATUS), row.get(EDITION.ADULT), row.get(EDITION.COVER_IMAGE_ID),
+                row.get(EDITION.CHAPTER_COUNT), ownNovel(novelId, row.get(NOVEL.SOURCE))));
+    }
+
+    @Override
+    @Transactional
+    public void updateEdition(long editionId, EditionChanges changes) {
+        EditionData current = edition(editionId).orElseThrow(() -> UserFacingException.notFound("Такої новели немає."));
+        if (changes.status() != null && !STATUSES.contains(changes.status())) {
+            throw UserFacingException.badRequest("Невідомий стан перекладу.");
+        }
+        String title = changes.title() == null ? null : title(changes.title());
+        String description = changes.description() == null ? null : json.writeValueAsString(changes.description());
+        if (current.ownNovel()) {
+            Map<Field<?>, Object> novel = new HashMap<>();
+            if (title != null) {
+                novel.put(NOVEL.TITLE, title);
+            }
+            if (changes.author() != null) {
+                novel.put(NOVEL.AUTHOR, changes.author().strip());
+            }
+            if (description != null) {
+                novel.put(NOVEL.DESCRIPTION, JSONB.valueOf(description));
+            }
+            if (!novel.isEmpty()) {
+                db.update(NOVEL).set(novel).where(NOVEL.ID.eq(current.novelId())).execute();
+            }
+            if (changes.tags() != null) {
+                db.deleteFrom(NOVEL_TAG).where(NOVEL_TAG.NOVEL_ID.eq(current.novelId())).execute();
+                setTags(current.novelId(), changes.tags());
+            }
+        }
+        Map<Field<?>, Object> edition = new HashMap<>();
+        if (!current.ownNovel() && title != null) {
+            edition.put(EDITION.TITLE, title);
+        }
+        if (!current.ownNovel() && description != null) {
+            edition.put(EDITION.DESCRIPTION, JSONB.valueOf(description));
+        }
+        if (changes.status() != null) {
+            edition.put(EDITION.STATUS, changes.status());
+        }
+        if (changes.adult() != null) {
+            edition.put(EDITION.ADULT, changes.adult());
+        }
+        if (!edition.isEmpty()) {
+            db.update(EDITION).set(edition).where(EDITION.ID.eq(editionId)).execute();
+        }
+    }
+
+    @Override
+    @Transactional
+    public void setCover(long editionId, Long imageId) {
+        db.update(EDITION).set(EDITION.COVER_IMAGE_ID, imageId).where(EDITION.ID.eq(editionId)).execute();
+    }
+
+    /** Entered on the site (not imported) and with only this one edition. */
+    private boolean ownNovel(long novelId, String source) {
+        return !source.equals("syosetu") && db.fetchCount(EDITION, EDITION.NOVEL_ID.eq(novelId)) == 1;
+    }
+
+    private static String title(String raw) {
+        String title = raw.strip();
+        if (title.isEmpty() || title.length() > 200) {
+            throw UserFacingException.badRequest("Назва новели — від 1 до 200 символів.");
+        }
+        return title;
     }
 
     private void setTags(long novelId, List<String> names) {
