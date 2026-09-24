@@ -76,3 +76,19 @@ test('workshop edits tags and suggests the machine translation tag for Novelka t
     expect(saved).toEqual({ tags: ['Фентезі', 'Машинний переклад', 'магія'] });
     await expect(editor.getByRole('button', { name: 'Прибрати тег Магія' })).toBeVisible();
 });
+
+test('tag suggestions use the site list instead of a native datalist', async ({ page }) => {
+    await page.route('**/api/novels/search?*', route => route.fulfill({ json: pageData(novels) }));
+    await page.goto('/');
+    await expect(page.locator('datalist')).toHaveCount(0);
+    await expect(page.locator('select')).toHaveCount(0);
+    const tag = page.getByRole('combobox', { name: 'Тег', exact: true });
+    await tag.fill('фен');
+    await expect(page.getByRole('option', { name: /Фентезі/ })).toBeVisible();
+    await tag.press('ArrowDown');
+    await tag.press('Enter');
+    await expect(page).toHaveURL(/tags=/);
+    const heights = await page.locator('.catalog-tools').evaluate(tools => [...tools.querySelectorAll('input, button')]
+        .map(element => (element.getAttribute('aria-label') || element.textContent || element.tagName) + '=' + Math.round(element.getBoundingClientRect().height)));
+    expect(new Set(heights.map(item => item.split('=').pop())).size).toBe(1);
+});

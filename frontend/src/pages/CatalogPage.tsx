@@ -5,6 +5,7 @@ import { novelPath } from '../lib/routes';
 import { ErrorState, Loading } from '../components/Status';
 import { ListPages, ListSearch, listParams, useListState, type PageData } from '../components/ListTools';
 import { TagInput } from '../components/TagInput';
+import { SelectField } from '../components/SelectField';
 import { tagSlug } from '../lib/tags';
 import { HeroArt } from '../components/HeroArt';
 import { NovelCover } from '../components/NovelCover';
@@ -38,7 +39,8 @@ export function CatalogPage() {
             <div className="catalog-tools">
                 <ListSearch label="Назва, автор або аліас" value={list.state.q} onChange={q => list.update({ q, page: 1 })} />
                 <button className={'filter-button' + (readyOnly ? ' selected' : '')} aria-pressed={readyOnly} onClick={() => list.setFilter('readyOnly', readyOnly ? '' : 'true')}>Є готові глави <span aria-hidden="true">✓</span></button>
-                <label>Порядок<select value={list.state.sort} onChange={event => list.update({ sort: event.target.value, page: 1 })}><option value="title">Назва</option><option value="author">Автор</option><option value="ready">Готові глави</option><option value="rating">Рейтинг</option></select></label>
+                <SelectField label="Порядок" value={list.state.sort} onChange={sort => list.update({ sort, page: 1 })}
+                    options={[{ value: 'title', label: 'Назва' }, { value: 'author', label: 'Автор' }, { value: 'ready', label: 'Готові глави' }, { value: 'rating', label: 'Рейтинг' }]} />
                 <button aria-label="Змінити напрямок сортування" title="Змінити напрямок сортування" onClick={() => list.update({ direction: list.state.direction === 'asc' ? 'desc' : 'asc', page: 1 })}>{list.state.direction === 'asc' ? '↑' : '↓'}</button>
                 <TagInput label="Тег" action="Фільтрувати" placeholder="Наприклад, фентезі"
                     onAdd={name => { const slug = tagSlug(name); if (!tags.includes(slug) && tags.length < 12) setTags([...tags, slug]); }} />

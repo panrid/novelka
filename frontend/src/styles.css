@@ -10,6 +10,7 @@
     --muted: #a2afa0;
     --line: #3a473e;
     --accent: #486b50;
+    --control-height: 44px;
     --state-warn: #e8b58b; --state-ok: #b8d49d;
     --art-moon: #e5dfc9; --art-star: #e5dfc9; --art-line: #c9cdbb; --art-hill-3: #33473c; --art-hill-2: #2a3b32; --art-hill-1: #222f29; --art-river: #b6aa86; --art-book: #38523f; --art-page: #eee7d3; --art-page-line: #c8bfa6; --art-slip: #b8643f; --art-ink: #fbf6ea; --art-crane: #f1ecdc; --art-crane-edge: #1c2521;
     color-scheme: dark;
@@ -44,6 +45,8 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 button, .button { cursor: pointer; }
 button:disabled { opacity: .35; cursor: default; }
 :focus-visible { outline: 3px solid #bb7845; outline-offset: 5px; }
+/* Fields get a tight ring in the theme accent; the wide clay ring stays for links and buttons. */
+input:focus-visible, select:focus-visible, textarea:focus-visible, button.select-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
 button, input { color: var(--ink); }
 /* Site-wide outlined button. :where() keeps it at zero specificity, so every component style overrides it. */
 :where(button:not(.button)) { background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 8px 14px; }
@@ -340,7 +343,7 @@ button.vote-up:disabled, button.vote-down:disabled { cursor: not-allowed; opacit
 @media (max-width: 700px) { .theme-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } }
 .reader-toolbar { flex-wrap: wrap; gap: 12px; }
 .select-field { display: grid; gap: 8px; min-width: 0; }
-.workspace button.select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-width: 0; min-height: 44px; padding: 11px 12px; text-align: left; background: var(--paper); }
+button.select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-width: 0; min-height: 44px; padding: 11px 12px; text-align: left; background: var(--paper); }
 .select-trigger > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .select-chevron { flex: none; color: var(--muted); transition: transform .15s; }
 .select-trigger[aria-expanded="true"] { border-color: var(--accent); }
@@ -582,3 +585,16 @@ summary { cursor: pointer; font-weight: 600; margin-bottom: 18px; }
     .logout-icon { display: block; }
     .session-controls button.logout-button { min-width: 40px; min-height: 40px; padding: 6px 10px; }
 }
+
+/* One control height for fields, selects and the buttons that sit next to them, so rows line up. */
+select, button.select-trigger { min-height: var(--control-height); }
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { height: var(--control-height); }
+.list-toolbar button, .catalog-tools button, .correction-filters button, .correction-sort button, .inline-form button,
+.tag-input-row button, .workspace-toolbar button, .settings-save button, .chat-form button { min-height: var(--control-height); }
+.catalog-tools { align-items: flex-end; }
+.catalog-tools .filter-button { height: var(--control-height); padding: 0 16px; align-self: flex-end; }
+.catalog-tools .select-field { flex: 0 1 190px; min-width: 150px; }
+.catalog-tools > button[aria-label="Змінити напрямок сортування"] { min-height: var(--control-height); height: var(--control-height); }
+.correction-sort button, .correction-clear { min-height: var(--control-height); }
+.autocomplete-popup .select-option { flex-direction: column; align-items: flex-start; gap: 2px; }
+.autocomplete-popup .select-option small { font-size: 12px; overflow-wrap: anywhere; }

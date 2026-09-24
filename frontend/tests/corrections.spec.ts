@@ -60,7 +60,8 @@ test('editor combines search, filters, sorting and pages in a restorable URL', a
     await page.getByRole('button', { name: 'Далі →' }).click();
     await expect(page).toHaveURL(/page=2/);
     if (isMobile) {
-        await page.getByLabel('Порядок').selectOption('author');
+        await page.getByRole('combobox', { name: 'Порядок' }).click();
+        await page.getByRole('option', { name: 'Автор' }).click();
         await page.getByRole('button', { name: 'Змінити напрямок сортування' }).click();
     } else {
         await page.getByRole('button', { name: 'Автор', exact: true }).click();

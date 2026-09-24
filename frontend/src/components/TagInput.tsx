@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { useResource } from '../hooks/useResource';
 import { useDebouncedQuery } from './ListTools';
 import { tagName } from '../lib/tags';
+import { Autocomplete } from './Autocomplete';
 
 interface TagSuggestion { name: string; slug: string; novels: number }
 
@@ -21,12 +22,10 @@ export function TagInput({ label, onAdd, placeholder, action = 'Додати' }:
     return <div className="tag-input">
         <label htmlFor={id}>{label}</label>
         <div className="tag-input-row">
-            <input id={id} list={id + '-tags'} value={draft} maxLength={40} placeholder={placeholder} autoComplete="off"
-                onChange={event => setDraft(event.target.value)}
-                onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); add(); } }} />
+            <Autocomplete id={id} value={draft} maxLength={40} placeholder={placeholder} onChange={setDraft} onEnter={add}
+                suggestions={(suggestions.data?.items ?? []).slice(0, 8).map(item => ({ value: item.slug, label: item.name, hint: item.novels + ' нов.' }))}
+                onPick={suggestion => { const name = tagName(suggestion.label); if (name) { onAdd(name); setDraft(''); setQuery(''); } }} />
             <button type="button" onClick={add} disabled={!tagName(draft)}>{action}</button>
         </div>
-        <datalist id={id + '-tags'}>{suggestions.data?.items.map(item =>
-            <option key={item.slug} value={item.name}>{item.novels} нов.</option>)}</datalist>
     </div>;
 }

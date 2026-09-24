@@ -6,6 +6,7 @@ import { ErrorState, Loading } from '../components/Status';
 import { useAction } from '../hooks/useAction';
 import { ActionNotice } from '../components/ActionNotice';
 import { TextDiff } from '../components/TextDiff';
+import { SelectField } from '../components/SelectField';
 import { chapterPath, novelPath } from '../lib/routes';
 import { ListEmpty, ListFilter, ListPages, ListSearch, TableHeader, listParams, useListState, type PageData } from '../components/ListTools';
 import { CorrectionLookupFilter } from './CorrectionLookupFilter';
@@ -78,8 +79,8 @@ export function CorrectionsPage() {
                 onChange={event => list.setFilter('dateFrom', event.target.value)} /></label>
             <label>До дати<input type="date" value={filters.dateTo} min={filters.dateFrom || undefined}
                 onChange={event => list.setFilter('dateTo', event.target.value)} /></label>
-            <div className="correction-sort"><label>Порядок<select value={list.state.sort} onChange={event => list.update({ sort: event.target.value, page: 1 })}>
-                {Object.entries(sortLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <div className="correction-sort"><SelectField label="Порядок" value={list.state.sort} onChange={sort => list.update({ sort, page: 1 })}
+                options={Object.entries(sortLabels).map(([value, label]) => ({ value, label }))} />
                 <button type="button" aria-label="Змінити напрямок сортування" title="Змінити напрямок сортування" onClick={() => list.update({ direction: list.state.direction === 'asc' ? 'desc' : 'asc', page: 1 })}>
                     {list.state.direction === 'asc' ? '↑' : '↓'}</button></div>
             {filtered && <button type="button" className="correction-clear" onClick={clear}>Очистити пошук і фільтри</button>}

@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { Autocomplete } from './Autocomplete';
 
 export interface ModelInfo {
     id: string; name: string; contextLength: number | null; inputUsdM: number | null; outputUsdM: number | null;
@@ -29,11 +30,10 @@ export function ModelPicker({ label, value, onChange, catalog, defaultModel, req
             : value && catalog?.items.length ? { text: 'Моделі немає в каталозі провайдера — перевірте назву.', warning: true } : null;
     return <div className="model-picker">
         <label htmlFor={id}>{label}</label>
-        <input id={id} list={id + '-models'} value={value} required={required} autoComplete="off" spellCheck={false}
-            placeholder={defaultModel ? 'За замовчуванням: ' + defaultModel : 'provider/model'}
-            aria-describedby={info ? id + '-info' : undefined} onChange={event => onChange(event.target.value.trim())} />
-        <datalist id={id + '-models'}>{catalog?.items.filter(item => item.suitable).map(item =>
-            <option key={item.id} value={item.id}>{modelSummary(item)}</option>)}</datalist>
+        <Autocomplete id={id} value={value} required={required} placeholder={defaultModel ? 'За замовчуванням: ' + defaultModel : 'provider/model'}
+            describedBy={info ? id + '-info' : undefined} onChange={next => onChange(next.trim())} onPick={suggestion => onChange(suggestion.value)}
+            suggestions={(catalog?.items ?? []).filter(item => item.suitable && (item.id + ' ' + item.name).toLowerCase().includes(value.toLowerCase()) && item.id !== value)
+                .slice(0, 30).map(item => ({ value: item.id, label: item.id, hint: modelSummary(item) }))} />
         {info && <small id={id + '-info'} className={info.warning ? 'model-info warning' : 'model-info'}>{info.text}</small>}
     </div>;
 }
