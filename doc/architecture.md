@@ -29,15 +29,15 @@
 | `platform` | Безпека, CSRF, помилки API, SSE-шина, годинник, черга робіт у Postgres | — |
 | `account` | Реєстрація, вхід, сесії, email-листи, нік, профіль «про себе» | platform |
 | `access` | `AccessPolicy`: єдине місце, де вирішується «чи можна» | account, team |
-| `team` | Команди, учасники, ролі, режим редакторів | account |
-| `catalog` | Новели (оригінали), переклади, теги, каталог, стрічки головної | team |
+| `team` | Команди, учасники, ролі | account |
+| `catalog` | Новели (оригінали), переклади, естафета, теги, каталог, стрічки головної | team |
 | `text` | Глави, ревізії, публікація, diff, повний редактор, внесок | catalog, access |
 | `suggestion` | Правки читачів, заміни «всі входження», перевірка | text, access |
 | `reading` | Бібліотека, прогрес читання між пристроями, оцінки перекладу | catalog |
 | `source` | Джерела оригіналів: Syosetu, ручний текст; імпорт і блоки | — |
 | `ai` | Клієнт OpenRouter, каталог моделей і цін, журнал викликів | platform |
 | `autotranslate` | Кошторис, запуск «до глави N», конвеєр аналіз → переклад → вичитка, словник | source, text, ai, billing |
-| `billing` | Книга записів, баланси, резерви, ціни й курс, порт оплат | account, team |
+| `billing` | Книга записів у кроках, баланси, резерви, пакети, собівартість | account, team |
 | `payment` | Адаптери платіжних сервісів (спершу — лише ручне нарахування) | billing |
 | `illustration` | Завантаження й генерація картинок за фрагментом | ai, billing, text |
 | `community` | Коментарі, чат, розмітка, згадки людей і команд, голоси | account, team |
@@ -69,31 +69,43 @@
 - Автозбереження чернетки редактора — окремий рядок `editor_draft`, а не ревізія.
 
 ### Автопереклад
-- **Кошторис:** оригінали потрібних глав завантажуються безкоштовно. Токени рахуються
-  за `o200k_base`. Ціна = собівартість моделі (з запасом на аналіз і вичитку)
-  × (1 + націнка) × курс USD→UAH із запасом. Користувач бачить «≈ 38 ₴, не більше 45 ₴».
-- **Запуск:** резервуємо «не більше» в книзі записів. Кожен крок фіксує фактичну
-  собівартість. Після завершення списується факт із націнкою (але не більше резерву),
-  решта повертається.
-- **Черга в Postgres:** `job` і `job_step` (глава × етап). Воркери беруть кроки через
-  `FOR UPDATE SKIP LOCKED`. Кожен крок ідемпотентний. Журнал `ai_call` зі станами
+- **Кошторис:** оригінали потрібних глав завантажуються безкоштовно. Ціна глави
+  в кроках = ⌈знаків оригіналу / 10 000⌉ (межа — налаштування сайту). Користувач
+  бачить точну суму: «6 глав · 7 кроків».
+- **Запуск:** кроки резервуються на весь діапазон. Після публікації кожної глави
+  списується її ціна. Якщо запуск скасовано або глава не вдалася, кроки неперекладених
+  глав повертаються.
+- **Собівартість** у доларах пишеться в `ai_call` і не впливає на ціну для користувача.
+  Звіт «собівартість кроку» в адмінці показує, чи вистачає запасу.
+- **Черга в Postgres:** `job` і `job_step` (глава × етап). Воркери беруть етапи через
+  `FOR UPDATE SKIP LOCKED`. Кожен етап ідемпотентний. Журнал `ai_call` зі станами
   `pending/complete/failed/uncertain`: невідомий результат автоматично не повторюється,
-  як у v1.
+  як у v1. Гарантовано неоплачені збої (помилка до відправки, 429, 5xx з відповіддю
+  провайдера) повторюються самі з паузою. Людина потрібна лише для `uncertain`.
+  В аудиті v1 на 10 глав пішло 8 запусків — такого бути не повинно.
 - Переклад завершеної глави створює ревізію й одразу її публікує. Діапазон:
   від першої неперекладеної глави до вказаної. Уже перекладені глави не чіпаються.
 
-### Гроші
-- Облік — **книга записів** (подвійний запис) у **копійках гривні**. Кожна операція —
+### Кроки й гроші
+- Облік — **книга записів** (подвійний запис) у **кроках**. Кожна операція —
   транзакція з кількох рядків, сума рядків = 0. Баланс рахунку = сума його рядків.
   Кешований `balance` на рахунку оновлюється в тій самій транзакції під блокуванням рядка.
-- Рахунки: `user:{id}`, `team:{id}` і системні (`cash_in` — гроші від платежів,
-  `grants` — ручні нарахування, `provider_cost` — собівартість моделей,
-  `revenue` — націнка, `holds` — резерви).
-- Собівартість моделей зберігається в доларах (мікродолари) в `ai_call`.
-  У гривні переводиться за курсом, зафіксованим у задачі.
+- Рахунки: `user:{id}`, `team:{id}` і системні (`sold` — продані пакети,
+  `granted` — ручні нарахування, `spent` — витрачені кроки, `holds` — резерви).
+- Користувач бачить лише кроки. Гривні — тільки в ціні пакета під час оплати.
+- Гроші окремо від кроків: `payment` зберігає суму в копійках і кількість нарахованих
+  кроків. Собівартість — у мікродоларах в `ai_call`.
 - Модуль `payment` має порт `PaymentProvider` (створити платіж, перевірити webhook).
   Перший адаптер — ручне нарахування власником. Paddle, Lemon Squeezy тощо
   додаються без змін у `billing`.
+
+### Естафета перекладу
+- `translation.status = abandoned` ставить власник. «Вільний для продовження» не
+  зберігається, а обчислюється: `abandoned`, або власник неактивний довше
+  `takeover.inactive_months`, або запит на продовження без відповіді довше 14 днів.
+- Продовження — новий `translation` іншої команди з `continues_translation_id` і
+  `first_number`. Читалка за цим зв'язком веде з останньої глави старого перекладу
+  на наступну нового. Словник можна скопіювати при створенні.
 
 ### Розмітка коментарів і чату
 Джерело — простий текст із маркерами `**жирний**`, `*курсив*`, `__підкреслений__`,
@@ -104,13 +116,14 @@
 ## Схема даних
 
 Скорочено: `id bigint generated always as identity`, `created_at timestamptz` —
-скрізь, де не сказано інше. Гроші — `bigint` копійок. Долари — `bigint` мікродоларів.
+скрізь, де не сказано інше. Кроки — `bigint`. Гривні — `bigint` копійок.
+Долари — `bigint` мікродоларів.
 
 ### account
 ```
 account          id, nick, nick_key unique, email unique, email_verified_at,
                  password_hash, site_role (reader|moderator|admin|owner),
-                 bio, avatar_image_id, created_at, deleted_at
+                 bio, avatar_image_id, last_seen_at, created_at, deleted_at
 nick_change      account_id, old_nick, new_nick, changed_at
 email_token      token_hash pk, account_id, purpose (verify|reset), email, expires_at, used_at
 spring_session*  таблиці Spring Session JDBC
@@ -118,10 +131,10 @@ spring_session*  таблиці Spring Session JDBC
 
 ### team
 ```
-team             id, name (null → нік власника), slug unique, owner_id → account,
-                 editors_mode (listed|everyone), created_at
+team             id, name (null → нік власника), slug unique, owner_id → account, created_at
 team_member      team_id, account_id, role (translator|editor), added_by, added_at,
                  pk (team_id, account_id)
+                 -- пропонувати правки може кожен; погоджують перекладачі й редактори
 ```
 
 ### catalog
@@ -131,8 +144,12 @@ novel            id, source (syosetu|manual), source_key unique null, source_url
                  slug unique
 novel_tag        novel_id, tag_id           tag: id, name, slug unique
 translation      id, novel_id, team_id, title_uk, author_uk, description_uk,
-                 kind (human|machine|mixed), status (ongoing|completed|paused|dropped),
-                 hidden_at, hidden_reason, created_at, unique (novel_id, team_id)
+                 kind (human|machine|mixed), status (ongoing|completed|paused|abandoned),
+                 continues_translation_id null, first_number (1 або N+1 для естафети),
+                 last_published_at, hidden_at, hidden_reason, created_at,
+                 unique (novel_id, team_id)
+takeover_request id, translation_id, team_id, requested_by, created_at,
+                 state (open|declined|granted|expired), answered_at
 ```
 
 ### source
@@ -159,9 +176,11 @@ contribution     revision_id, account_id, blocks_changed, chars_changed
 ### suggestion
 ```
 suggestion       id, chapter_id, base_revision_id, author_id,
-                 kind (block|replace), block_id, original_text, proposed_text,
+                 batch_id, kind (block|replace|chapter), block_id, original_text, proposed_text,
+                 proposed_blocks jsonb null (для kind = chapter — повний редактор),
                  find, replacement, scope (chapter|translation), note,
                  state (draft|pending|accepted|rejected|withdrawn|stale),
+                 -- draft збирається в пакет; надсилається пакетом; прийнятий пакет = 1 ревізія на главу
                  reviewer_id, reviewed_at, review_note, applied_revision_id
 ```
 
@@ -172,7 +191,7 @@ glossary_entry   id, translation_id, key, japanese, reading, ukrainian, aliases 
 glossary_proposal id, translation_id, job_id, payload jsonb, fingerprint, state
 job              id, translation_id, requested_by, kind (translate|proofread|illustrate),
                  first_number, last_number, state (queued|running|done|failed|cancelled),
-                 quote_kop, hold_tx_id, charged_kop, fx_rate, markup_pct,
+                 quote_steps, hold_tx_id, charged_steps,
                  settings jsonb (моделі й ціни на момент запуску), error, created_at, finished_at
 job_step         id, job_id, chapter_number, stage (fetch|analyze|translate|proofread|publish),
                  segment, state, attempts, locked_until, result jsonb
@@ -184,13 +203,14 @@ model_catalog    model, prices jsonb, capabilities jsonb, fetched_at
 
 ### billing і payment
 ```
-ledger_account   id, kind (user|team|system), owner_id null, code null, balance_kop,
+ledger_account   id, kind (user|team|system), owner_id null, code null, balance_steps,
                  unique (kind, owner_id), unique (code)
-ledger_tx        id, kind (topup|grant|hold|capture|release|transfer|refund|adjust),
+ledger_tx        id, kind (purchase|grant|hold|capture|release|transfer|refund|adjust),
                  actor_id, job_id null, payment_id null, memo, created_at
-ledger_entry     tx_id, account_id, amount_kop     -- sum(amount_kop) по tx = 0
-fx_rate          day pk, usd_uah, source
-payment          id, provider, external_id, account_id, amount_kop, state
+ledger_entry     tx_id, account_id, amount_steps   -- sum(amount_steps) по tx = 0
+step_pack        id, steps, price_kop, active       -- пакети задає власник сайту
+fx_rate          day pk, usd_uah, source            -- лише для звіту собівартості
+payment          id, provider, external_id, account_id, pack_id, amount_kop, steps, state
                  (created|paid|failed|refunded), raw jsonb, created_at,
                  unique (provider, external_id)
 ```

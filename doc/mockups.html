@@ -249,14 +249,15 @@ td:last-child { text-align: right; }
     <div class="row" style="gap:8px">
       <div class="btn sec sm" style="flex:1">← 11</div>
       <div class="btn sec sm" style="flex:1">💬 4</div>
-      <div class="btn sec sm" style="flex:1">✎</div>
+      <div class="btn sec sm" style="flex:1">✎ 2</div>
       <div class="btn sm" style="flex:1">13 →</div>
     </div>
   </div>
 </div>
 <figcaption><b>3 · Читалка — панель показана</b>
   <ul><li>За замовчуванням лише текст. Дотик по центру показує панелі: зміст, розмір і тема («Аа»), прогрес, сусідні глави, коментарі.</li>
-  <li>Позиція читання синхронізується між пристроями.</li></ul>
+  <li>Позиція читання синхронізується між пристроями.</li>
+  <li>«✎ 2» — ненадіслані правки цієї глави, звідси ж — «Надіслати пакет».</li></ul>
 </figcaption>
 </figure>
 
@@ -278,15 +279,15 @@ td:last-child { text-align: right; }
     <div class="field muted sm" style="margin-top:8px">Пояснення (необов'язково)</div>
     <div class="row" style="gap:8px;margin-top:12px">
       <div class="btn sec" style="flex:1">Скасувати</div>
-      <div class="btn" style="flex:1.4">Надіслати</div>
+      <div class="btn" style="flex:1.4">Додати до пакета</div>
     </div>
-    <div class="xs faint" style="margin-top:8px;text-align:center">Правка йде редакторам одразу. Пакетів і «Надіслати правки» наприкінці більше немає.</div>
+    <div class="xs faint" style="margin-top:8px;text-align:center">У пакеті вже 2 правки. Надіслати — з панелі читалки або наприкінці глави.</div>
   </div>
 </div>
 <figcaption><b>4 · Читалка — запропонувати правку</b>
   <ul><li>Виділив → «Виправити» → шторка з абзацом і підсвіченою різницею.</li>
   <li>«Замінити всюди» — та сама шторка з лічильником входжень у главі чи в усьому перекладі.</li>
-  <li>Відкрите питання 7 у plan.md: чи лишати пакети правок.</li></ul>
+  <li>Правки збираються в пакет і зберігаються на сервері, тож не губляться. Прийнятий пакет — одна ревізія глави.</li></ul>
 </figcaption>
 </figure>
 
@@ -341,20 +342,20 @@ td:last-child { text-align: right; }
     <div class="row between xs faint"><span>1</span><span>44 готові</span><span>935</span></div>
 
     <div class="quote" style="margin-top:16px">
-      <div class="row between"><span class="muted sm">Вартість</span><span class="xs faint">≈ 6,3 ₴ за главу</span></div>
-      <div class="row between" style="align-items:baseline;margin-top:4px"><span class="money">≈ 38 ₴</span><span class="sm muted">не більше 45 ₴</span></div>
+      <div class="row between"><span class="muted sm">Вартість</span><span class="xs faint">1 крок = 1 глава до 10 000 знаків</span></div>
+      <div class="row between" style="align-items:baseline;margin-top:4px"><span class="money">7 кроків</span><span class="sm muted">6 глав, одна довга</span></div>
       <table style="margin-top:10px">
-        <tr><td class="muted">Бюджет команди panrid</td><td>12 ₴</td></tr>
-        <tr><td class="muted">Докласти з вашого балансу</td><td>33 ₴</td></tr>
+        <tr><td class="muted">Бюджет команди panrid</td><td>86 кроків</td></tr>
+        <tr><td class="muted">Лишиться після запуску</td><td>79 кроків</td></tr>
       </table>
     </div>
-    <div class="btn" style="margin-top:14px">Запустити за ≈ 38 ₴</div>
-    <div class="xs faint" style="text-align:center;margin-top:8px">Списується фактична вартість, решта повертається. Скасувати можна будь-коли.</div>
+    <div class="btn" style="margin-top:14px">Запустити за 7 кроків</div>
+    <div class="xs faint" style="text-align:center;margin-top:8px">Кроки за глави, які не вдалося перекласти або скасовано, повертаються.</div>
   </div>
 </div>
 <figcaption><b>6 · Запуск автоперекладу</b>
   <ul><li>Одне питання: «до якої глави». Перекладається з першої неперекладеної. Готові глави не чіпаються.</li>
-  <li>Ціна в гривнях — до запуску. Якщо бюджету команди бракує, власник докладає різницю тут же.</li>
+  <li>Ціна в кроках — точна, до запуску. Якщо бюджету бракує, власник команди поповнює його тут же зі своїх кроків.</li>
   <li>Модель, словник і вичитка — налаштування перекладу в Студії, не в цій формі.</li></ul>
 </figcaption>
 </figure>
@@ -391,7 +392,7 @@ td:last-child { text-align: right; }
     <div class="card">
       <div class="row between"><span class="sm">Переклад глав 45–50</span><span class="pill-state run">триває</span></div>
       <div class="bar" style="margin:10px 0 6px"><i style="width:45%"></i></div>
-      <div class="row between xs muted"><span>глава 47 · вичитка</span><span>витрачено 17 ₴ з 45</span></div>
+      <div class="row between xs muted"><span>глава 47 · вичитка</span><span>3 з 7 кроків</span></div>
     </div>
     <div class="stats" style="margin-top:10px">
       <div class="stat"><b>44 / 935</b><span class="sm muted">глав опубліковано</span></div>
@@ -404,7 +405,8 @@ td:last-child { text-align: right; }
       <div><span>Аあ Словник</span><span class="v">212 ›</span></div>
       <div><span>ⓘ Дані перекладу</span><span class="v">›</span></div>
       <div><span>⚑ Команда panrid</span><span class="v">3 людини ›</span></div>
-      <div><span>₴ Бюджет команди</span><span class="v">12 ₴ ›</span></div>
+      <div><span>◆ Бюджет команди</span><span class="v">79 кроків ›</span></div>
+      <div><span>⇢ Естафета</span><span class="v">1 запит ›</span></div>
     </div>
   </div>
   <div class="tabbar"><span data-i="⌂">Головна</span><span data-i="⌕">Пошук</span><span data-i="❏">Бібліотека</span><span data-i="✉">Вхідні</span><span class="on" data-i="◯">Я</span></div>
@@ -430,8 +432,7 @@ td:last-child { text-align: right; }
       <div><span class="row"><span class="av">m</span>mika</span><span class="v">перекладач ▾</span></div>
       <div><span class="row"><span class="av">o</span>oleh_k</span><span class="v">редактор ▾</span></div>
     </div>
-    <h3>Хто редагує</h3>
-    <div class="seg"><span class="on">Лише вибрані</span><span>Усі користувачі</span></div>
+    <div class="xs faint" style="margin-top:8px">Пропонувати правки може кожен. Погоджують перекладачі й редактори.</div>
     <h3>Внесок <small>30 днів</small></h3>
     <table>
       <tr><td>mika</td><td class="muted">42 правки · 11 глав</td></tr>
@@ -439,12 +440,40 @@ td:last-child { text-align: right; }
       <tr><td>читачі</td><td class="muted">23 прийняті правки</td></tr>
     </table>
     <h3>Бюджет <small>історія →</small></h3>
-    <div class="row between"><span class="money" style="font-size:26px">12 ₴</span><span class="btn sec sm">Поповнити зі свого</span></div>
+    <div class="row between"><span class="money" style="font-size:26px">79 кроків</span><span class="btn sec sm">Поповнити зі своїх</span></div>
   </div>
 </div>
 <figcaption><b>9 · Команда</b>
-  <ul><li>Назва, ролі, режим редакторів, внесок і бюджет — на одній сторінці.</li>
+  <ul><li>Назва, ролі, внесок і бюджет — на одній сторінці. Поповнює бюджет лише власник команди.</li>
   <li>Команду тегають як <code>@panrid</code>. Сповіщення отримують власник і перекладачі.</li></ul>
+</figcaption>
+</figure>
+
+<!-- 9b. Естафета -->
+<figure>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="screen pad reader" style="padding-top:14px">
+    <p>…і Рьо зачинив за собою двері бібліотеки.</p>
+    <div style="text-align:center;color:var(--faint);margin:10px 0 18px">◇</div>
+    <div class="card" style="font-family:var(--sans)">
+      <div class="sm muted">Переклад команди kitsune_team зупинився на главі 44</div>
+      <div style="font-weight:600;margin:6px 0 4px">Переклад вільний для продовження</div>
+      <div class="sm muted">Власник позначив його покинутим 12 серпня.</div>
+    </div>
+    <div class="card" style="font-family:var(--sans);margin-top:10px">
+      <div class="row between"><b style="font-weight:500">Продовження від panrid</b><span class="chip ghost">ШІ</span></div>
+      <div class="sm muted" style="margin:4px 0 10px">глави 45–58 · словник перенесено</div>
+      <div class="btn">Читати главу 45 →</div>
+    </div>
+    <div class="btn sec" style="margin-top:14px;font-family:var(--sans)">Продовжити переклад самому</div>
+    <div class="xs faint" style="text-align:center;margin-top:8px;font-family:var(--sans)">Ваш переклад почнеться з глави 45. Глави 1–44 лишаються за kitsune_team.</div>
+  </div>
+</div>
+<figcaption><b>9b · Естафета</b>
+  <ul><li>Кінець останньої глави перекладу, який власник покинув або не заходив на сайт 3 місяці.</li>
+  <li>Якщо продовження вже є, читалка веде на нього. Якщо ні, можна почати своє з наступної глави.</li>
+  <li>Кожна команда платить за свої глави, гроші не переходять.</li></ul>
 </figcaption>
 </figure>
 
@@ -482,31 +511,31 @@ td:last-child { text-align: right; }
 <figure>
 <div class="phone">
   <div class="status"><span>9:41</span><span>●●● ▮</span></div>
-  <div class="top"><span class="ic">←</span><h2>Баланс</h2></div>
+  <div class="top"><span class="ic">←</span><h2>Кроки</h2></div>
   <div class="screen pad">
     <div class="card" style="padding:16px">
       <div class="sm muted">Доступно</div>
-      <div class="money" style="margin:6px 0 2px">127,40 ₴</div>
-      <div class="xs faint">ще 45 ₴ зарезервовано під переклад «Маг води»</div>
+      <div class="money" style="margin:6px 0 2px">127 кроків</div>
+      <div class="xs faint">1 крок — одна глава автоперекладу</div>
     </div>
     <div class="label">Поповнити</div>
-    <div class="chips" style="gap:8px"><span class="chip" style="padding:8px 14px">100 ₴</span><span class="chip acc" style="padding:8px 14px">200 ₴</span><span class="chip" style="padding:8px 14px">500 ₴</span><span class="chip ghost" style="padding:8px 14px">інша</span></div>
-    <div class="btn" style="margin-top:12px">Оплатити 200 ₴</div>
-    <div class="xs faint" style="text-align:center;margin-top:6px">≈ 30 глав автоперекладу середньої довжини</div>
+    <div class="chips" style="gap:8px"><span class="chip" style="padding:8px 14px">50 кроків</span><span class="chip acc" style="padding:8px 14px">100 кроків</span><span class="chip" style="padding:8px 14px">300 кроків</span></div>
+    <div class="btn" style="margin-top:12px">Купити 100 кроків · — ₴</div>
+    <div class="xs faint" style="text-align:center;margin-top:6px">Ціни пакетів з'являться після статистики. Поки кроки нараховує адміністрація.</div>
     <h3>Історія</h3>
     <table>
-      <tr><td>Резерв · Маг води 45–50<div class="xs faint">сьогодні</div></td><td>−45,00</td></tr>
-      <tr><td>Переклад · Маг води 41–44<div class="xs faint">вчора, повернено 4,10</div></td><td>−23,90</td></tr>
-      <tr><td>У бюджет команди panrid<div class="xs faint">12 вер</div></td><td>−20,00</td></tr>
-      <tr><td>Поповнення карткою<div class="xs faint">10 вер</div></td><td class="pos">+200,00</td></tr>
-      <tr><td>Нараховано адміністрацією<div class="xs faint">1 вер</div></td><td class="pos">+50,00</td></tr>
+      <tr><td>У бюджет команди panrid<div class="xs faint">сьогодні</div></td><td>−50</td></tr>
+      <tr><td>Переклад · Сто ночей 101–102<div class="xs faint">вчора</div></td><td>−2</td></tr>
+      <tr><td>Повернено · Сто ночей 103<div class="xs faint">вчора, глава не вдалася</div></td><td class="pos">+1</td></tr>
+      <tr><td>Пакет «100 кроків»<div class="xs faint">10 вер</div></td><td class="pos">+100</td></tr>
+      <tr><td>Нараховано адміністрацією<div class="xs faint">1 вер</div></td><td class="pos">+78</td></tr>
     </table>
   </div>
 </div>
-<figcaption><b>11 · Баланс і поповнення</b>
-  <ul><li>Залишок, поповнення й історія — на одній сторінці («Я → Баланс»).</li>
-  <li>Історія — рядки книги записів людською мовою. Резерв видно окремо.</li>
-  <li>Кнопка оплати веде до платіжного сервісу, який ще не вибрано.</li></ul>
+<figcaption><b>11 · Кроки</b>
+  <ul><li>Залишок, купівля й історія — на одній сторінці («Я → Кроки»). Гривні — лише в ціні пакета.</li>
+  <li>Історія — рядки книги записів людською мовою.</li>
+  <li>Кнопка купівлі веде до платіжного сервісу, який ще не вибрано.</li></ul>
 </figcaption>
 </figure>
 
@@ -520,19 +549,20 @@ td:last-child { text-align: right; }
       <div class="stat"><b>3</b><span class="sm muted">скарги</span></div>
       <div class="stat"><b>2</b><span class="sm muted">переклади в черзі</span></div>
       <div class="stat"><b>$41.20</b><span class="sm muted">OpenRouter</span></div>
-      <div class="stat"><b>+1 480 ₴</b><span class="sm muted">надходження, вересень</span></div>
+      <div class="stat"><b>$0,021</b><span class="sm muted">собівартість кроку, 30 днів</span></div>
     </div>
     <div class="list" style="margin-top:8px">
       <div><span>⚠ Модерація</span><span class="v"><span class="chip acc">3</span> ›</span></div>
       <div><span>👤 Користувачі й ролі</span><span class="v">›</span></div>
-      <div><span>₴ Фінанси</span><span class="v">›</span></div>
+      <div><span>◆ Кроки й фінанси</span><span class="v">›</span></div>
       <div><span>⚙ Моделі й налаштування</span><span class="v">›</span></div>
       <div><span>☷ Журнал дій</span><span class="v">›</span></div>
     </div>
-    <h3>Фінанси · ціни</h3>
+    <h3>Кроки</h3>
     <div class="card">
-      <div class="row between sm"><span class="muted">Націнка</span><b>35%</b></div>
-      <div class="row between sm" style="margin-top:8px"><span class="muted">Курс USD→UAH (НБУ + 3%)</span><b>42,85</b></div>
+      <div class="row between sm"><span class="muted">Перекладено глав</span><b>312 / 1000 для статистики</b></div>
+      <div class="row between sm" style="margin-top:8px"><span class="muted">Нараховано вручну, вересень</span><b>1 200 кроків</b></div>
+      <div class="row between sm" style="margin-top:8px"><span class="muted">Межа довгої глави</span><b>10 000 знаків</b></div>
       <div class="row between sm" style="margin-top:8px"><span class="muted">Модель перекладу</span><b>gpt-4o-mini</b></div>
     </div>
   </div>
