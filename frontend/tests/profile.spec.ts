@@ -108,3 +108,21 @@ test('user panel explains roles, saves allowed changes and blocks protected acco
     await expect(page.locator('tr[aria-selected="true"]')).toContainText('Редактор');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test('logout notice does not survive signing in again', async ({ page }) => {
+    let user: { id: string; username: string; role: string } | null = { ...reader };
+    await page.route('**/api/auth/me', route => route.fulfill({ json: { user, registrationOpen: true } }));
+    await page.route('**/api/auth/logout', route => { user = null; return route.fulfill({ status: 204 }); });
+    await page.route('**/api/auth/login', route => { user = { ...reader }; return route.fulfill({ status: 204 }); });
+    await page.route('**/api/novels/search?*', route => route.fulfill({ json: pageData([]) }));
+    await page.route('**/api/tags?*', route => route.fulfill({ json: { items: [] } }));
+    await page.goto('/#/profile');
+    await page.route('**/api/profile', route => route.fulfill({ json: { ...reader, email: 'r@example.test', nicknameChanges: 0, nicknameAvailableAt: null } }));
+    await page.getByRole('button', { name: 'Вийти' }).click();
+    await page.getByRole('link', { name: 'Увійти' }).click();
+    await page.getByLabel('Email або нік', { exact: true }).fill('reader');
+    await page.getByLabel('Пароль', { exact: true }).fill('long-enough-password');
+    await page.getByRole('button', { name: 'Увійти', exact: true }).click();
+    await expect(page.getByRole('link', { name: /reader · Читач/ })).toBeVisible();
+    await expect(page.getByText('Ви вийшли.')).toHaveCount(0);
+});

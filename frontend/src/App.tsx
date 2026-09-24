@@ -25,6 +25,9 @@ export function App() {
     const guarded = (role: Role, page: ReactNode) => auth.loading ? <p role="status">Перевіряємо сесію…</p>
         : permits(auth.user, role) ? page : <div className="status-panel"><h1>Потрібен доступ</h1><p>Ця сторінка потребує ролі «{roleNames[role]}».</p><a href="#/login">Увійти</a></div>;
     const [path, setPath] = useState(currentPath);
+    const clearNotice = action.clear;
+    // Page-level notices ("Ви вийшли") belong to the moment they happened, not to the next page or session.
+    useEffect(() => { clearNotice(); }, [path, auth.user?.id, clearNotice]);
     useEffect(() => {
         const changed = () => { setPath(currentPath()); window.scrollTo(0, 0); };
         window.addEventListener('hashchange', changed);
