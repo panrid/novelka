@@ -1163,6 +1163,77 @@ class AccessIntegrationTest {
         }
     }
 
+    /** The newest letter to an address; tests run without MAIL_HOST, so letters stay in memory. */
+    private static panrid.space.novelka.server.mail.Letter letterTo(String email) {
+        return application.getBean(panrid.space.novelka.server.mail.MailService.class).recent().stream()
+                .filter(letter -> letter.to().equals(email)).findFirst().orElse(null);
+    }
+
+    private static String tokenFrom(panrid.space.novelka.server.mail.Letter letter) {
+        var matcher = java.util.regex.Pattern.compile("token=([A-Za-z0-9_-]{43})").matcher(letter.text());
+        assertTrue(matcher.find(), letter.text());
+        return matcher.group(1);
+    }
+
+    @Test
+    void emailConfirmationAndPasswordResetUseOneTimeLinks() throws Exception {
+        String name = "mail" + UUID.randomUUID().toString().substring(0, 8);
+        String email = name + "@example.test";
+        try (var anonymous = browser(); var reader = browser(); var sql = jdbc()) {
+            assertEquals(200, post(anonymous, "/auth/register", Map.of("username", name, "email", email, "password", PASSWORD)).statusCode());
+            var confirmation = letterTo(email);
+            assertNotNull(confirmation, "registration sends a confirmation letter");
+            assertTrue(confirmation.text().contains("/#/verify-email?token="));
+            assertTrue(confirmation.html().contains("Підтвердити email"));
+            assertEquals(0, sql.rows("SELECT 1 FROM email_tokens WHERE token_hash=?", tokenFrom(confirmation)).size(), "only the hash is stored");
+            login(reader, name);
+            assertFalse(body(get(reader, "/profile")).path("emailVerified").asBoolean());
+            assertEquals(429, post(reader, "/profile/email/verification", Map.of()).statusCode(), "one letter a minute");
+            assertEquals(400, post(anonymous, "/auth/verify-email", Map.of("token", "x".repeat(43))).statusCode());
+            assertEquals(200, post(anonymous, "/auth/verify-email", Map.of("token", tokenFrom(confirmation))).statusCode());
+            assertEquals(400, post(anonymous, "/auth/verify-email", Map.of("token", tokenFrom(confirmation))).statusCode(), "links work once");
+            assertTrue(body(get(reader, "/profile")).path("emailVerified").asBoolean());
+            assertEquals(400, post(reader, "/profile/email/verification", Map.of()).statusCode(), "already confirmed");
+
+            var unknown = post(anonymous, "/auth/password-reset", Map.of("email", "nobody-" + name + "@example.test"));
+            var known = post(anonymous, "/auth/password-reset", Map.of("email", email.toUpperCase()));
+            assertEquals(200, unknown.statusCode());
+            assertEquals(body(unknown).path("message").asText(), body(known).path("message").asText(), "same answer for unknown addresses");
+            var reset = letterTo(email);
+            assertTrue(reset.subject().contains("Відновлення пароля"));
+            String token = tokenFrom(reset);
+            post(anonymous, "/auth/password-reset", Map.of("email", email));
+            assertEquals(token, tokenFrom(letterTo(email)), "a second request within a minute sends nothing");
+
+            assertEquals(400, post(anonymous, "/auth/password-reset/confirm", Map.of("token", token, "password", "short")).statusCode());
+            String changed = "new-password-for-test-5678";
+            assertEquals(200, post(anonymous, "/auth/password-reset/confirm", Map.of("token", token, "password", changed)).statusCode());
+            assertEquals(400, post(anonymous, "/auth/password-reset/confirm", Map.of("token", token, "password", changed)).statusCode());
+            try (var fresh = browser()) {
+                var form = fresh.send(java.net.http.HttpRequest.newBuilder(URI.create(base + "/auth/login"))
+                        .header("Content-Type", "application/x-www-form-urlencoded")
+                        .header(body(get(fresh, "/auth/csrf")).path("headerName").asText(), body(get(fresh, "/auth/csrf")).path("token").asText())
+                        .POST(java.net.http.HttpRequest.BodyPublishers.ofString("username=" + name + "&password=" + changed)).build(),
+                        java.net.http.HttpResponse.BodyHandlers.ofString());
+                assertEquals(204, form.statusCode(), "the new password works");
+            }
+            assertEquals(1, sql.rows("SELECT 1 FROM audit_events WHERE action='account.password-reset' AND target=?",
+                    body(get(reader, "/profile")).path("id").asText()).size());
+
+            sql.exec("UPDATE email_tokens SET created_at=created_at-interval '2 minutes' WHERE email=?", email);
+            post(anonymous, "/auth/password-reset", Map.of("email", email));
+            String stale = tokenFrom(letterTo(email));
+            sql.exec("UPDATE email_tokens SET expires_at=now()-interval '1 second' WHERE email=? AND used_at IS NULL", email);
+            assertEquals(400, post(anonymous, "/auth/password-reset/confirm", Map.of("token", stale, "password", changed)).statusCode(), "expired");
+
+            sql.exec("UPDATE email_tokens SET created_at=created_at-interval '2 minutes' WHERE email=?", email);
+            String other = name + "-new@example.test";
+            assertEquals(200, post(reader, "/profile/email", Map.of("email", other, "password", changed)).statusCode());
+            assertFalse(body(get(reader, "/profile")).path("emailVerified").asBoolean(), "a new address needs confirmation");
+            assertNotNull(letterTo(other));
+        }
+    }
+
     @Test
     void selfApprovalSettingAppliesOnlyToAdminsAndIsEnforcedByBackend() throws Exception {
         String novel = seed();

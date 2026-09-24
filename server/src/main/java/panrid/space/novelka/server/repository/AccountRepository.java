@@ -47,8 +47,28 @@ public final class AccountRepository {
         return !jdbc.rows("SELECT id FROM accounts WHERE email=? AND id<>?", email, exceptId).isEmpty();
     }
 
+    /** A new address is unconfirmed until its owner opens the confirmation link. */
     public void updateEmail(String id, String email) throws Exception {
-        jdbc.exec("UPDATE accounts SET email=? WHERE id=?", email, id);
+        jdbc.exec("UPDATE accounts SET email=?,email_verified_at=CASE WHEN email=? THEN email_verified_at END WHERE id=?", email, email, id);
+    }
+
+    public boolean emailVerified(String id) throws Exception {
+        return !jdbc.rows("SELECT 1 FROM accounts WHERE id=? AND email_verified_at IS NOT NULL", id).isEmpty();
+    }
+
+    /** Confirms the address only if it is still the account's current one. */
+    public boolean markVerified(String id, String email) throws Exception {
+        return !jdbc.rows("UPDATE accounts SET email_verified_at=COALESCE(email_verified_at,now()) WHERE id=? AND email=? RETURNING id",
+                id, email).isEmpty();
+    }
+
+    public void updatePassword(String id, String hash) throws Exception {
+        jdbc.exec("UPDATE accounts SET password_hash=? WHERE id=?", hash, id);
+    }
+
+    public Map<String, Object> byEmail(String email) throws Exception {
+        var rows = jdbc.rows("SELECT id,username,email FROM accounts WHERE email=?", email);
+        return rows.isEmpty() ? null : rows.getFirst();
     }
 
     public void rename(String id, String previous, String nickname) throws Exception {

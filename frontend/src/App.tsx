@@ -10,6 +10,8 @@ import { AuditPage } from './pages/AuditPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { ChatPage } from './pages/ChatPage';
 import { LibraryPage } from './pages/LibraryPage';
+import { PasswordResetPage } from './pages/PasswordResetPage';
+import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { ManagePage } from './pages/ManagePage';
 import { useAuth, permits, roleNames, type Role } from './auth/AuthContext';
 import { useAction } from './hooks/useAction';
@@ -46,6 +48,9 @@ export function App() {
         } else if (section === '/') {
             content = <CatalogPage />;
         } else if (path === '/login') content = <AuthPage />;
+        else if (section === '/forgot-password') content = <PasswordResetPage token="" />;
+        else if (section === '/reset-password') content = <PasswordResetPage key={path} token={new URLSearchParams(path.split('?')[1]).get('token') ?? ''} />;
+        else if (section === '/verify-email') content = <VerifyEmailPage key={path} token={new URLSearchParams(path.split('?')[1]).get('token') ?? ''} />;
         else if (section === '/corrections') content = guarded('READER', <CorrectionsPage />);
         else if (path === '/profile') content = guarded('READER', <ProfilePage />);
         else if (path === '/chat') content = guarded('READER', <ChatPage />);

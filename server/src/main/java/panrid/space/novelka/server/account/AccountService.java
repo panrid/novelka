@@ -78,6 +78,7 @@ public final class AccountService {
             result.put("id", account.id());
             result.put("username", account.username());
             result.put("email", accounts.email(account.id()));
+            result.put("emailVerified", accounts.emailVerified(account.id()));
             result.put("role", account.role());
             result.put("nicknameChanges", ((Number) stats.get("changes")).intValue());
             var available = nicknameAvailableAt(stats);
@@ -152,7 +153,7 @@ public final class AccountService {
         return address;
     }
 
-    private static void validatePassword(String password) {
+    static void validatePassword(String password) {
         if (password == null || password.length() < 12 || password.getBytes(StandardCharsets.UTF_8).length > 72)
             throw new IllegalArgumentException("Пароль: щонайменше 12 символів і не більше 72 байтів UTF-8.");
     }

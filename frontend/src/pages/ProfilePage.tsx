@@ -9,7 +9,7 @@ import { BalanceSummary } from '../components/BalanceSummary';
 import { HelpTip } from '../components/HelpTip';
 
 interface Profile {
-    id: string; username: string; email: string | null; role: Role; nicknameChanges: number; nicknameAvailableAt: string | null;
+    id: string; username: string; email: string | null; emailVerified?: boolean; role: Role; nicknameChanges: number; nicknameAvailableAt: string | null;
 }
 const dateTime = new Intl.DateTimeFormat('uk-UA', { dateStyle: 'long', timeStyle: 'short' });
 
@@ -22,6 +22,7 @@ export function ProfilePage() {
     const [password, setPassword] = useState('');
     const nicknameAction = useAction();
     const emailAction = useAction();
+    const verifyAction = useAction();
     useEffect(() => { if (resource.data) setProfile(resource.data); }, [resource.data]);
     if (resource.error) return <ErrorState message={resource.error} retry={resource.retry} />;
     if (!profile) return <Loading />;
@@ -29,7 +30,9 @@ export function ProfilePage() {
     return <div className="page workspace profile-page"><p className="eyebrow">Обліковий запис</p><h1>Профіль</h1>
         <dl className="profile-summary">
             <div><dt>Нік</dt><dd>{profile.username}</dd></div>
-            <div><dt>Email</dt><dd>{profile.email ?? <span className="muted">не вказано</span>}</dd></div>
+            <div><dt>Email</dt><dd>{profile.email ?? <span className="muted">не вказано</span>}
+                {profile.email && (profile.emailVerified ? <span className="badge verified-badge">підтверджено</span>
+                    : <span className="badge unverified-badge">не підтверджено</span>)}</dd></div>
             <div><dt>Роль</dt><dd>{roleNames[profile.role]}</dd></div>
         </dl>
         <section className="profile-section" aria-labelledby="balance-title">
@@ -54,11 +57,18 @@ export function ProfilePage() {
         </section>
         <section className="profile-section" aria-labelledby="email-title">
             <h2 id="email-title">Змінити email</h2>
+            {profile.email && !profile.emailVerified && <div className="notice email-verify-notice">
+                <p>Підтвердьте email: так ви зможете відновити пароль і отримувати листи від сайту.</p>
+                <button type="button" disabled={verifyAction.busy} onClick={() => void verifyAction.run(async () => {
+                    await mutate('/profile/email/verification', {});
+                }, 'Лист надіслано. Перевірте пошту, зокрема папку «Спам».')}>Надіслати лист ще раз</button>
+                <ActionNotice {...verifyAction} />
+            </div>}
             <form className="inline-form" onSubmit={event => {
                 event.preventDefault();
                 void emailAction.run(async () => {
                     setProfile(await mutate<Profile>('/profile/email', { email, password })); setEmail(''); setPassword('');
-                }, 'Email змінено.');
+                }, 'Email змінено. Ми надіслали лист для підтвердження нової адреси.');
             }}>
                 <label>Новий email<input type="email" autoComplete="email" maxLength={254} required value={email} onChange={event => setEmail(event.target.value)} /></label>
                 <label>Поточний пароль<input type="password" autoComplete="current-password" required value={password} onChange={event => setPassword(event.target.value)} /></label>

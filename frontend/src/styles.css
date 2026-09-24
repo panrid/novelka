@@ -664,3 +664,10 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { height: v
 .replying-to { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; color: var(--muted); }
 .comment.flash, .chat-message.flash { animation: flash 1.6s ease-out; }
 @keyframes flash { from { background: color-mix(in srgb, var(--accent) 18%, transparent); } to { background: transparent; } }
+
+/* Email confirmation */
+.verified-badge, .unverified-badge { margin-left: 8px; font-size: 12px; }
+.unverified-badge { border-color: var(--accent); color: var(--accent); }
+.email-verify-notice { display: grid; gap: 10px; justify-items: start; margin-bottom: 14px; }
+.email-verify-notice p { margin: 0; }
+.field-error { margin: 0; color: var(--accent); font-size: 14px; }

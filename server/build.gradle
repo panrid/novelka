@@ -28,6 +28,7 @@ dependencies {
     implementation project(':core')
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
     testImplementation 'io.zonky.test:embedded-postgres:2.2.2'
     testRuntimeOnly 'io.zonky.test.postgres:embedded-postgres-binaries-darwin-arm64v8:14.22.0'
 }

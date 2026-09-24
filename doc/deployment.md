@@ -80,6 +80,22 @@ env-файл на VPS, не в workflow. Деталі й правила вида
 `OPENROUTER_MANAGEMENT_KEY` у той самий env-файл. Це окремий ключ OpenRouter;
 без нього переклад працює, але баланс не відображається. Після зміни env-файлу
 перезапустіть контейнер застосунку.
+Листи (відновлення пароля, підтвердження email) надсилаються через SMTP сервісу
+листів (зараз Resend, домен `novelka.panrid.space`, записи DKIM, `rsend`/`send`
+CNAME і DMARC у DNS Hostinger). Додайте в той самий env-файл:
+
+```
+MAIL_HOST=smtp.resend.com
+MAIL_PORT=587
+MAIL_USERNAME=resend
+MAIL_PASSWORD=<SMTP-ключ сервісу>
+MAIL_FROM=Новелка <no-reply@novelka.panrid.space>
+```
+
+`NOVELKA_PUBLIC_URL` (типово `https://novelka.panrid.space`) — основа посилань у
+листах. Без `MAIL_HOST` застосунок лише записує тему листа в лог і нічого не
+надсилає. Помилки SMTP логуються без адреси й посилання. Перехід на інший сервіс —
+це лише інші значення цих змінних.
 Production Compose передає ці змінні app та вмикає Secure session cookie.
 Міграція V3 додає акаунти, правки, налаштування, аудит і чергу; V4 — сповіщення
 та стан прочитання для акаунтів. V4 застосовується автоматично при запуску і не

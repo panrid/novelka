@@ -26,7 +26,7 @@ export function AuthPage() {
                 } else {
                     await login(identifier, password); await auth.refresh(); window.location.hash = '/';
                 }
-            }, register ? 'Обліковий запис створено. Тепер увійдіть.' : 'Вхід виконано.');
+            }, register ? 'Обліковий запис створено. Ми надіслали лист для підтвердження email — тепер увійдіть.' : 'Вхід виконано.');
         }}>
             {register ? <>
                 <label>Нік<input autoComplete="nickname" pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{2,39}" required value={nickname} onChange={event => setNickname(event.target.value)} /></label>
@@ -37,6 +37,7 @@ export function AuthPage() {
             <button className="button" disabled={action.busy}>{register ? 'Зареєструватися' : 'Увійти'}</button>
             <ActionNotice {...action} />
         </form>
+        {!register && <a className="plain-button" href="#/forgot-password">Забули пароль?</a>}
         {auth.registrationOpen && <button className="plain-button" onClick={() => setRegister(value => !value)}>{register ? 'Уже є обліковий запис? Увійти' : 'Створити обліковий запис'}</button>}
     </div>;
 }
