@@ -31,7 +31,7 @@
 | `access` | `AccessPolicy`: єдине місце, де вирішується «чи можна» | account, team |
 | `team` | Команди, учасники, ролі | account |
 | `catalog` | Новели (оригінали), переклади, естафета, теги, каталог, стрічки головної | team |
-| `text` | Глави, ревізії, публікація, diff, редактор з форматуванням, імпорт `.txt`/`.docx`, внесок | catalog, access, media |
+| `text` | Глави, ревізії, публікація, diff, редактор з форматуванням, імпорт `.txt`/`.md`, внесок | catalog, access, media |
 | `suggestion` | Правки читачів, заміни «всі входження», перевірка | text, access |
 | `reading` | Бібліотека, прогрес читання між пристроями, оцінки перекладу | catalog |
 | `source` | Джерела оригіналів: Syosetu, ручний текст; імпорт і блоки | — |
@@ -67,16 +67,32 @@
   по словах. Статистика змін (скільки блоків, хто) пишеться в ревізію при створенні.
   Звідси беремо «внесок кожного».
 - **Редактор** — TipTap (ProseMirror) з урізаною схемою: лише ці блоки й позначки.
-  Вставлений з Word чи сайту текст очищується до цієї схеми. ID блока зберігається
+  Вставлений з буфера текст (з Word, Google Docs чи сайту) очищується до цієї схеми. ID блока зберігається
   як атрибут вузла: незмінні абзаци зберігають ID, нові отримують новий.
   Сервер повторно перевіряє документ за схемою й не довіряє клієнту.
   Правки, що чекають на перевірку, прив'язані до ID і точного тексту блока. Якщо текст
   блока змінився, правка стає `stale` і показується автору.
 - Той самий редактор і формат — для опису новели (`description` у `jsonb`).
-- **Імпорт власного перекладу:** `.txt` (абзаци — порожній рядок, глави — рядок-
-  роздільник або окремі файли) і `.docx` (Apache POI; жирний, курсив, підкреслений,
-  закреслений і вбудовані картинки зберігаються). Перед публікацією показується
-  розбиття на глави для перевірки.
+- **Імпорт глав** (власний переклад або оригінальний твір) — лише `.txt` і `.md`,
+  один файл на кілька глав або кілька файлів:
+  - `.txt`: абзаци розділені порожнім рядком. Нова глава — рядок, що починається
+    з «Глава N» / «Розділ N», або окремий файл.
+  - `.md` (CommonMark, бібліотека commonmark-java). Береться лише те, що підтримує
+    сайт:
+
+    | Markdown | На сайті |
+    |---|---|
+    | `# Назва` | Нова глава з цією назвою |
+    | `**жирний**`, `__жирний__` | Жирний |
+    | `*курсив*`, `_курсив_` | Курсив |
+    | `~~закреслений~~` | Закреслений |
+    | `<u>підкреслений</u>` (у Markdown немає свого підкреслення) | Підкреслений |
+    | `![опис](https://…)` | Картинка за посиланням (сервер зберігає копію) |
+    | `---` | Розділювач сцен |
+
+    Решта — заголовки `##`, списки, посилання, код, таблиці, інший HTML — стає
+    звичайним текстом без розмітки. Перед публікацією видно розбиття на глави
+    й попередження, що саме спрощено.
 - **Картинка за посиланням:** сервер сам завантажує файл і зберігає копію.
   Захист від SSRF:
   - лише `https`;
@@ -142,11 +158,19 @@
 - Закрита глава: API віддає назву, перші 3 абзаци й ціну, решту тексту — ні.
   Коментарі й правки доступні лише тим, у кого глава відкрита.
 
+### Оригінальні твори
+- Той самий `edition` з `kind = original`, а `novel.source = original` без оригіналу
+  й джерела. Автор — людина на сайті (`author_account_id`), її команда — співавтори
+  й редактори. Автоматичного перекладу й естафети немає: твір належить автору.
+- Правки читачів, редактор, коментарі, бібліотека, ілюстрації — як у перекладах.
+- На сторінці замість «автор · перекладач» — «Автор @нік». У каталозі є фільтр:
+  «Переклади», «Оригінальні твори».
+
 ### Естафета перекладу
-- `translation.status = abandoned` ставить власник. «Вільний для продовження» не
+- `edition.status = abandoned` ставить власник. «Вільний для продовження» не
   зберігається, а обчислюється: `abandoned`, або власник неактивний довше
   `takeover.inactive_months`, або запит на продовження без відповіді довше 14 днів.
-- Продовження — новий `translation` іншої команди з `continues_translation_id` і
+- Продовження — новий `edition` іншої команди з `continues_edition_id` і
   `first_number`. Читалка за цим зв'язком веде з останньої глави старого перекладу
   на наступну нового. Словник можна скопіювати при створенні.
 
@@ -199,21 +223,22 @@ team_member      team_id, account_id, role (translator|editor), added_by, added_
 
 ### catalog
 ```
-novel            id, source (syosetu|manual), source_key unique null, source_url,
-                 title_original, author_original,        -- лише для ШІ, в інтерфейсі не показуються
+novel            id, source (syosetu|manual|original), source_key unique null, source_url null,
+                 title_original null, author_original null, -- лише для ШІ, в інтерфейсі не показуються
+                 author_account_id null,                -- для original: автор — людина на сайті
                  title_uk, author_uk, description jsonb, -- машинний переклад / транслітерація при імпорті
                  source_chapter_count, slug unique       -- slug з української назви: mag-vody
 novel_tag        novel_id, tag_id           tag: id, name, slug unique
-translation      id, novel_id, team_id, title_uk, author_uk, description jsonb (null → з novel),
+edition          id, novel_id, team_id,        -- переклад команди або оригінальний твір title_uk, author_uk, description jsonb (null → з novel),
                  access_mode (free|paid|early), access_price_shah, access_pack_size,
                  access_free_after_days null, free_first_chapters,
                  cover_image_id null,
-                 kind (human|machine|mixed), status (ongoing|completed|paused|abandoned),
+                 kind (human|machine|mixed|original), status (ongoing|completed|paused|abandoned),
                  adult boolean,                          -- 18+
-                 continues_translation_id null, first_number (1 або N+1 для естафети),
+                 continues_edition_id null, first_number (1 або N+1 для естафети),
                  last_published_at, hidden_at, hidden_reason, created_at,
                  unique (novel_id, team_id)
-takeover_request id, translation_id, team_id, requested_by, created_at,
+takeover_request id, edition_id, team_id, requested_by, created_at,
                  state (open|declined|granted|expired), answered_at
 ```
 
@@ -226,10 +251,10 @@ source_chapter_history   source_chapter_id, blocks, source_hash, replaced_at
 
 ### text
 ```
-chapter          id, translation_id, number, source_chapter_id null,
+chapter          id, edition_id, number, source_chapter_id null,
                  access_override (free|paid|early) null,
                  published_revision_id null, first_published_at, updated_at,
-                 unique (translation_id, number)
+                 unique (edition_id, number)
 revision         id, chapter_id, parent_id null, title, blocks jsonb,
                  origin (ai|editor|suggestion|replace|import), author_id null,
                  job_id null, source_hash null, stats jsonb, created_at
@@ -244,7 +269,7 @@ contribution     revision_id, account_id, blocks_changed, chars_changed
 suggestion       id, chapter_id, base_revision_id, author_id,
                  batch_id, kind (block|replace|chapter), block_id, original_text, proposed_text,
                  proposed_blocks jsonb null (для kind = chapter — повний редактор),
-                 find, replacement, scope (chapter|translation), note,
+                 find, replacement, scope (chapter|edition), note,
                  state (draft|pending|accepted|rejected|withdrawn|stale),
                  -- draft збирається в пакет; надсилається пакетом; прийнятий пакет = 1 ревізія на главу
                  reviewer_id, reviewed_at, review_note, applied_revision_id
@@ -252,10 +277,10 @@ suggestion       id, chapter_id, base_revision_id, author_id,
 
 ### autotranslate і ai
 ```
-glossary_entry   id, translation_id, key, japanese, reading, ukrainian, aliases jsonb,
+glossary_entry   id, edition_id, key, japanese, reading, ukrainian, aliases jsonb,
                  kind, gender, facts jsonb, certainty, source_chapter, manual, revision
-glossary_proposal id, translation_id, job_id, payload jsonb, fingerprint, state
-job              id, translation_id, requested_by, kind (translate|proofread|illustrate),
+glossary_proposal id, edition_id, job_id, payload jsonb, fingerprint, state
+job              id, edition_id, requested_by, kind (translate|proofread|illustrate),
                  first_number, last_number, state (queued|running|done|failed|cancelled),
                  funding (site|team), quote_shah, hold_tx_id null, charged_shah,
                  settings jsonb (моделі й ціни на момент запуску), error, created_at, finished_at
@@ -284,7 +309,7 @@ payment          id, provider, external_id, account_id, pack_id, amount_kop, sha
 
 ### monetization
 ```
-donation         ledger_tx_id pk, from_account_id, team_id, translation_id null, amount_shah,
+donation         ledger_tx_id pk, from_account_id, team_id, edition_id null, amount_shah,
                  message null, anonymous, created_at
 chapter_unlock   account_id, chapter_id, ledger_tx_id, created_at, pk (account_id, chapter_id)
 ```
@@ -304,19 +329,19 @@ image            id, owner_account_id, team_id null,
 
 ### reading
 ```
-library_entry    account_id, translation_id, list (reading|planned|done|paused|dropped),
-                 updated_at, pk (account_id, translation_id)
-reading_progress account_id, translation_id, chapter_number, position (0..1), updated_at
-translation_rating account_id, translation_id, score (1..5)
+library_entry    account_id, edition_id, list (reading|planned|done|paused|dropped),
+                 updated_at, pk (account_id, edition_id)
+reading_progress account_id, edition_id, chapter_number, position (0..1), updated_at
+edition_rating   account_id, edition_id, score (1..5)
 ```
 
 ### community
 ```
-comment          id, target (translation|chapter), target_id, author_id, reply_to,
+comment          id, target (edition|chapter), target_id, author_id, reply_to,
                  body, edited_at, deleted_at, hidden_at, hidden_by, hidden_reason
 chat_message     id, author_id, reply_to, body, deleted_at, hidden_*
 mention          source (comment|chat|message), source_id, account_id null, team_id null
-vote             account_id, target (comment|translation), target_id, value (-1|1)
+vote             account_id, target (comment|edition), target_id, value (-1|1)
 report           id, reporter_id, target (comment|chat|dm|image), target_id, reason,
                  state (open|resolved|dismissed), resolved_by, created_at
 ```
