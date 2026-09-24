@@ -1,0 +1,136 @@
+import { api } from '../api/client';
+
+export type Kind = 'human' | 'machine' | 'mixed' | 'original';
+export type Status = 'ongoing' | 'completed' | 'paused' | 'abandoned';
+export type ListName = 'reading' | 'planned' | 'done' | 'paused' | 'dropped';
+
+export type Card = {
+    editionId: number;
+    novelSlug: string;
+    teamHandle: string;
+    teamName: string;
+    title: string;
+    author: string;
+    coverUrl: string | null;
+    kind: Kind;
+    status: Status;
+    adult: boolean;
+    chapterCount: number;
+    tags: string[];
+    lastPublishedAt: string | null;
+};
+
+export type Span = { text: string; marks: ('bold' | 'italic' | 'underline' | 'strike')[] };
+export type TextBlock = {
+    id: string;
+    type: 'heading' | 'paragraph' | 'preface' | 'afterword' | 'separator' | 'image';
+    content: Span[];
+    imageUrl: string | null;
+};
+
+export type Home = {
+    continueReading: { card: Card; chapterNumber: number; position: number }[];
+    popular: Card[];
+    newChapters: { card: Card; firstNumber: number; lastNumber: number; publishedAt: string }[];
+};
+
+export type Page<T> = { items: T[]; page: number; hasMore: boolean };
+
+export type EditionSummary = {
+    editionId: number;
+    teamHandle: string;
+    teamName: string;
+    kind: Kind;
+    status: Status;
+    chapterCount: number;
+    coverUrl: string | null;
+};
+
+export type NovelPage = {
+    slug: string;
+    title: string;
+    author: string;
+    origin: 'translation' | 'original';
+    description: TextBlock[];
+    tags: string[];
+    edition: EditionSummary;
+    editions: EditionSummary[];
+    adult: boolean;
+    lastPublishedAt: string | null;
+    viewer: { list: ListName | null; chapterNumber: number | null; position: number | null } | null;
+};
+
+export type ChapterRow = { number: number; title: string; publishedAt: string };
+
+export type ReaderChapter = {
+    novelSlug: string;
+    novelTitle: string;
+    edition: EditionSummary;
+    number: number;
+    title: string;
+    blocks: TextBlock[];
+    previous: number | null;
+    next: number | null;
+    savedPosition: number | null;
+};
+
+export type CatalogQuery = { q?: string; tags?: string[]; kind?: string; machine?: string; sort?: string; page?: number };
+
+function query(params: Record<string, string | number | string[] | undefined>) {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+        if (Array.isArray(value)) {
+            value.forEach((item) => search.append(key, item));
+        } else if (value !== undefined && value !== '') {
+            search.set(key, String(value));
+        }
+    }
+    const text = search.toString();
+    return text ? `?${text}` : '';
+}
+
+const novelPath = (slug: string) => `/api/novels/${encodeURIComponent(slug)}`;
+
+export const readingApi = {
+    home: () => api<Home>('/api/home'),
+    catalog: ({ q, tags, kind, machine, sort, page }: CatalogQuery) =>
+        api<Page<Card>>(`/api/catalog${query({ q, tag: tags, kind, machine, sort, page })}`),
+    tags: () => api<{ name: string; slug: string; novels: number }[]>('/api/tags'),
+    novel: (slug: string, team?: string) => api<NovelPage>(`${novelPath(slug)}${query({ t: team })}`),
+    chapters: (slug: string, team: string | undefined, order: 'asc' | 'desc', page: number) =>
+        api<Page<ChapterRow>>(`${novelPath(slug)}/chapters${query({ t: team, order, page })}`),
+    chapter: (slug: string, number: number, team?: string) =>
+        api<ReaderChapter>(`${novelPath(slug)}/chapters/${number}${query({ t: team })}`),
+    saveProgress: (editionId: number, chapterNumber: number, position: number) =>
+        api<void>(`/api/progress/${editionId}`, { method: 'PUT', body: JSON.stringify({ chapterNumber, position }) }),
+    library: (list: ListName) =>
+        api<{ items: { card: Card; list: ListName; chapterNumber: number | null }[]; counts: Record<ListName, number> }>(
+            `/api/library?list=${list}`),
+    setList: (editionId: number, list: ListName | null) =>
+        api<void>(`/api/library/${editionId}`, { method: 'PUT', body: JSON.stringify({ list }) }),
+};
+
+export const LIST_LABELS: Record<ListName, string> = {
+    reading: 'Читаю',
+    planned: 'В планах',
+    done: 'Прочитано',
+    paused: 'Відкладено',
+    dropped: 'Кинуто',
+};
+
+export const STATUS_LABELS: Record<Status, string> = {
+    ongoing: 'триває',
+    completed: 'завершено',
+    paused: 'пауза',
+    abandoned: 'покинуто',
+};
+
+/** Numbers of chapters in Ukrainian: 1 глава, 2 глави, 5 глав. */
+export function chaptersWord(count: number): string {
+    const tens = count % 100;
+    const ones = count % 10;
+    if (tens >= 11 && tens <= 14) return 'глав';
+    if (ones === 1) return 'глава';
+    if (ones >= 2 && ones <= 4) return 'глави';
+    return 'глав';
+}

@@ -1,0 +1,26 @@
+.separator {
+    margin: 1.4em 0;
+    color: var(--faint);
+    text-align: center;
+}
+
+.figure {
+    margin: 1.2em 0;
+}
+
+.figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius);
+}
+
+.heading {
+    font: 600 1.1em/1.4 var(--font-reading);
+    margin: 1.2em 0 0.6em;
+}
+
+.aside {
+    color: var(--muted);
+    font-style: italic;
+}

@@ -1,0 +1,206 @@
+.reader {
+    min-height: 100dvh;
+    background: var(--bg);
+}
+
+.status {
+    max-width: var(--reading-width);
+    margin: 0 auto;
+    padding: 48px var(--gutter);
+    color: var(--muted);
+}
+
+.progressLine {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 30;
+    height: 3px;
+    background: transparent;
+}
+
+.progressLine > span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.1s linear;
+}
+
+.top,
+.bottom {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
+    backdrop-filter: blur(8px);
+    transition: transform 0.22s ease;
+}
+
+.top {
+    top: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: var(--topbar-height);
+    padding: 0 8px;
+    border-bottom: 1px solid var(--line);
+}
+
+.hidden {
+    transform: translateY(-100%);
+}
+
+.bottom {
+    bottom: 0;
+    padding: 8px var(--gutter) calc(10px + var(--safe-bottom));
+    border-top: 1px solid var(--line);
+}
+
+.hiddenBottom {
+    transform: translateY(100%);
+}
+
+.icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.where {
+    flex: 1;
+    min-width: 0;
+}
+
+.novel {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 14px;
+}
+
+.count {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.text {
+    max-width: var(--reading-width);
+    margin: 0 auto;
+    padding: calc(var(--topbar-height) + 20px) var(--gutter) 140px;
+    color: var(--text-reading);
+    font-family: var(--font-reading);
+    line-height: 1.75;
+    overflow-wrap: break-word;
+}
+
+.text p {
+    margin: 0 0 0.9em;
+}
+
+.chapterTitle {
+    font: 600 1.2em/1.35 var(--font-reading);
+    margin: 0 0 1.2em;
+    color: var(--text);
+}
+
+.end {
+    margin-top: 2.5em;
+    font-family: var(--font-ui);
+    font-size: 15px;
+}
+
+.nextButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 50px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.finished {
+    color: var(--muted);
+    text-align: center;
+}
+
+.percent {
+    margin-bottom: 6px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.navButton {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 40px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+}
+
+.disabled {
+    opacity: 0.35;
+}
+
+.settings {
+    width: 280px;
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    box-shadow: var(--shadow);
+}
+
+.settingsDialog {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+    outline: none;
+}
+
+.sizeRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 15px;
+}
+
+.sizeButton {
+    width: 64px;
+    height: 40px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--line);
+    color: var(--text);
+    font: 600 15px var(--font-ui);
+    cursor: pointer;
+}
+
+.sizeButton[data-disabled] {
+    opacity: 0.4;
+}

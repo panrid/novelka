@@ -96,15 +96,20 @@ class ReadingController {
     @GetMapping("/novels/{slug}/chapters/{number}")
     Views.ReaderChapter chapter(@PathVariable String slug, @PathVariable int number,
             @RequestParam(required = false) String t) {
+        Optional<Viewer> viewer = currentUser.viewer();
         NovelRow novel = queries.novel(slug).orElseThrow(ReadingController::noNovel);
-        List<EditionRow> editions = visibleEditions(novel, currentUser.viewer());
+        List<EditionRow> editions = visibleEditions(novel, viewer);
         EditionRow edition = pick(editions, t);
         ReadingQueries.ChapterText text = queries.chapter(edition.id(), number)
                 .orElseThrow(() -> UserFacingException.notFound("Такої глави немає."));
+        Float saved = viewer.map(v -> queries.viewer(v.accountId(), edition.id()))
+                .filter(state -> state.chapterNumber() != null && state.chapterNumber() == number)
+                .map(Views.ViewerState::position)
+                .orElse(null);
         return new Views.ReaderChapter(novel.slug(), edition.title() != null ? edition.title() : novel.title(),
                 queries.summaries(List.of(edition)).getFirst(), text.number(), text.title(),
                 queries.readerBlocks(text.blocks()),
-                queries.neighbour(edition.id(), number, false), queries.neighbour(edition.id(), number, true));
+                queries.neighbour(edition.id(), number, false), queries.neighbour(edition.id(), number, true), saved);
     }
 
     @PutMapping("/progress/{editionId}")

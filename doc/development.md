@@ -36,6 +36,18 @@ Vite пересилає `/api` на 8080.
 - JVM працює в UTC: драйвер PostgreSQL передає часовий пояс JVM, а `Europe/Kiev`
   PostgreSQL 17 не приймає.
 
+### Новела для перевірки
+Поки немає Студії (етап 3), адміністратор може завантажити новелу з `.txt` або `.md`
+(формат — [рішення 23](plan.md#рішення-власника)):
+
+```sh
+curl -b cookies.txt -H "X-XSRF-TOKEN: $XSRF" -X POST http://127.0.0.1:8080/api/admin/novels \
+  -F "file=@novel.md;type=text/markdown" -F "title=Назва" -F "author=Автор" \
+  -F "description=Опис" -F "tags=Фентезі, Магія" -F "kind=human" -F "adult=false"
+```
+
+`kind` — `human`, `machine`, `mixed` або `original`. Файл має бути в UTF-8.
+
 ## Модулі
 Кожен модуль бекенду — пакет `space.panrid.novelka.<модуль>` (див.
 [architecture.md](architecture.md)). `ModularityTests` не дає модулю лізти

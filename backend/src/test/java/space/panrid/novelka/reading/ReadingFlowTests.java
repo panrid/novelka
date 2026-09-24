@@ -125,6 +125,11 @@ class ReadingFlowTests {
         assertThat(reader.browser().put("/api/progress/" + editionId, json("chapterNumber", 2, "position", 0.4)).status())
                 .isEqualTo(204);
 
+        assertThat(read(reader.browser().get("/api/novels/" + slug + "/chapters/2")).path("savedPosition").asDouble())
+                .as("another device opens the chapter where the reader stopped")
+                .isCloseTo(0.4, org.assertj.core.data.Offset.offset(0.001));
+        assertThat(read(reader.browser().get("/api/novels/" + slug + "/chapters/3")).path("savedPosition").isNull()).isTrue();
+
         JsonNode home = read(reader.browser().get("/api/home"));
         assertThat(home.path("continueReading")).singleElement().satisfies(item -> {
             assertThat(item.path("chapterNumber").asInt()).isEqualTo(2);

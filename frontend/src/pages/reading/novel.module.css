@@ -1,0 +1,199 @@
+.page {
+    padding-top: 12px;
+    max-width: 720px;
+}
+
+.head {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}
+
+.headText {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.title {
+    font: 600 22px/1.2 var(--font-reading);
+    margin: 0;
+}
+
+.muted {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 99px;
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: 12px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.team {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    color: var(--accent);
+}
+
+.ghost {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--muted);
+}
+
+.on {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    color: var(--accent);
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.actions > :first-child {
+    flex: 1;
+}
+
+.libraryButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 46px;
+    min-height: 46px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    color: var(--text);
+    font: 500 14px var(--font-ui);
+    cursor: pointer;
+}
+
+.popover {
+    min-width: 200px;
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    box-shadow: var(--shadow);
+    padding: 4px;
+}
+
+.menu {
+    outline: none;
+}
+
+.menuItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 11px 12px;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+    outline: none;
+}
+
+.menuItem[data-focused] {
+    background: var(--line);
+}
+
+.remove {
+    color: var(--danger);
+}
+
+.editions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.description {
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--text-reading);
+}
+
+.description p + p {
+    margin-top: 0.6em;
+}
+
+.clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.more {
+    padding: 4px 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.chapters {
+    margin-top: 12px;
+}
+
+.chaptersHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sectionTitle {
+    font: 600 16px var(--font-ui);
+    margin: 14px 0 6px;
+}
+
+.order {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.list {
+    margin: 0 0 12px;
+    padding: 0;
+    list-style: none;
+}
+
+.chapter {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14.5px;
+}
+
+.here {
+    color: var(--accent);
+}

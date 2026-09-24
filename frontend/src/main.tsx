@@ -4,7 +4,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ApiError } from './api/client';
 import { createAppRouter } from './app/router';
+import { applyStoredTheme } from './reading/theme';
 import './styles/global.css';
+
+applyStoredTheme();
 
 const queryClient = new QueryClient({
     defaultOptions: {

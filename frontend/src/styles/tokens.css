@@ -39,6 +39,24 @@
     --shadow: 0 8px 24px rgb(0 0 0 / 12%);
 }
 
+:root[data-theme='black'] {
+    color-scheme: dark;
+    --bg: #000000;
+    --surface: #111311;
+    --surface-2: #1b1e1b;
+    --line: #262a26;
+    --text: #e2e0d8;
+    --text-reading: #cfcdc5;
+    --muted: #8f9289;
+    --faint: #62655e;
+    --accent: #8fb07f;
+    --accent-ink: #10150e;
+    --warn: #d9a45b;
+    --danger: #d9776b;
+    --focus: #b9d4aa;
+    --shadow: 0 8px 24px rgb(0 0 0 / 60%);
+}
+
 :root {
     --font-ui: 'Inter Variable', -apple-system, 'Segoe UI', Roboto, sans-serif;
     --font-reading: 'Literata Variable', Georgia, 'Times New Roman', serif;

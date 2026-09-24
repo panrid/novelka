@@ -1,0 +1,38 @@
+.cover,
+.placeholder {
+    display: block;
+    flex: none;
+    aspect-ratio: 2 / 3;
+    height: auto;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+.placeholder {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    padding: 8px;
+    overflow: hidden;
+    color: #fff;
+}
+
+.placeholder::after {
+    content: '';
+    position: absolute;
+    right: -20%;
+    top: 12%;
+    width: 55%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 16%);
+}
+
+.title {
+    position: relative;
+    font: 600 12px/1.2 var(--font-reading);
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}

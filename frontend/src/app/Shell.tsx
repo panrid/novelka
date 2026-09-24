@@ -1,4 +1,4 @@
-import { HeadContent, Link, Outlet } from '@tanstack/react-router';
+import { HeadContent, Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { BookOpen, Home, Inbox, Search, User, type LucideIcon } from 'lucide-react';
 import { useMe } from '../auth/me';
 import { Avatar } from '../ui/Avatar';
@@ -19,19 +19,24 @@ export const TABS: readonly Tab[] = [
  * on a wide screen the same links move to the top row next to the logo.
  */
 export function Shell() {
+    // The reader draws its own bars that hide while reading; no site chrome there.
+    // The page always sits at the same place in the tree: moving it would remount the reader.
+    const reading = useRouterState({ select: (state) => /^\/n\/[^/]+\/\d+\/?$/.test(state.location.pathname) });
     return (
-        <div className={styles.shell}>
+        <div className={reading ? undefined : styles.shell}>
             <HeadContent />
-            <header className={styles.header}>
-                <Link to="/" className={styles.logo} aria-label="Новелка, головна">
-                    новелка<span className={styles.dot}>.</span>
-                </Link>
-                <Tabs className={styles.topTabs} />
-            </header>
-            <main className={styles.main}>
+            {!reading && (
+                <header className={styles.header}>
+                    <Link to="/" className={styles.logo} aria-label="Новелка, головна">
+                        новелка<span className={styles.dot}>.</span>
+                    </Link>
+                    <Tabs className={styles.topTabs} />
+                </header>
+            )}
+            <main className={reading ? undefined : styles.main}>
                 <Outlet />
             </main>
-            <Tabs className={styles.bottomTabs} />
+            {!reading && <Tabs className={styles.bottomTabs} />}
         </div>
     );
 }
