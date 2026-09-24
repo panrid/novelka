@@ -1,0 +1,86 @@
+package space.panrid.novelka.support;
+
+import java.io.IOException;
+import java.net.CookieManager;
+import java.net.CookiePolicy;
+import java.net.HttpCookie;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.Optional;
+
+/**
+ * A real HTTP client with its own cookie jar, like one browser tab: keeps the session
+ * cookie and answers CSRF the way the web app does (cookie XSRF-TOKEN → header).
+ */
+public class Browser {
+
+    public record Response(int status, String body) {
+    }
+
+    private final String base;
+    private final CookieManager cookies = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
+    private final HttpClient http;
+
+    public Browser(int port) {
+        this.base = "http://localhost:" + port;
+        this.http = HttpClient.newBuilder().cookieHandler(cookies).build();
+    }
+
+    public Response get(String path) {
+        return send(HttpRequest.newBuilder(URI.create(base + path)).GET());
+    }
+
+    public Response post(String path, String json) {
+        if (csrf().isEmpty()) {
+            get("/api/me"); // any response sets the XSRF-TOKEN cookie
+        }
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(base + path))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json));
+        csrf().ifPresent(token -> request.header("X-XSRF-TOKEN", token));
+        return send(request);
+    }
+
+    public Response postWithoutCsrf(String path, String json) {
+        return send(HttpRequest.newBuilder(URI.create(base + path))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json)));
+    }
+
+    private Optional<String> csrf() {
+        return cookies.getCookieStore().getCookies().stream()
+                .filter(cookie -> cookie.getName().equals("XSRF-TOKEN"))
+                .map(HttpCookie::getValue)
+                .findFirst();
+    }
+
+    private Response send(HttpRequest.Builder request) {
+        try {
+            HttpResponse<String> response = http.send(request.header("Accept", "application/json").build(),
+                    HttpResponse.BodyHandlers.ofString());
+            return new Response(response.statusCode(), response.body());
+        } catch (IOException | InterruptedException error) {
+            throw new IllegalStateException(error);
+        }
+    }
+
+    /** Minimal JSON string escaping for request bodies in tests. */
+    public static String json(Object... keyValues) {
+        StringBuilder out = new StringBuilder("{");
+        for (int i = 0; i < keyValues.length; i += 2) {
+            if (i > 0) {
+                out.append(',');
+            }
+            out.append('"').append(keyValues[i]).append("\":");
+            Object value = keyValues[i + 1];
+            if (value instanceof String text) {
+                out.append('"').append(text.replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
+            } else {
+                out.append(value);
+            }
+        }
+        return out.append('}').toString();
+    }
+}

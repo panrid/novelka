@@ -2,11 +2,13 @@ package space.panrid.novelka.platform.web;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -24,13 +26,28 @@ class ApiErrors extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler
     ProblemDetail userFacing(UserFacingException error) {
-        return ProblemDetail.forStatusAndDetail(error.status(), error.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(error.status(), error.getMessage());
+        if (error.reason() != null) {
+            problem.setProperty("reason", error.reason());
+        }
+        return problem;
     }
 
     @ExceptionHandler
     ProblemDetail unexpected(Exception error) {
         log.error("Unhandled API error", error);
         return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, messageFor(HttpStatus.INTERNAL_SERVER_ERROR));
+    }
+
+    /** Bean Validation on request bodies: show the first broken rule's own message. */
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException error,
+            HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        String message = error.getBindingResult().getAllErrors().stream()
+                .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                .findFirst()
+                .orElse(messageFor(status));
+        return ResponseEntity.status(status).body(ProblemDetail.forStatusAndDetail(status, message));
     }
 
     @Override

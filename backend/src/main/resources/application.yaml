@@ -14,9 +14,32 @@ spring:
       # Local development only: `bootRun` starts PostgreSQL and the mail catcher itself.
       file: ../infra/compose.yaml
       lifecycle-management: start-only
+  session:
+    timeout: 30d
+    jdbc:
+      initialize-schema: never
+  mail:
+    host: ${NOVELKA_MAIL_HOST:127.0.0.1}
+    port: ${NOVELKA_MAIL_PORT:1025}
+    username: ${NOVELKA_MAIL_USER:}
+    password: ${NOVELKA_MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${NOVELKA_MAIL_AUTH:false}
+      mail.smtp.starttls.enable: ${NOVELKA_MAIL_STARTTLS:false}
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
   modulith:
     events:
       republish-outstanding-events-on-restart: true
+
+novelka:
+  public-url: ${NOVELKA_PUBLIC_URL:http://127.0.0.1:5173}
+  mail-from: ${NOVELKA_MAIL_FROM:Новелка <no-reply@novelka.panrid.space>}
+  owner:
+    nick: ${NOVELKA_OWNER_NICK:}
+    email: ${NOVELKA_OWNER_EMAIL:}
+    password: ${NOVELKA_OWNER_PASSWORD:}
 
 server:
   address: ${NOVELKA_SERVER_ADDRESS:127.0.0.1}
@@ -25,3 +48,10 @@ server:
     include-stacktrace: never
     include-message: never
   forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        name: NOVELKA_SESSION
+        http-only: true
+        same-site: lax
+        secure: ${NOVELKA_SECURE_COOKIES:false}
