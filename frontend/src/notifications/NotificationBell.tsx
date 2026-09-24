@@ -7,6 +7,7 @@ interface Notice {
     id: number; kind: string; novel_id: string | null; novel_title: string | null;
     chapter: number | null; task_id: string | null; entry_count: number | null; created_at: string | number; read: boolean;
     task_operation?: string | null; task_first?: number | null; task_last?: number | null; task_job_chapter?: number | null;
+    comment_id?: number | null; chat_id?: number | null; actor?: string | null;
 }
 interface Feed { items: Notice[]; unread: number; latestId: number; nextCursor: number }
 
@@ -43,6 +44,8 @@ function title(item: Notice) {
         case 'chapter_published': return `Нова глава ${item.chapter}`;
         case 'glossary_added': return `Нові записи словника: ${item.entry_count}`;
         case 'task_complete': case 'task_failed': case 'task_interrupted': return taskTitle(item);
+        case 'mention': return `${item.actor ?? 'Хтось'} згадує вас ${item.chat_id ? 'в чаті' : 'в обговоренні'}`;
+        case 'reply': return `${item.actor ?? 'Хтось'} відповідає вам ${item.chat_id ? 'в чаті' : 'в обговоренні'}`;
         default: return 'Сповіщення';
     }
 }
@@ -51,6 +54,10 @@ function destination(item: Notice) {
     const novel = encodeURIComponent(item.novel_id ?? '');
     if (item.kind === 'chapter_published') return `/novels/${novel}/chapters/${item.chapter}`;
     if (item.kind === 'glossary_added') return `/manage?novel=${novel}&tab=glossary`;
+    if (item.kind === 'mention' || item.kind === 'reply') {
+        if (item.chat_id) return '/chat';
+        return item.chapter ? `/novels/${novel}/chapters/${item.chapter}` : `/novels/${novel}`;
+    }
     return `/manage?novel=${novel}&task=${encodeURIComponent(item.task_id ?? '')}`;
 }
 

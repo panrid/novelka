@@ -6,8 +6,10 @@ import org.springframework.web.server.ResponseStatusException;
 import panrid.space.novelka.server.account.Account;
 import panrid.space.novelka.server.account.Role;
 import panrid.space.novelka.server.config.ReaderDatabase;
+import panrid.space.novelka.server.mention.Mentions;
 import panrid.space.novelka.server.repository.AuditRepository;
 import panrid.space.novelka.server.repository.ChatRepository;
+import panrid.space.novelka.server.repository.PersonalNotificationRepository;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -28,7 +30,8 @@ public final class ChatService {
             var rows = new ChatRepository(jdbc).history(before, PAGE + 1);
             boolean more = rows.size() > PAGE;
             if (more) rows = rows.subList(0, PAGE);
-            return Map.of("items", decorate(viewer, rows), "nextCursor", more ? ((Number) rows.getLast().get("id")).longValue() : 0);
+            return Map.of("items", decorate(viewer, rows), "nextCursor", more ? ((Number) rows.getLast().get("id")).longValue() : 0,
+                    "names", names(jdbc, rows));
         }
     }
 
@@ -36,8 +39,12 @@ public final class ChatService {
         if (after < 0) throw new IllegalArgumentException("Некоректний курсор.");
         try (var jdbc = database.open()) {
             var chat = new ChatRepository(jdbc);
-            return Map.of("items", decorate(viewer, chat.after(after, 100)), "deleted", chat.recentlyDeleted(),
-                    "moderated", decorate(viewer, chat.recentlyModerated()));
+            var items = chat.after(after, 100);
+            var moderated = chat.recentlyModerated();
+            var all = new ArrayList<>(items);
+            all.addAll(moderated);
+            return Map.of("items", decorate(viewer, items), "deleted", chat.recentlyDeleted(),
+                    "moderated", decorate(viewer, moderated), "names", names(jdbc, all));
         }
     }
 
@@ -47,7 +54,23 @@ public final class ChatService {
         try (var jdbc = database.open()) {
             var chat = new ChatRepository(jdbc);
             if (chat.recentlyPosted(author.id())) throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Надто часто. Зачекайте секунду.");
-            return chat.create(author.id(), body);
+            String parentAuthor = null;
+            if (request.replyTo() != null) {
+                var parent = chat.get(request.replyTo());
+                if (parent == null || parent.get("deleted_at") != null) throw new IllegalArgumentException("Повідомлення, на яке ви відповідаєте, не знайдено.");
+                parentAuthor = (String) parent.get("author_id");
+            }
+            String encoded = Mentions.encode(jdbc, body);
+            String replied = parentAuthor;
+            return jdbc.transaction(() -> {
+                long id = chat.create(author.id(), encoded, request.replyTo());
+                var notifications = new PersonalNotificationRepository(jdbc);
+                var mentioned = Mentions.mentioned(encoded);
+                for (var account : mentioned) if (!account.equals(author.id())) notifications.chat("mention", account, author.id(), id);
+                if (replied != null && !replied.equals(author.id()) && !mentioned.contains(replied))
+                    notifications.chat("reply", replied, author.id(), id);
+                return id;
+            });
         }
     }
 
@@ -75,6 +98,12 @@ public final class ChatService {
                 return null;
             });
         }
+    }
+
+    private static Map<String, String> names(panrid.space.novelka.core.persistence.JdbcSession jdbc, List<Map<String, Object>> rows) throws Exception {
+        var bodies = new ArrayList<String>();
+        for (var row : rows) { bodies.add((String) row.get("body")); bodies.add((String) row.get("reply_body")); }
+        return Mentions.names(jdbc, bodies);
     }
 
     private static List<Map<String, Object>> decorate(Account viewer, List<Map<String, Object>> rows) {

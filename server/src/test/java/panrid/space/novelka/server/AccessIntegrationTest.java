@@ -1111,6 +1111,59 @@ class AccessIntegrationTest {
     }
 
     @Test
+    void mentionsAndRepliesNotifyPeopleAndSurviveNicknameChanges() throws Exception {
+        String novel = seed();
+        try (var author = registered(); var friend = registered(); var bystander = registered(); var sql = jdbc()) {
+            String friendName = body(get(friend, "/auth/me")).path("user").path("username").asText();
+            String friendId = userId(friend);
+            String authorName = body(get(author, "/auth/me")).path("user").path("username").asText();
+            var created = post(author, "/novels/" + novel + "/comments",
+                    Map.of("body", "Привіт, @" + friendName.toUpperCase() + " і @" + authorName + " та @nobody-here"));
+            assertEquals(200, created.statusCode(), created.body());
+            long comment = body(created).path("id").asLong();
+            var thread = body(get(bystander, "/novels/" + novel + "/comments"));
+            String stored = thread.path("items").get(0).path("body").asText();
+            assertTrue(stored.contains("<@" + friendId + ">"), "mentions are stored by account id");
+            assertTrue(stored.contains("@nobody-here"), "unknown nicknames stay text");
+            assertEquals(friendName, thread.path("names").path(friendId).asText());
+
+            var friendNews = body(get(friend, "/notifications")).path("items");
+            assertEquals("mention", friendNews.get(0).path("kind").asText());
+            assertEquals(comment, friendNews.get(0).path("comment_id").asLong());
+            assertEquals(authorName, friendNews.get(0).path("actor").asText());
+            assertFalse(body(get(author, "/notifications")).path("items").findValuesAsText("kind").contains("mention"), "never about yourself");
+            assertFalse(body(get(owner, "/notifications?size=100")).path("items").findValuesAsText("comment_id").contains(String.valueOf(comment)),
+                    "personal notifications stay personal, even for administrators");
+
+            sql.exec("UPDATE comments SET created_at=created_at-interval '1 minute' WHERE author_id=?", friendId);
+            var reply = post(friend, "/novels/" + novel + "/comments", Map.of("body", "Дякую!", "replyTo", comment));
+            assertEquals(200, reply.statusCode(), reply.body());
+            var replyItem = body(get(bystander, "/novels/" + novel + "/comments")).path("items").get(0);
+            assertEquals(comment, replyItem.path("reply_to").asLong());
+            assertEquals(authorName, replyItem.path("reply_author").asText());
+            assertEquals("reply", body(get(author, "/notifications")).path("items").get(0).path("kind").asText());
+            assertEquals(400, post(bystander, "/novels/" + novel + "/comments", Map.of("chapter", 1, "body", "x", "replyTo", comment)).statusCode(),
+                    "replies stay in the same thread");
+
+            String renamed = "renamed" + UUID.randomUUID().toString().substring(0, 8);
+            assertEquals(200, post(friend, "/profile/nickname", Map.of("nickname", renamed)).statusCode());
+            assertEquals(renamed, body(get(bystander, "/novels/" + novel + "/comments")).path("names").path(friendId).asText());
+
+            long message = body(post(author, "/chat", Map.of("body", "@" + renamed + ", глянь новелу"))).path("id").asLong();
+            var chat = body(get(bystander, "/chat"));
+            assertEquals(renamed, chat.path("names").path(friendId).asText());
+            assertEquals(message, body(get(friend, "/notifications")).path("items").get(0).path("chat_id").asLong());
+            sql.exec("UPDATE chat_messages SET created_at=created_at-interval '1 minute' WHERE author_id=?", friendId);
+            assertEquals(200, post(friend, "/chat", Map.of("body", "Ок", "replyTo", message)).statusCode());
+            assertEquals("reply", body(get(author, "/notifications")).path("items").get(0).path("kind").asText());
+            assertEquals(400, post(bystander, "/chat", Map.of("body", "x", "replyTo", 999999999)).statusCode());
+            var many = new StringBuilder();
+            for (int i = 0; i < 11; i++) many.append("<@").append(friendId).append("> ");
+            assertEquals(200, post(bystander, "/chat", Map.of("body", many.toString())).statusCode(), "repeating one person counts once");
+        }
+    }
+
+    @Test
     void selfApprovalSettingAppliesOnlyToAdminsAndIsEnforcedByBackend() throws Exception {
         String novel = seed();
         String job = body(get(owner, "/novels/" + novel + "/chapters/1")).path("jobId").asText();

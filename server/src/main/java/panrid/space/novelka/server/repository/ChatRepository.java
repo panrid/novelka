@@ -7,8 +7,11 @@ import java.util.Map;
 
 public final class ChatRepository {
     private static final String SELECT = """
-            SELECT m.id,m.author_id,a.username AS author,m.body,m.created_at,(m.hidden_at IS NOT NULL) AS hidden,m.hidden_reason FROM chat_messages m
-            JOIN accounts a ON a.id=m.author_id WHERE m.deleted_at IS NULL
+            SELECT m.id,m.author_id,a.username AS author,m.body,m.created_at,(m.hidden_at IS NOT NULL) AS hidden,m.hidden_reason,
+                m.reply_to,pa.username AS reply_author,CASE WHEN p.deleted_at IS NULL THEN left(p.body,200) END AS reply_body,
+                (p.hidden_at IS NOT NULL) AS reply_hidden,(p.deleted_at IS NOT NULL) AS reply_deleted FROM chat_messages m
+            JOIN accounts a ON a.id=m.author_id LEFT JOIN chat_messages p ON p.id=m.reply_to LEFT JOIN accounts pa ON pa.id=p.author_id
+            WHERE m.deleted_at IS NULL
             """;
     private final JdbcSession jdbc;
 
@@ -49,8 +52,9 @@ public final class ChatRepository {
         return !jdbc.rows("SELECT 1 FROM chat_messages WHERE author_id=? AND created_at>now()-interval '2 seconds'", author).isEmpty();
     }
 
-    public long create(String author, String body) throws Exception {
-        return ((Number) jdbc.rows("INSERT INTO chat_messages(author_id,body) VALUES(?,?) RETURNING id", author, body).getFirst().get("id")).longValue();
+    public long create(String author, String body, Long replyTo) throws Exception {
+        return ((Number) jdbc.rows("INSERT INTO chat_messages(author_id,body,reply_to) VALUES(?,?,?) RETURNING id", author, body, replyTo)
+                .getFirst().get("id")).longValue();
     }
 
     public void delete(long id, String actor) throws Exception {

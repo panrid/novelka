@@ -14,8 +14,11 @@ public final class CommentRepository {
     public List<Map<String, Object>> page(String novel, int chapter, long before, int limit) throws Exception {
         return jdbc.rows("""
                 SELECT c.id,c.author_id,a.username AS author,c.body,c.created_at,c.edited_at,
-                    (c.hidden_at IS NOT NULL) AS hidden,c.hidden_reason FROM comments c
+                    (c.hidden_at IS NOT NULL) AS hidden,c.hidden_reason,c.reply_to,pa.username AS reply_author,
+                    CASE WHEN p.deleted_at IS NULL THEN left(p.body,200) END AS reply_body,
+                    (p.hidden_at IS NOT NULL) AS reply_hidden,(p.deleted_at IS NOT NULL) AS reply_deleted FROM comments c
                 JOIN accounts a ON a.id=c.author_id
+                LEFT JOIN comments p ON p.id=c.reply_to LEFT JOIN accounts pa ON pa.id=p.author_id
                 WHERE c.novel_id=? AND c.chapter=? AND c.deleted_at IS NULL AND (?=0 OR c.id<?)
                 ORDER BY c.id DESC LIMIT ?
                 """, novel, chapter, before, before, limit);
@@ -26,9 +29,9 @@ public final class CommentRepository {
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
-    public long create(String novel, int chapter, String author, String body) throws Exception {
-        return ((Number) jdbc.rows("INSERT INTO comments(novel_id,chapter,author_id,body) VALUES(?,?,?,?) RETURNING id",
-                novel, chapter, author, body).getFirst().get("id")).longValue();
+    public long create(String novel, int chapter, String author, String body, Long replyTo) throws Exception {
+        return ((Number) jdbc.rows("INSERT INTO comments(novel_id,chapter,author_id,body,reply_to) VALUES(?,?,?,?,?) RETURNING id",
+                novel, chapter, author, body, replyTo).getFirst().get("id")).longValue();
     }
 
     public boolean recentlyPosted(String author) throws Exception {

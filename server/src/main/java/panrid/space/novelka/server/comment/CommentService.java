@@ -7,9 +7,11 @@ import panrid.space.novelka.core.repository.NovelRepository;
 import panrid.space.novelka.server.account.Account;
 import panrid.space.novelka.server.account.Role;
 import panrid.space.novelka.server.config.ReaderDatabase;
+import panrid.space.novelka.server.mention.Mentions;
 import panrid.space.novelka.server.novel.NovelAccessService;
 import panrid.space.novelka.server.repository.AuditRepository;
 import panrid.space.novelka.server.repository.CommentRepository;
+import panrid.space.novelka.server.repository.PersonalNotificationRepository;
 import panrid.space.novelka.server.repository.VoteRepository;
 
 import java.util.ArrayList;
@@ -38,6 +40,8 @@ public final class CommentService {
             if (more) rows = rows.subList(0, PAGE);
             var votes = new VoteRepository(jdbc).summaries("comment",
                     rows.stream().map(row -> String.valueOf(row.get("id"))).toList(), viewer == null ? null : viewer.id());
+            var bodies = new ArrayList<String>();
+            for (var row : rows) { bodies.add((String) row.get("body")); bodies.add((String) row.get("reply_body")); }
             var items = new ArrayList<Map<String, Object>>();
             for (var row : rows) {
                 var item = new LinkedHashMap<>(row);
@@ -48,7 +52,8 @@ public final class CommentService {
                 item.put("can_moderate", viewer != null && viewer.role().includes(Role.MODERATOR));
                 items.add(item);
             }
-            return Map.of("items", items, "nextCursor", more ? ((Number) rows.getLast().get("id")).longValue() : 0);
+            return Map.of("items", items, "nextCursor", more ? ((Number) rows.getLast().get("id")).longValue() : 0,
+                    "names", Mentions.names(jdbc, bodies));
         }
     }
 
@@ -61,8 +66,33 @@ public final class CommentService {
             var comments = new CommentRepository(jdbc);
             if (comments.recentlyPosted(author.id()))
                 throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Зачекайте кілька секунд перед наступним коментарем.");
-            return comments.create(novel, chapter, author.id(), body);
+            String parentAuthor = null;
+            if (request.replyTo() != null) {
+                var parent = comments.get(request.replyTo());
+                if (parent == null || parent.get("deleted_at") != null || !novel.equals(parent.get("novel_id"))
+                        || ((Number) parent.get("chapter")).intValue() != chapter)
+                    throw new IllegalArgumentException("Коментар, на який ви відповідаєте, не знайдено в цьому обговоренні.");
+                parentAuthor = (String) parent.get("author_id");
+            }
+            String encoded = Mentions.encode(jdbc, body);
+            String replied = parentAuthor;
+            return jdbc.transaction(() -> {
+                long id = comments.create(novel, chapter, author.id(), encoded, request.replyTo());
+                notify(jdbc, author, id, novel, chapter, encoded, replied);
+                return id;
+            });
         }
+    }
+
+    /** Mentioned people and the author of the answered comment hear about it once; nobody is notified about themselves. */
+    private static void notify(panrid.space.novelka.core.persistence.JdbcSession jdbc, Account author, long id, String novel, int chapter,
+            String body, String repliedTo) throws Exception {
+        var notifications = new PersonalNotificationRepository(jdbc);
+        var mentioned = Mentions.mentioned(body);
+        for (var account : mentioned)
+            if (!account.equals(author.id())) notifications.comment("mention", account, author.id(), id, novel, chapter);
+        if (repliedTo != null && !repliedTo.equals(author.id()) && !mentioned.contains(repliedTo))
+            notifications.comment("reply", repliedTo, author.id(), id, novel, chapter);
     }
 
     public void edit(Account author, long id, CommentRequest request) throws Exception {
@@ -71,7 +101,13 @@ public final class CommentService {
             var comments = new CommentRepository(jdbc);
             var comment = live(comments, id);
             if (!author.id().equals(comment.get("author_id"))) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Редагувати можна лише власний коментар.");
-            comments.edit(id, body);
+            String encoded = Mentions.encode(jdbc, body);
+            jdbc.transaction(() -> {
+                comments.edit(id, encoded);
+                // People added by the edit are notified; the event key skips those who already were.
+                notify(jdbc, author, id, (String) comment.get("novel_id"), ((Number) comment.get("chapter")).intValue(), encoded, null);
+                return null;
+            });
         }
     }
 

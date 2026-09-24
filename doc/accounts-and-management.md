@@ -354,12 +354,12 @@ job не збільшує історичну суму попереднього �
 | POST /api/library/{novel} | READER, `status` переносить новелу (ID або аліас) у список; порожній рядок прибирає; невідома новела — 404 |
 | POST /api/votes/{type}/{id} | READER, голос `value` 1/-1/0 за новелу (`novel`) чи коментар (`comment`); відповідь — `score` і власний `mine` |
 | GET /api/novels/{novel}/comments?chapter=&before= | Публічний, 20 коментарів від нових до старих; `nextCursor` для старіших |
-| POST /api/novels/{novel}/comments | READER, коментар до новели (`chapter` 0) чи глави; не частіше ніж раз на 5 с |
+| POST /api/novels/{novel}/comments | READER, коментар до новели (`chapter` 0) чи глави, `replyTo` — коментар того ж обговорення; `@нік` стає згадкою зі сповіщенням; не частіше ніж раз на 5 с |
 | POST /api/comments/{id}; DELETE /api/comments/{id} | Автор редагує й м'яко видаляє лише власний коментар |
 | POST /api/comments/{id}/hide, /unhide; POST /api/chat/{id}/hide, /unhide | MODERATOR+, приховати з `reason` (до 300 символів) або повернути; аудит |
 | POST /api/manage/{novel}/hide, /unhide | ADMIN/OWNER, приховати новелу з `reason` або повернути в каталог; аудит |
 | GET /api/chat?before=; GET /api/chat/updates?after= | READER, історія по 30 повідомлень від нових; нові після ID, нещодавно видалені й `moderated` (приховані/повернені) |
-| POST /api/chat; DELETE /api/chat/{id} | READER надсилає (до 1000 символів, не частіше ніж раз на 2 с); автор видаляє власне |
+| POST /api/chat; DELETE /api/chat/{id} | READER надсилає (до 1000 символів, не частіше ніж раз на 2 с, `replyTo`, згадки `@нік`); автор видаляє власне |
 | POST /api/manage/novels | READER, створити новелу вручну (українські дані, теги); автор стає перекладачем |
 | GET /api/manage/novels?q= | READER, до 25 новел, якими акаунт керує (ADMIN — усі), для майстерні |
 | GET /api/balance | READER, власний баланс: `available`, `toppedUp`, `reserved`, `spent`, `unlimited` |
@@ -375,7 +375,7 @@ job не збільшує історичну суму попереднього �
 | POST /api/corrections/{id}/review | Рецензент новели, approve і note |
 | GET/POST /api/manage/{novel}/editors; DELETE /api/manage/{novel}/editors/{account} | Перекладач або ADMIN: перекладач, `openReview`, редактори; додати `accountId` чи прибрати |
 | POST /api/manage/{novel}/review-access | Перекладач або ADMIN, `open` — правки перевіряють усі користувачі |
-| GET /api/users/search?q= | READER, до 10 ніків (ID і нік, без email) для вибору людей |
+| GET /api/users/search?q= | READER, до 10 ніків (ID і нік, без email) для вибору редакторів і згадок |
 | GET /api/accounts; POST /api/accounts/{id}/role | ADMIN, пошук за ніком або email; зміна ролі за таблицею ролей |
 | GET /api/accounts/{id} | ADMIN, нік, email, роль і дата реєстрації для панелі користувача |
 | GET /api/accounts/audit | OWNER, журнал дій |

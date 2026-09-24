@@ -37,7 +37,7 @@ test('reader discusses a novel: posts, edits, deletes own comment and loads olde
     await expect(section.getByRole('button', { name: 'Редагувати' })).toHaveCount(0);
     await section.getByLabel('Ваш коментар').fill('Мій відгук');
     await section.getByRole('button', { name: 'Опублікувати коментар' }).click();
-    await expect.poll(() => posted).toEqual({ chapter: 0, body: 'Мій відгук' });
+    await expect.poll(() => posted).toEqual({ chapter: 0, body: 'Мій відгук', replyTo: null });
     await expect(section.locator('.comment-body', { hasText: 'Мій відгук' })).toBeVisible();
     await section.getByRole('button', { name: 'Редагувати' }).click();
     await section.getByLabel('Текст коментаря').fill('Мій відгук, уточнено');

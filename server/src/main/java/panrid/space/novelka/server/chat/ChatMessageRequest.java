@@ -1,4 +1,5 @@
 package panrid.space.novelka.server.chat;
 
-public record ChatMessageRequest(String body) {
+/** replyTo is an earlier chat message or null. */
+public record ChatMessageRequest(String body, Long replyTo) {
 }

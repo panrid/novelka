@@ -35,7 +35,7 @@ test('chat shows latest messages, sends, polls new and deleted ones and loads ol
     await box.getByLabel('Повідомлення').fill('Усе добре');
     await box.getByLabel('Повідомлення').press('Enter');
     await expect(box.locator('.chat-message p')).toHaveText(['Привіт', 'Як справи?', 'Усе добре']);
-    expect(sent).toEqual({ body: 'Усе добре' });
+    expect(sent).toEqual({ body: 'Усе добре', replyTo: null });
 
     serverMessages = [...serverMessages, message(43, 'anna', 'Новина від Анни')];
     deleted.push(41);
