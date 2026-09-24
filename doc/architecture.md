@@ -106,6 +106,16 @@
   від першої неперекладеної глави до вказаної. Уже перекладені глави не чіпаються.
 
 ### Шаги й гроші
+- **На старті** шагами користується лише власник сайту, і книга записів для цього
+  не потрібна. Його «баланс» — залишок OpenRouter (`GET /api/v1/credits` з ключем
+  керування, кеш на кілька хвилин), поділений на собівартість шагу. Собівартість
+  береться з налаштування, а коли є статистика — із середньої фактичної ціни глави
+  за 30 днів. Кошторис для власника — середня фактична ціна глави × кількість.
+  Якщо `show_shah = false`, усі суми показуються в доларах. Запуск власника
+  записується в `job` з `funding = site`. Його вартість — сума `ai_call`, без записів
+  у книзі.
+- Решта нижче — після запуску (етапи 10–12). Схема створюється одразу, щоб потім
+  не переробляти `job` і рахунки команд.
 - Облік — **книга записів** (подвійний запис) у **шагах**. Кожна операція —
   транзакція з кількох рядків, сума рядків = 0. Баланс рахунку = сума його рядків.
   Кешований `balance` на рахунку оновлюється в тій самій транзакції під блокуванням рядка.
@@ -167,7 +177,9 @@
 ```
 account          id, nick, nick_key unique, email unique, email_verified_at,
                  password_hash, site_role (reader|moderator|admin|owner),
-                 bio, avatar_image_id, last_seen_at, dm_policy (everyone|nobody),  -- писати й додавати в групи
+                 bio, avatar_image_id, last_seen_at, dm_policy (everyone|nobody),
+                 adult_confirmed_at null,               -- підтвердив 18+
+                 show_shah boolean default true,        -- власник сайту може бачити долари  -- писати й додавати в групи
                  created_at, deleted_at
 account_block    blocker_id, blocked_id, created_at, pk (blocker_id, blocked_id)
 nick_change      account_id, old_nick, new_nick, changed_at
@@ -195,6 +207,7 @@ translation      id, novel_id, team_id, title_uk, author_uk, description jsonb (
                  access_free_after_days null, free_first_chapters,
                  cover_image_id null,
                  kind (human|machine|mixed), status (ongoing|completed|paused|abandoned),
+                 adult boolean,                          -- 18+
                  continues_translation_id null, first_number (1 або N+1 для естафети),
                  last_published_at, hidden_at, hidden_reason, created_at,
                  unique (novel_id, team_id)
@@ -242,7 +255,7 @@ glossary_entry   id, translation_id, key, japanese, reading, ukrainian, aliases 
 glossary_proposal id, translation_id, job_id, payload jsonb, fingerprint, state
 job              id, translation_id, requested_by, kind (translate|proofread|illustrate),
                  first_number, last_number, state (queued|running|done|failed|cancelled),
-                 quote_shah, hold_tx_id, charged_shah,
+                 funding (site|team), quote_shah, hold_tx_id null, charged_shah,
                  settings jsonb (моделі й ціни на момент запуску), error, created_at, finished_at
 job_step         id, job_id, chapter_number, stage (fetch|analyze|translate|proofread|publish),
                  segment, state, attempts, locked_until, result jsonb
