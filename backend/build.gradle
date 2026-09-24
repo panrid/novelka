@@ -1,0 +1,147 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.1'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+def bootVersion = '4.1.1'
+def modulithVersion = '2.1.1'
+
+sourceSets {
+    // Standalone generator: migrations -> temporary PostgreSQL -> jOOQ classes.
+    codegen
+}
+
+dependencies {
+    implementation platform("org.springframework.boot:spring-boot-dependencies:$bootVersion")
+    implementation platform("org.springframework.modulith:spring-modulith-bom:$modulithVersion")
+
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-jooq'
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    implementation 'org.springframework.modulith:spring-modulith-starter-core'
+    implementation 'org.springframework.modulith:spring-modulith-starter-jdbc'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    developmentOnly platform("org.springframework.boot:spring-boot-dependencies:$bootVersion")
+    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
+
+    testImplementation platform("org.springframework.boot:spring-boot-dependencies:$bootVersion")
+    testImplementation platform("org.springframework.modulith:spring-modulith-bom:$modulithVersion")
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-restclient'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.springframework.modulith:spring-modulith-starter-test'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    codegenImplementation platform("org.springframework.boot:spring-boot-dependencies:$bootVersion")
+    codegenImplementation 'org.testcontainers:testcontainers-postgresql'
+    codegenImplementation 'org.flywaydb:flyway-core'
+    codegenImplementation 'org.flywaydb:flyway-database-postgresql'
+    codegenImplementation 'org.jooq:jooq-codegen'
+    codegenRuntimeOnly 'org.postgresql:postgresql'
+    codegenRuntimeOnly 'org.slf4j:slf4j-simple'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs.addAll(['-parameters', '-Xlint:all,-processing,-serial'])
+}
+
+def migrations = layout.projectDirectory.dir('src/main/resources/db/migration')
+def jooqOutput = layout.buildDirectory.dir('generated-sources/jooq')
+
+def generateJooq = tasks.register('generateJooq', JavaExec) {
+    description = 'Applies Flyway migrations to a temporary PostgreSQL and generates jOOQ classes.'
+    group = 'build'
+    classpath = sourceSets.codegen.runtimeClasspath
+    mainClass = 'space.panrid.novelka.codegen.JooqGenerator'
+    inputs.dir(migrations).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(sourceSets.codegen.runtimeClasspath).withNormalizer(ClasspathNormalizer)
+    outputs.dir(jooqOutput)
+    outputs.cacheIf { true }
+    def migrationsPath = migrations.asFile.absolutePath
+    def outputPath = jooqOutput.get().asFile.absolutePath
+    args migrationsPath, outputPath, 'space.panrid.novelka.jooq'
+    // The PostgreSQL JDBC driver sends the JVM zone; "Europe/Kiev" from macOS is rejected.
+    jvmArgs '-Duser.timezone=UTC'
+}
+
+sourceSets.main.java.srcDir(generateJooq)
+
+tasks.named('test') {
+    useJUnitPlatform()
+    jvmArgs '-Duser.timezone=UTC'
+}
+
+tasks.named('bootRun') {
+    jvmArgs '-Duser.timezone=UTC'
+}
+
+// Frontend lives in ../frontend with its own package.json; Gradle only drives npm.
+def frontendDir = rootProject.layout.projectDirectory.dir('frontend')
+
+def npmInstall = tasks.register('npmInstall', Exec) {
+    description = 'Installs frontend dependencies exactly as locked.'
+    group = 'frontend'
+    workingDir frontendDir
+    commandLine 'npm', 'ci', '--no-audit', '--no-fund'
+    inputs.files(frontendDir.file('package.json'), frontendDir.file('package-lock.json'))
+    outputs.dir(frontendDir.dir('node_modules'))
+}
+
+def frontendSources = [
+        frontendDir.dir('src'), frontendDir.dir('public'), frontendDir.file('index.html'),
+        frontendDir.file('vite.config.ts'), frontendDir.file('tsconfig.json'),
+        frontendDir.file('eslint.config.js'), frontendDir.file('package-lock.json'),
+]
+
+def frontendCheck = tasks.register('frontendCheck', Exec) {
+    description = 'Type-checks, lints and tests the frontend.'
+    group = 'verification'
+    dependsOn npmInstall
+    workingDir frontendDir
+    commandLine 'npm', 'run', 'check'
+    inputs.files(frontendSources)
+    outputs.upToDateWhen { true }
+    def marker = layout.buildDirectory.file('frontend-check.ok')
+    outputs.file(marker)
+    doLast { marker.get().asFile.text = 'ok' }
+}
+
+def frontendBuild = tasks.register('frontendBuild', Exec) {
+    description = 'Builds the production frontend bundle.'
+    group = 'build'
+    dependsOn npmInstall
+    workingDir frontendDir
+    commandLine 'npm', 'run', 'build'
+    inputs.files(frontendSources)
+    outputs.dir(frontendDir.dir('dist'))
+}
+
+tasks.named('check') {
+    dependsOn frontendCheck
+}
+
+tasks.named('bootJar') {
+    archiveFileName = 'novelka.jar'
+    dependsOn frontendBuild
+    from(frontendDir.dir('dist')) {
+        into 'BOOT-INF/classes/static'
+    }
+}

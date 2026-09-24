@@ -1,0 +1,32 @@
+# Local development services. Project name differs from v1 ("infra"), and ports
+# differ from v1's PostgreSQL on 5432, so both can run side by side.
+name: novelka
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: novelka
+      POSTGRES_USER: novelka
+      POSTGRES_PASSWORD: novelka
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U novelka -d novelka"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  mailpit:
+    # Catches every email the app sends; open http://127.0.0.1:8025 to read them.
+    image: axllent/mailpit:v1.31
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    labels:
+      org.springframework.boot.ignore: "true"
+
+volumes:
+  postgres:

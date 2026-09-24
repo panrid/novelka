@@ -1,0 +1,31 @@
+.page {
+    padding-top: 24px;
+}
+
+.title {
+    font: 600 26px/1.2 var(--font-reading);
+    margin-bottom: 8px;
+}
+
+.text {
+    color: var(--muted);
+    max-width: 46ch;
+}
+
+.actions {
+    margin-top: 20px;
+}
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    height: 44px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}

@@ -1,0 +1,54 @@
+/*
+ * Design tokens. Dark is the default theme (brief); light exists for readers who pick it.
+ * Components use only these variables, never raw colours.
+ */
+:root,
+:root[data-theme='dark'] {
+    color-scheme: dark;
+    --bg: #121412;
+    --surface: #1b1e1b;
+    --surface-2: #242824;
+    --line: #2f342f;
+    --text: #e9e7df;
+    --text-reading: #dcdad1;
+    --muted: #9a9d94;
+    --faint: #6d7069;
+    --accent: #8fb07f;
+    --accent-ink: #10150e;
+    --warn: #d9a45b;
+    --danger: #d9776b;
+    --focus: #b9d4aa;
+    --shadow: 0 8px 24px rgb(0 0 0 / 45%);
+}
+
+:root[data-theme='light'] {
+    color-scheme: light;
+    --bg: #f7f5ef;
+    --surface: #ffffff;
+    --surface-2: #eeebe2;
+    --line: #dedad0;
+    --text: #1c1e1b;
+    --text-reading: #262823;
+    --muted: #5f625b;
+    --faint: #8a8c85;
+    --accent: #4f7a40;
+    --accent-ink: #ffffff;
+    --warn: #9a6516;
+    --danger: #b04a3e;
+    --focus: #4f7a40;
+    --shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+
+:root {
+    --font-ui: 'Inter Variable', -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-reading: 'Literata Variable', Georgia, 'Times New Roman', serif;
+    --radius-sm: 8px;
+    --radius: 12px;
+    --radius-lg: 18px;
+    --gutter: 16px;
+    --tabbar-height: 60px;
+    --topbar-height: 52px;
+    --page-width: 1080px;
+    --reading-width: 720px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+}

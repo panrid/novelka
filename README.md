@@ -16,3 +16,4 @@
 | [doc/mockups.html](doc/mockups.html) | Макети ключових екранів (відкрити в браузері) |
 | [doc/architecture.md](doc/architecture.md) | Модулі бекенду й схема даних |
 | [doc/plan.md](doc/plan.md) | Етапи розробки й відкриті питання |
+| [doc/development.md](doc/development.md) | Запуск локально, перевірки, міграції |

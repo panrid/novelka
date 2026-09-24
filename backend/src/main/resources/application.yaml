@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: novelka
+  datasource:
+    url: ${NOVELKA_DB_URL:jdbc:postgresql://127.0.0.1:5433/novelka}
+    username: ${NOVELKA_DB_USER:novelka}
+    password: ${NOVELKA_DB_PASSWORD:novelka}
+  jooq:
+    sql-dialect: postgres
+  flyway:
+    locations: classpath:db/migration
+  docker:
+    compose:
+      # Local development only: `bootRun` starts PostgreSQL and the mail catcher itself.
+      file: ../infra/compose.yaml
+      lifecycle-management: start-only
+  modulith:
+    events:
+      republish-outstanding-events-on-restart: true
+
+server:
+  address: ${NOVELKA_SERVER_ADDRESS:127.0.0.1}
+  port: ${NOVELKA_SERVER_PORT:8080}
+  error:
+    include-stacktrace: never
+    include-message: never
+  forward-headers-strategy: framework
