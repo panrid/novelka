@@ -60,9 +60,11 @@ class Pipeline {
     private final Analyses analyses;
     private final JsonMapper json;
     private final Clock clock;
+    private final Progress progress;
 
     Pipeline(DSLContext db, Ai ai, Sources sources, Chapters chapters, Images images, Glossary glossary, Analyses analyses,
-            JsonMapper json, Clock clock) {
+            JsonMapper json, Clock clock, Progress progress) {
+        this.progress = progress;
         this.analyses = analyses;
         this.db = db;
         this.ai = ai;
@@ -495,5 +497,6 @@ class Pipeline {
                 .set(JOB_STEP.NOT_BEFORE, OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC).plusMinutes(Worker.LEASE_MINUTES))
                 .where(JOB_STEP.ID.eq(step.getId()))
                 .execute();
+        progress.changed(step.getJobId());
     }
 }

@@ -83,7 +83,7 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
 
     const save = useCallback((force: boolean) => {
         const position = Math.round(place.current * 1000) / 1000;
-        saveLocalProgress(opened.novelSlug, opened.edition.teamHandle, { number: opened.number, position });
+        saveLocalProgress(opened.novelSlug, opened.edition.teamHandle, { number: opened.number, position, label: opened.label ?? null });
         const now = Date.now();
         const changed = Math.abs(position - lastSaved.current.position) > 0.01;
         // Only what really reached the server counts as saved; a guest (or an account still

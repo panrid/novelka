@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useMe } from '../../auth/me';
 import { messagingApi } from '../../inbox/api';
 import { Avatar } from '../../ui/Avatar';
+import { AvatarPicker } from '../../ui/AvatarPicker';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
@@ -52,16 +53,13 @@ export function ConversationAboutPage() {
                     if (title !== null) act.mutate(() => messagingApi.change(conversationId, { title }));
                 }}>
                     <TextInput label="Назва групи" value={title ?? c.title} onChange={setTitle} />
-                    <label className={styles.muted}>
-                        Картинка групи{' '}
-                        <input type="file" accept="image/*" onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file) act.mutate(async () => {
-                                const stored = await messagingApi.uploadPicture(file, 'group_avatar');
-                                await messagingApi.change(conversationId, { avatarImageId: stored.id, changeAvatar: true });
-                            });
-                        }} />
-                    </label>
+                    <div className={styles.member}>
+                        <Avatar nick={c.title} url={c.avatarUrl} size={48} />
+                        <AvatarPicker label="Змінити картинку групи" pending={act.isPending} onCropped={(image) => act.mutate(async () => {
+                            const stored = await messagingApi.uploadPicture(image, 'group_avatar');
+                            await messagingApi.change(conversationId, { avatarImageId: stored.id, changeAvatar: true });
+                        })} />
+                    </div>
                     {title !== null && title !== c.title && <Button type="submit">Зберегти назву</Button>}
                 </form>
             )}
@@ -79,12 +77,12 @@ export function ConversationAboutPage() {
                     <Link to="/u/$nick" params={{ nick: member.nick }} className={styles.grow}>{member.nick}</Link>
                     <span className={styles.muted}>{member.nick === me.nick ? 'це ви' : member.role === 'admin' ? 'адмін' : ''}</span>
                     {group && c.admin && member.nick !== me.nick && (
-                        <>
+                        <div className={styles.memberActions}>
                             <Button variant="secondary" onPress={() => act.mutate(() => messagingApi.setRole(conversationId, member.nick, member.role === 'admin' ? 'member' : 'admin'))}>
                                 {member.role === 'admin' ? 'Зняти адміна' : 'Зробити адміном'}
                             </Button>
                             <Button variant="secondary" onPress={() => act.mutate(() => messagingApi.removeMember(conversationId, member.nick))}>Видалити</Button>
-                        </>
+                        </div>
                     )}
                 </div>
             ))}

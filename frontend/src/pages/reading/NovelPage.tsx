@@ -58,6 +58,11 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
     const edition = novel.edition;
     const local = localProgress(novel.slug, edition.teamHandle);
     const resume = novel.viewer?.chapterNumber ?? local?.number ?? null;
+    // The chapter's own number (0, 31.1); a place remembered only in this browser has just its position.
+    const shown = novel.viewer?.chapterNumber
+        ? (novel.viewer.chapterLabel ?? String(novel.viewer.chapterNumber))
+        : local ? (local.label ?? String(local.number)) : null;
+    const resumeLabel = shown ? `Продовжити · гл. ${shown}` : 'Продовжити';
     const machine = edition.kind === 'machine' || edition.kind === 'mixed';
 
     return (
@@ -83,7 +88,7 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
             <div className={styles.actions}>
                 <LinkButton to="/n/$slug/$number" params={{ slug: novel.slug, number: String(resume ?? 1) }}
                     search={team ? { t: team } : {}} wide>
-                    {resume ? `Продовжити · гл. ${resume}` : 'Почати читати'}
+                    {resume ? resumeLabel : 'Почати читати'}
                 </LinkButton>
                 <LibraryButton novel={novel} />
             </div>

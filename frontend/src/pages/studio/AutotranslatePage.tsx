@@ -24,7 +24,8 @@ export function AutotranslatePage() {
         queryKey: ['autotranslate', id, kind, target ?? null],
         queryFn: () => autotranslateApi.overview(id, target, kind),
         placeholderData: (previous) => previous,
-        refetchInterval: (query) => (active(query.state.data?.jobs[0]) ? 3_000 : false),
+        // Live events refresh it at once; the slow poll only covers a lost connection.
+        refetchInterval: (query) => (active(query.state.data?.jobs[0]) ? 20_000 : false),
         retry: false,
     });
     const data = overview.data;

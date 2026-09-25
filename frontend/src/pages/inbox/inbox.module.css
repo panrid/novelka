@@ -220,8 +220,17 @@
 
 .member {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
     padding: 8px 0;
     border-bottom: 1px solid var(--line);
+}
+
+/* Admin buttons go under the nick, so a long nick never hides behind them. */
+.memberActions {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+    padding-left: 42px;
 }

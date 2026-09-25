@@ -60,7 +60,7 @@ export type NovelPage = {
     editions: EditionSummary[];
     adult: boolean;
     lastPublishedAt: string | null;
-    viewer: { list: ListName | null; chapterNumber: number | null; position: number | null; teamRole: 'owner' | 'translator' | 'editor' | null; myRating: number | null } | null;
+    viewer: { list: ListName | null; chapterNumber: number | null; position: number | null; teamRole: 'owner' | 'translator' | 'editor' | null; myRating: number | null; chapterLabel?: string | null } | null;
     relay: { free: boolean; reason: 'abandoned' | 'inactive' | 'unanswered' | null; lastNumber: number; continuations: Continuation[] };
 };
 

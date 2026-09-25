@@ -38,7 +38,8 @@ final class Views {
     }
 
     /** {@code teamRole}: owner, translator or editor when the viewer works on this edition. */
-    record ViewerState(String list, Integer chapterNumber, Float position, String teamRole, Integer myRating) {
+    /** @param chapterLabel the number readers see for {@code chapterNumber} (null: the position itself) */
+    record ViewerState(String list, Integer chapterNumber, Float position, String teamRole, Integer myRating, String chapterLabel) {
     }
 
     record NovelPage(String slug, String title, String author, String origin, List<ReaderBlock> description,

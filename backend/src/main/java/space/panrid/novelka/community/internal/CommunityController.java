@@ -1,5 +1,6 @@
 package space.panrid.novelka.community.internal;
 
+import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.CHAT_MESSAGE;
 import static space.panrid.novelka.jooq.Tables.COMMENT;
 import static space.panrid.novelka.jooq.Tables.EDITION;
@@ -7,6 +8,7 @@ import static space.panrid.novelka.jooq.Tables.EDITION_RATING;
 import static space.panrid.novelka.jooq.Tables.IMAGE;
 import static space.panrid.novelka.jooq.Tables.MESSAGE;
 import static space.panrid.novelka.jooq.Tables.REPORT;
+import static space.panrid.novelka.jooq.Tables.TEAM;
 
 import java.util.List;
 import java.util.Map;
@@ -39,8 +41,10 @@ class CommunityController {
     private final CommentService comments;
     private final ChatService chat;
     private final DSLContext db;
+    private final People people;
 
-    CommunityController(CurrentUser currentUser, CommentService comments, ChatService chat, DSLContext db) {
+    CommunityController(CurrentUser currentUser, CommentService comments, ChatService chat, DSLContext db, People people) {
+        this.people = people;
         this.currentUser = currentUser;
         this.comments = comments;
         this.chat = chat;
@@ -145,6 +149,31 @@ class CommunityController {
         var row = db.select(DSL.avg(EDITION_RATING.SCORE), DSL.count()).from(EDITION_RATING)
                 .where(EDITION_RATING.EDITION_ID.eq(editionId)).fetchSingle();
         return new RatingSummary(row.value1() == null ? null : row.value1().doubleValue(), row.value2(), body.score());
+    }
+
+    // ---- suggestions while typing @ or $ ------------------------------------------------------
+
+    record Suggestion(String name, String title, String avatarUrl) {
+    }
+
+    /** People (@) or teams ($) whose name starts with what was typed, for the box under the cursor. */
+    @GetMapping("/mentions")
+    List<Suggestion> mentions(@RequestParam String kind, @RequestParam String q) {
+        currentUser.requireSignedIn();
+        // startsWith escapes % and _ itself, so nicks like user_ab match as typed.
+        String prefix = q.strip().toLowerCase(java.util.Locale.ROOT);
+        if (prefix.isEmpty() || prefix.length() > 30) {
+            return List.of();
+        }
+        if ("$".equals(kind)) {
+            return db.select(TEAM.HANDLE, TEAM.NAME).from(TEAM).where(TEAM.HANDLE_KEY.startsWith(prefix))
+                    .orderBy(TEAM.HANDLE_KEY).limit(8)
+                    .fetch(r -> new Suggestion(r.value1(), r.value2(), null));
+        }
+        var rows = db.select(ACCOUNT.NICK, ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.NICK_KEY.startsWith(prefix))
+                .orderBy(ACCOUNT.NICK_KEY).limit(8).fetch();
+        var avatars = people.of(rows.map(r -> r.value2()));
+        return rows.map(r -> new Suggestion(r.value1(), null, avatars.get(r.value2()).avatarUrl()));
     }
 
     // ---- reports ------------------------------------------------------------------------------

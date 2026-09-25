@@ -41,8 +41,10 @@ class Worker {
     private final DSLContext db;
     private final Pipeline pipeline;
     private final Clock clock;
+    private final Progress progress;
 
-    Worker(DSLContext db, Pipeline pipeline, Clock clock) {
+    Worker(DSLContext db, Pipeline pipeline, Clock clock, Progress progress) {
+        this.progress = progress;
         this.db = db;
         this.pipeline = pipeline;
         this.clock = clock;
@@ -119,6 +121,7 @@ class Worker {
             fail(step, job, "Непередбачена помилка на главі %d. Подробиці в журналі сервера.".formatted(step.getChapterNumber()),
                     "internal");
         }
+        progress.changed(job.getId());
     }
 
     private void retryLater(JobStepRecord step, JobRecord job, String message) {

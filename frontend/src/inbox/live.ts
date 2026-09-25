@@ -22,6 +22,8 @@ export function useLiveEvents() {
         });
         source.addEventListener('messages', () => refresh('conversations', 'inbox-counts'));
         source.addEventListener('chat', () => refresh('chat'));
+        // Autotranslation moved a step: its page refreshes without polling.
+        source.addEventListener('job', () => refresh('autotranslate', 'studio-chapters'));
         return () => source.close();
     }, [me, client]);
 }

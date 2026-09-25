@@ -11,6 +11,13 @@ export type Thread = { items: Comment[]; total: number; page: number; hasMore: b
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 const place = (chapter?: number) => (chapter ? `chapter=${chapter}&` : '');
 
+export type MentionSuggestion = { name: string; title: string | null; avatarUrl: string | null };
+
+export const mentionApi = {
+    search: (kind: '@' | '$', q: string) =>
+        api<MentionSuggestion[]>(`/api/mentions?kind=${encodeURIComponent(kind)}&q=${encodeURIComponent(q)}`),
+};
+
 export const commentApi = {
     thread: (editionId: number, chapter: number | undefined, sort: 'new' | 'top', page = 1) =>
         api<Thread>(`/api/editions/${editionId}/comments?${place(chapter)}sort=${sort}&page=${page}`),

@@ -114,3 +114,51 @@
     color: var(--danger);
     font-size: 13px;
 }
+
+.icon[aria-pressed='true'] {
+    color: var(--accent);
+}
+
+.toolbar {
+    display: flex;
+    gap: 4px;
+}
+
+.toolbar button {
+    min-width: 36px;
+    height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: none;
+    color: var(--text);
+    font: 600 14px var(--font-ui);
+    cursor: pointer;
+}
+
+.suggestions {
+    margin: 0;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    list-style: none;
+}
+
+.suggestion,
+.suggestionOn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.suggestionOn {
+    background: var(--surface-2);
+}
+
+.hint {
+    color: var(--muted);
+    font-size: 12px;
+}

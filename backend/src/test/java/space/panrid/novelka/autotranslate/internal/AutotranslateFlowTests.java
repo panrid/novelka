@@ -223,6 +223,21 @@ class AutotranslateFlowTests {
     }
 
     @Test
+    void theOwnersOpenTabHearsTheJobMove() throws InterruptedException {
+        long edition = prepare();
+        var tab = owner.browser().stream("/api/events");
+        owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/jobs", json("to", 1));
+        worker.drain();
+        boolean heard = false;
+        long deadline = System.currentTimeMillis() + 5_000;
+        while (!heard && System.currentTimeMillis() < deadline) {
+            String line = tab.poll(100, java.util.concurrent.TimeUnit.MILLISECONDS);
+            heard = "event:job".equals(line);
+        }
+        assertThat(heard).isTrue();
+    }
+
+    @Test
     void onlyTheSiteOwnerMayUseIt() {
         Person reader = Accounts.signedIn(port, mailbox);
         assertThat(reader.browser().post("/api/studio/autotranslate/prepare",

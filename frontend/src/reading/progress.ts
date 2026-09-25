@@ -2,7 +2,8 @@
  * Guests keep their place in this browser; signed-in readers sync it through the server.
  * Keys are per novel and team, so two translations of one novel do not mix.
  */
-type Saved = { number: number; position: number };
+/** {@code label}: the number readers see (see chapterHeading); absent means the position. */
+type Saved = { number: number; position: number; label?: string | null };
 
 const key = (slug: string, team: string) => `novelka:progress:${slug}:${team}`;
 

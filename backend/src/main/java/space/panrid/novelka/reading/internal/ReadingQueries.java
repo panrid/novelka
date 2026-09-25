@@ -348,7 +348,10 @@ class ReadingQueries {
                 .where(EDITION_RATING.ACCOUNT_ID.eq(accountId), EDITION_RATING.EDITION_ID.eq(editionId)).fetchOne(EDITION_RATING.SCORE);
         return new Views.ViewerState(list, progress == null ? null : progress.get(READING_PROGRESS.CHAPTER_NUMBER),
                 progress == null ? null : progress.get(READING_PROGRESS.POSITION), teamRole,
-                rating == null ? null : rating.intValue());
+                rating == null ? null : rating.intValue(),
+                progress == null ? null : db.select(CHAPTER.LABEL).from(CHAPTER)
+                        .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(progress.get(READING_PROGRESS.CHAPTER_NUMBER)))
+                        .fetchOne(CHAPTER.LABEL));
     }
 
     // ---- library --------------------------------------------------------------------------

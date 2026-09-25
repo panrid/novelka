@@ -126,6 +126,16 @@ class CommunityFlowTests {
     }
 
     @Test
+    void typingAnAtSuggestsPeopleAndADollarSuggestsTeams() {
+        String start = translator.nick().substring(0, 7);
+        JsonNode people = read(reader.browser().get("/api/mentions?kind=@&q=" + start));
+        assertThat(people).extracting(p -> p.path("name").asString()).contains(translator.nick());
+        JsonNode teams = read(reader.browser().get("/api/mentions?kind=$&q=" + team.substring(0, 7)));
+        assertThat(teams).extracting(t -> t.path("name").asString()).contains(team);
+        assertThat(read(reader.browser().get("/api/mentions?kind=@&q=%25"))).as("a wildcard is just a character").isEmpty();
+    }
+
+    @Test
     void votesEditsAndRemoval() {
         long first = read(reader.browser().post(comments(), json("body", "Дякую за переклад!"))).path("id").asLong();
         long second = read(translator.browser().post(comments(), json("body", "Будь ласка."))).path("id").asLong();
