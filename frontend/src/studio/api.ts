@@ -77,7 +77,8 @@ export const studioApi = {
     update: (id: number, patch: Partial<{ title: string; author: string; description: StudioBlock[]; tags: string[]; status: string; adult: boolean }>) =>
         api<Overview>(edition(id), json('PATCH', patch)),
     setCover: (id: number, imageId: number | null) => api<Overview>(`${edition(id)}/cover`, json('PUT', { imageId })),
-    chapters: (id: number) => api<StudioChapter[]>(`${edition(id)}/chapters`),
+    chapters: (id: number, page = 1) => api<StudioChapter[]>(`${edition(id)}/chapters?page=${page}`),
+    deleteChapter: (id: number, number: number) => api<void>(chapter(id, number), { method: 'DELETE' }),
     newChapter: (id: number) => api<{ number: number }>(`${edition(id)}/chapters`, json('POST', {})),
     editor: (id: number, number: number) => api<EditorView>(chapter(id, number)),
     saveDraft: (id: number, number: number, body: { title: string; blocks: StudioBlock[]; baseRevisionId: number | null }) =>

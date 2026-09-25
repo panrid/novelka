@@ -4,6 +4,7 @@ import static space.panrid.novelka.jooq.Tables.GLOSSARY_ENTRY;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.jooq.DSLContext;
@@ -38,7 +39,7 @@ class Glossary {
     }
 
     record Entry(long id, String japanese, String reading, String ukrainian, List<String> aliases, String kind,
-            String gender, String note, Integer sourceChapter, boolean manual) {
+            String gender, String note, Integer sourceChapter, boolean manual, String status) {
 
         /** One line for a prompt. */
         String line() {
@@ -58,9 +59,55 @@ class Glossary {
         }
     }
 
+    /** Everything the translation may use: rejected entries never reach a prompt. */
     List<Entry> all(long editionId) {
-        return db.selectFrom(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.EDITION_ID.eq(editionId))
+        return db.selectFrom(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.EDITION_ID.eq(editionId), GLOSSARY_ENTRY.STATUS.ne("rejected"))
                 .orderBy(GLOSSARY_ENTRY.KIND, GLOSSARY_ENTRY.UKRAINIAN).fetch(this::entry);
+    }
+
+    static final int PAGE = 50;
+    static final Set<String> STATUSES = Set.of("new", "approved", "rejected");
+
+    record Page(List<Entry> items, int total, int page, boolean hasMore, List<Integer> chapters, Map<String, Integer> counts) {
+    }
+
+    /**
+     * One page of the glossary for review.
+     *
+     * @param status  new, approved, rejected, or null for all
+     * @param chapter the chapter whose analysis found the entry, or null for all
+     * @param sort    «alpha» (by the Ukrainian form) or «chapter» (in the order the novel met them)
+     */
+    Page page(long editionId, String status, Integer chapter, String query, String sort, int page) {
+        var where = GLOSSARY_ENTRY.EDITION_ID.eq(editionId)
+                .and(status == null ? DSL.noCondition() : GLOSSARY_ENTRY.STATUS.eq(status))
+                .and(chapter == null ? DSL.noCondition() : GLOSSARY_ENTRY.SOURCE_CHAPTER.eq(chapter))
+                .and(query == null || query.isBlank() ? DSL.noCondition() : GLOSSARY_ENTRY.UKRAINIAN.containsIgnoreCase(query.strip()));
+        int total = db.fetchCount(GLOSSARY_ENTRY, where);
+        var order = "chapter".equals(sort)
+                ? List.of(GLOSSARY_ENTRY.SOURCE_CHAPTER.asc().nullsFirst(), GLOSSARY_ENTRY.UKRAINIAN.asc())
+                : List.of(DSL.lower(GLOSSARY_ENTRY.UKRAINIAN).asc(), GLOSSARY_ENTRY.ID.asc());
+        int at = Math.max(1, page);
+        List<Entry> items = db.selectFrom(GLOSSARY_ENTRY).where(where).orderBy(order).limit(PAGE).offset((at - 1) * PAGE).fetch(this::entry);
+        List<Integer> chapters = db.selectDistinct(GLOSSARY_ENTRY.SOURCE_CHAPTER).from(GLOSSARY_ENTRY)
+                .where(GLOSSARY_ENTRY.EDITION_ID.eq(editionId), GLOSSARY_ENTRY.SOURCE_CHAPTER.isNotNull(), GLOSSARY_ENTRY.SOURCE_CHAPTER.gt(0))
+                .orderBy(GLOSSARY_ENTRY.SOURCE_CHAPTER).fetch(GLOSSARY_ENTRY.SOURCE_CHAPTER);
+        Map<String, Integer> counts = new java.util.HashMap<>(Map.of("new", 0, "approved", 0, "rejected", 0));
+        db.select(GLOSSARY_ENTRY.STATUS, DSL.count()).from(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.EDITION_ID.eq(editionId))
+                .groupBy(GLOSSARY_ENTRY.STATUS).forEach(r -> counts.put(r.value1(), r.value2()));
+        return new Page(items, total, at, at * PAGE < total, chapters, counts);
+    }
+
+    /** «Затвердити», «Відхилити» or «Повернути в нові» for the selected entries. */
+    int setStatus(long editionId, List<Long> ids, String status) {
+        if (status == null || !STATUSES.contains(status)) {
+            throw UserFacingException.badRequest("Невідома дія.");
+        }
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        return db.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.STATUS, status).set(GLOSSARY_ENTRY.UPDATED_AT, DSL.currentOffsetDateTime())
+                .where(GLOSSARY_ENTRY.EDITION_ID.eq(editionId), GLOSSARY_ENTRY.ID.in(ids)).execute();
     }
 
     /** Entries whose Japanese form or an alias appears in the text. */
@@ -109,7 +156,7 @@ class Glossary {
         if (name.isEmpty() || name.length() > 100) {
             throw UserFacingException.badRequest("Вкажіть, як писати українською (до 100 знаків).");
         }
-        if (!KINDS.contains(kind) || (gender != null && !GENDERS.contains(gender))) {
+        if (kind == null || !KINDS.contains(kind) || (gender != null && !GENDERS.contains(gender))) {
             throw UserFacingException.badRequest("Невідомий вид запису.");
         }
         int changed = db.update(GLOSSARY_ENTRY)
@@ -118,18 +165,14 @@ class Glossary {
                 .set(GLOSSARY_ENTRY.GENDER, gender == null ? "unknown" : gender)
                 .set(GLOSSARY_ENTRY.NOTE, limit(blankToNull(note), 300))
                 .set(GLOSSARY_ENTRY.MANUAL, true)
+                // A corrected entry is an approved one.
+                .set(GLOSSARY_ENTRY.STATUS, "approved")
                 .set(GLOSSARY_ENTRY.UPDATED_AT, DSL.currentOffsetDateTime())
                 .where(GLOSSARY_ENTRY.ID.eq(entryId), GLOSSARY_ENTRY.EDITION_ID.eq(editionId))
                 .execute();
         if (changed == 0) {
             throw UserFacingException.notFound("Такого запису в словнику немає.");
         }
-    }
-
-    /** «Усе перевірено»: entries from analysis count as checked, as if the owner had saved each. */
-    void markAllChecked(long editionId) {
-        db.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.MANUAL, true)
-                .where(GLOSSARY_ENTRY.EDITION_ID.eq(editionId), GLOSSARY_ENTRY.MANUAL.isFalse()).execute();
     }
 
     void delete(long editionId, long entryId) {
@@ -141,7 +184,7 @@ class Glossary {
         JSONB aliases = record.getAliases();
         return new Entry(record.getId(), record.getJapanese(), record.getReading(), record.getUkrainian(),
                 aliases == null ? List.of() : json.readValue(aliases.data(), STRINGS), record.getKind(),
-                record.getGender(), record.getNote(), record.getSourceChapter(), record.getManual());
+                record.getGender(), record.getNote(), record.getSourceChapter(), record.getManual(), record.getStatus());
     }
 
     private static String blankToNull(String value) {

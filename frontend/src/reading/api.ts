@@ -31,7 +31,7 @@ export type TextBlock = {
 export type Home = {
     continueReading: { card: Card; chapterNumber: number; position: number }[];
     popular: Card[];
-    newChapters: { card: Card; firstNumber: number; lastNumber: number; publishedAt: string }[];
+    newChapters: { card: Card; firstNumber: number; lastNumber: number; publishedAt: string; firstLabel?: string | null; lastLabel?: string | null }[];
 };
 
 export type Page<T> = { items: T[]; page: number; hasMore: boolean };
@@ -109,6 +109,7 @@ function query(params: Record<string, string | number | string[] | undefined>) {
 const novelPath = (slug: string) => `/api/novels/${encodeURIComponent(slug)}`;
 
 export const readingApi = {
+    works: (nick: string) => api<Card[]>(`/api/users/${encodeURIComponent(nick)}/works`),
     home: () => api<Home>('/api/home'),
     catalog: ({ q, tags, kind, machine, sort, page }: CatalogQuery) =>
         api<Page<Card>>(`/api/catalog${query({ q, tag: tags, kind, machine, sort, page })}`),

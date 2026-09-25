@@ -80,12 +80,14 @@ class AutotranslateFlowTests {
         assertThat(about.toString()).as("only Ukrainian reaches the site").doesNotContain("灯台").contains("Ліхтарник із туману");
         assertThat(prepare()).as("the same link again reuses the edition").isEqualTo(edition);
 
-        JsonNode overview = read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate?to=3"));
+        JsonNode overview = read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate"));
         assertThat(overview.path("sourceChapters").asInt()).isEqualTo(5);
         assertThat(overview.path("nextNumber").asInt()).isEqualTo(1);
-        assertThat(overview.path("quote").path("shah").asInt()).as("three short chapters, a шаг each").isEqualTo(3);
-        assertThat(overview.path("quote").path("usd").decimalValue()).isEqualByComparingTo("0.11");
-        assertThat(overview.path("quote").path("estimated").asBoolean()).isTrue();
+        JsonNode quote = read(owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/quote", json("kind", "translate", "to", 3)));
+        assertThat(quote.path("shah").asInt()).as("three short chapters, a шаг each").isEqualTo(3);
+        assertThat(quote.path("usd").decimalValue()).isEqualByComparingTo("0.11");
+        assertThat(quote.path("expectedUsd").decimalValue()).as("what the models themselves should cost").isPositive();
+        assertThat(quote.path("estimated").asBoolean()).isTrue();
         assertThat(overview.path("balance").path("usd").decimalValue()).isEqualByComparingTo("7.50");
         assertThat(overview.path("balance").path("shah").asInt()).isEqualTo(208);
 
@@ -109,13 +111,13 @@ class AutotranslateFlowTests {
         assertThat(chapter.path("blocks")).extracting(block -> block.path("type").asString())
                 .containsExactly("preface", "paragraph", "paragraph", "separator", "paragraph", "afterword");
 
-        JsonNode glossary = read(owner.browser().get("/api/studio/editions/" + edition + "/glossary"));
+        JsonNode glossary = read(owner.browser().get("/api/studio/editions/" + edition + "/glossary")).path("items");
         assertThat(glossary).as("the novel's own title and one name").hasSize(2);
         assertThat(glossary.toString()).contains("Юкі").contains("Ліхтарник із туману").doesNotContain("ユキ");
 
-        JsonNode next = read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate?to=5"));
-        assertThat(next.path("quote").path("from").asInt()).as("translated chapters are not touched").isEqualTo(4);
-        assertThat(next.path("quote").path("estimated").asBoolean()).isTrue();
+        JsonNode next = read(owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/quote", json("to", 5)));
+        assertThat(next.path("from").asInt()).as("translated chapters are not touched").isEqualTo(4);
+        assertThat(next.path("estimated").asBoolean()).isTrue();
 
         JsonNode wallet = read(owner.browser().get("/api/studio/autotranslate/wallet"));
         assertThat(wallet.path("report").path(0).path("chapters").asInt()).isGreaterThanOrEqualTo(3);
@@ -186,19 +188,22 @@ class AutotranslateFlowTests {
         long edition = prepare();
         String base = "/api/studio/editions/" + edition;
 
-        JsonNode quote = read(owner.browser().get(base + "/autotranslate?to=4&kind=analyze")).path("quote");
+        JsonNode quote = read(owner.browser().post(base + "/autotranslate/quote", json("kind", "analyze", "to", 4)));
         assertThat(quote.path("kind").asString()).isEqualTo("analyze");
         assertThat(quote.path("shah").asInt()).as("a quarter of a шаг per chapter").isEqualTo(1);
         assertThat(owner.browser().post(base + "/autotranslate/jobs", json("to", 4, "kind", "analyze")).status()).isEqualTo(201);
         worker.drain();
 
         assertThat(model.calls).containsOnly("glossary").hasSize(4);
-        JsonNode overview = read(owner.browser().get(base + "/autotranslate?to=6"));
+        JsonNode overview = read(owner.browser().get(base + "/autotranslate"));
         assertThat(overview.path("publishedChapters").asInt()).as("nothing translated yet").isZero();
         assertThat(overview.path("lastAnalyzed").asInt()).isEqualTo(4);
-        assertThat(overview.path("quote").path("unanalyzed").asInt()).as("5 and 6 have no analysis").isEqualTo(2);
+        assertThat(read(owner.browser().post(base + "/autotranslate/quote", json("to", 6))).path("unanalyzed").asInt())
+                .as("5 and 6 have no analysis").isEqualTo(2);
+        assertThat(owner.browser().post(base + "/autotranslate/quote", json("kind", "analyze", "from", 1, "to", 4)).body())
+                .as("done chapters are skipped; none left means say so").contains("вже проаналізовано");
 
-        JsonNode titles = read(owner.browser().get(base + "/analysis"));
+        JsonNode titles = read(owner.browser().get(base + "/analysis")).path("items");
         assertThat(titles).extracting(item -> item.path("label").asString(null)).containsExactly("0", "1", "1.1", "");
         assertThat(titles.path(0).path("title").asString()).isEqualTo("Світло");
         assertThat(titles.path(3).path("title").asString()).isEqualTo("Інтерлюдія");
@@ -206,10 +211,12 @@ class AutotranslateFlowTests {
         assertThat(owner.browser().put(base + "/analysis/2", json("title", "Ліхтар", "label", "1,5")).status()).isEqualTo(200);
         assertThat(owner.browser().put(base + "/analysis/2", json("title", "Ліхтар", "label", "перша")).status()).isEqualTo(400);
 
-        JsonNode glossary = read(owner.browser().get(base + "/glossary"));
-        assertThat(glossary.path(0).path("manual").asBoolean()).as("not checked yet").isFalse();
-        owner.browser().post(base + "/glossary/checked", "{}");
-        assertThat(read(owner.browser().get(base + "/glossary")).path(0).path("manual").asBoolean()).isTrue();
+        JsonNode fresh = read(owner.browser().get(base + "/glossary?status=new"));
+        assertThat(fresh.path("counts").path("new").asInt()).isEqualTo(fresh.path("total").asInt());
+        java.util.List<Long> ids = new java.util.ArrayList<>();
+        fresh.path("items").forEach(item -> ids.add(item.path("id").asLong()));
+        read(owner.browser().post(base + "/glossary/status", json("ids", ids, "status", "approved")));
+        assertThat(read(owner.browser().get(base + "/glossary?status=new")).path("total").asInt()).isZero();
 
         model.reset();
         owner.browser().post(base + "/autotranslate/jobs", json("to", 4));
@@ -235,6 +242,79 @@ class AutotranslateFlowTests {
             heard = "event:job".equals(line);
         }
         assertThat(heard).isTrue();
+    }
+
+    @Test
+    void chaptersAreDoneAgainWithAnotherModelAndARangeSkipsWhatIsDone() {
+        long edition = prepare();
+        String base = "/api/studio/editions/" + edition;
+        owner.browser().post(base + "/autotranslate/jobs", json("to", 2));
+        worker.drain();
+        String slug = read(owner.browser().get(base)).path("novelSlug").asString();
+
+        assertThat(owner.browser().post(base + "/autotranslate/quote", json("from", 1, "to", 2)).status())
+                .as("nothing left to do without «redo»").isEqualTo(400);
+        JsonNode models = read(owner.browser().get("/api/studio/autotranslate/models?q=better&chars=6000"));
+        assertThat(models).singleElement().satisfies(model -> {
+            assertThat(model.path("id").asString()).isEqualTo("fake/better");
+            assertThat(model.path("chapterUsd").decimalValue()).isPositive();
+        });
+        assertThat(read(owner.browser().get("/api/studio/autotranslate/models?output=image"))).extracting(m -> m.path("id").asString())
+                .containsExactly("fake/painter");
+
+        String plan = """
+                {"kind":"translate","from":1,"to":2,"redo":true,"models":{"translate":"fake/better","proofreadEnabled":false}}""";
+        JsonNode quote = read(owner.browser().post(base + "/autotranslate/quote", plan));
+        assertThat(quote.path("chapters").asInt()).isEqualTo(2);
+        assertThat(quote.path("translateModel").path("model").asString()).isEqualTo("fake/better");
+        assertThat(quote.path("proofreadModel").path("enabled").asBoolean()).isFalse();
+        assertThat(owner.browser().post(base + "/autotranslate/quote", """
+                {"to":2,"from":1,"redo":true,"models":{"translate":"nobody/none"}}""").status()).isEqualTo(400);
+
+        model.reset();
+        assertThat(owner.browser().post(base + "/autotranslate/jobs", plan).status()).isEqualTo(201);
+        worker.drain();
+        assertThat(model.calls).as("new answers from the new model, analysis kept").containsExactly("translation", "translation");
+        assertThat(db.select(AI_CALL.MODEL).from(AI_CALL).where(AI_CALL.JOB_ID.eq(jobId(edition)), AI_CALL.STAGE.eq("translate"))
+                .fetch(AI_CALL.MODEL)).containsOnly("fake/better");
+        assertThat(read(new Browser(port).get("/api/novels/" + slug + "/chapters/1")).path("blocks").toString())
+                .as("no proofreading this time").doesNotContain("✓");
+
+        model.reset();
+        owner.browser().post(base + "/autotranslate/jobs", json("from", 4, "to", 5));
+        worker.drain();
+        JsonNode chapters = read(new Browser(port).get("/api/novels/" + slug + "/chapters")).path("items");
+        assertThat(chapters).extracting(row -> row.path("number").asInt()).containsExactly(1, 2, 4, 5);
+
+        JsonNode processes = read(owner.browser().get("/api/studio/autotranslate/processes"));
+        assertThat(processes).hasSizeGreaterThanOrEqualTo(3);
+        assertThat(processes.path(0).path("slug").asString()).isEqualTo(slug);
+        assertThat(processes.path(0).path("job").path("from").asInt()).isEqualTo(4);
+    }
+
+    @Test
+    void theGlossaryIsReviewedPageByPageAndRejectedEntriesStayOut() {
+        long edition = prepare();
+        String base = "/api/studio/editions/" + edition;
+        owner.browser().post(base + "/autotranslate/jobs", json("kind", "analyze", "to", 1));
+        worker.drain();
+        JsonNode page = read(owner.browser().get(base + "/glossary?sort=alpha"));
+        assertThat(page.path("items")).extracting(item -> item.path("ukrainian").asString()).containsExactly("Ліхтарник із туману", "Юкі");
+        assertThat(page.path("chapters")).extracting(JsonNode::asInt).containsExactly(1);
+        long yuki = page.path("items").path(1).path("id").asLong();
+        assertThat(read(owner.browser().get(base + "/glossary?chapter=1")).path("items")).singleElement()
+                .satisfies(item -> assertThat(item.path("ukrainian").asString()).isEqualTo("Юкі"));
+
+        read(owner.browser().post(base + "/glossary/status", json("ids", java.util.List.of(yuki), "status", "rejected")));
+        assertThat(read(owner.browser().get(base + "/glossary?status=rejected")).path("items").path(0).path("id").asLong()).isEqualTo(yuki);
+        model.reset();
+        owner.browser().post(base + "/autotranslate/jobs", json("to", 1));
+        worker.drain();
+        String slug = read(owner.browser().get(base)).path("novelSlug").asString();
+        assertThat(read(new Browser(port).get("/api/novels/" + slug + "/chapters/1")).path("blocks").toString())
+                .as("a rejected name is not in the prompt").doesNotContain("Юкі:");
+        assertThat(owner.browser().post(base + "/glossary/status", json("ids", java.util.List.of(yuki), "status", "maybe")).status())
+                .isEqualTo(400);
     }
 
     @Test

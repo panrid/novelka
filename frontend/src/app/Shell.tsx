@@ -1,11 +1,11 @@
 import { HeadContent, Link, Outlet, useRouterState } from '@tanstack/react-router';
-import { BookOpen, Home, Inbox, Search, User, type LucideIcon } from 'lucide-react';
+import { BookOpen, Home, Inbox, PenLine, Search, User, type LucideIcon } from 'lucide-react';
 import { useMe } from '../auth/me';
 import { useInboxCounts, useLiveEvents } from '../inbox/live';
 import { Avatar } from '../ui/Avatar';
 import styles from './Shell.module.css';
 
-type Tab = { to: '/' | '/catalog' | '/library' | '/inbox' | '/me'; label: string; icon: LucideIcon };
+type Tab = { to: '/' | '/catalog' | '/library' | '/studio' | '/inbox' | '/me'; label: string; icon: LucideIcon };
 
 export const TABS: readonly Tab[] = [
     { to: '/', label: 'Головна', icon: Home },
@@ -46,13 +46,16 @@ export function Shell() {
     );
 }
 
+const STUDIO: Tab = { to: '/studio', label: 'Студія', icon: PenLine };
+
 function Tabs({ className }: { className: string | undefined }) {
     const me = useMe();
+    const tabs = me?.studioInMenu ? [...TABS.slice(0, 3), STUDIO, ...TABS.slice(3)] : TABS;
     const counts = useInboxCounts().data;
     const unread = (counts?.notifications ?? 0) + (counts?.messages ?? 0);
     return (
         <nav className={className} aria-label="Розділи">
-            {TABS.map(({ to, label, icon: Icon }) => (
+            {tabs.map(({ to, label, icon: Icon }) => (
                 <Link
                     key={to}
                     to={to}

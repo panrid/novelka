@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams } from '@tanstack/react-router';
-import { ArrowLeft, History } from 'lucide-react';
+import { Link, useNavigate, useParams } from '@tanstack/react-router';
+import { ArrowLeft, History, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/client';
 import { useMe } from '../../auth/me';
@@ -32,6 +32,15 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
     // Opening a chapter with my draft continues the draft; otherwise the published text.
     const [title, setTitle] = useState(view.draft?.title || view.title);
     const me = useMe();
+    const navigate = useNavigate();
+    const removeChapter = useMutation({
+        mutationFn: () => studioApi.deleteChapter(editionId, view.number),
+        onSuccess: () => {
+            void client.invalidateQueries({ queryKey: ['studio-chapters', editionId] });
+            void navigate({ to: '/studio/$editionId', params: { editionId: String(editionId) } });
+        },
+        onError: (error: Error) => window.alert(error.message),
+    });
     // Drawing is for the site owner at launch (рішення 21).
     const [drawing, setDrawing] = useState<{ fragment: string; insert: (picture: { id: number; url: string }) => void } | null>(null);
     const [blocks, setBlocks] = useState<StudioBlock[]>(view.draft?.blocks ?? view.blocks);
@@ -108,6 +117,14 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                 {live && (
                     <Link to="/studio/$editionId/chapters/$number/history" params={{ ...params, number: String(view.number) }}
                         className={styles.icon} aria-label="Історія змін"><History size={20} aria-hidden /></Link>
+                )}
+                {view.mayAddPictures && (
+                    <button type="button" className={styles.icon} aria-label="Видалити главу" onClick={() => {
+                        const question = live
+                            ? 'Видалити опубліковану главу? Читачі більше її не побачать. Можна лише останню главу.'
+                            : 'Видалити цю главу? Вона ще не опублікована.';
+                        if (window.confirm(question)) removeChapter.mutate();
+                    }}><Trash2 size={20} aria-hidden /></button>
                 )}
                 <Button onPress={() => publish.mutate()} pending={publish.isPending} pendingLabel="Публікуємо…" isDisabled={!unpublished || blocks.length === 0 || !title.trim()}>
                     Опублікувати

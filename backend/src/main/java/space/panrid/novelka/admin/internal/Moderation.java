@@ -69,7 +69,7 @@ class Moderation {
     @Transactional
     void report(Viewer reporter, String target, long targetId, String rawReason) {
         String reason = rawReason == null ? "" : rawReason.strip();
-        if (!TARGETS.contains(target)) {
+        if (target == null || !TARGETS.contains(target)) {
             throw UserFacingException.badRequest("Невідомо, на що скарга.");
         }
         if (reason.isEmpty() || reason.length() > 500) {
@@ -110,7 +110,7 @@ class Moderation {
     /** «Приховати» hides the thing and closes its reports; «Відхилити» only closes them. */
     @Transactional
     void decide(Viewer moderator, String target, long targetId, boolean hide, String reason) {
-        if (!TARGETS.contains(target)) {
+        if (target == null || !TARGETS.contains(target)) {
             throw UserFacingException.badRequest("Невідомо, що саме.");
         }
         String why = reason == null || reason.isBlank() ? null : reason.strip();

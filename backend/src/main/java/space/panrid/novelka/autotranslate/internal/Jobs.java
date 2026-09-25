@@ -12,9 +12,11 @@ import static space.panrid.novelka.jooq.Tables.SOURCE_CHAPTER;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.jooq.DSLContext;
 import org.jooq.JSONB;
@@ -25,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import space.panrid.novelka.ai.Ai;
 import space.panrid.novelka.ai.AiCredits;
+import space.panrid.novelka.ai.AiModel;
 import space.panrid.novelka.jooq.tables.records.JobRecord;
 import space.panrid.novelka.platform.SiteSettings;
 import space.panrid.novelka.platform.web.UserFacingException;
@@ -75,7 +78,7 @@ class Jobs {
         Settings.Stage translate = settings.translate();
         Settings fixed = new Settings(new Settings.Stage(analyze.model(), analyze.inputPerMillion(), analyze.outputPerMillion(), true),
                 new Settings.Stage(translate.model(), translate.inputPerMillion(), translate.outputPerMillion(), true),
-                settings.proofread(), settings.segmentChars(), settings.microUsdPerShah(), settings.capFactor());
+                settings.proofread(), settings.segmentChars(), settings.microUsdPerShah(), settings.capFactor(), null);
         siteSettings.put(SETTINGS_KEY, json.writeValueAsString(fixed), ownerId);
     }
 
@@ -110,11 +113,42 @@ class Jobs {
     }
 
     /**
-     * @param kind       analyze or translate
-     * @param unanalyzed chapters of a translation that have no analysis yet: their glossary
-     *                   cannot be checked before they are translated
+     * What to run. {@code from} absent: the first chapter not done yet. {@code redo}: chapters
+     * already done are done again (new answers, not the saved ones); otherwise they are skipped.
+     * {@code models} replace the site's models for this run only.
      */
-    record Quote(String kind, int from, int to, int chapters, int shah, BigDecimal usd, boolean estimated, int unanalyzed) {
+    record Plan(String kind, Integer from, Integer to, Boolean redo, Models models) {
+
+        boolean analyze() {
+            return "analyze".equals(kind);
+        }
+
+        /** Missing fields are allowed (Jackson refuses absent primitives), so read them through these. */
+        boolean again() {
+            return Boolean.TRUE.equals(redo);
+        }
+
+        int last() {
+            if (to == null) {
+                throw UserFacingException.badRequest("Вкажіть, до якої глави.");
+            }
+            return to;
+        }
+    }
+
+    /** Model ids for this run; null keeps the site's choice. */
+    record Models(String analyze, String translate, String proofread, Boolean proofreadEnabled) {
+    }
+
+    /**
+     * @param chapters   chapters that will be done
+     * @param skipped    chapters in the range already done and left alone
+     * @param expectedUsd what it should really cost at the chosen models
+     * @param unanalyzed chapters of a translation without analysis: their glossary cannot be checked first
+     */
+    record Quote(String kind, int from, int to, int chapters, int skipped, int shah, BigDecimal usd, BigDecimal expectedUsd,
+            boolean estimated, int unanalyzed, Settings.Stage analyzeModel, Settings.Stage translateModel,
+            Settings.Stage proofreadModel) {
     }
 
     /** Analysis is about a quarter of a chapter's work: its price in шаги. */
@@ -122,34 +156,96 @@ class Jobs {
         return Math.max(1, (translationShah + 3) / 4);
     }
 
-    Quote quote(long editionId, int to, String kind) {
+    private record Prepared(Quote quote, List<Integer> numbers, Settings settings) {
+    }
+
+    Quote quote(long editionId, Plan plan) {
+        return prepare(editionId, plan).quote();
+    }
+
+    private Prepared prepare(long editionId, Plan plan) {
         Novel novel = novel(editionId);
-        boolean analyze = "analyze".equals(kind);
-        int from = analyze ? novel.nextToAnalyze() : novel.nextNumber();
-        if (to < from) {
-            throw UserFacingException.badRequest(from == 1 ? "Вкажіть номер глави."
-                    : analyze ? "Глави до %d уже проаналізовано.".formatted(from - 1)
-                    : "Глави до %d уже перекладено.".formatted(from - 1));
+        boolean analyze = plan.analyze();
+        int from = plan.from() != null ? plan.from() : analyze ? novel.nextToAnalyze() : novel.nextNumber();
+        int to = plan.last();
+        if (from < 1 || to < from) {
+            throw UserFacingException.badRequest("Перевірте діапазон: «з» не може бути більшим за «по».");
         }
         if (to > novel.sourceChapters()) {
             throw UserFacingException.badRequest("В оригіналі поки %d глав.".formatted(novel.sourceChapters()));
         }
+        Set<Integer> done = new HashSet<>(analyze
+                ? db.select(CHAPTER_ANALYSIS.NUMBER).from(CHAPTER_ANALYSIS)
+                        .where(CHAPTER_ANALYSIS.EDITION_ID.eq(editionId), CHAPTER_ANALYSIS.NUMBER.between(from, to)).fetch(CHAPTER_ANALYSIS.NUMBER)
+                : db.select(CHAPTER.NUMBER).from(CHAPTER)
+                        .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull(), CHAPTER.NUMBER.between(from, to))
+                        .fetch(CHAPTER.NUMBER));
+        List<Integer> numbers = new ArrayList<>();
+        for (int number = from; number <= to; number++) {
+            if (plan.again() || !done.contains(number)) {
+                numbers.add(number);
+            }
+        }
+        if (numbers.isEmpty()) {
+            throw UserFacingException.badRequest((analyze ? "Ці глави вже проаналізовано." : "Ці глави вже перекладено.")
+                    + " Щоб зробити їх заново, увімкніть «Зробити заново» в розширених налаштуваннях.");
+        }
+        Settings settings = withModels(settings(), plan.models());
         Map<Integer, Integer> known = db.select(SOURCE_CHAPTER.NUMBER, SOURCE_CHAPTER.CHARS).from(SOURCE_CHAPTER)
                 .where(SOURCE_CHAPTER.NOVEL_ID.eq(novel.novelId())).fetchMap(SOURCE_CHAPTER.NUMBER, SOURCE_CHAPTER.CHARS);
         int guess = known.isEmpty() ? UNKNOWN_CHAPTER_CHARS
                 : (int) Math.round(known.values().stream().mapToInt(Integer::intValue).average().orElse(UNKNOWN_CHAPTER_CHARS));
+        Set<Integer> analyzed = new HashSet<>(db.select(CHAPTER_ANALYSIS.NUMBER).from(CHAPTER_ANALYSIS)
+                .where(CHAPTER_ANALYSIS.EDITION_ID.eq(editionId), CHAPTER_ANALYSIS.NUMBER.between(from, to)).fetch(CHAPTER_ANALYSIS.NUMBER));
         int shah = 0;
+        long expected = 0;
         boolean estimated = false;
-        for (int number = from; number <= to; number++) {
+        int unanalyzed = 0;
+        for (int number : numbers) {
             Integer chars = known.get(number);
             estimated |= chars == null;
-            shah += Settings.shah(chars == null ? guess : chars);
+            int size = chars == null ? guess : chars;
+            shah += Settings.shah(size);
+            boolean needsAnalysis = analyze || !analyzed.contains(number);
+            unanalyzed += !analyze && !analyzed.contains(number) ? 1 : 0;
+            expected += settings.expectedMicroUsd(size, needsAnalysis, !analyze);
         }
         if (analyze) {
             shah = analysisShah(shah);
         }
-        int unanalyzed = analyze ? 0 : Math.max(0, to - Math.max(from - 1, novel.lastAnalyzed()));
-        return new Quote(analyze ? "analyze" : "translate", from, to, to - from + 1, shah, settings().usd(shah), estimated, unanalyzed);
+        Quote quote = new Quote(analyze ? "analyze" : "translate", from, to, numbers.size(), to - from + 1 - numbers.size(), shah,
+                settings.usd(shah), Settings.usdOfMicro(expected), estimated, unanalyzed,
+                settings.analyze(), settings.translate(), settings.proofread());
+        return new Prepared(quote, numbers, settings);
+    }
+
+    /** The site's models with this run's choices, each priced from OpenRouter's catalogue. */
+    private Settings withModels(Settings base, Models models) {
+        if (models == null) {
+            return base;
+        }
+        Settings.Stage proofread = stage(base.proofread(), models.proofread());
+        if (models.proofreadEnabled() != null) {
+            proofread = new Settings.Stage(proofread.model(), proofread.inputPerMillion(), proofread.outputPerMillion(), models.proofreadEnabled());
+        }
+        return base.withModels(stage(base.analyze(), models.analyze()), stage(base.translate(), models.translate()), proofread);
+    }
+
+    private Settings.Stage stage(Settings.Stage base, String model) {
+        if (model == null || model.isBlank() || model.strip().equals(base.model())) {
+            return base;
+        }
+        String id = model.strip();
+        List<AiModel> catalogue = ai.models();
+        if (catalogue.isEmpty()) {
+            throw UserFacingException.badGateway("Не вдалося отримати список моделей OpenRouter. Спробуйте пізніше.");
+        }
+        AiModel found = catalogue.stream().filter(candidate -> candidate.id().equals(id)).findFirst()
+                .orElseThrow(() -> UserFacingException.badRequest("Моделі «%s» на OpenRouter немає.".formatted(id)));
+        if (!found.outputs().contains("text")) {
+            throw UserFacingException.badRequest("Модель «%s» не пише текст.".formatted(id));
+        }
+        return new Settings.Stage(found.id(), found.inputPerMillion(), found.outputPerMillion(), base.enabled());
     }
 
     // ---- balance ------------------------------------------------------------------------------
@@ -168,7 +264,7 @@ class Jobs {
     // ---- lifecycle ----------------------------------------------------------------------------
 
     @Transactional
-    long start(long editionId, int to, String kind, long ownerId) {
+    long start(long editionId, Plan plan, long ownerId) {
         db.execute("SELECT 1 FROM edition WHERE id = ? FOR UPDATE", editionId);
         if (db.fetchExists(JOB, JOB.EDITION_ID.eq(editionId).and(JOB.STATE.in("queued", "running", "failed")))) {
             throw UserFacingException.conflict("Для цієї новели вже є незавершений переклад. Продовжте або скасуйте його.");
@@ -176,7 +272,9 @@ class Jobs {
         if (!ai.configured()) {
             throw UserFacingException.badRequest("Ключ OpenRouter не налаштовано на сервері.");
         }
-        Quote quote = quote(editionId, to, kind);
+        Prepared prepared = prepare(editionId, plan);
+        Quote quote = prepared.quote();
+        Settings settings = plan.again() ? prepared.settings().withRedo(System.nanoTime()) : prepared.settings();
         long jobId = db.insertInto(JOB)
                 .set(JOB.EDITION_ID, editionId)
                 .set(JOB.KIND, quote.kind())
@@ -185,9 +283,9 @@ class Jobs {
                 .set(JOB.LAST_NUMBER, quote.to())
                 .set(JOB.FUNDING, "site")
                 .set(JOB.QUOTE_SHAH, quote.shah())
-                .set(JOB.SETTINGS, JSONB.valueOf(json.writeValueAsString(settings())))
+                .set(JOB.SETTINGS, JSONB.valueOf(json.writeValueAsString(settings)))
                 .returning(JOB.ID).fetchSingle().getId();
-        for (int number = quote.from(); number <= quote.to(); number++) {
+        for (int number : prepared.numbers()) {
             db.insertInto(JOB_STEP).set(JOB_STEP.JOB_ID, jobId).set(JOB_STEP.CHAPTER_NUMBER, number).execute();
         }
         return jobId;
@@ -303,5 +401,30 @@ class Jobs {
 
     private static BigDecimal usd(double micro) {
         return Settings.usdOfMicro(Math.round(micro));
+    }
+
+    /** Average length of the novel's known chapters, for prices per chapter. */
+    int averageChars(long editionId) {
+        Double average = db.select(DSL.avg(SOURCE_CHAPTER.CHARS).cast(Double.class)).from(SOURCE_CHAPTER)
+                .join(EDITION).on(EDITION.NOVEL_ID.eq(SOURCE_CHAPTER.NOVEL_ID)).where(EDITION.ID.eq(editionId)).fetchOne(0, Double.class);
+        return average == null ? UNKNOWN_CHAPTER_CHARS : (int) Math.round(average);
+    }
+
+    record Process(long editionId, String title, String slug, JobView job) {
+    }
+
+    /** Every job the owner started, newest first: the «Процеси» page. */
+    List<Process> processes(long ownerId, int page) {
+        int at = Math.max(1, page);
+        List<Process> out = new ArrayList<>();
+        for (Record row : db.select(JOB.asterisk(), DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).as("title"), NOVEL.SLUG)
+                .from(JOB).join(EDITION).on(EDITION.ID.eq(JOB.EDITION_ID)).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
+                .where(JOB.REQUESTED_BY.eq(ownerId))
+                .orderBy(DSL.when(JOB.STATE.in("queued", "running", "failed"), 0).otherwise(1), JOB.ID.desc())
+                .limit(30).offset((at - 1) * 30).fetch()) {
+            JobRecord job = row.into(JOB);
+            out.add(new Process(job.getEditionId(), row.get("title", String.class), row.get(NOVEL.SLUG), view(job)));
+        }
+        return out;
     }
 }

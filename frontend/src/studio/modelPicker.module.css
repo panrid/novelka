@@ -1,0 +1,74 @@
+.picker {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.label {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.input {
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.hint {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.list {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    z-index: 30;
+    max-height: 280px;
+    margin: 4px 0 0;
+    padding: 4px;
+    overflow-y: auto;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
+    list-style: none;
+}
+
+.option,
+.on {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.on {
+    background: var(--surface-2);
+}
+
+.name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.price {
+    flex: none;
+    color: var(--muted);
+    font-size: 12px;
+}

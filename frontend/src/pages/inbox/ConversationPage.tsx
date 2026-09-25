@@ -44,7 +44,7 @@ export function ConversationPage() {
     const refresh = () => client.invalidateQueries({ queryKey: ['conversation', conversationId] });
 
     return (
-        <section className={styles.page}>
+        <section className={`${styles.page} ${styles.frame}`}>
             <header className={styles.head}>
                 <Link to="/inbox/messages" aria-label="До розмов"><ArrowLeft size={22} aria-hidden /></Link>
                 {first.kind !== 'team' && <Avatar nick={first.title} url={first.avatarUrl} size={32} />}
@@ -58,7 +58,7 @@ export function ConversationPage() {
                 )}
                 <Link to="/inbox/messages/$id/about" params={{ id }} aria-label="Про розмову"><Info size={22} aria-hidden /></Link>
             </header>
-            <div className={styles.lines}>
+            <div className={`${styles.lines} ${styles.scroll}`}>
                 {pages.hasNextPage && (
                     <button type="button" className={styles.older} onClick={() => void pages.fetchNextPage()}>Давніші повідомлення</button>
                 )}

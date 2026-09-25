@@ -209,3 +209,28 @@ textarea.input {
     outline: 2px solid var(--focus);
     outline-offset: 2px;
 }
+
+.pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 16px 0;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.pager button {
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+}
+
+.pager button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}

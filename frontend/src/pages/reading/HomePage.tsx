@@ -57,14 +57,14 @@ export function HomePage() {
             {newChapters.length > 0 && (
                 <>
                     <h2 className={styles.sectionTitle}>Нові глави <Link to="/catalog" search={{ sort: 'updated' }}>усе →</Link></h2>
-                    {newChapters.map(({ card, firstNumber, lastNumber, publishedAt }) => (
+                    {newChapters.map(({ card, firstNumber, lastNumber, publishedAt, firstLabel, lastLabel }) => (
                         <Link key={card.editionId} className={styles.row} to="/n/$slug/$number"
                             params={{ slug: card.novelSlug, number: String(firstNumber) }} search={teamSearch(card)}>
                             <Cover url={card.coverUrl} title={card.title} seed={card.novelSlug} width={40} />
                             <div className={styles.grow}>
                                 <div className={styles.ellipsis} style={{ fontWeight: 500 }}>{card.title}</div>
                                 <div className={styles.small}>
-                                    {firstNumber === lastNumber ? `Глава ${firstNumber}` : `Глави ${firstNumber}–${lastNumber}`}
+                                    {chapterRange(firstNumber, lastNumber, firstLabel, lastLabel)}
                                     {' · '}{relativeTime(new Date(publishedAt))}
                                 </div>
                             </div>
@@ -97,4 +97,12 @@ export function CardRow({ card }: { card: Card }) {
             </div>
         </Link>
     );
+}
+
+/** «Глави 0–1» with the numbers readers see, not the positions. */
+function chapterRange(first: number, last: number, firstLabel?: string | null, lastLabel?: string | null) {
+    const a = firstLabel || (firstLabel === '' ? null : String(first));
+    const b = lastLabel || (lastLabel === '' ? null : String(last));
+    if (first === last) return a ? `Глава ${a}` : 'Нова глава';
+    return a && b ? `Глави ${a}–${b}` : `Нових глав: ${last - first + 1}`;
 }

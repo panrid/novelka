@@ -32,6 +32,12 @@ public interface Chapters {
      */
     void setLabel(long editionId, int number, String label);
 
+    /**
+     * Removes a chapter with its history, drafts and suggestions. A chapter readers never saw
+     * goes any time; a published one only if it is the last, so no hole opens in the middle.
+     */
+    void deleteChapter(long editionId, int number);
+
     /** A new empty chapter at the end, unpublished until its first «Опублікувати». */
     int createChapter(long editionId);
 

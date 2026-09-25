@@ -126,7 +126,7 @@ class Illustrations {
         if (description.isEmpty() || description.length() > 2_000) {
             throw UserFacingException.badRequest("Опис для художника — від 1 до 2000 знаків.");
         }
-        if (!ASPECTS.contains(aspect)) {
+        if (aspect == null || !ASPECTS.contains(aspect)) {
             throw UserFacingException.badRequest("Невідома форма картинки.");
         }
         IllustrationSettings settings = settings();

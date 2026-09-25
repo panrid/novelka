@@ -6,6 +6,7 @@ import static space.panrid.novelka.jooq.Tables.CONTRIBUTION;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITOR_DRAFT;
 import static space.panrid.novelka.jooq.Tables.REVISION;
+import static space.panrid.novelka.jooq.Tables.SUGGESTION;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -134,6 +135,30 @@ class ChapterService implements Chapters {
             events.publishEvent(new ChaptersPublished(editionId, number, number));
         }
         return revisionId;
+    }
+
+    @Override
+    @Transactional
+    public void deleteChapter(long editionId, int number) {
+        db.execute("SELECT 1 FROM edition WHERE id = ? FOR UPDATE", editionId);
+        ChapterRecord chapter = chapter(editionId, number);
+        if (chapter.getPublishedRevisionId() != null) {
+            int last = db.select(DSL.max(CHAPTER.NUMBER)).from(CHAPTER)
+                    .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull()).fetchOne(0, Integer.class);
+            if (last != number) {
+                throw UserFacingException.conflict("Опубліковану главу можна видалити, лише якщо вона остання. Цю можна виправити в редакторі.");
+            }
+        }
+        long id = chapter.getId();
+        var revisions = DSL.select(REVISION.ID).from(REVISION).where(REVISION.CHAPTER_ID.eq(id));
+        db.update(CHAPTER).setNull(CHAPTER.PUBLISHED_REVISION_ID).where(CHAPTER.ID.eq(id)).execute();
+        db.deleteFrom(SUGGESTION).where(SUGGESTION.CHAPTER_ID.eq(id)).execute();
+        db.deleteFrom(EDITOR_DRAFT).where(EDITOR_DRAFT.CHAPTER_ID.eq(id)).execute();
+        db.deleteFrom(CONTRIBUTION).where(CONTRIBUTION.REVISION_ID.in(revisions)).execute();
+        db.update(REVISION).setNull(REVISION.PARENT_ID).where(REVISION.CHAPTER_ID.eq(id)).execute();
+        db.deleteFrom(REVISION).where(REVISION.CHAPTER_ID.eq(id)).execute();
+        db.deleteFrom(CHAPTER).where(CHAPTER.ID.eq(id)).execute();
+        refreshCounters(editionId, null);
     }
 
     @Override

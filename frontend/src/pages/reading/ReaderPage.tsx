@@ -217,7 +217,11 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
                     </div>
                 )}
                 {mine.submit.isSuccess && mine.drafts === 0 && <Notice tone="success">Правки надіслано команді. Дякуємо!</Notice>}
-                {!me && <p className={styles.finished}>Увійдіть, щоб запропонувати правку.</p>}
+                {!me && (
+                    <p className={styles.finished}>
+                        <Link to="/login" search={{ next: `/n/${chapter.novelSlug}/${chapter.number}` }}>Увійдіть</Link>, щоб запропонувати правку.
+                    </p>
+                )}
                 {me && !chapter.teamRole && (
                     <p className={styles.finished}>
                         <Link to="/n/$slug/$number/propose" params={{ slug: chapter.novelSlug, number: String(chapter.number) }} search={search}>
@@ -273,10 +277,10 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
                 <div className={styles.percent}>{Math.round(progress * 100)}%</div>
                 <div className={styles.buttons}>
                     {chapter.previous ? (
-                        <Link {...chapterLink(chapter.previous)} className={styles.navButton}><ChevronLeft size={18} aria-hidden /> {chapter.previous}</Link>
+                        <Link {...chapterLink(chapter.previous)} className={styles.navButton} aria-label="Попередня глава"><ChevronLeft size={18} aria-hidden /></Link>
                     ) : <span className={`${styles.navButton} ${styles.disabled}`} aria-hidden><ChevronLeft size={18} /></span>}
                     {chapter.next ? (
-                        <Link {...chapterLink(chapter.next)} className={`${styles.navButton} ${styles.primary}`}>{chapter.next} <ChevronRight size={18} aria-hidden /></Link>
+                        <Link {...chapterLink(chapter.next)} className={`${styles.navButton} ${styles.primary}`} aria-label="Наступна глава">Далі <ChevronRight size={18} aria-hidden /></Link>
                     ) : <span className={`${styles.navButton} ${styles.disabled}`} aria-hidden><ChevronRight size={18} /></span>}
                     <button type="button" className={styles.navButton} aria-label={`Обговорення глави, коментарів: ${comments}`}
                         onClick={() => setTalking(true)}>

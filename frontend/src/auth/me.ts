@@ -16,6 +16,8 @@ export type Me = {
     showReading: boolean;
     adultConfirmed: boolean;
     showShah: boolean;
+    /** «Студія» as a tab of the main menu, not only under «Я». */
+    studioInMenu?: boolean;
 };
 
 export const meQuery = queryOptions({

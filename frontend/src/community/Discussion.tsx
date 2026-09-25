@@ -59,7 +59,9 @@ export function Discussion({ editionId, chapter, focus }: { editionId: number; c
                         await refresh();
                     }} />
             ) : (
-                <p className={styles.muted}><Link to="/login">Увійдіть</Link>, щоб коментувати.</p>
+                <p className={styles.muted}>
+                    <Link to="/login" search={{ next: typeof window === 'undefined' ? '/' : window.location.pathname }}>Увійдіть</Link>, щоб коментувати.
+                </p>
             )}
             {thread.isSuccess && items.length === 0 && <p className={styles.muted}>Ще ніхто не писав. Будьте першим!</p>}
             {items.map((comment) => (

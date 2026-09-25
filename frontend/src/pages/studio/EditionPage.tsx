@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
+import { Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { useMe } from '../../auth/me';
 import { Cover } from '../../reading/Cover';
 import { STATUS_LABELS, chapterHeading, chaptersWord, type Status } from '../../reading/api';
@@ -22,7 +24,15 @@ export function EditionPage() {
     const me = useMe();
     const client = useQueryClient();
     const overview = useQuery({ queryKey: ['studio-edition', id], queryFn: () => studioApi.overview(id) });
-    const chapters = useQuery({ queryKey: ['studio-chapters', id], queryFn: () => studioApi.chapters(id) });
+    const [page, setPage] = useState(1);
+    const chapters = useQuery({ queryKey: ['studio-chapters', id, page], queryFn: () => studioApi.chapters(id, page), placeholderData: (p) => p });
+    const remove = useMutation({
+        mutationFn: (number: number) => studioApi.deleteChapter(id, number),
+        onSuccess: () => {
+            void client.invalidateQueries({ queryKey: ['studio-chapters', id] });
+            void client.invalidateQueries({ queryKey: ['studio-edition', id] });
+        },
+    });
     const contributions = useQuery({ queryKey: ['studio-contributions', id], queryFn: () => studioApi.contributions(id) });
     const queue = useQuery({ queryKey: ['suggestion-queue', id], queryFn: () => suggestionApi.queue(id) });
     const add = useMutation({
@@ -66,6 +76,7 @@ export function EditionPage() {
                 <Link to="/team/$handle" params={{ handle: edition.teamHandle }} className={styles.menuItem}>Команда ${edition.teamHandle}</Link>
                 {siteOwner && translator && edition.kind === 'machine' && <Link to="/studio/$editionId/translate" params={params} className={styles.menuItem}>Автопереклад</Link>}
                 {edition.kind === 'machine' && <Link to="/studio/$editionId/glossary" params={params} className={styles.menuItem}>Словник</Link>}
+                {edition.kind === 'machine' && <Link to="/studio/$editionId/titles" params={params} className={styles.menuItem}>Назви глав</Link>}
                 {owner && edition.kind !== 'original' && <Link to="/studio/$editionId/relay" params={params} className={styles.menuItem}>Естафета</Link>}
             </nav>
 
@@ -84,17 +95,30 @@ export function EditionPage() {
 
             <h2 className={styles.sectionTitle}>Глави</h2>
             {chapters.data?.length === 0 && <p className={styles.muted}>Глав ще немає.</p>}
+            {remove.isError && <Notice tone="error">{remove.error.message}</Notice>}
             {chapters.data?.map((chapter) => (
-                <Link key={chapter.number} className={styles.row}
-                    to="/studio/$editionId/chapters/$number" params={{ editionId: String(id), number: String(chapter.number) }}>
-                    <div className={styles.grow}>
+                <div key={chapter.number} className={styles.row}>
+                    <Link className={`${styles.grow} ${styles.rowLink}`}
+                        to="/studio/$editionId/chapters/$number" params={{ editionId: String(id), number: String(chapter.number) }}>
                         <div className={styles.ellipsis}>{chapterHeading(chapter)}</div>
                         <div className={styles.muted}>{relativeTime(new Date(chapter.updatedAt))}</div>
-                    </div>
+                    </Link>
                     {!chapter.published && <span className={styles.badge}>не опубліковано</span>}
                     {chapter.hasMyDraft && <span className={`${styles.badge} ${styles.badgeOn}`}>чернетка</span>}
-                </Link>
+                    {translator && !chapter.published && (
+                        <button type="button" className={styles.iconButton} aria-label={`Видалити главу ${chapter.number}`}
+                            onClick={() => { if (window.confirm('Видалити цю неопубліковану главу?')) remove.mutate(chapter.number); }}>
+                            <Trash2 size={18} aria-hidden />
+                        </button>
+                    )}
+                </div>
             ))}
+            {(page > 1 || chapters.data?.length === 100) && (
+                <div className={styles.actions}>
+                    {page > 1 && <Button variant="secondary" onPress={() => setPage(page - 1)}>← Новіші</Button>}
+                    {chapters.data?.length === 100 && <Button variant="secondary" onPress={() => setPage(page + 1)}>Давніші →</Button>}
+                </div>
+            )}
 
             {(contributions.data?.length ?? 0) > 0 && (
                 <>

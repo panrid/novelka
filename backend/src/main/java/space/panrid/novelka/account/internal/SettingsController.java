@@ -33,7 +33,8 @@ import space.panrid.novelka.platform.web.UserFacingException;
 class SettingsController {
 
     /** Every field is optional: only what is sent changes. */
-    record SettingsRequest(String bio, String dmPolicy, Boolean showReading, Boolean adultConfirmed, Boolean showShah) {
+    record SettingsRequest(String bio, String dmPolicy, Boolean showReading, Boolean adultConfirmed, Boolean showShah,
+            Boolean studioInMenu) {
     }
 
     record NickRequest(String nick) {
@@ -77,7 +78,7 @@ class SettingsController {
                 ? OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC) : null;
         Boolean showShah = viewer.role() == SiteRole.OWNER ? body.showShah() : null;
         accounts.updateSettings(viewer.accountId(), bio, body.dmPolicy(), body.showReading(), adultAt,
-                body.adultConfirmed() != null, showShah);
+                body.adultConfirmed() != null, showShah, body.studioInMenu());
         return me.find(viewer.accountId()).orElseThrow();
     }
 

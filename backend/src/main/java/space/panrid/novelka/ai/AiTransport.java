@@ -24,6 +24,9 @@ public interface AiTransport {
 
     Reply chat(String body) throws NotSent, Lost;
 
+    /** GET /models: the public catalogue with prices. */
+    Reply models() throws NotSent, Lost;
+
     /** GET /credits with the management key; empty body if there is no such key. */
     Reply credits() throws NotSent, Lost;
 }

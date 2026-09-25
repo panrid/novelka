@@ -30,6 +30,7 @@ import space.panrid.novelka.ai.AiCredits;
 import space.panrid.novelka.ai.AiException;
 import space.panrid.novelka.ai.AiException.Kind;
 import space.panrid.novelka.ai.AiImageRequest;
+import space.panrid.novelka.ai.AiModel;
 import space.panrid.novelka.ai.AiPicture;
 import space.panrid.novelka.ai.AiRequest;
 import space.panrid.novelka.ai.AiTransport;
@@ -304,6 +305,45 @@ class AiService implements Ai {
                 .set(AI_CALL.ERROR, DSL.concat(DSL.coalesce(AI_CALL.ERROR, ""), DSL.inline("; власник дозволив нову спробу")))
                 .where(AI_CALL.JOB_ID.eq(jobId), AI_CALL.STATE.in("pending", "uncertain"))
                 .execute();
+    }
+
+    private volatile List<AiModel> models = List.of();
+    private volatile Instant modelsAt = Instant.EPOCH;
+
+    @Override
+    public List<AiModel> models() {
+        Instant now = clock.instant();
+        if (!models.isEmpty() && modelsAt.plus(Duration.ofHours(1)).isAfter(now)) {
+            return models;
+        }
+        try {
+            AiTransport.Reply reply = transport.models();
+            if (reply.status() == 200) {
+                List<AiModel> fresh = new java.util.ArrayList<>();
+                for (JsonNode model : json.readTree(reply.body()).path("data")) {
+                    JsonNode pricing = model.path("pricing");
+                    List<String> outputs = new java.util.ArrayList<>();
+                    model.path("architecture").path("output_modalities").forEach(kind -> outputs.add(kind.asString()));
+                    fresh.add(new AiModel(model.path("id").asString(), model.path("name").asString(""),
+                            perMillion(pricing.path("prompt")), perMillion(pricing.path("completion")),
+                            model.path("context_length").asInt(0), outputs.isEmpty() ? List.of("text") : List.copyOf(outputs)));
+                }
+                fresh.sort(java.util.Comparator.comparing(AiModel::id));
+                models = List.copyOf(fresh);
+                modelsAt = now;
+            }
+        } catch (AiTransport.NotSent | AiTransport.Lost | RuntimeException error) {
+            log.warn("OpenRouter models unavailable: {}", error.getMessage());
+        }
+        return models;
+    }
+
+    private static double perMillion(JsonNode price) {
+        try {
+            return new BigDecimal(price.asString("0")).movePointRight(6).doubleValue();
+        } catch (NumberFormatException odd) {
+            return 0;
+        }
     }
 
     @Override

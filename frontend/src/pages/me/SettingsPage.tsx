@@ -7,6 +7,7 @@ import { AvatarPicker } from '../../ui/AvatarPicker';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
+import { Toggle } from '../../ui/Toggle';
 import styles from '../pages.module.css';
 
 export function SettingsPage() {
@@ -21,7 +22,22 @@ export function SettingsPage() {
             <NickSection me={me} />
             <EmailSection me={me} />
             <PasswordSection />
+            <MenuSection me={me} />
         </section>
+    );
+}
+
+/** «Студія» among the main tabs, for people who translate every day. */
+function MenuSection({ me }: { me: Me }) {
+    const setMe = useSetMe();
+    const save = useMutation({ mutationFn: (studioInMenu: boolean) => meApi.update({ studioInMenu }), onSuccess: setMe });
+    return (
+        <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Меню</h2>
+            <Toggle label="Студія в головному меню" isSelected={Boolean(me.studioInMenu)} onChange={(value) => save.mutate(value)} />
+            <p className={styles.muted}>Вкладка «Студія» поруч із «Бібліотекою», а не лише в «Я».</p>
+            {save.isError && <Notice tone="error">{save.error.message}</Notice>}
+        </div>
     );
 }
 

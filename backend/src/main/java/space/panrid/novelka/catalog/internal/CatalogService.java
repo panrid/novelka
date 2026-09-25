@@ -56,7 +56,7 @@ class CatalogService implements Catalog {
     @Transactional
     public EditionRef createNovel(NewNovel novel) {
         String title = title(novel.title() == null ? "" : novel.title());
-        if (!KINDS.contains(novel.kind())) {
+        if (novel.kind() == null || !KINDS.contains(novel.kind())) {
             throw UserFacingException.badRequest("Невідомий вид перекладу.");
         }
         String slug = freeSlug(Slugs.slug(title, 60));

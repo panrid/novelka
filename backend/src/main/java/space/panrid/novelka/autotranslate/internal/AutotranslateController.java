@@ -84,32 +84,31 @@ class AutotranslateController {
     }
 
     record Overview(boolean configured, boolean showShah, int sourceChapters, int nextNumber, int publishedChapters,
-            int lastAnalyzed, int nextToAnalyze,
-            Jobs.Balance balance, BigDecimal usdPerShah, Jobs.Quote quote, List<Jobs.JobView> jobs) {
+            int lastAnalyzed, int nextToAnalyze, int averageChars, Jobs.Balance balance, BigDecimal usdPerShah, Settings settings,
+            List<Jobs.JobView> jobs) {
     }
 
     @GetMapping("/editions/{editionId}/autotranslate")
-    Overview overview(@PathVariable long editionId, @RequestParam(required = false) Integer to,
-            @RequestParam(defaultValue = "translate") String kind) {
+    Overview overview(@PathVariable long editionId) {
         Viewer viewer = ownerTranslating(editionId);
         Jobs.Novel novel = jobs.novel(editionId);
-        boolean showShah = db.select(ACCOUNT.SHOW_SHAH).from(ACCOUNT).where(ACCOUNT.ID.eq(viewer.accountId())).fetchSingle().value1();
         Settings settings = jobs.settings();
-        return new Overview(ai.configured(), showShah, novel.sourceChapters(), novel.nextNumber(), novel.publishedChapters(),
-                novel.lastAnalyzed(), novel.nextToAnalyze(),
-                jobs.balance().orElse(null), Settings.usdOfMicro(settings.microUsdPerShah()),
-                to == null ? null : jobs.quote(editionId, to, kind), jobs.jobs(editionId));
+        return new Overview(ai.configured(), showShah(viewer), novel.sourceChapters(), novel.nextNumber(), novel.publishedChapters(),
+                novel.lastAnalyzed(), novel.nextToAnalyze(), jobs.averageChars(editionId),
+                jobs.balance().orElse(null), Settings.usdOfMicro(settings.microUsdPerShah()), settings, jobs.jobs(editionId));
     }
 
-    /** @param kind «analyze» (glossary and chapter titles only) or «translate» */
-    record StartRequest(int to, String kind) {
+    @PostMapping("/editions/{editionId}/autotranslate/quote")
+    Jobs.Quote quote(@PathVariable long editionId, @RequestBody Jobs.Plan plan) {
+        ownerTranslating(editionId);
+        return jobs.quote(editionId, plan);
     }
 
     @PostMapping("/editions/{editionId}/autotranslate/jobs")
     @ResponseStatus(HttpStatus.CREATED)
-    Jobs.JobView start(@PathVariable long editionId, @RequestBody StartRequest body) {
+    Jobs.JobView start(@PathVariable long editionId, @RequestBody Jobs.Plan plan) {
         Viewer viewer = ownerTranslating(editionId);
-        long jobId = jobs.start(editionId, body.to(), "analyze".equals(body.kind()) ? "analyze" : "translate", viewer.accountId());
+        long jobId = jobs.start(editionId, plan, viewer.accountId());
         return jobs.view(jobs.job(editionId, jobId).orElseThrow());
     }
 
@@ -125,16 +124,54 @@ class AutotranslateController {
         jobs.resume(editionId, jobId);
     }
 
+    /** Every run of the owner's, running ones first. */
+    @GetMapping("/autotranslate/processes")
+    List<Jobs.Process> processes(@RequestParam(defaultValue = "1") int page) {
+        return jobs.processes(owner().accountId(), page);
+    }
+
+    /**
+     * @param chapterUsd a chapter of {@code chars} through analysis, translation and
+     *                   proofreading, all by this model
+     */
+    record ModelChoice(String id, String name, double inputPerMillion, double outputPerMillion, BigDecimal chapterUsd) {
+    }
+
+    /** OpenRouter models whose id or name contains what was typed, with the price of a chapter. */
+    @GetMapping("/autotranslate/models")
+    List<ModelChoice> models(@RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "6000") int chars,
+            @RequestParam(defaultValue = "text") String output) {
+        owner();
+        String query = q.strip().toLowerCase(java.util.Locale.ROOT);
+        return ai.models().stream()
+                .filter(model -> model.outputs().contains(output))
+                .filter(model -> query.isEmpty() || model.id().toLowerCase(java.util.Locale.ROOT).contains(query)
+                        || model.name().toLowerCase(java.util.Locale.ROOT).contains(query))
+                .limit(20)
+                .map(model -> {
+                    Settings.Stage stage = new Settings.Stage(model.id(), model.inputPerMillion(), model.outputPerMillion(), true);
+                    long micro = Settings.defaults().withModels(stage, stage, stage).expectedMicroUsd(Math.max(500, chars), true, true);
+                    return new ModelChoice(model.id(), model.name(), model.inputPerMillion(), model.outputPerMillion(), Settings.usdOfMicro(micro));
+                })
+                .toList();
+    }
+
     // ---- chapter titles and numbers from analysis, checked before translating ---------------
 
-    record AnalysisItem(int number, String title, String label, boolean edited) {
+    record AnalysisItem(int number, String title, String label, boolean edited, boolean translated) {
+    }
+
+    record AnalysisPage(List<AnalysisItem> items, int total, int page, boolean hasMore) {
     }
 
     @GetMapping("/editions/{editionId}/analysis")
-    List<AnalysisItem> analysis(@PathVariable long editionId) {
+    AnalysisPage analysis(@PathVariable long editionId, @RequestParam(defaultValue = "1") int page) {
         access.requireTextEditor(editionId);
-        return analyses.from(editionId, jobs.novel(editionId).nextNumber()).stream()
-                .map(done -> new AnalysisItem(done.number(), done.title(), done.label(), done.edited())).toList();
+        int next = jobs.novel(editionId).nextNumber();
+        Analyses.Page found = analyses.page(editionId, page);
+        return new AnalysisPage(found.items().stream()
+                .map(done -> new AnalysisItem(done.number(), done.title(), done.label(), done.edited(), done.number() < next)).toList(),
+                found.total(), found.page(), found.hasMore());
     }
 
     record AnalysisChange(String title, String label) {
@@ -146,24 +183,36 @@ class AutotranslateController {
         analyses.edit(editionId, number, body.title(), body.label());
     }
 
-    @PostMapping("/editions/{editionId}/glossary/checked")
-    void allChecked(@PathVariable long editionId) {
-        access.requireTranslator(editionId);
-        glossary.markAllChecked(editionId);
+    // ---- glossary: the team reviews it; the Japanese side stays on the server (рішення 8) ------
+
+    record GlossaryItem(long id, String ukrainian, String kind, String gender, String note, Integer chapter, boolean manual,
+            String status) {
     }
 
-    // ---- glossary: the team edits it, the Japanese side stays on the server (рішення 8) --------
-
-    record GlossaryItem(long id, String ukrainian, String kind, String gender, String note, Integer chapter, boolean manual) {
+    record GlossaryPage(List<GlossaryItem> items, int total, int page, boolean hasMore, List<Integer> chapters,
+            java.util.Map<String, Integer> counts) {
     }
 
     @GetMapping("/editions/{editionId}/glossary")
-    List<GlossaryItem> glossary(@PathVariable long editionId) {
+    GlossaryPage glossary(@PathVariable long editionId, @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer chapter, @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "alpha") String sort, @RequestParam(defaultValue = "1") int page) {
         access.requireTextEditor(editionId);
-        return glossary.all(editionId).stream()
+        Glossary.Page found = glossary.page(editionId, status != null && Glossary.STATUSES.contains(status) ? status : null, chapter, q, sort, page);
+        return new GlossaryPage(found.items().stream()
                 .map(entry -> new GlossaryItem(entry.id(), entry.ukrainian(), entry.kind(), entry.gender(), entry.note(),
-                        entry.sourceChapter(), entry.manual()))
-                .toList();
+                        entry.sourceChapter(), entry.manual(), entry.status()))
+                .toList(), found.total(), found.page(), found.hasMore(), found.chapters(), found.counts());
+    }
+
+    record StatusChange(List<Long> ids, String status) {
+    }
+
+    /** «Затвердити», «Відхилити» or «Повернути в нові» for the selected entries. */
+    @PostMapping("/editions/{editionId}/glossary/status")
+    java.util.Map<String, Integer> setStatus(@PathVariable long editionId, @RequestBody StatusChange body) {
+        access.requireTranslator(editionId);
+        return java.util.Map.of("changed", glossary.setStatus(editionId, body.ids(), body.status()));
     }
 
     record GlossaryChange(String ukrainian, String kind, String gender, String note) {
@@ -179,6 +228,10 @@ class AutotranslateController {
     void deleteEntry(@PathVariable long editionId, @PathVariable long entryId) {
         access.requireTranslator(editionId);
         glossary.delete(editionId, entryId);
+    }
+
+    private boolean showShah(Viewer viewer) {
+        return db.select(ACCOUNT.SHOW_SHAH).from(ACCOUNT).where(ACCOUNT.ID.eq(viewer.accountId())).fetchSingle().value1();
     }
 
     // ---- the owner's money and models ------------------------------------------------------

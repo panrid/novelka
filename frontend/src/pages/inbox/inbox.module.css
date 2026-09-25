@@ -234,3 +234,31 @@
     width: 100%;
     padding-left: 42px;
 }
+
+/*
+ * Chat and conversations fill exactly the screen between the header and the tabs: the
+ * box to type in stays at the bottom, and only the messages scroll.
+ */
+.frame {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - var(--topbar-height) - 8px - var(--tabbar-height) - var(--safe-bottom) - 24px);
+    padding-top: 0;
+}
+
+.scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.frame .sticky {
+    position: static;
+}
+
+@media (min-width: 768px) {
+    .frame {
+        height: calc(100dvh - var(--topbar-height) - 8px - 48px);
+    }
+}

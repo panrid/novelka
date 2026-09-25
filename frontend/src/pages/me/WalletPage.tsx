@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { autotranslateApi, dollars, money, type Settings, type Stage } from '../../studio/autotranslate';
+import { meApi } from '../../auth/api';
+import { useSetMe } from '../../auth/me';
 import { illustrationApi, type IllustrationSettings } from '../../studio/illustrations';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
@@ -38,8 +39,10 @@ export function WalletPage() {
                     : 'Ключ OpenRouter не налаштовано на сервері.'}</Notice>}
             <p className={styles.muted}>
                 Залишок на OpenRouter. Один шаг — до 10 000 знаків оригіналу, зараз {dollars(data.usdPerShah, 3)}.
-                {' '}Показ у доларах вмикається в <Link to="/me/settings">налаштуваннях</Link>.
+
             </p>
+
+            <ShowShah value={show} />
 
             <h2 className={styles.sectionTitle}>Собівартість</h2>
             <Segmented label="За період" value={days} options={PERIODS} onChange={setDays} />
@@ -169,4 +172,19 @@ function IllustrationForm({ settings }: { settings: IllustrationSettings }) {
             <Button type="submit" pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти</Button>
         </form>
     );
+}
+
+/** Шаги or dollars in every sum the owner sees (рішення 23): the switch lives where the sums are. */
+function ShowShah({ value }: { value: boolean }) {
+    const client = useQueryClient();
+    const setMe = useSetMe();
+    const save = useMutation({
+        mutationFn: (showShah: boolean) => meApi.update({ showShah }),
+        onSuccess: (me) => {
+            setMe(me);
+            void client.invalidateQueries({ queryKey: ['wallet'] });
+            void client.invalidateQueries({ queryKey: ['autotranslate'] });
+        },
+    });
+    return <Toggle label="Показувати суми в шагах (вимкнено — у доларах)" isSelected={value} onChange={(next) => save.mutate(next)} />;
 }

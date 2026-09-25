@@ -232,3 +232,109 @@
     border-radius: 10px;
     object-fit: contain;
 }
+
+.disclosure {
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    cursor: pointer;
+}
+
+.advanced {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+
+.processTitle {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.check {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent);
+}
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.chip {
+    padding: 6px 12px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.chipOn {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--accent-ink);
+}
+
+.selectionBar {
+    position: sticky;
+    bottom: calc(var(--tabbar-height) + var(--safe-bottom));
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 0;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+}
+
+@media (min-width: 768px) {
+    .selectionBar {
+        bottom: 0;
+    }
+}
+
+.plainButton {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.rowLink {
+    color: var(--text);
+    text-decoration: none;
+}
+
+.iconButton {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.iconButton:hover {
+    color: var(--danger);
+}

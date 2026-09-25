@@ -24,6 +24,9 @@ public interface Ai {
     /** Credits left at OpenRouter, if the management key is configured and OpenRouter answers. */
     Optional<AiCredits> credits();
 
+    /** OpenRouter's catalogue of models with prices, kept for an hour; empty if it cannot be read. */
+    java.util.List<AiModel> models();
+
     /** Whether a key is configured at all. */
     boolean configured();
 

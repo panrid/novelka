@@ -13,7 +13,8 @@ import space.panrid.novelka.ai.AiPrice;
  * @param microUsdPerShah  what one шаг costs the site, in millionths of a dollar (рішення 22)
  * @param capFactor        a job stops once it spent this many times its quote
  */
-record Settings(Stage analyze, Stage translate, Stage proofread, int segmentChars, long microUsdPerShah, double capFactor) {
+record Settings(Stage analyze, Stage translate, Stage proofread, int segmentChars, long microUsdPerShah, double capFactor,
+        Long redo) {
 
     /** A шаг is up to 10 000 characters of the original (рішення 21). */
     static final int CHARS_PER_SHAH = 10_000;
@@ -27,7 +28,47 @@ record Settings(Stage analyze, Stage translate, Stage proofread, int segmentChar
 
     static Settings defaults() {
         Stage mini = new Stage("openai/gpt-4.1-mini", 0.40, 1.60, true);
-        return new Settings(mini, mini, mini, 4_000, 36_000, 3.0);
+        return new Settings(mini, mini, mini, 4_000, 36_000, 3.0, null);
+    }
+
+    /**
+     * A job asked to do chapters again: its salt changes every request, so answers saved
+     * from earlier jobs are not reused and the model really works anew.
+     */
+    int salt() {
+        return redo == null ? 0 : (int) Math.floorMod(redo, 100_000L) * 10;
+    }
+
+    Settings withRedo(long salt) {
+        return new Settings(analyze, translate, proofread, segmentChars, microUsdPerShah, capFactor, salt);
+    }
+
+    Settings withModels(Stage analyze, Stage translate, Stage proofread) {
+        return new Settings(analyze, translate, proofread, segmentChars, microUsdPerShah, capFactor, redo);
+    }
+
+    /**
+     * Tokens per 1000 characters of the original, measured on real chapters: analysis reads
+     * the whole text once, translation reads and writes it, proofreading reads the original
+     * and the draft and writes the text again.
+     */
+    static final double[][] TOKENS_PER_THOUSAND = {{910, 130}, {1300, 950}, {2050, 990}};
+
+    /** What a chapter of {@code chars} is expected to cost at these models, in millionths of a dollar. */
+    long expectedMicroUsd(int chars, boolean analyzeToo, boolean translateToo) {
+        double thousands = chars / 1000.0;
+        double total = 0;
+        if (analyzeToo) {
+            total += thousands * (TOKENS_PER_THOUSAND[0][0] * analyze.inputPerMillion() + TOKENS_PER_THOUSAND[0][1] * analyze.outputPerMillion());
+        }
+        if (translateToo) {
+            total += thousands * (TOKENS_PER_THOUSAND[1][0] * translate.inputPerMillion() + TOKENS_PER_THOUSAND[1][1] * translate.outputPerMillion());
+            if (proofread.enabled()) {
+                total += thousands * (TOKENS_PER_THOUSAND[2][0] * proofread.inputPerMillion()
+                        + TOKENS_PER_THOUSAND[2][1] * proofread.outputPerMillion());
+            }
+        }
+        return Math.round(total);
     }
 
     static int shah(int chars) {

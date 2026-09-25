@@ -95,7 +95,10 @@ class Pipeline {
         Calls calls = new Calls(job, settings, number);
 
         // Analysis done earlier (maybe by an «analysis only» job, maybe corrected since) is reused.
-        boolean analyzedBefore = analyses.find(editionId, number).filter(done -> done.sourceChapterId() == source.id()).isPresent();
+        // «Зробити заново» for analysis asks the model again even where an analysis exists.
+        boolean redoAnalysis = "analyze".equals(job.getKind()) && settings.redo() != null;
+        boolean analyzedBefore = !redoAnalysis
+                && analyses.find(editionId, number).filter(done -> done.sourceChapterId() == source.id()).isPresent();
         List<List<Block>> bigParts = parts(text, settings.segmentChars() * 3);
         for (int part = 0; part < bigParts.size() && !analyzedBefore; part++) {
             if (checkpoint.analyzed.contains(part)) {
@@ -341,7 +344,7 @@ class Pipeline {
             for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
                 guard();
                 AiAnswer answer = ai.ask(new AiRequest(model.model(), system, user, schemaName, schema, maxTokens,
-                        model.price(), new AiTag(job.getId(), number, stage, part), attempt));
+                        model.price(), new AiTag(job.getId(), number, stage, part), attempt + settings.salt()));
                 if (answer.cut()) {
                     last = "відповідь обірвалася на межі довжини";
                     continue;

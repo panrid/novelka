@@ -42,6 +42,20 @@ class Analyses {
                 .fetch(r -> new Analysis(r.getNumber(), r.getSourceChapterId(), r.getTitle(), r.getLabel(), r.getEdited()));
     }
 
+    static final int PAGE = 50;
+
+    record Page(List<Analysis> items, int total, int page, boolean hasMore) {
+    }
+
+    Page page(long editionId, int page) {
+        int total = db.fetchCount(CHAPTER_ANALYSIS, CHAPTER_ANALYSIS.EDITION_ID.eq(editionId));
+        int at = Math.max(1, page);
+        List<Analysis> items = db.selectFrom(CHAPTER_ANALYSIS).where(CHAPTER_ANALYSIS.EDITION_ID.eq(editionId))
+                .orderBy(CHAPTER_ANALYSIS.NUMBER).limit(PAGE).offset((at - 1) * PAGE)
+                .fetch(r -> new Analysis(r.getNumber(), r.getSourceChapterId(), r.getTitle(), r.getLabel(), r.getEdited()));
+        return new Page(items, total, at, at * PAGE < total);
+    }
+
     int lastAnalyzed(long editionId) {
         return db.select(DSL.coalesce(DSL.max(CHAPTER_ANALYSIS.NUMBER), 0)).from(CHAPTER_ANALYSIS)
                 .where(CHAPTER_ANALYSIS.EDITION_ID.eq(editionId)).fetchOne(0, Integer.class);

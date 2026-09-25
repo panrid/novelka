@@ -1,10 +1,14 @@
 import { api } from '../api/client';
 
 export type JobKind = 'analyze' | 'translate';
+export type Stage = { model: string; inputPerMillion: number; outputPerMillion: number; enabled: boolean };
+export type Plan = {
+    kind: JobKind; from?: number; to: number; redo?: boolean;
+    models?: { analyze?: string; translate?: string; proofread?: string; proofreadEnabled?: boolean };
+};
 export type Quote = {
-    kind: JobKind; from: number; to: number; chapters: number; shah: number; usd: number; estimated: boolean;
-    /** Chapters of a translation without analysis: their glossary cannot be checked first. */
-    unanalyzed: number;
+    kind: JobKind; from: number; to: number; chapters: number; skipped: number; shah: number; usd: number; expectedUsd: number;
+    estimated: boolean; unanalyzed: number; analyzeModel: Stage; translateModel: Stage; proofreadModel: Stage;
 };
 export type Balance = { shah: number; usd: number };
 export type JobState = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
@@ -15,17 +19,24 @@ export type Job = {
 };
 export type AutotranslateOverview = {
     configured: boolean; showShah: boolean; sourceChapters: number; nextNumber: number; publishedChapters: number;
-    lastAnalyzed: number; nextToAnalyze: number;
-    balance: Balance | null; usdPerShah: number; quote: Quote | null; jobs: Job[];
+    lastAnalyzed: number; nextToAnalyze: number; averageChars: number; balance: Balance | null; usdPerShah: number;
+    settings: Settings; jobs: Job[];
 };
-/** A chapter analysed but not yet translated: its Ukrainian title and the number readers will see. */
-export type ChapterAnalysis = { number: number; title: string; label: string | null; edited: boolean };
+export type Process = { editionId: number; title: string; slug: string; job: Job };
+export type ModelChoice = { id: string; name: string; inputPerMillion: number; outputPerMillion: number; chapterUsd: number };
 export type GlossaryKind = 'character' | 'place' | 'organization' | 'term' | 'other';
 export type Gender = 'male' | 'female' | 'unknown';
+export type GlossaryStatus = 'new' | 'approved' | 'rejected';
 export type GlossaryItem = {
     id: number; ukrainian: string; kind: GlossaryKind; gender: Gender | null; note: string | null; chapter: number | null; manual: boolean;
+    status: GlossaryStatus;
 };
-export type Stage = { model: string; inputPerMillion: number; outputPerMillion: number; enabled: boolean };
+export type GlossaryPage = {
+    items: GlossaryItem[]; total: number; page: number; hasMore: boolean; chapters: number[]; counts: Record<GlossaryStatus, number>;
+};
+/** A chapter analysed: its Ukrainian title and the number readers will see. */
+export type ChapterAnalysis = { number: number; title: string; label: string | null; edited: boolean; translated: boolean };
+export type AnalysisPage = { items: ChapterAnalysis[]; total: number; page: number; hasMore: boolean };
 export type Settings = {
     analyze: Stage; translate: Stage; proofread: Stage; segmentChars: number; microUsdPerShah: number; capFactor: number;
 };
@@ -43,16 +54,26 @@ const base = (id: number) => `/api/studio/editions/${id}`;
 export const autotranslateApi = {
     prepare: (url: string, team: string) =>
         api<{ editionId: number; novelSlug: string }>('/api/studio/autotranslate/prepare', json('POST', { url, team })),
-    overview: (id: number, to: number | undefined, kind: JobKind) =>
-        api<AutotranslateOverview>(`${base(id)}/autotranslate?kind=${kind}${to ? `&to=${to}` : ''}`),
-    start: (id: number, to: number, kind: JobKind) => api<Job>(`${base(id)}/autotranslate/jobs`, json('POST', { to, kind })),
-    analysis: (id: number) => api<ChapterAnalysis[]>(`${base(id)}/analysis`),
-    editAnalysis: (id: number, number: number, body: { title: string; label: string | null }) =>
-        api<void>(`${base(id)}/analysis/${number}`, json('PUT', body)),
-    allChecked: (id: number) => api<void>(`${base(id)}/glossary/checked`, json('POST', {})),
+    overview: (id: number) => api<AutotranslateOverview>(`${base(id)}/autotranslate`),
+    quote: (id: number, plan: Plan) => api<Quote>(`${base(id)}/autotranslate/quote`, json('POST', plan)),
+    start: (id: number, plan: Plan) => api<Job>(`${base(id)}/autotranslate/jobs`, json('POST', plan)),
     cancel: (id: number, jobId: number) => api<void>(`${base(id)}/autotranslate/jobs/${jobId}/cancel`, json('POST', {})),
     resume: (id: number, jobId: number) => api<void>(`${base(id)}/autotranslate/jobs/${jobId}/resume`, json('POST', {})),
-    glossary: (id: number) => api<GlossaryItem[]>(`${base(id)}/glossary`),
+    processes: (page = 1) => api<Process[]>(`/api/studio/autotranslate/processes?page=${page}`),
+    models: (q: string, chars: number, output: 'text' | 'image' = 'text') =>
+        api<ModelChoice[]>(`/api/studio/autotranslate/models?q=${encodeURIComponent(q)}&chars=${chars}&output=${output}`),
+    analysis: (id: number, page: number) => api<AnalysisPage>(`${base(id)}/analysis?page=${page}`),
+    editAnalysis: (id: number, number: number, body: { title: string; label: string | null }) =>
+        api<void>(`${base(id)}/analysis/${number}`, json('PUT', body)),
+    glossary: (id: number, filter: { status?: GlossaryStatus; chapter?: number; q?: string; sort: 'alpha' | 'chapter'; page: number }) => {
+        const params = new URLSearchParams({ sort: filter.sort, page: String(filter.page) });
+        if (filter.status) params.set('status', filter.status);
+        if (filter.chapter) params.set('chapter', String(filter.chapter));
+        if (filter.q?.trim()) params.set('q', filter.q.trim());
+        return api<GlossaryPage>(`${base(id)}/glossary?${params}`);
+    },
+    setStatus: (id: number, ids: number[], status: GlossaryStatus) =>
+        api<{ changed: number }>(`${base(id)}/glossary/status`, json('POST', { ids, status })),
     updateEntry: (id: number, entryId: number, body: { ukrainian: string; kind: GlossaryKind; gender: Gender | null; note: string }) =>
         api<void>(`${base(id)}/glossary/${entryId}`, json('PUT', body)),
     deleteEntry: (id: number, entryId: number) => api<void>(`${base(id)}/glossary/${entryId}`, { method: 'DELETE' }),

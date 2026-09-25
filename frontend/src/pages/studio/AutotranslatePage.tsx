@@ -1,56 +1,84 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { chaptersWord } from '../../reading/api';
-import { JOB_LABELS, STAGE_LABELS, autotranslateApi, dollars, money, type Job, type JobKind } from '../../studio/autotranslate';
-import { Segmented } from '../../ui/Segmented';
+import { JOB_LABELS, STAGE_LABELS, autotranslateApi, dollars, money, type Job, type JobKind, type Plan } from '../../studio/autotranslate';
+import { ModelPicker } from '../../studio/ModelPicker';
+import { useDebounced } from '../../lib/useDebounced';
+import { relativeTime } from '../../lib/dates';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
+import { Segmented } from '../../ui/Segmented';
 import { TextInput } from '../../ui/TextInput';
-import { relativeTime } from '../../lib/dates';
+import { Toggle } from '../../ui/Toggle';
 import { useEditionId } from './EditionPage';
 import styles from './studio.module.css';
 
 const active = (job: Job | undefined) => job?.state === 'queued' || job?.state === 'running';
+const number = (text: string) => (/^\s*\d{1,5}\s*$/.test(text) ? Number(text) : undefined);
 
 /** «Перекласти до глави N»: the price first, then progress, all in шаги or dollars. */
 export function AutotranslatePage() {
     const id = useEditionId();
     const client = useQueryClient();
-    const [to, setTo] = useState('');
-    const [kind, setKind] = useState<JobKind>('analyze');
-    const target = /^\d{1,5}$/.test(to) ? Number(to) : undefined;
     const overview = useQuery({
-        queryKey: ['autotranslate', id, kind, target ?? null],
-        queryFn: () => autotranslateApi.overview(id, target, kind),
-        placeholderData: (previous) => previous,
+        queryKey: ['autotranslate', id],
+        queryFn: () => autotranslateApi.overview(id),
         // Live events refresh it at once; the slow poll only covers a lost connection.
         refetchInterval: (query) => (active(query.state.data?.jobs[0]) ? 20_000 : false),
+    });
+    const [kind, setKind] = useState<JobKind>('analyze');
+    const [to, setTo] = useState('');
+    const [advanced, setAdvanced] = useState(false);
+    const [from, setFrom] = useState('');
+    const [redo, setRedo] = useState(false);
+    const [models, setModels] = useState<NonNullable<Plan['models']>>({});
+
+    const data = overview.data;
+    const firstOpen = data ? (kind === 'analyze' ? data.nextToAnalyze : data.nextNumber) : 1;
+    const plan: Plan | null = number(to) === undefined ? null : {
+        kind, to: number(to)!,
+        ...(advanced && number(from) !== undefined ? { from: number(from)! } : {}),
+        ...(advanced && redo ? { redo: true } : {}),
+        ...(advanced && Object.keys(models).length > 0 ? { models } : {}),
+    };
+    // Checked only once typing stops: «3» on the way to «30» is not an error.
+    const settled = useDebounced(to, 500);
+    const settledPlan = useDebounced(plan ? JSON.stringify(plan) : '', 500);
+    const typing = settled !== to || settledPlan !== (plan ? JSON.stringify(plan) : '');
+    const target = number(settled);
+    const start = plan?.from ?? firstOpen;
+    let problem: string | null = null;
+    if (data && settled.trim() && !typing) {
+        if (target === undefined) problem = 'Вкажіть номер глави числом.';
+        else if (target > data.sourceChapters) problem = `В оригіналі поки ${data.sourceChapters} ${chaptersWord(data.sourceChapters)}.`;
+        else if (target < start && !(advanced && (redo || number(from) !== undefined))) {
+            problem = `Глави до ${firstOpen - 1} уже ${kind === 'analyze' ? 'проаналізовано' : 'перекладено'}. `
+                + 'Щоб повторити їх або вибрати інший діапазон, відкрийте «Розширені налаштування».';
+        }
+    }
+    const quote = useQuery({
+        queryKey: ['autotranslate-quote', id, settledPlan],
+        queryFn: () => autotranslateApi.quote(id, JSON.parse(settledPlan) as Plan),
+        enabled: Boolean(settledPlan) && !typing && !problem,
         retry: false,
     });
-    const data = overview.data;
-    const job = data?.jobs[0];
     const refresh = () => {
         void client.invalidateQueries({ queryKey: ['autotranslate', id] });
         void client.invalidateQueries({ queryKey: ['studio-chapters', id] });
     };
-    const start = useMutation({ mutationFn: () => autotranslateApi.start(id, target!, kind), onSuccess: () => { setTo(''); refresh(); } });
+    const startJob = useMutation({ mutationFn: () => autotranslateApi.start(id, plan!), onSuccess: () => { setTo(''); refresh(); } });
     const cancel = useMutation({ mutationFn: (jobId: number) => autotranslateApi.cancel(id, jobId), onSuccess: refresh });
     const resume = useMutation({ mutationFn: (jobId: number) => autotranslateApi.resume(id, jobId), onSuccess: refresh });
-
-    // Chapters appear in the Studio list as they are published.
-    const done = job?.done;
-    useEffect(() => {
-        if (done !== undefined) void client.invalidateQueries({ queryKey: ['studio-chapters', id] });
-    }, [done, id, client]);
 
     if (!data && overview.isError) return <Notice tone="error">{overview.error.message}</Notice>;
     if (!data) return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
     const show = data.showShah;
-    const from = kind === 'analyze' ? data.nextToAnalyze : data.nextNumber;
-    const left = data.sourceChapters - from + 1;
+    const job = data.jobs[0];
     const busy = job && (active(job) || job.state === 'failed');
-    const quoteError = overview.isError && target ? overview.error.message : null;
+    const ready = quote.data && !typing && !problem && JSON.stringify(plan) === settledPlan;
+    const fieldError = problem ?? (quote.isError && !typing ? quote.error.message : undefined);
+    const model = (stage: 'analyze' | 'translate' | 'proofread') => models[stage] ?? data.settings[stage].model;
 
     return (
         <section className={styles.page}>
@@ -69,52 +97,89 @@ export function AutotranslatePage() {
             {(cancel.isError || resume.isError) && <Notice tone="error">{(cancel.error ?? resume.error)!.message}</Notice>}
 
             {!busy && (
-                <Segmented label="Що робимо" value={kind} onChange={(next) => { setKind(next); setTo(''); }} options={[
-                    { value: 'analyze', label: 'Аналіз і словник' },
-                    { value: 'translate', label: 'Переклад' },
-                ]} />
-            )}
-            {!busy && kind === 'analyze' && (
-                <p className={styles.muted}>
-                    Модель збере імена й терміни в словник і перекладе назви глав. Перевірте їх, а тоді запускайте переклад:
-                    він візьме готовий аналіз і не платитиме за нього вдруге.
-                </p>
-            )}
-            {!busy && left > 0 && (
-                <form className={styles.form} onSubmit={(event) => { event.preventDefault(); if (target) start.mutate(); }}>
-                    <TextInput label={`${kind === 'analyze' ? 'Аналізувати' : 'Перекласти'} з глави ${from} до глави…`} value={to} onChange={setTo}
-                        inputMode="numeric" hint={`Щонайбільше ${data.sourceChapters}.`} />
-                    {data.quote && target === data.quote.to && (
+                <form className={styles.form} onSubmit={(event) => { event.preventDefault(); if (ready) startJob.mutate(); }}>
+                    <Segmented label="Що робимо" value={kind} onChange={(next) => { setKind(next); setModels({}); }} options={[
+                        { value: 'analyze', label: 'Аналіз і словник' },
+                        { value: 'translate', label: 'Переклад' },
+                    ]} />
+                    {kind === 'analyze' && (
+                        <p className={styles.muted}>
+                            Модель збере імена й терміни в словник і перекладе назви глав. Перевірте їх, а тоді запускайте переклад:
+                            він візьме готовий аналіз і не платитиме за нього вдруге.
+                        </p>
+                    )}
+                    <TextInput label={`${kind === 'analyze' ? 'Аналізувати' : 'Перекласти'} ${advanced && number(from) ? `з глави ${number(from)}` : `з глави ${firstOpen}`} до глави…`}
+                        value={to} onChange={setTo} inputMode="numeric" error={fieldError}
+                        hint={`Щонайбільше ${data.sourceChapters}.`} />
+
+                    <button type="button" className={styles.disclosure} aria-expanded={advanced} onClick={() => setAdvanced(!advanced)}>
+                        {advanced ? '▾' : '▸'} Розширені налаштування
+                    </button>
+                    {advanced && (
+                        <div className={styles.advanced}>
+                            <TextInput label="З глави" value={from} onChange={setFrom} inputMode="numeric"
+                                placeholder={String(firstOpen)} hint="Порожньо — з першої ще не опрацьованої." />
+                            <Toggle label="Зробити заново вже опрацьовані глави" isSelected={redo} onChange={setRedo} />
+                            {redo && (
+                                <p className={styles.muted}>
+                                    {kind === 'analyze'
+                                        ? 'Модель проаналізує глави знову; назви глав, які ви виправили, буде замінено новими. Словник лише доповниться.'
+                                        : 'Глави перекладуться знову й вийдуть новою версією; попередня лишиться в історії глави.'}
+                                </p>
+                            )}
+                            <ModelPicker label="Модель аналізу" value={model('analyze')} chars={data.averageChars}
+                                onChange={(analyze) => setModels({ ...models, analyze })}
+                                hint={kind === 'translate' ? 'Для глав, які ще не проаналізовано.' : undefined} />
+                            {kind === 'translate' && (
+                                <>
+                                    <ModelPicker label="Модель перекладу" value={model('translate')} chars={data.averageChars}
+                                        onChange={(translate) => setModels({ ...models, translate })} />
+                                    <Toggle label="Вичитка" isSelected={models.proofreadEnabled ?? data.settings.proofread.enabled}
+                                        onChange={(proofreadEnabled) => setModels({ ...models, proofreadEnabled })} />
+                                    {(models.proofreadEnabled ?? data.settings.proofread.enabled) && (
+                                        <ModelPicker label="Модель вичитки" value={model('proofread')} chars={data.averageChars}
+                                            onChange={(proofread) => setModels({ ...models, proofread })} />
+                                    )}
+                                </>
+                            )}
+                            <p className={styles.muted}>
+                                Ціна «за главу» — для середньої глави цієї новели (~{data.averageChars.toLocaleString('uk-UA')} знаків), якщо всі кроки
+                                робить ця модель. Вибір діє лише для цього запуску; постійні моделі — на <Link to="/me/wallet">«Шагах»</Link>.
+                            </p>
+                        </div>
+                    )}
+
+                    {ready && quote.data && (
                         <div className={styles.quote} aria-live="polite">
                             <div>
-                                {data.quote.chapters} {chaptersWord(data.quote.chapters)} · {data.quote.estimated ? 'орієнтовно ' : ''}
-                                <b>{money(data.quote.shah, data.quote.usd, show)}</b>
+                                {quote.data.chapters} {chaptersWord(quote.data.chapters)} · {quote.data.estimated ? 'орієнтовно ' : ''}
+                                <b>{money(quote.data.shah, quote.data.usd, show)}</b>
+                                {quote.data.skipped > 0 && <span className={styles.muted}> · пропускаємо вже зроблені: {quote.data.skipped}</span>}
                             </div>
                             <div className={styles.muted}>
-                                Шаг — до 10 000 знаків оригіналу{show ? ` (≈ ${dollars(data.usdPerShah, 3)})` : ''}.
-                                {data.quote.kind === 'analyze' && ' Аналіз — чверть шагу на главу.'}
-                                {data.quote.estimated && ' Довжину ще не завантажених глав оцінено за вже відомими.'}
+                                Очікувана собівартість ≈ {dollars(quote.data.expectedUsd, 3)} ·{' '}
+                                {kind === 'analyze' ? quote.data.analyzeModel.model
+                                    : `${quote.data.translateModel.model}${quote.data.proofreadModel.enabled ? `, вичитка ${quote.data.proofreadModel.model}` : ', без вичитки'}`}
                             </div>
-                            {data.quote.unanalyzed > 0 && (
+                            {quote.data.unanalyzed > 0 && (
                                 <div className={styles.muted}>
-                                    {data.quote.unanalyzed === data.quote.chapters ? 'Ці глави' : `Останні ${data.quote.unanalyzed} ${chaptersWord(data.quote.unanalyzed)}`}
-                                    {' '}ще не проаналізовано: словник для них складеться під час перекладу, перевірити його заздалегідь не вийде.
+                                    {quote.data.unanalyzed === quote.data.chapters ? 'Ці глави' : `${quote.data.unanalyzed} з них`} ще не проаналізовано:
+                                    словник для них складеться під час перекладу, перевірити його заздалегідь не вийде.
                                 </div>
                             )}
                         </div>
                     )}
-                    {quoteError && <Notice tone="error">{quoteError}</Notice>}
-                    {start.isError && <Notice tone="error">{start.error.message}</Notice>}
-                    <Button type="submit" wide pending={start.isPending} pendingLabel="Запускаємо…"
-                        isDisabled={!data.quote || target !== data.quote.to || !data.configured}>
+                    {startJob.isError && <Notice tone="error">{startJob.error.message}</Notice>}
+                    <Button type="submit" wide pending={startJob.isPending} pendingLabel="Запускаємо…" isDisabled={!ready || !data.configured}>
                         {kind === 'analyze' ? 'Почати аналіз' : 'Почати переклад'}
                     </Button>
                 </form>
             )}
-            {!busy && left <= 0 && <p className={styles.muted}>{kind === 'analyze' ? 'Усі глави оригіналу вже проаналізовано.' : 'Усі глави оригіналу вже перекладено.'}</p>}
 
             <nav className={styles.menu} aria-label="Ще">
-                <Link to="/studio/$editionId/glossary" params={{ editionId: String(id) }} className={styles.menuItem}>Перевірити словник і назви глав</Link>
+                <Link to="/studio/$editionId/titles" params={{ editionId: String(id) }} className={styles.menuItem}>Назви глав після аналізу</Link>
+                <Link to="/studio/$editionId/glossary" params={{ editionId: String(id) }} className={styles.menuItem}>Словник імен і термінів</Link>
+                <Link to="/studio/processes" className={styles.menuItem}>Усі процеси</Link>
                 <Link to="/me/wallet" className={styles.menuItem}>Моделі, ціни й собівартість</Link>
             </nav>
 
@@ -133,23 +198,24 @@ export function AutotranslatePage() {
     );
 }
 
-function JobCard({ job, showShah, usdPerShah, onCancel, onResume, pending }: {
-    job: Job; showShah: boolean; usdPerShah: number; onCancel: () => void; onResume: () => void; pending: boolean;
+export function JobCard({ job, showShah, usdPerShah, onCancel, onResume, pending, title }: {
+    job: Job; showShah: boolean; usdPerShah: number; onCancel: () => void; onResume: () => void; pending: boolean; title?: React.ReactNode;
 }) {
-    const total = job.to - job.from + 1;
-    const percent = Math.round((job.done / total) * 100);
+    const total = Math.max(1, job.to - job.from + 1);
+    const percent = Math.min(100, Math.round((job.done / total) * 100));
     return (
         <div className={styles.jobCard} aria-live="polite">
+            {title}
             <div className={styles.jobHead}>
                 <b>{job.kind === 'analyze' ? 'Аналіз' : 'Переклад'}: глави {job.from}–{job.to}</b>
                 <span className={styles.badge}>{JOB_LABELS[job.state]}</span>
             </div>
             <div className={styles.progress} role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={job.done}
-                aria-label="Перекладено глав">
+                aria-label="Опрацьовано глав">
                 <span style={{ width: `${percent}%` }} />
             </div>
             <div className={styles.muted}>
-                Готово {job.done} з {total}
+                Готово {job.done}
                 {job.current && active(job) && <> · глава {job.current.number}: {STAGE_LABELS[job.current.stage] ?? job.current.stage}</>}
                 {' · '}витрачено {money(job.spentShah, job.spentUsd, showShah)} з {money(job.quoteShah, job.quoteShah * usdPerShah, showShah)}
             </div>

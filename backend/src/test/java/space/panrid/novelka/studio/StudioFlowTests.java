@@ -184,6 +184,35 @@ class StudioFlowTests {
     }
 
     @Test
+    void aProfileListsThePersonsTranslationsAndTheStudioCanBeATab() {
+        long edition = createPublication(owner, "Профільна", "original");
+        owner.browser().post("/api/studio/editions/" + edition + "/chapters", "{}");
+        owner.browser().post(chapter(edition, 1) + "/publish", text("Глава", null, "Текст."));
+        JsonNode works = read(new Browser(port).get("/api/users/" + owner.nick() + "/works"));
+        assertThat(works).extracting(card -> card.path("title").asString()).contains("Профільна");
+        assertThat(new Browser(port).get("/api/users/nobody_here/works").status()).isEqualTo(404);
+
+        assertThat(read(owner.browser().patch("/api/me", json("studioInMenu", true))).path("studioInMenu").asBoolean()).isTrue();
+    }
+
+    @Test
+    void anEmptyChapterGoesAnyTimeAPublishedOneOnlyIfLast() {
+        long edition = createPublication(owner, "Видалення", "original");
+        for (int n = 1; n <= 2; n++) {
+            owner.browser().post("/api/studio/editions/" + edition + "/chapters", "{}");
+            owner.browser().post(chapter(edition, n) + "/publish", text("Глава " + n, null, "Текст."));
+        }
+        owner.browser().post("/api/studio/editions/" + edition + "/chapters", "{}");
+        assertThat(owner.browser().delete(chapter(edition, 3)).status()).as("created by mistake, never published").isEqualTo(200);
+        assertThat(owner.browser().delete(chapter(edition, 1)).status()).as("not the last").isEqualTo(409);
+        assertThat(owner.browser().delete(chapter(edition, 2)).status()).isEqualTo(200);
+        JsonNode overview = read(owner.browser().get("/api/studio/editions/" + edition));
+        assertThat(overview.path("chapterCount").asInt()).isEqualTo(1);
+        assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/chapters"))).extracting(c -> c.path("number").asInt())
+                .containsExactly(1);
+    }
+
+    @Test
     void theOwnerChangesDataAndCover() {
         long edition = createPublication(owner, "Стара назва", "human");
 

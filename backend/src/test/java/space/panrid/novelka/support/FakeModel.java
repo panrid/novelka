@@ -43,6 +43,18 @@ public class FakeModel implements AiTransport {
     }
 
     @Override
+    public Reply models() {
+        return new Reply(200, """
+                {"data":[
+                 {"id":"openai/gpt-4.1-mini","name":"GPT-4.1 Mini","pricing":{"prompt":"0.0000004","completion":"0.0000016"},
+                  "context_length":1000000,"architecture":{"output_modalities":["text"]}},
+                 {"id":"fake/better","name":"Better Translator","pricing":{"prompt":"0.000002","completion":"0.000008"},
+                  "context_length":200000,"architecture":{"output_modalities":["text"]}},
+                 {"id":"fake/painter","name":"Painter","pricing":{"prompt":"0","completion":"0"},
+                  "context_length":0,"architecture":{"output_modalities":["image"]}}]}""");
+    }
+
+    @Override
     public Reply credits() {
         return new Reply(200, "{\"data\":{\"total_credits\":10,\"total_usage\":2.5}}");
     }

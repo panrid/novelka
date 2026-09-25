@@ -164,7 +164,7 @@ class StudioController {
     @Transactional
     Created create(@RequestBody CreateRequest body) {
         Viewer viewer = access.requireSignedIn();
-        if (!CREATE_KINDS.contains(body.kind())) {
+        if (body.kind() == null || !CREATE_KINDS.contains(body.kind())) {
             throw UserFacingException.badRequest("Оберіть: свій переклад чи свій твір.");
         }
         long teamId = body.team() == null || body.team().isBlank()
@@ -251,6 +251,13 @@ class StudioController {
     void discardDraft(@PathVariable long editionId, @PathVariable int number) {
         EditionAccess who = access.requireTextEditor(editionId);
         chapters.discardDraft(editionId, number, who.viewer().accountId());
+    }
+
+    /** An empty chapter created by mistake, or the last published one. */
+    @DeleteMapping("/editions/{editionId}/chapters/{number}")
+    void deleteChapter(@PathVariable long editionId, @PathVariable int number) {
+        access.requireTranslator(editionId);
+        chapters.deleteChapter(editionId, number);
     }
 
     record LabelRequest(String label) {

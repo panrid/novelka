@@ -126,6 +126,13 @@ class ReadingController {
         library.saveProgress(currentUser.requireSignedIn(), editionId, body.chapterNumber(), body.position());
     }
 
+    /** A person's translations and works, for their profile. */
+    @GetMapping("/users/{nick}/works")
+    List<Views.Card> works(@PathVariable String nick) {
+        Long accountId = queries.accountByNick(nick).orElseThrow(() -> UserFacingException.notFound("Такої людини немає."));
+        return queries.worksOf(accountId, adult(currentUser.viewer()));
+    }
+
     @GetMapping("/library")
     Views.LibraryPage library(@RequestParam(defaultValue = "reading") String list) {
         Viewer viewer = currentUser.requireSignedIn();

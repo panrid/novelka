@@ -20,7 +20,8 @@ final class Views {
     record ContinueItem(Card card, int chapterNumber, float position) {
     }
 
-    record NewChapters(Card card, int firstNumber, int lastNumber, OffsetDateTime publishedAt) {
+    /** @param firstLabel the number readers see for {@code firstNumber} (null: the position), likewise {@code lastLabel} */
+    record NewChapters(Card card, int firstNumber, int lastNumber, OffsetDateTime publishedAt, String firstLabel, String lastLabel) {
     }
 
     record Home(List<ContinueItem> continueReading, List<Card> popular, List<NewChapters> newChapters) {

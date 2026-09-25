@@ -36,11 +36,11 @@ export function ChatPage() {
     const refresh = () => client.invalidateQueries({ queryKey: ['chat'] });
 
     return (
-        <section className={styles.page}>
+        <section className={`${styles.page} ${styles.frame}`}>
             <InboxNav />
             {pages.isError && <Notice tone="error">{pages.error.message}</Notice>}
             {notice && <Notice tone="info">{notice}</Notice>}
-            <div className={styles.lines}>
+            <div className={`${styles.lines} ${styles.scroll}`}>
                 {pages.hasNextPage && <button type="button" className={styles.older} onClick={() => void pages.fetchNextPage()}>Давніші</button>}
                 {pages.isSuccess && lines.length === 0 && <p className={styles.muted}>У чаті ще тихо. Напишіть першим!</p>}
                 {lines.map((line) => (

@@ -28,6 +28,8 @@ import { ImportPage } from '../pages/studio/ImportPage';
 import { NewPublication } from '../pages/studio/NewPublication';
 import { AutotranslatePage } from '../pages/studio/AutotranslatePage';
 import { GlossaryPage } from '../pages/studio/GlossaryPage';
+import { ProcessesPage } from '../pages/studio/ProcessesPage';
+import { TitlesPage } from '../pages/studio/TitlesPage';
 import { WalletPage } from '../pages/me/WalletPage';
 import { AdminHome, AuditPage, ModerationPage, SiteSettingsPage, UsersPage } from '../pages/admin/AdminPages';
 import { ChatPage } from '../pages/inbox/ChatPage';
@@ -109,7 +111,13 @@ const routeTree = rootRoute.addChildren([
         },
         head: ({ loaderData }) => ({ meta: [{ title: loaderData?.title ?? 'Новелка' }] }),
     }),
-    studio('/inbox', NotificationsPage, 'Вхідні'),
+    createRoute({
+        getParentRoute: () => rootRoute, path: '/inbox', component: NotificationsPage, head: title('Вхідні'),
+        // Guests have no notifications, but they may read the site chat.
+        beforeLoad: async ({ context }) => {
+            if (!(await context.queryClient.ensureQueryData(meQuery))) throw redirect({ to: '/inbox/chat' });
+        },
+    }),
     studio('/inbox/messages', MessagesPage, 'Повідомлення'),
     studio('/inbox/messages/new', NewGroupPage, 'Нова група'),
     studio('/inbox/messages/$id', ConversationPage, 'Розмова'),
@@ -135,6 +143,8 @@ const routeTree = rootRoute.addChildren([
     studio('/studio/$editionId/relay', RelayPage, 'Естафета'),
     studio('/studio/$editionId/translate', AutotranslatePage, 'Автопереклад'),
     studio('/studio/$editionId/glossary', GlossaryPage, 'Словник'),
+    studio('/studio/$editionId/titles', TitlesPage, 'Назви глав'),
+    studio('/studio/processes', ProcessesPage, 'Процеси'),
     studio('/me/wallet', WalletPage, 'Шаги'),
     studio('/studio/$editionId/chapters/$number', ChapterEditorPage, 'Редактор'),
     studio('/studio/$editionId/chapters/$number/history', HistoryPage, 'Історія глави'),

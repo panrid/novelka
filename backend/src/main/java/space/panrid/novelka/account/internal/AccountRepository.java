@@ -109,7 +109,7 @@ public class AccountRepository {
     }
 
     void updateSettings(long id, String bio, String dmPolicy, Boolean showReading, OffsetDateTime adultConfirmedAt,
-            boolean adultChanged, Boolean showShah) {
+            boolean adultChanged, Boolean showShah, Boolean studioInMenu) {
         Map<Field<?>, Object> changes = new HashMap<>();
         if (bio != null) {
             changes.put(ACCOUNT.BIO, bio);
@@ -125,6 +125,9 @@ public class AccountRepository {
         }
         if (showShah != null) {
             changes.put(ACCOUNT.SHOW_SHAH, showShah);
+        }
+        if (studioInMenu != null) {
+            changes.put(ACCOUNT.STUDIO_IN_MENU, studioInMenu);
         }
         if (!changes.isEmpty()) {
             db.update(ACCOUNT).set(changes).where(ACCOUNT.ID.eq(id)).execute();

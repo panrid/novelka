@@ -14,7 +14,7 @@ export const authApi = {
     confirmEmail: (token: string) => post<Me>('/api/auth/confirm-email', { token }),
 };
 
-export type SettingsPatch = Partial<Pick<Me, 'bio' | 'dmPolicy' | 'showReading' | 'showShah'>> & { adultConfirmed?: boolean };
+export type SettingsPatch = Partial<Pick<Me, 'bio' | 'dmPolicy' | 'showReading' | 'showShah' | 'studioInMenu'>> & { adultConfirmed?: boolean };
 
 export const meApi = {
     update: (patch: SettingsPatch) => api<Me>('/api/me', { method: 'PATCH', body: JSON.stringify(patch) }),

@@ -18,6 +18,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -161,10 +162,28 @@ class ReadingQueries {
                             .and(CHAPTER.FIRST_PUBLISHED_AT.ge(at.minusHours(1))))
                     .fetchOne();
             if (range != null && range.get(0) != null) {
-                result.add(new Views.NewChapters(card, range.get(0, Integer.class), range.get(1, Integer.class), at));
+                int first = range.get(0, Integer.class);
+                int last = range.get(1, Integer.class);
+                Map<Integer, String> labels = new HashMap<>();
+                db.select(CHAPTER.NUMBER, CHAPTER.LABEL).from(CHAPTER)
+                        .where(CHAPTER.EDITION_ID.eq(card.editionId()), CHAPTER.NUMBER.in(first, last))
+                        .forEach(r -> labels.put(r.value1(), r.value2()));
+                result.add(new Views.NewChapters(card, first, last, at, labels.get(first), labels.get(last)));
             }
         }
         return result;
+    }
+
+    Optional<Long> accountByNick(String nick) {
+        return db.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.NICK_KEY.eq(nick.strip().toLowerCase(java.util.Locale.ROOT)))
+                .fetchOptional(ACCOUNT.ID);
+    }
+
+    /** What a person works on: translations and works of the teams they own or belong to. */
+    List<Card> worksOf(long accountId, boolean adult) {
+        var member = DSL.select(TEAM_MEMBER.TEAM_ID).from(TEAM_MEMBER).where(TEAM_MEMBER.ACCOUNT_ID.eq(accountId));
+        return toCards(cards().where(visible(adult).and(TEAM.OWNER_ID.eq(accountId).or(TEAM.ID.in(member))))
+                .orderBy(DSL.coalesce(EDITION.LAST_PUBLISHED_AT, EDITION.CREATED_AT).desc()).limit(50).fetch());
     }
 
     List<Views.ContinueItem> continueReading(long accountId, boolean adult, int limit) {
