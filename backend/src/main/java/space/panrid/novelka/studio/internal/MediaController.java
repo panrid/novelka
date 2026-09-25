@@ -59,13 +59,19 @@ class MediaController {
     }
 
     private static Uploaded uploaded(StoredImage image, ImageKind kind) {
-        return new Uploaded(image.id(), image.url(kind == ImageKind.COVER ? 480 : 1280));
+        return new Uploaded(image.id(), image.url(switch (kind) {
+            case COVER -> 480;
+            case GROUP_AVATAR, AVATAR -> 256;
+            default -> 1280;
+        }));
     }
 
     private static ImageKind kind(String code) {
         return switch (code) {
             case "illustration" -> ImageKind.ILLUSTRATION;
             case "cover" -> ImageKind.COVER;
+            case "message" -> ImageKind.MESSAGE;
+            case "group_avatar" -> ImageKind.GROUP_AVATAR;
             default -> throw UserFacingException.badRequest("Невідомий вид картинки.");
         };
     }
