@@ -94,4 +94,24 @@ describe('public profile', () => {
         expect(await screen.findByRole('heading', { name: 'Мавка' })).toBeInTheDocument();
         expect(screen.getByText('на Новелці з березня 2026')).toBeInTheDocument();
     });
+
+    it('shows what the person reads and lets you block them', async () => {
+        const card = {
+            editionId: 3, novelSlug: 'mah-vody', teamHandle: 'panrid', teamName: 'panrid', title: 'Маг води', author: 'Автор', coverUrl: null,
+            kind: 'machine', status: 'ongoing', adult: false, chapterCount: 2, tags: [], lastPublishedAt: null,
+        };
+        const { calls } = await renderAt('/u/Мавка', {
+            'GET /api/me': { body: ME },
+            'GET /api/users/Мавка': { body: { nick: 'Мавка', avatarUrl: null, bio: '', memberSince: '2026-03-01' } },
+            'GET /api/users/Мавка/activity': { body: { reading: [card], acceptedSuggestions: 3 } },
+            'GET /api/me/blocks': { body: [] },
+            'PUT /api/me/blocks/Мавка': { status: 204 },
+        });
+
+        expect(await screen.findByRole('heading', { name: 'Читає зараз' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Маг води' })).toHaveAttribute('href', '/n/mah-vody?t=panrid');
+        expect(screen.getByText('3 правки прийнято')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Заблокувати' }));
+        await waitFor(() => expect(calls.some((call) => call.method === 'PUT' && decodeURIComponent(call.path) === '/api/me/blocks/Мавка')).toBe(true));
+    });
 });

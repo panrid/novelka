@@ -66,7 +66,7 @@ function Row({ item }: { item: Notification }) {
         }
         case 'suggestions_submitted':
             // Batches from different people add up, so only a single one names its author.
-            title = (p.count ?? 1) === 1 ? `${p.actorNick} пропонує правку` : `${p.count} ${plural(p.count ?? 0, 'нова правка', 'нові правки', 'нових правок')}`;
+            title = (p.count ?? 1) === 1 ? `${p.actorNick} пропонує правку` : plural(p.count ?? 0, 'нова правка', 'нові правки', 'нових правок');
             break;
         case 'suggestions_reviewed':
             title = `Ваші правки перевірено: прийнято ${p.accepted}, відхилено ${p.rejected}`;

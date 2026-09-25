@@ -133,6 +133,13 @@ class ReadingController {
         return queries.worksOf(accountId, adult(currentUser.viewer()));
     }
 
+    /** «Читає зараз» and accepted suggestions, for a person's profile. */
+    @GetMapping("/users/{nick}/activity")
+    Views.Activity activity(@PathVariable String nick) {
+        Long accountId = queries.accountByNick(nick).orElseThrow(() -> UserFacingException.notFound("Такої людини немає."));
+        return queries.activityOf(accountId, adult(currentUser.viewer()));
+    }
+
     @GetMapping("/library")
     Views.LibraryPage library(@RequestParam(defaultValue = "reading") String list) {
         Viewer viewer = currentUser.requireSignedIn();

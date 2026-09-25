@@ -9,6 +9,7 @@ import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.NOVEL_TAG;
 import static space.panrid.novelka.jooq.Tables.READING_PROGRESS;
 import static space.panrid.novelka.jooq.Tables.REVISION;
+import static space.panrid.novelka.jooq.Tables.SUGGESTION;
 import static space.panrid.novelka.jooq.Tables.TAG;
 import static space.panrid.novelka.jooq.Tables.TEAM;
 import static space.panrid.novelka.jooq.Tables.TEAM_MEMBER;
@@ -184,6 +185,16 @@ class ReadingQueries {
         var member = DSL.select(TEAM_MEMBER.TEAM_ID).from(TEAM_MEMBER).where(TEAM_MEMBER.ACCOUNT_ID.eq(accountId));
         return toCards(cards().where(visible(adult).and(TEAM.OWNER_ID.eq(accountId).or(TEAM.ID.in(member))))
                 .orderBy(DSL.coalesce(EDITION.LAST_PUBLISHED_AT, EDITION.CREATED_AT).desc()).limit(50).fetch());
+    }
+
+    /** What a person reads now, for their profile — only when they let others see it. */
+    Views.Activity activityOf(long accountId, boolean adult) {
+        boolean shown = Boolean.TRUE.equals(db.select(ACCOUNT.SHOW_READING).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).fetchOne(ACCOUNT.SHOW_READING));
+        List<Card> reading = !shown ? List.of() : toCards(cards().join(LIBRARY_ENTRY).on(LIBRARY_ENTRY.EDITION_ID.eq(EDITION.ID))
+                .where(LIBRARY_ENTRY.ACCOUNT_ID.eq(accountId).and(LIBRARY_ENTRY.LIST.eq("reading")).and(visible(adult)))
+                .orderBy(LIBRARY_ENTRY.UPDATED_AT.desc()).limit(12).fetch());
+        int accepted = db.fetchCount(SUGGESTION, SUGGESTION.AUTHOR_ID.eq(accountId).and(SUGGESTION.STATE.eq("accepted")));
+        return new Views.Activity(reading, accepted);
     }
 
     List<Views.ContinueItem> continueReading(long accountId, boolean adult, int limit) {

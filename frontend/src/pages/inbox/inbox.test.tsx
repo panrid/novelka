@@ -15,6 +15,8 @@ const NOTIFICATIONS = {
         { id: 6, kind: 'reply', read: false, createdAt: new Date().toISOString(),
             payload: { slug: 'mah-vody', novelTitle: 'Маг води', teamHandle: 'panrid', chapterNumber: 3, chapterLabel: '2.5',
                 actorNick: 'lysytsia', excerpt: 'Бо так в оригіналі', commentId: 40, where: 'comment' } },
+        { id: 5, kind: 'suggestions_submitted', read: true, createdAt: new Date().toISOString(),
+            payload: { editionId: 9, slug: 'mah-vody', novelTitle: 'Маг води', teamHandle: 'panrid', actorNick: 'lysytsia', count: 3 } },
     ],
 };
 const CONVERSATION = {
@@ -40,6 +42,7 @@ describe('inbox', () => {
         const reply = screen.getByText('lysytsia відповідає на ваш коментар').closest('a')!;
         expect(reply).toHaveAttribute('href', '/n/mah-vody/3?t=panrid#c40');
         expect(within(reply).getByText(/глава 2\.5/)).toBeInTheDocument();
+        expect(screen.getByText('3 нові правки').closest('a')).toHaveAttribute('href', '/studio/9');
         await vi.waitFor(() => expect(calls.find((call) => call.path === '/api/notifications/read')?.body).toEqual({ upTo: 7 }));
     });
 

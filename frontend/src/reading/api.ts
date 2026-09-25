@@ -110,6 +110,7 @@ const novelPath = (slug: string) => `/api/novels/${encodeURIComponent(slug)}`;
 
 export const readingApi = {
     works: (nick: string) => api<Card[]>(`/api/users/${encodeURIComponent(nick)}/works`),
+    activity: (nick: string) => api<{ reading: Card[]; acceptedSuggestions: number }>(`/api/users/${encodeURIComponent(nick)}/activity`),
     home: () => api<Home>('/api/home'),
     catalog: ({ q, tags, kind, machine, sort, page }: CatalogQuery) =>
         api<Page<Card>>(`/api/catalog${query({ q, tag: tags, kind, machine, sort, page })}`),

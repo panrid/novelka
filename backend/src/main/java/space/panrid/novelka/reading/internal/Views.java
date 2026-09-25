@@ -68,6 +68,9 @@ final class Views {
             String teamRole, String label) {
     }
 
+    record Activity(List<Card> reading, int acceptedSuggestions) {
+    }
+
     record LibraryPage(List<LibraryItem> items, java.util.Map<String, Integer> counts) {
     }
 

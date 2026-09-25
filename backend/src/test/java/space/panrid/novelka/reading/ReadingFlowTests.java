@@ -139,6 +139,13 @@ class ReadingFlowTests {
         assertThat(library.path("items")).singleElement()
                 .satisfies(item -> assertThat(item.path("chapterNumber").asInt()).isEqualTo(2));
         assertThat(library.path("counts").path("reading").asInt()).isEqualTo(1);
+        JsonNode activity = read(new Browser(port).get("/api/users/" + reader.nick() + "/activity"));
+        assertThat(activity.path("reading")).as("«Читає зараз» on the profile").singleElement()
+                .satisfies(card -> assertThat(card.path("editionId").asLong()).isEqualTo(editionId));
+        assertThat(activity.path("acceptedSuggestions").asInt()).isZero();
+        reader.browser().patch("/api/me", json("showReading", false));
+        assertThat(read(new Browser(port).get("/api/users/" + reader.nick() + "/activity")).path("reading"))
+                .as("hidden when the person says so").isEmpty();
 
         assertThat(reader.browser().put("/api/library/" + editionId, json("list", "planned")).status()).isEqualTo(204);
         JsonNode planned = read(reader.browser().get("/api/library?list=planned"));
