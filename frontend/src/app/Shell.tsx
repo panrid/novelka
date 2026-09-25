@@ -23,7 +23,7 @@ export function Shell() {
     // The page always sits at the same place in the tree: moving it would remount the reader.
     // The chapter editor too: its formatting bar sits where the tabs would be.
     const reading = useRouterState({
-        select: (state) => /^\/n\/[^/]+\/\d+\/?$|^\/studio\/\d+\/chapters\/\d+\/?$/.test(state.location.pathname),
+        select: (state) => /^\/n\/[^/]+\/\d+(\/propose)?\/?$|^\/studio\/\d+\/chapters\/\d+\/?$/.test(state.location.pathname),
     });
     return (
         <div className={reading ? undefined : styles.shell}>

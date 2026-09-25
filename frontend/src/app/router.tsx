@@ -17,6 +17,7 @@ import { CatalogPage, validateCatalogSearch } from '../pages/reading/CatalogPage
 import { HomePage } from '../pages/reading/HomePage';
 import { LibraryPage } from '../pages/reading/LibraryPage';
 import { NovelPage } from '../pages/reading/NovelPage';
+import { ProposeChapterPage } from '../pages/reading/ProposeChapterPage';
 import { ReaderPage } from '../pages/reading/ReaderPage';
 import { chapterQuery, novelQuery } from '../reading/queries';
 import { Placeholder } from '../pages/Placeholder';
@@ -110,6 +111,10 @@ const routeTree = rootRoute.addChildren([
     placeholder('/inbox', 'Вхідні', 'Тут будуть сповіщення, повідомлення й загальний чат.'),
     createRoute({ getParentRoute: () => rootRoute, path: '/me', component: MePage, head: title('Я') }),
     studio('/me/suggestions', MySuggestionsPage, 'Мої правки'),
+    createRoute({
+        getParentRoute: () => rootRoute, path: '/n/$slug/$number/propose', component: ProposeChapterPage,
+        validateSearch: teamSearch, beforeLoad: requireSignedIn, head: title('Правка глави'),
+    }),
     studio('/studio', StudioHome, 'Студія'),
     studio('/studio/new', NewPublication, 'Нова публікація'),
     studio('/studio/teams', MyTeamsPage, 'Мої команди'),

@@ -169,7 +169,9 @@ export function useReview(chapter: ReaderChapter) {
 }
 
 /** One suggestion with the change highlighted word by word, and the reviewer's choice. */
-export function ReviewCard({ item, verdict, onDecide }: { item: ReviewItem; verdict: Verdict | undefined; onDecide: (verdict: Verdict) => void }) {
+export function ReviewCard({ item, verdict, onDecide, currentBlocks = [] }: {
+    item: ReviewItem; verdict: Verdict | undefined; onDecide: (verdict: Verdict) => void; currentBlocks?: TextBlock[];
+}) {
     return (
         <div className={`${styles.card} ${verdict === 'accept' ? styles.accepted : verdict === 'reject' ? styles.rejected : ''}`}>
             {item.kind === 'block' && item.current && item.proposed && (
@@ -179,7 +181,7 @@ export function ReviewCard({ item, verdict, onDecide }: { item: ReviewItem; verd
                 </p>
             )}
             {item.kind === 'replace' && <p className={styles.diff}><del>{item.find}</del> → <ins>{item.replacement}</ins> · {item.occurrences} у главі</p>}
-            {item.kind === 'chapter' && <p className={styles.diff}>Зміни в усій главі{item.proposedTitle ? ` · назва «${item.proposedTitle}»` : ''}</p>}
+            {item.kind === 'chapter' && <ChapterDiff proposed={item.proposedBlocks ?? []} current={currentBlocks} title={item.proposedTitle} />}
             <div className={styles.meta}>{item.authorNick}{item.note ? ` · «${item.note}»` : ''}{item.stale ? ' · текст уже змінився' : ''}</div>
             {!item.stale && (
                 <div className={styles.buttons}>
@@ -190,6 +192,26 @@ export function ReviewCard({ item, verdict, onDecide }: { item: ReviewItem; verd
             {item.stale && (
                 <div className={styles.buttons}><Button variant="secondary" onPress={() => onDecide('reject')}>Прибрати</Button></div>
             )}
+        </div>
+    );
+}
+
+/** Changed paragraphs of a whole-chapter suggestion, by paragraph id, word by word. */
+function ChapterDiff({ proposed, current, title }: { proposed: TextBlock[]; current: TextBlock[]; title: string | null }) {
+    const before = new Map(current.map((block) => [block.id, text(block.content)]));
+    const after = new Set(proposed.map((block) => block.id));
+    const changed = proposed.filter((block) => before.get(block.id) !== text(block.content));
+    const removed = current.filter((block) => !after.has(block.id) && text(block.content));
+    return (
+        <div>
+            <p className={styles.meta}>Зміни в усій главі{title ? ` · назва «${title}»` : ''} · абзаців: {changed.length + removed.length}</p>
+            {changed.slice(0, 30).map((block) => (
+                <p key={block.id} className={styles.diff}>
+                    {diffWords(before.get(block.id) ?? '', text(block.content)).map((part, index) =>
+                        part.added ? <ins key={index}>{part.value}</ins> : part.removed ? <del key={index}>{part.value}</del> : <span key={index}>{part.value}</span>)}
+                </p>
+            ))}
+            {removed.slice(0, 10).map((block) => <p key={`gone-${block.id}`} className={styles.diff}><del>{text(block.content)}</del></p>)}
         </div>
     );
 }

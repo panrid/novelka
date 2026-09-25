@@ -25,6 +25,8 @@ export const suggestionApi = {
         put<{ id: number }>('/api/suggestions/draft/block', { editionId, number, blockId, content, note }),
     replace: (editionId: number, number: number, find: string, replacement: string, note: string) =>
         put<{ id: number }>('/api/suggestions/draft/replace', { editionId, number, find, replacement, note }),
+    chapter: (editionId: number, number: number, title: string, blocks: unknown[], note: string) =>
+        put<{ id: number }>('/api/suggestions/draft/chapter', { editionId, number, title, blocks, note }),
     count: (editionId: number, number: number, find: string) =>
         api<{ occurrences: number }>(`/api/suggestions/count?editionId=${editionId}&number=${number}&find=${encodeURIComponent(find)}`),
     mine: (editionId: number, number: number) =>

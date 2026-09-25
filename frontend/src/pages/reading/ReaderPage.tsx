@@ -195,7 +195,8 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
                     </div>
                 )}
                 {reviewing && review.items.filter((item) => item.kind !== 'block').map((item) => (
-                    <ReviewCard key={item.id} item={item} verdict={review.verdicts[item.id]} onDecide={(verdict) => review.decide(item.id, verdict)} />
+                    <ReviewCard key={item.id} item={item} verdict={review.verdicts[item.id]} currentBlocks={chapter.blocks}
+                        onDecide={(verdict) => review.decide(item.id, verdict)} />
                 ))}
                 {editMode && <p className={suggestionStyles.banner}>Режим правок: торкніться абзацу, щоб його виправити.</p>}
                 <Blocks blocks={chapter.blocks} overlay={mine.overlay}
@@ -210,6 +211,20 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
                 )}
                 {mine.submit.isSuccess && mine.drafts === 0 && <Notice tone="success">Правки надіслано команді. Дякуємо!</Notice>}
                 {!me && <p className={styles.finished}>Увійдіть, щоб запропонувати правку.</p>}
+                {me && !chapter.teamRole && (
+                    <p className={styles.finished}>
+                        <Link to="/n/$slug/$number/propose" params={{ slug: chapter.novelSlug, number: String(chapter.number) }} search={search}>
+                            Запропонувати зміни в усій главі
+                        </Link>
+                    </p>
+                )}
+                {chapter.teamRole && (
+                    <p className={styles.finished}>
+                        <Link to="/studio/$editionId/chapters/$number" params={{ editionId: String(chapter.edition.editionId), number: String(chapter.number) }}>
+                            Редагувати главу
+                        </Link>
+                    </p>
+                )}
                 <nav className={styles.end} aria-label="Інші глави">
                     {chapter.next ? (
                         <Link {...chapterLink(chapter.next)} className={styles.nextButton}>Наступна глава →</Link>
