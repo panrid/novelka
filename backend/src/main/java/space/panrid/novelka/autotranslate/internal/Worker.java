@@ -42,8 +42,10 @@ class Worker {
     private final Pipeline pipeline;
     private final Clock clock;
     private final Progress progress;
+    private final Jobs jobs;
 
-    Worker(DSLContext db, Pipeline pipeline, Clock clock, Progress progress) {
+    Worker(DSLContext db, Pipeline pipeline, Clock clock, Progress progress, Jobs jobs) {
+        this.jobs = jobs;
         this.progress = progress;
         this.db = db;
         this.pipeline = pipeline;
@@ -159,8 +161,11 @@ class Worker {
     private void finishJobIfComplete(long jobId) {
         boolean open = db.fetchExists(JOB_STEP, JOB_STEP.JOB_ID.eq(jobId).and(JOB_STEP.STATE.ne("done")));
         if (!open) {
-            db.update(JOB).set(JOB.STATE, "done").set(JOB.FINISHED_AT, now()).set(JOB.ERROR, (String) null)
+            int finished = db.update(JOB).set(JOB.STATE, "done").set(JOB.FINISHED_AT, now()).set(JOB.ERROR, (String) null)
                     .where(JOB.ID.eq(jobId), JOB.STATE.eq("running")).execute();
+            if (finished > 0) {
+                jobs.settle(jobId);
+            }
         }
     }
 

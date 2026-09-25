@@ -7,9 +7,12 @@ import { LinkButton } from '../../ui/LinkButton';
 import { Notice } from '../../ui/Notice';
 import { useMe } from '../../auth/me';
 import styles from './studio.module.css';
+import { useMyShahs } from '../../ledger/api';
 
 export function StudioHome() {
     const me = useMe();
+    const shahs = useMyShahs();
+    const hasShahs = Boolean(shahs.data && (shahs.data.available > 0 || shahs.data.reserved > 0 || shahs.data.history.length > 0));
     const mine = useQuery({ queryKey: ['studio'], queryFn: studioApi.mine });
     return (
         <section className={styles.page}>
@@ -18,7 +21,7 @@ export function StudioHome() {
             <div className={styles.actions}>
                 <LinkButton to="/studio/new">Нова публікація</LinkButton>
                 <LinkButton to="/studio/teams" variant="secondary">Мої команди</LinkButton>
-                {me?.role === 'owner' && <LinkButton to="/studio/processes" variant="secondary">Процеси</LinkButton>}
+                {(me?.role === 'owner' || hasShahs) && <LinkButton to="/studio/processes" variant="secondary">Процеси</LinkButton>}
             </div>
             {mine.isError && <Notice tone="error">{mine.error.message}</Notice>}
             {mine.isSuccess && mine.data.length === 0 && (

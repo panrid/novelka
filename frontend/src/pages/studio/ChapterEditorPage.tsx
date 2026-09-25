@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { ArrowLeft, History, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/client';
-import { useMe } from '../../auth/me';
 import { IllustrateSheet } from './IllustrateSheet';
 import { studioApi, type EditorView, type StudioBlock } from '../../studio/api';
 import { TextEditor } from '../../studio/TextEditor';
@@ -12,6 +11,7 @@ import { Notice } from '../../ui/Notice';
 import { relativeTime } from '../../lib/dates';
 import styles from './editor.module.css';
 import { askConfirm } from '../../ui/ask';
+import { useCanRun } from '../../ledger/api';
 
 const AUTOSAVE_MS = 1500;
 
@@ -32,7 +32,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
     const client = useQueryClient();
     // Opening a chapter with my draft continues the draft; otherwise the published text.
     const [title, setTitle] = useState(view.draft?.title || view.title);
-    const me = useMe();
+    const canDraw = useCanRun();
     const navigate = useNavigate();
     const removeChapter = useMutation({
         mutationFn: () => studioApi.deleteChapter(editionId, view.number),
@@ -156,7 +156,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                         onInsert={drawing.insert} onClose={() => setDrawing(null)} />
                 )}
                 <TextEditor mode="chapter" blocks={blocks} onChange={(next) => changed(() => setBlocks(next))}
-                    onIllustrate={me?.role === 'owner' ? (fragment, insert) => setDrawing({ fragment, insert }) : undefined}
+                    onIllustrate={canDraw ? (fragment, insert) => setDrawing({ fragment, insert }) : undefined}
                     mayAddPictures={view.mayAddPictures} label="Текст глави" placeholder="Почніть писати або вставте текст…" />
             </div>
         </div>

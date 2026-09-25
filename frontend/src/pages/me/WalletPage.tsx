@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { autotranslateApi, dollars, money, type Settings, type Stage } from '../../studio/autotranslate';
 import { meApi } from '../../auth/api';
 import { useSetMe } from '../../auth/me';
 import { illustrationApi, type IllustrationSettings } from '../../studio/illustrations';
 import { ModelPicker } from '../../studio/ModelPicker';
+import { shahApi } from '../../ledger/api';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
@@ -72,6 +74,7 @@ export function WalletPage() {
             <SettingsForm settings={data.settings} />
 
             <Illustrations days={Number(days)} />
+            <PeoplePrice />
         </section>
     );
 }
@@ -133,6 +136,33 @@ function NumberField({ label, value, onChange, step = false }: { label: string; 
                 const parsed = Number(next.replace(',', '.'));
                 if (next.trim() && Number.isFinite(parsed)) onChange(parsed);
             }} />
+    );
+}
+
+/** Шаги for other people (рішення 29): the owner grants them in «Користувачі», runs cost this much a шаг. */
+function PeoplePrice() {
+    const client = useQueryClient();
+    const price = useQuery({ queryKey: ['shah-price'], queryFn: shahApi.price });
+    const [usd, setUsd] = useState<number | null>(null);
+    const save = useMutation({
+        mutationFn: () => shahApi.savePrice(usd ?? price.data!.usdPerShah),
+        onSuccess: () => void client.invalidateQueries({ queryKey: ['shah-price'] }),
+    });
+    if (!price.data) return null;
+    return (
+        <>
+            <h2 className={styles.sectionTitle}>Шаги для інших</h2>
+            <p className={styles.muted}>
+                Шаги нараховуєте в <Link to="/admin/users">Адмініструванні → Користувачі</Link>. Люди витрачають їх на автопереклад
+                і ілюстрації за моделями сайту: списуються фактичні витрати, округлені вгору до цілого шагу.
+            </p>
+            <form className={styles.form} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
+                <NumberField label="Скільки витрат на моделі покриває 1 шаг, $" value={price.data.usdPerShah} step onChange={setUsd} />
+                {save.isError && <Notice tone="error">{save.error.message}</Notice>}
+                {save.isSuccess && <Notice tone="success">Збережено.</Notice>}
+                <Button type="submit" pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти</Button>
+            </form>
+        </>
     );
 }
 

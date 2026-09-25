@@ -29,6 +29,7 @@ import space.panrid.novelka.ai.Ai;
 import space.panrid.novelka.ai.AiCredits;
 import space.panrid.novelka.ai.AiModel;
 import space.panrid.novelka.jooq.tables.records.JobRecord;
+import space.panrid.novelka.ledger.Ledger;
 import space.panrid.novelka.platform.SiteSettings;
 import space.panrid.novelka.platform.web.UserFacingException;
 import tools.jackson.databind.json.JsonMapper;
@@ -45,8 +46,12 @@ class Jobs {
     private final Ai ai;
     private final SiteSettings siteSettings;
     private final JsonMapper json;
+    private final Ledger ledger;
+    /** A person's run holds this much more than the quote: chapters vary and answers get asked again. */
+    static final double RESERVE_MARGIN = 1.5;
 
-    Jobs(DSLContext db, Ai ai, SiteSettings siteSettings, JsonMapper json) {
+    Jobs(DSLContext db, Ai ai, SiteSettings siteSettings, JsonMapper json, Ledger ledger) {
+        this.ledger = ledger;
         this.db = db;
         this.ai = ai;
         this.siteSettings = siteSettings;
@@ -141,14 +146,16 @@ class Jobs {
     }
 
     /**
-     * @param chapters   chapters that will be done
-     * @param skipped    chapters in the range already done and left alone
+     * @param chapters    chapters that will be done
+     * @param skipped     chapters in the range already done and left alone
+     * @param shah        the price; for a person's run, the expected cost in whole шаги
      * @param expectedUsd what it should really cost at the chosen models
-     * @param unanalyzed chapters of a translation without analysis: their glossary cannot be checked first
+     * @param unanalyzed  chapters of a translation without analysis: their glossary cannot be checked first
+     * @param reserveShah what a person's run holds until it ends (the site owner's runs hold nothing)
      */
     record Quote(String kind, int from, int to, int chapters, int skipped, int shah, BigDecimal usd, BigDecimal expectedUsd,
             boolean estimated, int unanalyzed, Settings.Stage analyzeModel, Settings.Stage translateModel,
-            Settings.Stage proofreadModel) {
+            Settings.Stage proofreadModel, int reserveShah) {
     }
 
     /** Analysis is about a quarter of a chapter's work: its price in шаги. */
@@ -159,11 +166,16 @@ class Jobs {
     private record Prepared(Quote quote, List<Integer> numbers, Settings settings) {
     }
 
-    Quote quote(long editionId, Plan plan) {
-        return prepare(editionId, plan).quote();
+    /** @param personal paid from the person's шаги (рішення 29), not by the site owner */
+    Quote quote(long editionId, Plan plan, boolean personal) {
+        return prepare(editionId, plan, personal).quote();
     }
 
-    private Prepared prepare(long editionId, Plan plan) {
+    private Prepared prepare(long editionId, Plan plan, boolean personal) {
+        if (personal && plan.models() != null && (plan.models().analyze() != null || plan.models().translate() != null
+                || plan.models().proofread() != null || plan.models().proofreadEnabled() != null)) {
+            throw UserFacingException.badRequest("Моделі для автоперекладу обирає сайт.");
+        }
         Novel novel = novel(editionId);
         boolean analyze = plan.analyze();
         int from = plan.from() != null ? plan.from() : analyze ? novel.nextToAnalyze() : novel.nextNumber();
@@ -215,9 +227,16 @@ class Jobs {
         if (analyze) {
             shah = analysisShah(shah);
         }
+        int reserve = 0;
+        if (personal) {
+            // What the models should cost, in whole шаги at the people's price, and a margin on top.
+            settings = settings.paidBy(ledger.microUsdPerShah());
+            shah = Math.max(1, ledger.shahOf(expected));
+            reserve = Math.max(shah, ledger.shahOf(Math.round(expected * RESERVE_MARGIN)));
+        }
         Quote quote = new Quote(analyze ? "analyze" : "translate", from, to, numbers.size(), to - from + 1 - numbers.size(), shah,
                 settings.usd(shah), Settings.usdOfMicro(expected), estimated, unanalyzed,
-                settings.analyze(), settings.translate(), settings.proofread());
+                settings.analyze(), settings.translate(), settings.proofread(), reserve);
         return new Prepared(quote, numbers, settings);
     }
 
@@ -284,7 +303,7 @@ class Jobs {
     // ---- lifecycle ----------------------------------------------------------------------------
 
     @Transactional
-    long start(long editionId, Plan plan, long ownerId) {
+    long start(long editionId, Plan plan, long ownerId, boolean personal) {
         db.execute("SELECT 1 FROM edition WHERE id = ? FOR UPDATE", editionId);
         if (db.fetchExists(JOB, JOB.EDITION_ID.eq(editionId).and(JOB.STATE.in("queued", "running", "failed")))) {
             throw UserFacingException.conflict("Для цієї новели вже є незавершений переклад. Продовжте або скасуйте його.");
@@ -292,17 +311,25 @@ class Jobs {
         if (!ai.configured()) {
             throw UserFacingException.badRequest("Ключ OpenRouter не налаштовано на сервері.");
         }
-        Prepared prepared = prepare(editionId, plan);
+        Prepared prepared = prepare(editionId, plan, personal);
         Quote quote = prepared.quote();
         Settings settings = plan.again() ? prepared.settings().withRedo(System.nanoTime()) : prepared.settings();
+        Long hold = null;
+        if (personal) {
+            String title = db.select(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE)).from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
+                    .where(EDITION.ID.eq(editionId)).fetchSingle().value1();
+            String chapters = quote.from() == quote.to() ? "глава " + quote.from() : "глави %d–%d".formatted(quote.from(), quote.to());
+            hold = ledger.hold(ownerId, quote.reserveShah(), "%s «%s», %s".formatted(plan.analyze() ? "Аналіз" : "Автопереклад", title, chapters));
+        }
         long jobId = db.insertInto(JOB)
                 .set(JOB.EDITION_ID, editionId)
                 .set(JOB.KIND, quote.kind())
                 .set(JOB.REQUESTED_BY, ownerId)
                 .set(JOB.FIRST_NUMBER, quote.from())
                 .set(JOB.LAST_NUMBER, quote.to())
-                .set(JOB.FUNDING, "site")
-                .set(JOB.QUOTE_SHAH, quote.shah())
+                .set(JOB.FUNDING, personal ? "account" : "site")
+                .set(JOB.QUOTE_SHAH, personal ? quote.reserveShah() : quote.shah())
+                .set(JOB.HOLD_TX_ID, hold)
                 .set(JOB.SETTINGS, JSONB.valueOf(json.writeValueAsString(settings)))
                 .returning(JOB.ID).fetchSingle().getId();
         for (int number : prepared.numbers()) {
@@ -320,6 +347,20 @@ class Jobs {
         }
         db.update(JOB_STEP).set(JOB_STEP.STATE, "cancelled")
                 .where(JOB_STEP.JOB_ID.eq(jobId), JOB_STEP.STATE.in("pending", "failed")).execute();
+        settle(jobId);
+    }
+
+    /**
+     * A person's run is over (done or cancelled): what it really cost is charged in whole шаги,
+     * the rest of the hold returns. Safe to call twice.
+     */
+    void settle(long jobId) {
+        JobRecord job = db.selectFrom(JOB).where(JOB.ID.eq(jobId)).fetchSingle();
+        if (!"account".equals(job.getFunding()) || job.getHoldTxId() == null) {
+            return;
+        }
+        int charged = ledger.settle(job.getHoldTxId(), ai.spentMicroUsd(jobId));
+        db.update(JOB).set(JOB.CHARGED_SHAH, charged).where(JOB.ID.eq(jobId)).execute();
     }
 
     /** After a failure: the failed chapter goes back to the queue; lost answers may be asked again. */
@@ -340,8 +381,12 @@ class Jobs {
     record StepView(int number, String stage, String state, String error) {
     }
 
+    /**
+     * @param personal   paid from the person's шаги: {@code quoteShah} is then what the run holds
+     * @param chargedShah what a finished person's run was charged
+     */
     record JobView(long id, String kind, String state, int from, int to, int done, int quoteShah, BigDecimal spentUsd, int spentShah,
-            StepView current, String error, OffsetDateTime createdAt, OffsetDateTime finishedAt) {
+            StepView current, String error, OffsetDateTime createdAt, OffsetDateTime finishedAt, boolean personal, int chargedShah) {
     }
 
     List<JobView> jobs(long editionId) {
@@ -363,7 +408,8 @@ class Jobs {
         Settings settings = json.readValue(job.getSettings().data(), Settings.class);
         int spentShah = (int) Math.ceil((double) spent / settings.microUsdPerShah());
         return new JobView(job.getId(), job.getKind(), job.getState(), job.getFirstNumber(), job.getLastNumber(), done, job.getQuoteShah(),
-                Settings.usdOfMicro(spent), spentShah, current, job.getError(), job.getCreatedAt(), job.getFinishedAt());
+                Settings.usdOfMicro(spent), spentShah, current, job.getError(), job.getCreatedAt(), job.getFinishedAt(),
+                "account".equals(job.getFunding()), job.getChargedShah());
     }
 
     Optional<JobRecord> job(long editionId, long jobId) {

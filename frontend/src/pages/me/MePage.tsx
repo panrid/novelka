@@ -6,10 +6,15 @@ import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
 import { LinkButton } from '../../ui/LinkButton';
 import styles from '../pages.module.css';
+import { useMyShahs } from '../../ledger/api';
+import { shahWord } from '../../studio/autotranslate';
 
 /** The «Я» tab: for a guest — sign in; for a member — profile and everything personal. */
 export function MePage() {
     const me = useMe();
+    const shahs = useMyShahs();
+    // Readers who never got шаги do not need the page.
+    const hasShahs = Boolean(shahs.data && (shahs.data.available > 0 || shahs.data.reserved > 0 || shahs.data.history.length > 0));
     const client = useQueryClient();
     const navigate = useNavigate();
     const logout = useMutation({
@@ -45,6 +50,9 @@ export function MePage() {
             <nav className={styles.menu} aria-label="Особисте">
                 <Link to="/studio" className={styles.menuItem}>Студія — мої переклади й твори</Link>
                 {me.role === 'owner' && <Link to="/me/wallet" className={styles.menuItem}>Шаги й автопереклад</Link>}
+                {me.role !== 'owner' && hasShahs && (
+                    <Link to="/me/shahs" className={styles.menuItem}>Шаги · {shahs.data!.available} {shahWord(shahs.data!.available)}</Link>
+                )}
                 {me.role !== 'reader' && <Link to="/admin" className={styles.menuItem}>Адміністрування</Link>}
                 <Link to="/me/suggestions" className={styles.menuItem}>Мої правки</Link>
                 <Link to="/me/settings" className={styles.menuItem}>Налаштування</Link>

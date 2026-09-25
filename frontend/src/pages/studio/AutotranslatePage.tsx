@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { chaptersWord } from '../../reading/api';
-import { JOB_LABELS, STAGE_LABELS, autotranslateApi, dollars, money, type Job, type JobKind, type ModelShow, type Plan } from '../../studio/autotranslate';
+import { JOB_LABELS, STAGE_LABELS, autotranslateApi, dollars, money, shahWord, type Job, type JobKind, type ModelShow, type Plan } from '../../studio/autotranslate';
 import { ModelPicker } from '../../studio/ModelPicker';
 import pickerStyles from '../../studio/modelPicker.module.css';
 import { useDebounced } from '../../lib/useDebounced';
@@ -91,7 +91,9 @@ export function AutotranslatePage() {
             <p className={styles.muted}>
                 В оригіналі {data.sourceChapters} {chaptersWord(data.sourceChapters)}, перекладено {data.publishedChapters}
                 {data.lastAnalyzed > 0 && <>, проаналізовано до {data.lastAnalyzed}</>}.
-                {data.balance && <> Баланс: <b>{money(data.balance.shah, data.balance.usd, show)}</b>.</>}
+                {data.personal
+                    ? <> У вас <b>{data.balance?.shah ?? 0} {shahWord(data.balance?.shah ?? 0)}</b>{data.reserved > 0 && <>, ще {data.reserved} у резерві запусків</>}.</>
+                    : data.balance && <> Баланс: <b>{money(data.balance.shah, data.balance.usd, show)}</b>.</>}
             </p>
             {!data.configured && <Notice tone="error">Ключ OpenRouter не налаштовано на сервері.</Notice>}
 
@@ -131,6 +133,7 @@ export function AutotranslatePage() {
                                         : 'Глави перекладуться знову й вийдуть новою версією; попередня лишиться в історії глави.'}
                                 </p>
                             )}
+                            {!data.personal && (<>
                             <div className={pickerStyles.filters}>
                                 <label>
                                     <input type="checkbox" checked={onlyRecommended} onChange={(event) => setOnlyRecommended(event.target.checked)} />
@@ -160,6 +163,7 @@ export function AutotranslatePage() {
                                 Ціна «за главу» — для середньої глави цієї новели (~{data.averageChars.toLocaleString('uk-UA')} знаків), якщо всі кроки
                                 робить ця модель. Вибір діє лише для цього запуску; постійні моделі — на <Link to="/me/wallet">«Шагах»</Link>.
                             </p>
+                            </>)}
                         </div>
                     )}
 
@@ -167,14 +171,21 @@ export function AutotranslatePage() {
                         <div className={styles.quote} aria-live="polite">
                             <div>
                                 {quote.data.chapters} {chaptersWord(quote.data.chapters)} · {quote.data.estimated ? 'орієнтовно ' : ''}
-                                <b>{money(quote.data.shah, quote.data.usd, show)}</b>
+                                <b>{data.personal ? `≈ ${quote.data.shah} ${shahWord(quote.data.shah)}` : money(quote.data.shah, quote.data.usd, show)}</b>
                                 {quote.data.skipped > 0 && <span className={styles.muted}> · пропускаємо вже зроблені: {quote.data.skipped}</span>}
                             </div>
-                            <div className={styles.muted}>
-                                Очікувана собівартість ≈ {dollars(quote.data.expectedUsd, 3)} ·{' '}
-                                {kind === 'analyze' ? quote.data.analyzeModel.model
-                                    : `${quote.data.translateModel.model}${quote.data.proofreadModel.enabled ? `, вичитка ${quote.data.proofreadModel.model}` : ', без вичитки'}`}
-                            </div>
+                            {data.personal ? (
+                                <div className={styles.muted}>
+                                    Спишемо фактичні витрати моделей, округлені вгору до цілого шагу. На час запуску заблокуємо{' '}
+                                    {quote.data.reserveShah} {shahWord(quote.data.reserveShah)}, решту повернемо.
+                                </div>
+                            ) : (
+                                <div className={styles.muted}>
+                                    Очікувана собівартість ≈ {dollars(quote.data.expectedUsd, 3)} ·{' '}
+                                    {kind === 'analyze' ? quote.data.analyzeModel.model
+                                        : `${quote.data.translateModel.model}${quote.data.proofreadModel.enabled ? `, вичитка ${quote.data.proofreadModel.model}` : ', без вичитки'}`}
+                                </div>
+                            )}
                             {quote.data.unanalyzed > 0 && (
                                 <div className={styles.muted}>
                                     {quote.data.unanalyzed === quote.data.chapters ? 'Ці глави' : `${quote.data.unanalyzed} з них`} ще не проаналізовано:
@@ -194,7 +205,9 @@ export function AutotranslatePage() {
                 <Link to="/studio/$editionId/titles" params={{ editionId: String(id) }} className={styles.menuItem}>Назви глав після аналізу</Link>
                 <Link to="/studio/$editionId/glossary" params={{ editionId: String(id) }} className={styles.menuItem}>Словник імен і термінів</Link>
                 <Link to="/studio/processes" className={styles.menuItem}>Усі процеси</Link>
-                <Link to="/me/wallet" className={styles.menuItem}>Моделі, ціни й собівартість</Link>
+                {data.personal
+                    ? <Link to="/me/shahs" className={styles.menuItem}>Мої шаги</Link>
+                    : <Link to="/me/wallet" className={styles.menuItem}>Моделі, ціни й собівартість</Link>}
             </nav>
 
             {data.jobs.length > 1 && (
@@ -203,7 +216,9 @@ export function AutotranslatePage() {
                     {data.jobs.slice(1).map((old) => (
                         <div key={old.id} className={styles.row}>
                             <div className={styles.grow}>{old.kind === 'analyze' ? 'Аналіз' : 'Переклад'} {old.from}–{old.to} · {JOB_LABELS[old.state]}</div>
-                            <span className={styles.muted}>{money(old.spentShah, old.spentUsd, show)} · {relativeTime(new Date(old.createdAt))}</span>
+                            <span className={styles.muted}>
+                                {old.personal ? `${old.chargedShah} ${shahWord(old.chargedShah)}` : money(old.spentShah, old.spentUsd, show)} · {relativeTime(new Date(old.createdAt))}
+                            </span>
                         </div>
                     ))}
                 </>
@@ -231,7 +246,9 @@ export function JobCard({ job, showShah, usdPerShah, onCancel, onResume, pending
             <div className={styles.muted}>
                 Готово {job.done}
                 {job.current && active(job) && <> · глава {job.current.number}: {STAGE_LABELS[job.current.stage] ?? job.current.stage}</>}
-                {' · '}витрачено {money(job.spentShah, job.spentUsd, showShah)} з {money(job.quoteShah, job.quoteShah * usdPerShah, showShah)}
+                {job.personal && !active(job) && job.state !== 'failed'
+                    ? <>{' · '}списано {job.chargedShah} {shahWord(job.chargedShah)}</>
+                    : <>{' · '}витрачено {money(job.spentShah, job.spentUsd, showShah)} з {money(job.quoteShah, job.quoteShah * usdPerShah, showShah)}{job.personal && ' у резерві'}</>}
             </div>
             {job.current?.error && active(job) && <p className={styles.muted}>{job.current.error}</p>}
             {job.state === 'failed' && job.error && <Notice tone="error">{job.error}</Notice>}

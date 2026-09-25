@@ -8,6 +8,9 @@ import { relativeTime } from '../../lib/dates';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
+import { Sheet } from '../../ui/Sheet';
+import { shahApi } from '../../ledger/api';
+import { shahWord } from '../../studio/autotranslate';
 import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
 import styles from './admin.module.css';
@@ -133,12 +136,19 @@ export function UsersPage() {
     });
     // An administrator gives up to moderator; the owner gives up to administrator.
     const grantable: Person['role'][] = rank >= RANK.owner ? ['reader', 'moderator', 'admin'] : ['reader', 'moderator'];
+    const [granting, setGranting] = useState<string | null>(null);
+    const [granted, setGranted] = useState<string | null>(null);
     return (
         <section className={styles.page}>
             <Link to="/admin" className={styles.muted}>‹ Адміністрування</Link>
             <h1 className={styles.title}>Користувачі й ролі</h1>
             <TextInput label="Пошук" value={q} onChange={setQ} placeholder={rank >= RANK.owner ? 'нік або пошта' : 'нік'} />
             {setRole.isError && <Notice tone="error">{setRole.error.message}</Notice>}
+            {granted && <Notice tone="success">{granted}</Notice>}
+            {granting && (
+                <GrantSheet nick={granting} onClose={() => setGranting(null)}
+                    onDone={(message) => { setGranting(null); setGranted(message); }} />
+            )}
             {people.data?.map((person) => {
                 const editable = person.nick !== me?.nick && person.role !== 'owner' && (rank >= RANK.owner || RANK[person.role] < RANK.admin);
                 return (
@@ -156,10 +166,41 @@ export function UsersPage() {
                                 {grantable.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
                             </select>
                         ) : <span className={styles.muted}>{ROLE_LABELS[person.role]}</span>}
+                        {rank >= RANK.owner && (
+                            <Button variant="quiet" aria-label={`Нарахувати шаги ${person.nick}`} onPress={() => { setGranted(null); setGranting(person.nick); }}>
+                                + шаги
+                            </Button>
+                        )}
                     </div>
                 );
             })}
         </section>
+    );
+}
+
+/** The site owner gives шаги (рішення 29): whole шаги, never taken back. */
+function GrantSheet({ nick, onClose, onDone }: { nick: string; onClose: () => void; onDone: (message: string) => void }) {
+    const [amount, setAmount] = useState('');
+    const [note, setNote] = useState('');
+    const shah = Number(amount);
+    const valid = Number.isInteger(shah) && shah >= 1;
+    const grant = useMutation({
+        mutationFn: () => shahApi.grant(nick, shah, note),
+        onSuccess: (result) => onDone(`${nick}: нараховано ${shah} ${shahWord(shah)}, тепер ${result.available} ${shahWord(result.available)}.`),
+    });
+    return (
+        <Sheet open onClose={onClose} title={`Нарахувати шаги ${nick}`}>
+            <form style={{ display: 'grid', gap: 14 }} onSubmit={(event) => { event.preventDefault(); if (valid) grant.mutate(); }}>
+                <TextInput label="Скільки шагів" value={amount} onChange={setAmount} inputMode="numeric" autoFocus
+                    hint="Цілі шаги. Назад їх не забрати." />
+                <TextInput label="Примітка" value={note} onChange={setNote} hint="Необовʼязково. Людина побачить її в історії." />
+                {grant.isError && <Notice tone="error">{grant.error.message}</Notice>}
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <Button variant="secondary" onPress={onClose}>Скасувати</Button>
+                    <Button type="submit" isDisabled={!valid} pending={grant.isPending} pendingLabel="Нараховуємо…">Нарахувати</Button>
+                </div>
+            </form>
+        </Sheet>
     );
 }
 

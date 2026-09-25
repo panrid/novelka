@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
 
 import space.panrid.novelka.community.ChatMentioned;
 import space.panrid.novelka.community.CommentPosted;
+import space.panrid.novelka.ledger.ShahsGranted;
 import space.panrid.novelka.suggestion.SuggestionsReviewed;
 import space.panrid.novelka.suggestion.SuggestionsSubmitted;
 import space.panrid.novelka.text.ChaptersPublished;
@@ -101,6 +102,16 @@ class NotificationListeners {
         for (long person : people) {
             inbox.addCounted(person, "suggestions_submitted", "suggestions:" + submitted.editionId(), base, submitted.count());
         }
+    }
+
+    @ApplicationModuleListener
+    void on(ShahsGranted granted) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("shah", granted.shah());
+        if (granted.note() != null) {
+            payload.put("note", granted.note());
+        }
+        inbox.add(granted.accountId(), "shahs_granted", payload);
     }
 
     private void mentions(List<Long> accounts, List<Long> teams, Map<String, Object> base, Set<Long> told) {

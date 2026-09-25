@@ -111,16 +111,35 @@ class IllustrationFlowTests {
     }
 
     @Test
-    void onlyTheSiteOwnerDraws() {
+    void withoutShahsOnlyTheSiteOwnerDraws() {
         Person translator = Accounts.signedIn(port, mailbox);
         long own = read(translator.browser().post("/api/studio/editions", """
                 {"kind":"human","title":"Своє %s"}""".formatted(translator.nick()))).path("editionId").asLong();
-        assertThat(translator.browser().get("/api/studio/editions/" + own + "/illustrations/price").status()).isEqualTo(403);
+        assertThat(translator.browser().get("/api/studio/editions/" + own + "/illustrations/price").status()).isEqualTo(400);
         assertThat(translator.browser().post("/api/studio/editions/" + own + "/illustrations", json("prompt", "x", "aspect", "1:1")).status())
-                .isEqualTo(403);
+                .isEqualTo(400);
         assertThat(owner.browser().get("/api/studio/editions/" + own + "/illustrations/price").status())
                 .as("the owner draws only where they translate").isEqualTo(403);
         assertThat(model.calls).isEmpty();
+    }
+
+    @Test
+    void aTranslatorWithShahsDrawsAndPaysWhatThePictureCostRoundedUp() {
+        Person translator = Accounts.signedIn(port, mailbox);
+        long own = read(translator.browser().post("/api/studio/editions", """
+                {"kind":"human","title":"Своє %s"}""".formatted(translator.nick()))).path("editionId").asLong();
+        assertThat(owner.browser().post("/api/admin/users/" + translator.nick() + "/shahs", json("shah", 3)).status()).isEqualTo(201);
+
+        JsonNode price = read(translator.browser().get("/api/studio/editions/" + own + "/illustrations/price"));
+        assertThat(price.path("shah").asInt()).as("4 cents at 7 cents a шаг").isEqualTo(1);
+        assertThat(price.path("showShah").asBoolean()).isTrue();
+        JsonNode drawn = read(translator.browser().post("/api/studio/editions/" + own + "/illustrations",
+                json("prompt", "A lighthouse at night", "aspect", "1:1")));
+        assertThat(drawn.path("costShah").asInt()).as("3,9 cents is one шаг").isEqualTo(1);
+        JsonNode mine = read(translator.browser().get("/api/me/shahs"));
+        assertThat(mine.path("available").asInt()).isEqualTo(2);
+        assertThat(mine.path("reserved").asInt()).isZero();
+        assertThat(mine.path("history").path(0).path("what").asString()).isEqualTo("Ілюстрація");
     }
 
     private static JsonNode read(Response response) {

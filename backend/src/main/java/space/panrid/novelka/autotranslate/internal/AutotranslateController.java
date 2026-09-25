@@ -23,11 +23,16 @@ import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.account.Viewer;
 import space.panrid.novelka.ai.Ai;
 import space.panrid.novelka.catalog.EditionRef;
+import space.panrid.novelka.ledger.Ledger;
 import space.panrid.novelka.platform.web.UserFacingException;
 import space.panrid.novelka.source.SyosetuLink;
 import space.panrid.novelka.team.Teams;
 
-/** At launch everything here is for the site owner only (рішення 23). */
+/**
+ * The site owner runs autotranslation at the site's cost; anyone else with шаги runs it in
+ * translations they translate, paying from their balance at the site's models (рішення 29).
+ * Models, prices and the wallet stay the owner's.
+ */
 @RestController
 @RequestMapping("/api/studio")
 class AutotranslateController {
@@ -40,9 +45,11 @@ class AutotranslateController {
     private final DSLContext db;
     private final Teams teams;
     private final Analyses analyses;
+    private final Ledger ledger;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
-            Teams teams, Analyses analyses) {
+            Teams teams, Analyses analyses, Ledger ledger) {
+        this.ledger = ledger;
         this.teams = teams;
         this.analyses = analyses;
         this.access = access;
@@ -57,11 +64,16 @@ class AutotranslateController {
         return access.requireSiteRole(SiteRole.OWNER);
     }
 
-    /** Owner of the site and translator in the edition's team. */
+    /** A translator of the edition; who pays is decided by {@link #personal}. */
     private Viewer ownerTranslating(long editionId) {
-        Viewer viewer = owner();
+        Viewer viewer = access.requireSignedIn();
         access.requireTranslator(editionId);
         return viewer;
+    }
+
+    /** Everyone but the site owner pays with their own шаги. */
+    private static boolean personal(Viewer viewer) {
+        return viewer.role() != SiteRole.OWNER;
     }
 
     /** @param team handle of the team; empty means the personal one */
@@ -73,7 +85,10 @@ class AutotranslateController {
 
     @PostMapping("/autotranslate/prepare")
     Prepared prepare(@RequestBody PrepareRequest body) {
-        Viewer viewer = owner();
+        Viewer viewer = access.requireSignedIn();
+        if (personal(viewer) && ledger.balance(viewer.accountId()).available() < 1) {
+            throw UserFacingException.badRequest("Автопереклад запускається за шаги, а у вас їх поки немає. Шаги нараховує власник сайту.");
+        }
         SyosetuLink link = SyosetuLink.parse(body.url());
         long teamId = body.team() == null || body.team().isBlank()
                 ? teams.personalTeam(viewer.accountId())
@@ -83,9 +98,13 @@ class AutotranslateController {
         return new Prepared(ref.editionId(), ref.novelSlug());
     }
 
+    /**
+     * @param personal runs are paid from the viewer's шаги: {@code balance} is theirs and
+     *                 {@code reserved} is what their runs hold; otherwise the balance is OpenRouter's
+     */
     record Overview(boolean configured, boolean showShah, int sourceChapters, int nextNumber, int publishedChapters,
             int lastAnalyzed, int nextToAnalyze, int averageChars, Jobs.Balance balance, BigDecimal usdPerShah, Settings settings,
-            List<Jobs.JobView> jobs) {
+            List<Jobs.JobView> jobs, boolean personal, int reserved) {
     }
 
     @GetMapping("/editions/{editionId}/autotranslate")
@@ -93,22 +112,30 @@ class AutotranslateController {
         Viewer viewer = ownerTranslating(editionId);
         Jobs.Novel novel = jobs.novel(editionId);
         Settings settings = jobs.settings();
+        if (personal(viewer)) {
+            Ledger.Balance mine = ledger.balance(viewer.accountId());
+            long price = ledger.microUsdPerShah();
+            return new Overview(ai.configured(), true, novel.sourceChapters(), novel.nextNumber(), novel.publishedChapters(),
+                    novel.lastAnalyzed(), novel.nextToAnalyze(), jobs.averageChars(editionId),
+                    new Jobs.Balance(mine.available(), Settings.usdOfMicro(mine.available() * price)), Settings.usdOfMicro(price),
+                    settings.paidBy(price), jobs.jobs(editionId), true, mine.reserved());
+        }
         return new Overview(ai.configured(), showShah(viewer), novel.sourceChapters(), novel.nextNumber(), novel.publishedChapters(),
                 novel.lastAnalyzed(), novel.nextToAnalyze(), jobs.averageChars(editionId),
-                jobs.balance().orElse(null), Settings.usdOfMicro(settings.microUsdPerShah()), settings, jobs.jobs(editionId));
+                jobs.balance().orElse(null), Settings.usdOfMicro(settings.microUsdPerShah()), settings, jobs.jobs(editionId), false, 0);
     }
 
     @PostMapping("/editions/{editionId}/autotranslate/quote")
     Jobs.Quote quote(@PathVariable long editionId, @RequestBody Jobs.Plan plan) {
-        ownerTranslating(editionId);
-        return jobs.quote(editionId, plan);
+        Viewer viewer = ownerTranslating(editionId);
+        return jobs.quote(editionId, plan, personal(viewer));
     }
 
     @PostMapping("/editions/{editionId}/autotranslate/jobs")
     @ResponseStatus(HttpStatus.CREATED)
     Jobs.JobView start(@PathVariable long editionId, @RequestBody Jobs.Plan plan) {
         Viewer viewer = ownerTranslating(editionId);
-        long jobId = jobs.start(editionId, plan, viewer.accountId());
+        long jobId = jobs.start(editionId, plan, viewer.accountId(), personal(viewer));
         return jobs.view(jobs.job(editionId, jobId).orElseThrow());
     }
 
@@ -124,16 +151,12 @@ class AutotranslateController {
         jobs.resume(editionId, jobId);
     }
 
-    /** Every run of the owner's, running ones first. */
+    /** Every run the viewer started, running ones first. */
     @GetMapping("/autotranslate/processes")
     List<Jobs.Process> processes(@RequestParam(defaultValue = "1") int page) {
-        return jobs.processes(owner().accountId(), page);
+        return jobs.processes(access.requireSignedIn().accountId(), page);
     }
 
-    /**
-     * @param chapterUsd a chapter of {@code chars} through analysis, translation and
-     *                   proofreading, all by this model
-     */
     /**
      * {@code chapterUsd}: a chapter (or its stage) for text models, one picture for models that draw.
      * {@code rating}: recommended, usual or weak (see {@link ModelRatings}).

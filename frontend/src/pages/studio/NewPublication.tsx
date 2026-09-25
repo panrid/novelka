@@ -10,10 +10,12 @@ import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
 import styles from './studio.module.css';
+import { useCanRun } from '../../ledger/api';
 
 type Kind = 'human' | 'original' | 'syosetu';
 
 export function NewPublication() {
+    const canRun = useCanRun();
     const me = useMe();
     const navigate = useNavigate();
     const teams = useQuery({ queryKey: ['my-teams'], queryFn: teamApi.mine });
@@ -54,9 +56,10 @@ export function NewPublication() {
                     text="Ви перекладаєте самі. Далі — глави в редакторі або з файлів .txt і .md." />
                 <Choice on={kind === 'original'} onPick={() => setKind('original')} icon="✦" title="Свій твір"
                     text="Ваша власна історія українською. Ви — автор." />
-                <Choice on={kind === 'syosetu'} onPick={() => setKind('syosetu')} disabled={me?.role !== 'owner'} icon="↻"
+                <Choice on={kind === 'syosetu'} onPick={() => setKind('syosetu')} disabled={!canRun} icon="↻"
                     title="Автопереклад із Syosetu"
-                    text={me?.role === 'owner' ? 'Вставте посилання — назву й опис перекладемо одразу, далі глави «до N».' : 'Поки доступний лише власнику сайту.'} />
+                    text={canRun ? 'Вставте посилання — назву й опис перекладемо одразу, далі глави «до N».'
+                        : 'Запускається за шаги. Їх нараховує власник сайту.'} />
                 <Choice on={false} disabled icon="⇢" title="Продовжити покинутий"
                     text="Відкрийте новелу — якщо переклад вільний, там буде кнопка «Продовжити переклад»." />
             </div>

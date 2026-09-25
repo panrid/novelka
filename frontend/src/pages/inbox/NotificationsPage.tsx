@@ -5,6 +5,7 @@ import { chaptersWord } from '../../reading/api';
 import { notificationApi, type Notification } from '../../inbox/api';
 import { relativeTime } from '../../lib/dates';
 import { plural } from '../../lib/plural';
+import { shahWord } from '../../studio/autotranslate';
 import { Notice } from '../../ui/Notice';
 import { InboxNav } from './InboxNav';
 import styles from './inbox.module.css';
@@ -68,6 +69,10 @@ function Row({ item }: { item: Notification }) {
             // Batches from different people add up, so only a single one names its author.
             title = (p.count ?? 1) === 1 ? `${p.actorNick} пропонує правку` : plural(p.count ?? 0, 'нова правка', 'нові правки', 'нових правок');
             break;
+        case 'shahs_granted':
+            title = `Вам нараховано ${p.shah ?? 0} ${shahWord(p.shah ?? 0)}`;
+            excerpt = p.note;
+            break;
         case 'suggestions_reviewed':
             title = `Ваші правки перевірено: прийнято ${p.accepted}, відхилено ${p.rejected}`;
             break;
@@ -82,6 +87,9 @@ function Row({ item }: { item: Notification }) {
         </div>
     );
     const className = `${styles.item} ${item.read ? '' : styles.unread}`;
+    if (item.kind === 'shahs_granted') {
+        return <Link to="/me/shahs" className={className}>{body}</Link>;
+    }
     if (item.kind === 'suggestions_submitted' && p.editionId) {
         return <Link to="/studio/$editionId" params={{ editionId: String(p.editionId) }} className={className}>{body}</Link>;
     }

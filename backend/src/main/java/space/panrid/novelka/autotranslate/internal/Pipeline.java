@@ -372,6 +372,14 @@ class Pipeline {
             if (state.equals("cancelled")) {
                 throw new Cancelled();
             }
+            if ("account".equals(job.getFunding())) {
+                // A person's run may spend what it holds, not a cent more (рішення 29).
+                if (ai.spentMicroUsd(job.getId()) >= job.getQuoteShah() * settings.microUsdPerShah()) {
+                    throw new OverBudget("Витрати дійшли до зарезервованих шагів (%d). Скасуйте запуск, щоб списати витрачене,"
+                            .formatted(job.getQuoteShah()) + " і запустіть решту глав заново.");
+                }
+                return;
+            }
             long cap = Math.max(200_000, Math.round(job.getQuoteShah() * settings.microUsdPerShah() * settings.capFactor()));
             if (ai.spentMicroUsd(job.getId()) > cap) {
                 throw new OverBudget("Витрати перевищили кошторис у %s раза. Перевірте моделі й ціни в налаштуваннях."

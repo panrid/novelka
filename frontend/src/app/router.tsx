@@ -43,6 +43,7 @@ import { StudioHome } from '../pages/studio/StudioHome';
 import { MyTeamsPage } from '../pages/team/MyTeamsPage';
 import { TeamPage } from '../pages/team/TeamPage';
 import { Shell } from './Shell';
+import { ShahsPage } from '../pages/me/ShahsPage';
 
 export type RouterContext = { queryClient: QueryClient };
 
@@ -146,6 +147,7 @@ const routeTree = rootRoute.addChildren([
     studio('/studio/$editionId/titles', TitlesPage, 'Назви глав'),
     studio('/studio/processes', ProcessesPage, 'Процеси'),
     studio('/me/wallet', WalletPage, 'Шаги'),
+    studio('/me/shahs', ShahsPage, 'Мої шаги'),
     studio('/studio/$editionId/chapters/$number', ChapterEditorPage, 'Редактор'),
     studio('/studio/$editionId/chapters/$number/history', HistoryPage, 'Історія глави'),
     createRoute({ getParentRoute: () => rootRoute, path: '/team/$handle', component: TeamPage, head: ({ params }) => ({ meta: [{ title: `$${params.handle} — Новелка` }] }) }),

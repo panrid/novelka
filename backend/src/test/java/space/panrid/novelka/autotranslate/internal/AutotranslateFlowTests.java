@@ -339,11 +339,13 @@ class AutotranslateFlowTests {
     }
 
     @Test
-    void onlyTheSiteOwnerMayUseIt() {
+    void withoutShahsOnlyTheSiteOwnerMayUseIt() {
         Person reader = Accounts.signedIn(port, mailbox);
-        assertThat(reader.browser().post("/api/studio/autotranslate/prepare",
-                json("url", "https://ncode.syosetu.com/" + code + "/")).status()).isEqualTo(403);
+        Response refused = reader.browser().post("/api/studio/autotranslate/prepare", json("url", "https://ncode.syosetu.com/" + code + "/"));
+        assertThat(refused.status()).isEqualTo(400);
+        assertThat(refused.body()).contains("шаги");
         assertThat(reader.browser().get("/api/studio/autotranslate/wallet").status()).isEqualTo(403);
+        assertThat(reader.browser().get("/api/studio/autotranslate/models").status()).as("the site picks models for people").isEqualTo(403);
         assertThat(owner.browser().post("/api/studio/autotranslate/prepare", json("url", "https://example.com/")).status())
                 .isEqualTo(400);
     }

@@ -9,6 +9,8 @@ export type Plan = {
 export type Quote = {
     kind: JobKind; from: number; to: number; chapters: number; skipped: number; shah: number; usd: number; expectedUsd: number;
     estimated: boolean; unanalyzed: number; analyzeModel: Stage; translateModel: Stage; proofreadModel: Stage;
+    /** What a person's run holds until it ends (рішення 29); 0 for the site owner's runs. */
+    reserveShah: number;
 };
 export type Balance = { shah: number; usd: number };
 export type JobState = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
@@ -16,11 +18,15 @@ export type Job = {
     id: number; kind: JobKind; state: JobState; from: number; to: number; done: number; quoteShah: number; spentUsd: number; spentShah: number;
     current: { number: number; stage: string; state: string; error: string | null } | null;
     error: string | null; createdAt: string; finishedAt: string | null;
+    /** Paid from the person's шаги: quoteShah is then what it holds, chargedShah what a finished run cost. */
+    personal: boolean; chargedShah: number;
 };
 export type AutotranslateOverview = {
     configured: boolean; showShah: boolean; sourceChapters: number; nextNumber: number; publishedChapters: number;
     lastAnalyzed: number; nextToAnalyze: number; averageChars: number; balance: Balance | null; usdPerShah: number;
     settings: Settings; jobs: Job[];
+    /** Runs are paid from the viewer's шаги: balance is theirs, reserved is what their runs hold. */
+    personal: boolean; reserved: number;
 };
 export type Process = { editionId: number; title: string; slug: string; job: Job };
 export type ModelRating = 'recommended' | 'usual' | 'weak';

@@ -21,6 +21,7 @@ import space.panrid.novelka.ai.AiPicture;
 import space.panrid.novelka.ai.AiPrice;
 import space.panrid.novelka.ai.AiRequest;
 import space.panrid.novelka.ai.AiTag;
+import space.panrid.novelka.ledger.Ledger;
 import space.panrid.novelka.media.Images;
 import space.panrid.novelka.media.StoredImage;
 import space.panrid.novelka.platform.SiteSettings;
@@ -49,7 +50,10 @@ class Illustrations {
     private final JsonMapper json;
     private final DSLContext db;
 
-    Illustrations(Ai ai, Images images, SiteSettings siteSettings, JsonMapper json, DSLContext db) {
+    private final Ledger ledger;
+
+    Illustrations(Ai ai, Images images, SiteSettings siteSettings, JsonMapper json, DSLContext db, Ledger ledger) {
+        this.ledger = ledger;
         this.ai = ai;
         this.images = images;
         this.siteSettings = siteSettings;
@@ -132,7 +136,11 @@ class Illustrations {
     record Drawn(long imageId, String url, BigDecimal costUsd, int costShah) {
     }
 
-    Drawn draw(long ownerId, String prompt, String fragment, String aspect, Integer chapter) {
+    /**
+     * @param personal paid from the drawer's шаги (рішення 29): the picture's expected price with a
+     *                 margin is held, then its real cost is charged in whole шаги
+     */
+    Drawn draw(long ownerId, String prompt, String fragment, String aspect, Integer chapter, boolean personal) {
         String description = prompt == null ? "" : prompt.strip();
         if (description.isEmpty() || description.length() > 2_000) {
             throw UserFacingException.badRequest("Опис для художника — від 1 до 2000 знаків.");
@@ -141,16 +149,23 @@ class Illustrations {
             throw UserFacingException.badRequest("Невідома форма картинки.");
         }
         IllustrationSettings settings = settings();
+        Long hold = personal
+                ? ledger.hold(ownerId, Math.max(1, ledger.shahOf(Math.round(settings.microUsdPerImage() * 1.5))), "Ілюстрація")
+                : null;
         AiPicture picture;
         try {
             picture = ai.image(new AiImageRequest(settings.model(), description, aspect, settings.microUsdPerImage(),
                     new AiTag(null, chapter, "illustration", null)));
         } catch (AiException error) {
+            if (hold != null) {
+                ledger.settle(hold, 0);
+            }
             throw UserFacingException.badGateway(error.getMessage());
         }
+        int charged = hold == null ? shah(picture.costMicroUsd()) : ledger.settle(hold, Math.max(1, picture.costMicroUsd()));
         StoredImage stored = images.storeDrawn(ownerId, picture.content(), description,
                 fragment == null ? null : fragment(fragment), picture.callId());
-        return new Drawn(stored.id(), stored.url(1280), usd(picture.costMicroUsd()), shah(picture.costMicroUsd()));
+        return new Drawn(stored.id(), stored.url(1280), usd(picture.costMicroUsd()), charged);
     }
 
     record Spent(int pictures, BigDecimal usd, BigDecimal average) {

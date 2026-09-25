@@ -43,6 +43,11 @@ record Settings(Stage analyze, Stage translate, Stage proofread, int segmentChar
         return new Settings(analyze, translate, proofread, segmentChars, microUsdPerShah, capFactor, salt);
     }
 
+    /** A person's run (рішення 29): their price of a шаг, and it stops at what it holds. */
+    Settings paidBy(long microUsdPerShahOfPeople) {
+        return new Settings(analyze, translate, proofread, segmentChars, microUsdPerShahOfPeople, 1.0, redo);
+    }
+
     Settings withModels(Stage analyze, Stage translate, Stage proofread) {
         return new Settings(analyze, translate, proofread, segmentChars, microUsdPerShah, capFactor, redo);
     }

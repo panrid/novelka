@@ -20,6 +20,7 @@ import space.panrid.novelka.access.AccessPolicy;
 import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.account.Viewer;
 import space.panrid.novelka.catalog.Catalog;
+import space.panrid.novelka.ledger.Ledger;
 import space.panrid.novelka.platform.web.UserFacingException;
 
 /** At launch only the site owner draws, and only in editions where they translate. */
@@ -31,18 +32,28 @@ class IllustrationController {
     private final Illustrations illustrations;
     private final Catalog catalog;
     private final DSLContext db;
+    private final Ledger ledger;
 
-    IllustrationController(AccessPolicy access, Illustrations illustrations, Catalog catalog, DSLContext db) {
+    IllustrationController(AccessPolicy access, Illustrations illustrations, Catalog catalog, DSLContext db, Ledger ledger) {
+        this.ledger = ledger;
         this.access = access;
         this.illustrations = illustrations;
         this.catalog = catalog;
         this.db = db;
     }
 
+    /** The site owner draws at the site's cost; a translator with шаги draws with them (рішення 29). */
     private Viewer drawer(long editionId) {
-        Viewer viewer = access.requireSiteRole(SiteRole.OWNER);
+        Viewer viewer = access.requireSignedIn();
         access.requireTranslator(editionId);
+        if (personal(viewer) && ledger.balance(viewer.accountId()).available() < 1) {
+            throw UserFacingException.badRequest("Малювати можна за шаги, а у вас їх поки немає. Шаги нараховує власник сайту.");
+        }
         return viewer;
+    }
+
+    private static boolean personal(Viewer viewer) {
+        return viewer.role() != SiteRole.OWNER;
     }
 
     private boolean showShah(Viewer viewer) {
@@ -57,6 +68,10 @@ class IllustrationController {
     Price price(@PathVariable long editionId) {
         Viewer viewer = drawer(editionId);
         IllustrationSettings settings = illustrations.settings();
+        if (personal(viewer)) {
+            return new Price(Illustrations.usd(settings.microUsdPerImage()), Math.max(1, ledger.shahOf(settings.microUsdPerImage())),
+                    true, settings.model());
+        }
         return new Price(Illustrations.usd(settings.microUsdPerImage()), illustrations.shah(settings.microUsdPerImage()),
                 showShah(viewer), settings.model());
     }
@@ -82,7 +97,7 @@ class IllustrationController {
     Illustrations.Drawn draw(@PathVariable long editionId, @RequestBody DrawRequest body) {
         Viewer viewer = drawer(editionId);
         return illustrations.draw(viewer.accountId(), body.prompt(), body.fragment(), body.aspect() == null ? "3:4" : body.aspect(),
-                body.chapter());
+                body.chapter(), personal(viewer));
     }
 
     record Overview(IllustrationSettings settings, Illustrations.Spent spent) {
