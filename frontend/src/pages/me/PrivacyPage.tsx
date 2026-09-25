@@ -1,6 +1,8 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { meApi, type SettingsPatch } from '../../auth/api';
 import { useMe, useSetMe } from '../../auth/me';
+import { messagingApi } from '../../inbox/api';
+import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
 import { Toggle } from '../../ui/Toggle';
@@ -38,6 +40,29 @@ export function PrivacyPage() {
                 )}
                 {save.isError && <Notice tone="error">{save.error.message}</Notice>}
             </div>
+            <BlockedPeople />
         </section>
+    );
+}
+
+/** People I blocked: they cannot write to me or add me to groups. */
+function BlockedPeople() {
+    const client = useQueryClient();
+    const blocked = useQuery({ queryKey: ['blocked'], queryFn: messagingApi.blocked });
+    const unblock = useMutation({
+        mutationFn: (nick: string) => messagingApi.unblock(nick),
+        onSuccess: () => void client.invalidateQueries({ queryKey: ['blocked'] }),
+    });
+    if (!blocked.data?.length) return null;
+    return (
+        <div className={styles.section} style={{ marginTop: 24 }}>
+            <h2 className={styles.sectionTitle}>Заблоковані</h2>
+            {blocked.data.map((nick) => (
+                <div key={nick} className={styles.row} style={{ justifyContent: 'space-between', padding: '6px 0' }}>
+                    <span>{nick}</span>
+                    <Button variant="secondary" onPress={() => unblock.mutate(nick)}>Розблокувати</Button>
+                </div>
+            ))}
+        </div>
     );
 }

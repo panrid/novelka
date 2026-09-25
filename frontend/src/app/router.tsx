@@ -20,7 +20,6 @@ import { NovelPage } from '../pages/reading/NovelPage';
 import { ProposeChapterPage } from '../pages/reading/ProposeChapterPage';
 import { ReaderPage } from '../pages/reading/ReaderPage';
 import { chapterQuery, novelQuery } from '../reading/queries';
-import { Placeholder } from '../pages/Placeholder';
 import { AboutPage } from '../pages/studio/AboutPage';
 import { ChapterEditorPage } from '../pages/studio/ChapterEditorPage';
 import { EditionPage } from '../pages/studio/EditionPage';
@@ -30,6 +29,12 @@ import { NewPublication } from '../pages/studio/NewPublication';
 import { AutotranslatePage } from '../pages/studio/AutotranslatePage';
 import { GlossaryPage } from '../pages/studio/GlossaryPage';
 import { WalletPage } from '../pages/me/WalletPage';
+import { ChatPage } from '../pages/inbox/ChatPage';
+import { ConversationAboutPage } from '../pages/inbox/ConversationAboutPage';
+import { ConversationPage } from '../pages/inbox/ConversationPage';
+import { MessagesPage } from '../pages/inbox/MessagesPage';
+import { NewGroupPage } from '../pages/inbox/NewGroupPage';
+import { NotificationsPage } from '../pages/inbox/NotificationsPage';
 import { RelayPage } from '../pages/studio/RelayPage';
 import { StudioHome } from '../pages/studio/StudioHome';
 import { MyTeamsPage } from '../pages/team/MyTeamsPage';
@@ -68,14 +73,6 @@ const listSearch = (search: Record<string, unknown>): { list?: (typeof LIST_NAME
 const studio = <TPath extends string>(path: TPath, component: () => React.ReactNode, heading: string) =>
     createRoute({ getParentRoute: () => rootRoute, path, component, beforeLoad: requireSignedIn, head: title(heading) });
 
-const placeholder = <TPath extends string>(path: TPath, heading: string, text: string) =>
-    createRoute({
-        getParentRoute: () => rootRoute,
-        path,
-        component: () => <Placeholder title={heading} text={text} />,
-        head: () => ({ meta: [{ title: path === '/' ? 'Новелка' : `${heading} — Новелка` }] }),
-    });
-
 const routeTree = rootRoute.addChildren([
     createRoute({ getParentRoute: () => rootRoute, path: '/', component: HomePage, head: () => ({ meta: [{ title: 'Новелка' }] }) }),
     createRoute({ getParentRoute: () => rootRoute, path: '/catalog', component: CatalogPage, validateSearch: validateCatalogSearch, head: title('Пошук') }),
@@ -111,7 +108,12 @@ const routeTree = rootRoute.addChildren([
         },
         head: ({ loaderData }) => ({ meta: [{ title: loaderData?.title ?? 'Новелка' }] }),
     }),
-    placeholder('/inbox', 'Вхідні', 'Тут будуть сповіщення, повідомлення й загальний чат.'),
+    studio('/inbox', NotificationsPage, 'Вхідні'),
+    studio('/inbox/messages', MessagesPage, 'Повідомлення'),
+    studio('/inbox/messages/new', NewGroupPage, 'Нова група'),
+    studio('/inbox/messages/$id', ConversationPage, 'Розмова'),
+    studio('/inbox/messages/$id/about', ConversationAboutPage, 'Про розмову'),
+    createRoute({ getParentRoute: () => rootRoute, path: '/inbox/chat', component: ChatPage, head: title('Чат') }),
     createRoute({ getParentRoute: () => rootRoute, path: '/me', component: MePage, head: title('Я') }),
     studio('/me/suggestions', MySuggestionsPage, 'Мої правки'),
     createRoute({

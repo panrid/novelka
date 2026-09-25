@@ -1,0 +1,117 @@
+.composer {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 0;
+    background: var(--bg);
+}
+
+.row {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.input {
+    flex: 1;
+    min-height: 42px;
+    max-height: 160px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    resize: none;
+    field-sizing: content;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.icon,
+.send {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border: 0;
+    border-radius: 12px;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.send {
+    background: var(--accent);
+    color: var(--accent-ink);
+}
+
+.send:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.reply {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    border-left: 3px solid var(--accent);
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.reply span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.reply button {
+    border: 0;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.pictures {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+}
+
+.picture {
+    position: relative;
+    flex: none;
+}
+
+.picture img {
+    width: 64px;
+    height: 64px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+.picture button {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border: 0;
+    border-radius: 10px;
+    background: rgb(0 0 0 / 60%);
+    color: #fff;
+    cursor: pointer;
+}
+
+.error {
+    color: var(--danger);
+    font-size: 13px;
+}

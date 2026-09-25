@@ -1,0 +1,41 @@
+.markup p,
+.markup blockquote {
+    margin: 0 0 6px;
+    overflow-wrap: anywhere;
+}
+
+.markup p:last-child,
+.markup blockquote:last-child {
+    margin-bottom: 0;
+}
+
+.markup blockquote {
+    padding-left: 10px;
+    border-left: 3px solid var(--line);
+    color: var(--muted);
+}
+
+.markup a {
+    color: var(--accent);
+}
+
+.mention {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.spoiler {
+    border-radius: 4px;
+    background: var(--text);
+    color: transparent;
+    cursor: pointer;
+}
+
+.spoiler * {
+    color: transparent;
+}
+
+.spoilerOpen {
+    border-radius: 4px;
+    background: var(--surface-2);
+}

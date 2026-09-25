@@ -1,8 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import { Link, Navigate, useParams } from '@tanstack/react-router';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Link, Navigate, useNavigate, useParams } from '@tanstack/react-router';
 import { peopleApi } from '../../auth/api';
 import { useMe } from '../../auth/me';
+import { messagingApi } from '../../inbox/api';
 import { Avatar } from '../../ui/Avatar';
+import { Button } from '../../ui/Button';
 import { monthYearGenitive } from '../../lib/dates';
 import { Notice } from '../../ui/Notice';
 import styles from '../pages.module.css';
@@ -43,6 +45,22 @@ export function UserPage() {
                     <Link to="/me/settings">Редагувати профіль</Link>
                 </div>
             )}
+            {me && me.nick !== person.nick && <WriteButton nick={person.nick} />}
         </section>
+    );
+}
+
+/** «Написати»: opens the conversation with this person, starting it if needed. */
+function WriteButton({ nick }: { nick: string }) {
+    const navigate = useNavigate();
+    const start = useMutation({
+        mutationFn: () => messagingApi.direct(nick),
+        onSuccess: ({ id }) => void navigate({ to: '/inbox/messages/$id', params: { id: String(id) } }),
+    });
+    return (
+        <div style={{ marginTop: 18 }}>
+            <Button onPress={() => start.mutate()} pending={start.isPending} pendingLabel="Відкриваємо…">Написати</Button>
+            {start.isError && <Notice tone="error">{start.error.message}</Notice>}
+        </div>
     );
 }
