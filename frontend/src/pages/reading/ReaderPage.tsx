@@ -9,7 +9,10 @@ import { readingApi, type ReaderChapter } from '../../reading/api';
 import { localProgress, saveLocalProgress } from '../../reading/progress';
 import { chapterQuery } from '../../reading/queries';
 import { useReaderSize, useTheme, type Theme } from '../../reading/theme';
+import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
+import { EditSheet, ReplaceSheet, ReviewCard, SelectionBar, useMySuggestions, useReview } from './Suggestions';
+import suggestionStyles from './suggestions.module.css';
 import { Segmented } from '../../ui/Segmented';
 import styles from './reader.module.css';
 
@@ -141,9 +144,23 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
         return () => window.removeEventListener('keydown', onKey);
     });
 
-    /** A tap on the text (not on a link, not a selection) toggles the controls. */
+    const mine = useMySuggestions(chapter, me !== null);
+    const review = useReview(chapter);
+    const [editMode, setEditMode] = useState(false);
+    const [editing, setEditing] = useState<string | null>(null);
+    const [replacing, setReplacing] = useState<string | null>(null);
+    const [reviewing, setReviewing] = useState(false);
+    const editingBlock = chapter.blocks.find((block) => block.id === editing);
+
+    /** A tap on the text toggles the controls; in «режим правок» it opens the paragraph instead. */
     function toggleBars(event: MouseEvent) {
-        if ((event.target as HTMLElement).closest('a, button') || window.getSelection()?.toString()) return;
+        const target = event.target as HTMLElement;
+        if (target.closest('a, button') || window.getSelection()?.toString()) return;
+        const block = target.closest('p[data-block-id], h2[data-block-id]');
+        if (editMode && block) {
+            setEditing(block.getAttribute('data-block-id'));
+            return;
+        }
         setBarsVisible((visible) => !visible);
     }
 
@@ -171,7 +188,28 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
 
             <article className={styles.text} style={{ fontSize: size }} onClick={toggleBars}>
                 <h1 className={styles.chapterTitle}>{chapter.number}. {chapter.title}</h1>
-                <Blocks blocks={chapter.blocks} />
+                {review.items.length > 0 && !reviewing && (
+                    <div className={suggestionStyles.banner}>
+                        <span>Правок на перевірку: {review.items.length}</span>
+                        <Button variant="secondary" onPress={() => setReviewing(true)}>Перевірити</Button>
+                    </div>
+                )}
+                {reviewing && review.items.filter((item) => item.kind !== 'block').map((item) => (
+                    <ReviewCard key={item.id} item={item} verdict={review.verdicts[item.id]} onDecide={(verdict) => review.decide(item.id, verdict)} />
+                ))}
+                {editMode && <p className={suggestionStyles.banner}>Режим правок: торкніться абзацу, щоб його виправити.</p>}
+                <Blocks blocks={chapter.blocks} overlay={mine.overlay}
+                    after={reviewing ? (blockId) => review.items.filter((item) => item.kind === 'block' && item.blockId === blockId).map((item) => (
+                        <ReviewCard key={item.id} item={item} verdict={review.verdicts[item.id]} onDecide={(verdict) => review.decide(item.id, verdict)} />
+                    )) : undefined} />
+                {mine.drafts > 0 && (
+                    <div className={suggestionStyles.banner}>
+                        <span>Ненадісланих правок: {mine.drafts}</span>
+                        <Button onPress={() => mine.submit.mutate()} pending={mine.submit.isPending}>Надіслати</Button>
+                    </div>
+                )}
+                {mine.submit.isSuccess && mine.drafts === 0 && <Notice tone="success">Правки надіслано команді. Дякуємо!</Notice>}
+                {!me && <p className={styles.finished}>Увійдіть, щоб запропонувати правку.</p>}
                 <nav className={styles.end} aria-label="Інші глави">
                     {chapter.next ? (
                         <Link {...chapterLink(chapter.next)} className={styles.nextButton}>Наступна глава →</Link>
@@ -186,6 +224,26 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
                 </nav>
             </article>
 
+            {me && !reviewing && <SelectionBar onEdit={setEditing} onReplace={setReplacing} />}
+            {editingBlock && (
+                <EditSheet chapter={chapter} block={editingBlock} onClose={() => setEditing(null)} onSaved={mine.refresh}
+                    existing={mine.items.find((item) => item.kind === 'block' && item.blockId === editingBlock.id && item.state === 'draft')} />
+            )}
+            {replacing !== null && <ReplaceSheet chapter={chapter} find={replacing} onClose={() => setReplacing(null)} onSaved={mine.refresh} />}
+
+            {reviewing ? (
+                <footer className={styles.bottom}>
+                    {review.apply.isError && <Notice tone="error">{review.apply.error.message}</Notice>}
+                    <div className={styles.buttons}>
+                        <Button variant="secondary" onPress={() => setReviewing(false)}>Закрити</Button>
+                        <Button variant="secondary" onPress={review.acceptAll}>Прийняти всі</Button>
+                        <Button onPress={() => review.apply.mutate(undefined, { onSuccess: () => setReviewing(false) })}
+                            pending={review.apply.isPending} isDisabled={Object.keys(review.verdicts).length === 0}>
+                            Застосувати ({Object.keys(review.verdicts).length})
+                        </Button>
+                    </div>
+                </footer>
+            ) : (
             <footer className={`${styles.bottom} ${barsVisible ? '' : styles.hiddenBottom}`}>
                 <div className={styles.percent}>{Math.round(progress * 100)}%</div>
                 <div className={styles.buttons}>
@@ -195,8 +253,15 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
                     {chapter.next ? (
                         <Link {...chapterLink(chapter.next)} className={`${styles.navButton} ${styles.primary}`}>{chapter.next} <ChevronRight size={18} aria-hidden /></Link>
                     ) : <span className={`${styles.navButton} ${styles.disabled}`} aria-hidden><ChevronRight size={18} /></span>}
+                    {me && (
+                        <button type="button" className={`${styles.navButton} ${editMode ? styles.primary : ''}`} aria-pressed={editMode}
+                            aria-label="Режим правок" onClick={() => setEditMode(!editMode)}>
+                            ✎{mine.drafts > 0 ? ` ${mine.drafts}` : ''}
+                        </button>
+                    )}
                 </div>
             </footer>
+            )}
         </div>
     );
 }

@@ -24,3 +24,16 @@
     color: var(--muted);
     font-style: italic;
 }
+
+.own {
+    border-left: 3px solid var(--accent);
+    padding-left: 10px;
+    margin-left: -13px;
+}
+
+.ownLabel {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font: 12px var(--font-ui);
+}

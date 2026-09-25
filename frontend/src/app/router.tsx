@@ -8,6 +8,7 @@ import { ResetPage } from '../pages/auth/ResetPage';
 import { TokenPage } from '../pages/auth/TokenPage';
 import { ErrorPage, NotFoundPage } from '../pages/ErrorPages';
 import { MePage } from '../pages/me/MePage';
+import { MySuggestionsPage } from '../pages/me/MySuggestionsPage';
 import { PrivacyPage } from '../pages/me/PrivacyPage';
 import { SettingsPage } from '../pages/me/SettingsPage';
 import { WelcomePage } from '../pages/me/WelcomePage';
@@ -108,6 +109,7 @@ const routeTree = rootRoute.addChildren([
     }),
     placeholder('/inbox', 'Вхідні', 'Тут будуть сповіщення, повідомлення й загальний чат.'),
     createRoute({ getParentRoute: () => rootRoute, path: '/me', component: MePage, head: title('Я') }),
+    studio('/me/suggestions', MySuggestionsPage, 'Мої правки'),
     studio('/studio', StudioHome, 'Студія'),
     studio('/studio/new', NewPublication, 'Нова публікація'),
     studio('/studio/teams', MyTeamsPage, 'Мої команди'),

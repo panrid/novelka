@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { Cover } from '../../reading/Cover';
 import { STATUS_LABELS, chaptersWord, type Status } from '../../reading/api';
 import { ROLE_LABELS, studioApi } from '../../studio/api';
+import { suggestionApi } from '../../reading/suggestions';
 import { Button } from '../../ui/Button';
 import { LinkButton } from '../../ui/LinkButton';
 import { Notice } from '../../ui/Notice';
@@ -21,6 +22,7 @@ export function EditionPage() {
     const overview = useQuery({ queryKey: ['studio-edition', id], queryFn: () => studioApi.overview(id) });
     const chapters = useQuery({ queryKey: ['studio-chapters', id], queryFn: () => studioApi.chapters(id) });
     const contributions = useQuery({ queryKey: ['studio-contributions', id], queryFn: () => studioApi.contributions(id) });
+    const queue = useQuery({ queryKey: ['suggestion-queue', id], queryFn: () => suggestionApi.queue(id) });
     const add = useMutation({
         mutationFn: () => studioApi.newChapter(id),
         onSuccess: ({ number }) => {
@@ -61,6 +63,19 @@ export function EditionPage() {
                 <Link to="/team/$handle" params={{ handle: edition.teamHandle }} className={styles.menuItem}>Команда ${edition.teamHandle}</Link>
                 {owner && edition.kind !== 'original' && <Link to="/studio/$editionId/relay" params={params} className={styles.menuItem}>Естафета</Link>}
             </nav>
+
+            {(queue.data?.length ?? 0) > 0 && (
+                <>
+                    <h2 className={styles.sectionTitle}>Правки на перевірку</h2>
+                    {queue.data!.map((row) => (
+                        <Link key={row.number} className={styles.row} to="/n/$slug/$number"
+                            params={{ slug: edition.novelSlug, number: String(row.number) }} search={{ t: edition.teamHandle }}>
+                            <div className={styles.grow}>{row.number}. {row.title}</div>
+                            <span className={`${styles.badge} ${styles.badgeOn}`}>{row.pending}</span>
+                        </Link>
+                    ))}
+                </>
+            )}
 
             <h2 className={styles.sectionTitle}>Глави</h2>
             {chapters.data?.length === 0 && <p className={styles.muted}>Глав ще немає.</p>}

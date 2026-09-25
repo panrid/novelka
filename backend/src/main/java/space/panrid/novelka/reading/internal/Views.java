@@ -60,7 +60,8 @@ final class Views {
 
     /** {@code savedPosition}: where the signed-in reader stopped in this very chapter, 0..1. */
     record ReaderChapter(String novelSlug, String novelTitle, EditionSummary edition, int number, String title,
-            List<ReaderBlock> blocks, Integer previous, Integer next, Float savedPosition, Continuation continuation) {
+            List<ReaderBlock> blocks, Integer previous, Integer next, Float savedPosition, Continuation continuation,
+            String teamRole) {
     }
 
     record LibraryPage(List<LibraryItem> items, java.util.Map<String, Integer> counts) {

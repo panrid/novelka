@@ -107,15 +107,16 @@ class ReadingController {
         ReadingQueries.ChapterText text = queries.chapter(edition.id(), number)
                 .orElseThrow(() -> UserFacingException.notFound("Такої глави немає."));
         Integer next = queries.neighbour(edition.id(), number, true);
-        Float saved = viewer.map(v -> queries.viewer(v.accountId(), edition.id()))
-                .filter(state -> state.chapterNumber() != null && state.chapterNumber() == number)
+        Optional<Views.ViewerState> state = viewer.map(v -> queries.viewer(v.accountId(), edition.id()));
+        Float saved = state.filter(s -> s.chapterNumber() != null && s.chapterNumber() == number)
                 .map(Views.ViewerState::position)
                 .orElse(null);
+        String teamRole = state.map(Views.ViewerState::teamRole).orElse(null);
         return new Views.ReaderChapter(novel.slug(), edition.title() != null ? edition.title() : novel.title(),
                 queries.summaries(List.of(edition)).getFirst(), text.number(), text.title(),
                 queries.readerBlocks(text.blocks()),
                 queries.neighbour(edition.id(), number, false), next, saved,
-                next == null ? relay(edition.id()).continuations().stream().findFirst().orElse(null) : null);
+                next == null ? relay(edition.id()).continuations().stream().findFirst().orElse(null) : null, teamRole);
     }
 
     @PutMapping("/progress/{editionId}")

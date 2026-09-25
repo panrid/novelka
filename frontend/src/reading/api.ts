@@ -76,6 +76,7 @@ export type ReaderChapter = {
     next: number | null;
     savedPosition: number | null;
     continuation: Continuation | null;
+    teamRole: 'owner' | 'translator' | 'editor' | null;
 };
 
 export type CatalogQuery = { q?: string; tags?: string[]; kind?: string; machine?: string; sort?: string; page?: number };
