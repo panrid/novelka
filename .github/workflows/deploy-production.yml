@@ -1,0 +1,129 @@
+name: Deploy production
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    backend:
+        name: Backend tests
+        runs-on: ubuntu-latest
+        timeout-minutes: 25
+        steps:
+            - uses: actions/checkout@v5
+            - uses: actions/setup-java@v5
+              with:
+                  distribution: temurin
+                  java-version: '25'
+                  cache: gradle
+            # Integration tests start PostgreSQL through Testcontainers (Docker is on the runner).
+            - name: Run tests
+              run: ./gradlew :backend:test --no-daemon
+
+    frontend:
+        name: Frontend checks and tests
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        defaults:
+            run:
+                working-directory: frontend
+        steps:
+            - uses: actions/checkout@v5
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: '22.13.1'
+                  cache: npm
+                  cache-dependency-path: frontend/package-lock.json
+            - run: npm ci --no-audit --no-fund
+            - name: Types, lint and tests
+              run: npm run check
+
+    package:
+        name: Build JAR
+        needs: [backend, frontend]
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - uses: actions/checkout@v5
+            - uses: actions/setup-java@v5
+              with:
+                  distribution: temurin
+                  java-version: '25'
+                  cache: gradle
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: '22.13.1'
+                  cache: npm
+                  cache-dependency-path: frontend/package-lock.json
+            - run: npm ci --no-audit --no-fund
+              working-directory: frontend
+            - name: Build JAR with the site inside
+              run: ./gradlew :backend:bootJar --no-daemon
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: novelka
+                  path: backend/build/libs/novelka.jar
+                  if-no-files-found: error
+                  retention-days: 14
+
+    deploy:
+        name: Deploy to VPS
+        needs: package
+        if: github.ref == 'refs/heads/main'
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        environment: production
+        # A newer push waits for the running deploy instead of interrupting Docker Compose midway.
+        concurrency:
+            group: production
+            cancel-in-progress: false
+        steps:
+            - uses: actions/checkout@v5
+            - uses: actions/download-artifact@v4
+              with:
+                  name: novelka
+                  path: release
+            - name: Configure SSH
+              env:
+                  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+                  DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+                  DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+              run: |
+                  test -n "$DEPLOY_HOST" || { echo 'DEPLOY_HOST is empty' >&2; exit 1; }
+                  install -m 700 -d ~/.ssh
+                  printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy
+                  chmod 600 ~/.ssh/deploy
+                  if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
+                      printf '%s\n' "$DEPLOY_KNOWN_HOSTS" | tr -d '\r' > ~/.ssh/known_hosts
+                  else
+                      echo '::warning::DEPLOY_KNOWN_HOSTS is not set; trusting the host key offered right now.'
+                      ssh-keyscan -4 -T 15 -H "$DEPLOY_HOST" > ~/.ssh/known_hosts
+                  fi
+            - name: Upload release
+              env:
+                  TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+              run: |
+                  ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p /opt/novelka/app /opt/novelka/infra'
+                  scp -i ~/.ssh/deploy release/novelka.jar backend/Dockerfile "$TARGET:/opt/novelka/app/"
+                  scp -i ~/.ssh/deploy infra/production.compose.yaml infra/Caddyfile "$TARGET:/opt/novelka/infra/"
+            - name: Restart
+              env:
+                  TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+              run: |
+                  ssh -i ~/.ssh/deploy "$TARGET" '
+                      set -e
+                      cd /opt/novelka
+                      # The first version of the site ran as the Compose project "infra"; it gives way once.
+                      docker rm -f infra-app-1 infra-caddy-1 infra-postgres-1 2>/dev/null || true
+                      docker compose --env-file .env.production -f infra/production.compose.yaml up -d --build --remove-orphans
+                      docker compose --env-file .env.production -f infra/production.compose.yaml ps'
+            - name: Check the app and its database
+              run: |
+                  curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors \
+                      https://novelka.panrid.space/api/health | tee /dev/stderr | grep -q '"status":"ok"'
+            - name: Check the public site
+              run: curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null https://novelka.panrid.space/

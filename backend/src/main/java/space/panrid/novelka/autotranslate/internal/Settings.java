@@ -26,7 +26,7 @@ record Settings(Stage analyze, Stage translate, Stage proofread, int segmentChar
     }
 
     static Settings defaults() {
-        Stage mini = new Stage("openai/gpt-4o-mini", 0.15, 0.60, true);
+        Stage mini = new Stage("openai/gpt-4.1-mini", 0.40, 1.60, true);
         return new Settings(mini, mini, mini, 4_000, 36_000, 3.0);
     }
 

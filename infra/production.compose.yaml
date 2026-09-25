@@ -1,0 +1,70 @@
+# Production on the VPS: PostgreSQL, the app and Caddy (HTTPS). Secrets come from
+# /opt/novelka/.env.production, which never leaves the server; the names there are
+# the ones v1 used, mapped here to the app's own.
+name: novelka
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: novelka
+      POSTGRES_USER: novelka
+      POSTGRES_PASSWORD: ${NOVELKA_DB_PASSWORD}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U novelka -d novelka"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build:
+      context: ../app
+    restart: unless-stopped
+    environment:
+      NOVELKA_SERVER_ADDRESS: 0.0.0.0
+      NOVELKA_SERVER_PORT: 8080
+      NOVELKA_SECURE_COOKIES: "true"
+      NOVELKA_PUBLIC_URL: ${NOVELKA_PUBLIC_URL:-https://novelka.panrid.space}
+      NOVELKA_DB_URL: jdbc:postgresql://postgres:5432/novelka
+      NOVELKA_DB_USER: novelka
+      NOVELKA_DB_PASSWORD: ${NOVELKA_DB_PASSWORD}
+      NOVELKA_MEDIA_DIR: /data/media
+      NOVELKA_OWNER_NICK: ${NOVELKA_OWNER_NICK:-}
+      NOVELKA_OWNER_EMAIL: ${NOVELKA_OWNER_EMAIL:-}
+      NOVELKA_OWNER_PASSWORD: ${NOVELKA_OWNER_PASSWORD:-}
+      NOVELKA_OPENROUTER_KEY: ${OPENROUTER_API_KEY:-}
+      NOVELKA_OPENROUTER_MANAGEMENT_KEY: ${OPENROUTER_MANAGEMENT_KEY:-}
+      NOVELKA_MAIL_HOST: ${MAIL_HOST:-}
+      NOVELKA_MAIL_PORT: ${MAIL_PORT:-587}
+      NOVELKA_MAIL_USER: ${MAIL_USERNAME:-}
+      NOVELKA_MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      NOVELKA_MAIL_AUTH: "true"
+      NOVELKA_MAIL_STARTTLS: "true"
+      NOVELKA_MAIL_FROM: ${MAIL_FROM:-Новелка <no-reply@novelka.panrid.space>}
+    volumes:
+      - media:/data/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  postgres:
+  media:
+  caddy-data:
+  caddy-config:

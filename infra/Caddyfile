@@ -1,0 +1,7 @@
+novelka.panrid.space {
+    encode gzip
+    # Live updates (/api/events) must reach the browser at once, not in buffered chunks.
+    reverse_proxy app:8080 {
+        flush_interval -1
+    }
+}
