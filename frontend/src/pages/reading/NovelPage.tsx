@@ -1,10 +1,14 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
-import { ArrowDownUp, BookmarkPlus, Check } from 'lucide-react';
+import { Link, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
+import { ArrowDownUp, BookmarkPlus, Check, MessageCircle } from 'lucide-react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Button as AriaButton, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 import { ApiError } from '../../api/client';
 import { useMe } from '../../auth/me';
+import { Discussion, useCommentCount } from '../../community/Discussion';
+import discussionStyles from '../../community/discussion.module.css';
+import { commentApi } from '../../community/api';
+import { Sheet } from '../../ui/Sheet';
 import { Blocks } from '../../reading/Blocks';
 import { Cover } from '../../reading/Cover';
 import { LIST_LABELS, STATUS_LABELS, chapterHeading, chaptersWord, readingApi, type ListName, type NovelPage as Novel } from '../../reading/api';
@@ -72,6 +76,7 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                     <p className={styles.muted}>
                         {edition.chapterCount} {chaptersWord(edition.chapterCount)} · {STATUS_LABELS[edition.status]}
                     </p>
+                    <Stars novel={novel} />
                 </div>
             </div>
 
@@ -135,6 +140,7 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                 </Link>
             ))}
             {novel.origin === 'translation' && !novel.viewer?.teamRole && <RelayOffer novel={novel} />}
+            <DiscussionButton editionId={edition.editionId} />
         </section>
     );
 }
@@ -257,6 +263,53 @@ function ChapterList({ slug, team, current }: { slug: string; team: string | und
                     Показати ще
                 </Button>
             )}
+        </div>
+    );
+}
+
+/** Talk about the translation as a whole; a link to a comment (#c40) opens it at once. */
+function DiscussionButton({ editionId }: { editionId: number }) {
+    const hash = useRouterState({ select: (state) => state.location.hash });
+    const focus = /^c(\d+)$/.exec(hash)?.[1];
+    const [open, setOpen] = useState(Boolean(focus));
+    const count = useCommentCount(editionId);
+    return (
+        <>
+            <button type="button" className={discussionStyles.fab} onClick={() => setOpen(true)}
+                aria-label={`Обговорення перекладу, коментарів: ${count}`}>
+                <MessageCircle size={18} aria-hidden />{count > 0 ? count : 'Обговорення'}
+            </button>
+            <Sheet open={open} onClose={() => setOpen(false)} title="Обговорення перекладу" tall>
+                <Discussion editionId={editionId} focus={focus ? Number(focus) : undefined} />
+            </Sheet>
+        </>
+    );
+}
+
+/** Average stars; a signed-in reader gives their own (tap the same star again to take it back). */
+function Stars({ novel }: { novel: Novel }) {
+    const me = useMe();
+    const client = useQueryClient();
+    const edition = novel.edition;
+    const mine = novel.viewer?.myRating ?? null;
+    const rate = useMutation({
+        mutationFn: (score: number | null) => commentApi.rate(edition.editionId, score),
+        onSuccess: () => void client.invalidateQueries({ queryKey: ['novel', novel.slug] }),
+    });
+    return (
+        <div className={styles.stars}>
+            {me ? (
+                <span role="radiogroup" aria-label="Ваша оцінка перекладу">
+                    {[1, 2, 3, 4, 5].map((score) => (
+                        <button key={score} type="button" role="radio" aria-checked={mine === score} aria-label={`${score} з 5`}
+                            className={(mine ?? 0) >= score ? styles.starOn : styles.star}
+                            onClick={() => rate.mutate(mine === score ? null : score)}>★</button>
+                    ))}
+                </span>
+            ) : null}
+            <span className={styles.muted}>
+                {edition.rating != null ? `${edition.rating.toFixed(1).replace('.', ',')} · оцінок: ${edition.ratings ?? 0}` : 'ще без оцінок'}
+            </span>
         </div>
     );
 }

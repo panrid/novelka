@@ -193,6 +193,7 @@
 
 .sticky {
     position: sticky;
+    background: var(--bg);
     bottom: calc(var(--tabbar-height) + var(--safe-bottom));
     z-index: 5;
 }

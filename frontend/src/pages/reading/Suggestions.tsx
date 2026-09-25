@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { diffWords } from 'diff';
 import { useEffect, useState } from 'react';
-import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import type { ReaderChapter, Span, TextBlock } from '../../reading/api';
 import { suggestionApi, type MineItem, type ReviewItem } from '../../reading/suggestions';
 import { TextEditor } from '../../studio/TextEditor';
 import type { StudioBlock } from '../../studio/api';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
+import { Sheet } from '../../ui/Sheet';
 import { TextInput } from '../../ui/TextInput';
 import styles from './suggestions.module.css';
 
@@ -59,19 +59,6 @@ export function SelectionBar({ onEdit, onReplace }: { onEdit: (blockId: string) 
             <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onEdit(selection.blockId)}>✎ Виправити абзац</button>
             <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onReplace(selection.text)}>⇄ Замінити в главі</button>
         </div>
-    );
-}
-
-function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
-    return (
-        <ModalOverlay className={styles.overlay} isOpen={open} onOpenChange={(value) => !value && onClose()} isDismissable>
-            <Modal className={styles.modal}>
-                <Dialog className={styles.sheet}>
-                    <Heading slot="title" className={styles.sheetTitle}>{title}</Heading>
-                    {children}
-                </Dialog>
-            </Modal>
-        </ModalOverlay>
     );
 }
 

@@ -218,3 +218,25 @@
     border-radius: var(--radius);
     background: var(--surface);
 }
+
+.stars {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.star,
+.starOn {
+    padding: 0 1px;
+    border: 0;
+    background: none;
+    color: var(--line);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.starOn {
+    color: #e0b84c;
+}

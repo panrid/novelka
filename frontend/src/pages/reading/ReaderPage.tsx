@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
-import { ArrowLeft, ChevronLeft, ChevronRight, List, Type } from 'lucide-react';
+import { Link, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
+import { ArrowLeft, ChevronLeft, ChevronRight, List, MessageCircle, Type } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Dialog, DialogTrigger, Button as AriaButton, Popover } from 'react-aria-components';
 import { useMe } from '../../auth/me';
+import { Discussion, useCommentCount } from '../../community/Discussion';
 import { Blocks } from '../../reading/Blocks';
 import { chapterHeading, readingApi, type ReaderChapter } from '../../reading/api';
 import { localProgress, saveLocalProgress } from '../../reading/progress';
@@ -11,6 +12,7 @@ import { chapterQuery } from '../../reading/queries';
 import { useReaderSize, useTheme, type Theme } from '../../reading/theme';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
+import { Sheet } from '../../ui/Sheet';
 import { EditSheet, ReplaceSheet, ReviewCard, SelectionBar, useMySuggestions, useReview } from './Suggestions';
 import suggestionStyles from './suggestions.module.css';
 import { Segmented } from '../../ui/Segmented';
@@ -151,6 +153,11 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
     const [replacing, setReplacing] = useState<string | null>(null);
     const [reviewing, setReviewing] = useState(false);
     const editingBlock = chapter.blocks.find((block) => block.id === editing);
+    // A link to a comment (#c40 from the inbox) opens the discussion at it.
+    const hash = useRouterState({ select: (state) => state.location.hash });
+    const focus = /^c(\d+)$/.exec(hash)?.[1];
+    const [talking, setTalking] = useState(Boolean(focus));
+    const comments = useCommentCount(chapter.edition.editionId, chapter.number);
 
     /** A tap on the text toggles the controls; in «режим правок» it opens the paragraph instead. */
     function toggleBars(event: MouseEvent) {
@@ -244,6 +251,9 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
                 <EditSheet chapter={chapter} block={editingBlock} onClose={() => setEditing(null)} onSaved={mine.refresh}
                     existing={mine.items.find((item) => item.kind === 'block' && item.blockId === editingBlock.id && item.state === 'draft')} />
             )}
+            <Sheet open={talking} onClose={() => setTalking(false)} title="Обговорення глави" tall>
+                <Discussion editionId={chapter.edition.editionId} chapter={chapter.number} focus={focus ? Number(focus) : undefined} />
+            </Sheet>
             {replacing !== null && <ReplaceSheet chapter={chapter} find={replacing} onClose={() => setReplacing(null)} onSaved={mine.refresh} />}
 
             {reviewing ? (
@@ -268,6 +278,10 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
                     {chapter.next ? (
                         <Link {...chapterLink(chapter.next)} className={`${styles.navButton} ${styles.primary}`}>{chapter.next} <ChevronRight size={18} aria-hidden /></Link>
                     ) : <span className={`${styles.navButton} ${styles.disabled}`} aria-hidden><ChevronRight size={18} /></span>}
+                    <button type="button" className={styles.navButton} aria-label={`Обговорення глави, коментарів: ${comments}`}
+                        onClick={() => setTalking(true)}>
+                        <MessageCircle size={18} aria-hidden />{comments > 0 ? ` ${comments}` : ''}
+                    </button>
                     {me && (
                         <button type="button" className={`${styles.navButton} ${editMode ? styles.primary : ''}`} aria-pressed={editMode}
                             aria-label="Режим правок" onClick={() => setEditMode(!editMode)}>
