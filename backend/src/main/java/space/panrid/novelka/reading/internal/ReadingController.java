@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import space.panrid.novelka.account.CurrentUser;
 import space.panrid.novelka.account.Viewer;
+import space.panrid.novelka.catalog.Relay;
+import space.panrid.novelka.catalog.RelayState;
 import space.panrid.novelka.platform.web.UserFacingException;
 import space.panrid.novelka.reading.internal.ReadingQueries.EditionRow;
 import space.panrid.novelka.reading.internal.ReadingQueries.NovelRow;
@@ -36,11 +38,13 @@ class ReadingController {
     private final ReadingQueries queries;
     private final LibraryService library;
     private final CurrentUser currentUser;
+    private final Relay relay;
 
-    ReadingController(ReadingQueries queries, LibraryService library, CurrentUser currentUser) {
+    ReadingController(ReadingQueries queries, LibraryService library, CurrentUser currentUser, Relay relay) {
         this.queries = queries;
         this.library = library;
         this.currentUser = currentUser;
+        this.relay = relay;
     }
 
     @GetMapping("/home")
@@ -82,7 +86,7 @@ class ReadingController {
                 novel.author(), origin(novel.source()),
                 queries.readerBlocks(edition.description() != null ? edition.description() : novel.description()),
                 queries.allTags(novel.id()), chosen, summaries, edition.adult(), edition.lastPublishedAt(),
-                viewer.map(v -> queries.viewer(v.accountId(), edition.id())).orElse(null));
+                viewer.map(v -> queries.viewer(v.accountId(), edition.id())).orElse(null), relay(edition.id()));
     }
 
     @GetMapping("/novels/{slug}/chapters")
@@ -102,6 +106,7 @@ class ReadingController {
         EditionRow edition = pick(editions, t);
         ReadingQueries.ChapterText text = queries.chapter(edition.id(), number)
                 .orElseThrow(() -> UserFacingException.notFound("Такої глави немає."));
+        Integer next = queries.neighbour(edition.id(), number, true);
         Float saved = viewer.map(v -> queries.viewer(v.accountId(), edition.id()))
                 .filter(state -> state.chapterNumber() != null && state.chapterNumber() == number)
                 .map(Views.ViewerState::position)
@@ -109,7 +114,8 @@ class ReadingController {
         return new Views.ReaderChapter(novel.slug(), edition.title() != null ? edition.title() : novel.title(),
                 queries.summaries(List.of(edition)).getFirst(), text.number(), text.title(),
                 queries.readerBlocks(text.blocks()),
-                queries.neighbour(edition.id(), number, false), queries.neighbour(edition.id(), number, true), saved);
+                queries.neighbour(edition.id(), number, false), next, saved,
+                next == null ? relay(edition.id()).continuations().stream().findFirst().orElse(null) : null);
     }
 
     @PutMapping("/progress/{editionId}")
@@ -131,6 +137,12 @@ class ReadingController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void setList(@PathVariable long editionId, @RequestBody ListRequest body) {
         library.setList(currentUser.requireSignedIn(), editionId, body.list());
+    }
+
+    private Views.Relay relay(long editionId) {
+        RelayState state = relay.state(editionId);
+        return new Views.Relay(state.free(), state.reason(), state.lastNumber(), state.continuations().stream()
+                .map(c -> new Views.Continuation(c.teamHandle(), c.teamName(), c.firstNumber())).toList());
     }
 
     /**

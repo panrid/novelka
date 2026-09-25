@@ -41,7 +41,14 @@ final class Views {
 
     record NovelPage(String slug, String title, String author, String origin, List<ReaderBlock> description,
             List<String> tags, EditionSummary edition, List<EditionSummary> editions, boolean adult,
-            OffsetDateTime lastPublishedAt, ViewerState viewer) {
+            OffsetDateTime lastPublishedAt, ViewerState viewer, Relay relay) {
+    }
+
+    /** «Естафета» on the novel page: free to continue and who continues already. */
+    record Relay(boolean free, String reason, int lastNumber, List<Continuation> continuations) {
+    }
+
+    record Continuation(String teamHandle, String teamName, int firstNumber) {
     }
 
     record ChapterRow(int number, String title, OffsetDateTime publishedAt) {
@@ -52,7 +59,7 @@ final class Views {
 
     /** {@code savedPosition}: where the signed-in reader stopped in this very chapter, 0..1. */
     record ReaderChapter(String novelSlug, String novelTitle, EditionSummary edition, int number, String title,
-            List<ReaderBlock> blocks, Integer previous, Integer next, Float savedPosition) {
+            List<ReaderBlock> blocks, Integer previous, Integer next, Float savedPosition, Continuation continuation) {
     }
 
     record LibraryPage(List<LibraryItem> items, java.util.Map<String, Integer> counts) {
