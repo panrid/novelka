@@ -9,6 +9,7 @@ import { Avatar } from '../../ui/Avatar';
 import { Notice } from '../../ui/Notice';
 import { members } from '../../lib/plural';
 import styles from './inbox.module.css';
+import { askText } from '../../ui/ask';
 
 export function ConversationPage() {
     const { id } = useParams({ strict: false }) as { id: string };
@@ -112,10 +113,9 @@ function Bubble({ line, showAuthor, onReply, onChanged }: { line: MessageLine; s
                         {line.mine ? (
                             <button type="button" onClick={() => void messagingApi.remove(line.id).then(onChanged, (e: Error) => setError(e.message))}>Видалити</button>
                         ) : (
-                            <button type="button" onClick={() => {
-                                const reason = window.prompt('Що не так із цим повідомленням?');
+                            <button type="button" onClick={() => void askText({ title: 'Поскаржитися на повідомлення', label: 'Що не так?', hint: 'Причину побачать лише модератори.', confirmLabel: 'Надіслати скаргу' }).then((reason) => {
                                 if (reason) void messagingApi.report('message', line.id, reason).then(() => setError('Скаргу надіслано.'), (e: Error) => setError(e.message));
-                            }}>Поскаржитися</button>
+                            })}>Поскаржитися</button>
                         )}
                     </div>
                 )}

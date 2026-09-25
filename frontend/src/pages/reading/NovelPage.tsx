@@ -20,6 +20,7 @@ import { Button } from '../../ui/Button';
 import { LinkButton } from '../../ui/LinkButton';
 import { Notice } from '../../ui/Notice';
 import styles from './novel.module.css';
+import { askText } from '../../ui/ask';
 
 export function NovelPage() {
     const { slug } = useParams({ strict: false }) as { slug: string };
@@ -188,10 +189,10 @@ function RelayOffer({ novel }: { novel: Novel }) {
             {asked ? <p className={styles.muted}>Запит надіслано. Власник отримав лист.</p> : (
                 <>
                     {ask.isError && <Notice tone="error">{ask.error.message}</Notice>}
-                    <button type="button" className={styles.more} onClick={() => {
-                        const message = window.prompt('Кілька слів власнику перекладу (необовʼязково):', '');
-                        if (message !== null) ask.mutate(message);
-                    }}>Хочу продовжити цей переклад</button>
+                    <button type="button" className={styles.more} onClick={() => void askText({
+                        title: 'Продовжити переклад', label: 'Кілька слів власнику', hint: 'Необовʼязково.', optional: true, multiline: true,
+                        confirmLabel: 'Надіслати запит',
+                    }).then((message) => { if (message !== null) ask.mutate(message); })}>Хочу продовжити цей переклад</button>
                 </>
             )}
         </div>
@@ -332,10 +333,9 @@ function HideEdition({ editionId }: { editionId: number }) {
     if (me?.role !== 'admin' && me?.role !== 'owner') return null;
     return (
         <div style={{ marginTop: 24 }}>
-            <Button variant="danger" onPress={() => {
-                const reason = window.prompt('Чому приховати цей переклад? Причину побачать інші модератори.');
-                if (reason) hide.mutate(reason);
-            }}>Приховати переклад</Button>
+            <Button variant="danger" onPress={() => void askText({
+                title: 'Приховати переклад', label: 'Причина', hint: 'Її побачать інші модератори.', confirmLabel: 'Приховати', danger: true,
+            }).then((reason) => { if (reason) hide.mutate(reason); })}>Приховати переклад</Button>
             {hide.isError && <Notice tone="error">{hide.error.message}</Notice>}
         </div>
     );

@@ -234,3 +234,21 @@ textarea.input {
     opacity: 0.4;
     cursor: default;
 }
+
+.askForm {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.askText {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.askActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}

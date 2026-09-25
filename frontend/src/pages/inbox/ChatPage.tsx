@@ -9,6 +9,7 @@ import { Avatar } from '../../ui/Avatar';
 import { Notice } from '../../ui/Notice';
 import { InboxNav } from './InboxNav';
 import styles from './inbox.module.css';
+import { askText } from '../../ui/ask';
 
 const MODERATORS = new Set(['moderator', 'admin', 'owner']);
 
@@ -60,10 +61,9 @@ export function ChatPage() {
                                         </button>
                                     )}
                                     {!line.mine && (
-                                        <button type="button" onClick={() => {
-                                            const reason = window.prompt('Що не так із цим повідомленням?');
+                                        <button type="button" onClick={() => void askText({ title: 'Поскаржитися на повідомлення', label: 'Що не так?', hint: 'Причину побачать лише модератори.', confirmLabel: 'Надіслати скаргу' }).then((reason) => {
                                             if (reason) void messagingApi.report('chat', line.id, reason).then(() => setNotice('Скаргу надіслано.'), (e: Error) => setNotice(e.message));
-                                        }}>Поскаржитися</button>
+                                        })}>Поскаржитися</button>
                                     )}
                                 </div>
                             )}

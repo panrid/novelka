@@ -4,6 +4,7 @@ import { useMe } from '../auth/me';
 import { useInboxCounts, useLiveEvents } from '../inbox/live';
 import { Avatar } from '../ui/Avatar';
 import styles from './Shell.module.css';
+import { AskHost } from '../ui/ask';
 
 type Tab = { to: '/' | '/catalog' | '/library' | '/studio' | '/inbox' | '/me'; label: string; icon: LucideIcon };
 
@@ -42,6 +43,7 @@ export function Shell() {
                 <Outlet />
             </main>
             {!reading && <Tabs className={styles.bottomTabs} />}
+            <AskHost />
         </div>
     );
 }

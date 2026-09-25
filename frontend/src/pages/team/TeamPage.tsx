@@ -10,6 +10,7 @@ import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
 import styles from '../studio/studio.module.css';
+import { askConfirm } from '../../ui/ask';
 
 export function TeamPage() {
     const { handle } = useParams({ strict: false }) as { handle: string };
@@ -69,7 +70,8 @@ function MemberControls({ team, nick, role }: { team: string; nick: string; role
                 <option value="translator">перекладач</option>
                 <option value="editor">редактор</option>
             </select>
-            <Button variant="quiet" aria-label={`Прибрати ${nick}`} onPress={() => { if (window.confirm(`Прибрати ${nick} з команди?`)) remove.mutate(); }}>✕</Button>
+            <Button variant="quiet" aria-label={`Прибрати ${nick}`} onPress={() => void askConfirm({ title: `Прибрати ${nick} з команди?`, confirmLabel: 'Прибрати', danger: true })
+                .then((yes) => { if (yes) remove.mutate(); })}>✕</Button>
         </span>
     );
 }
@@ -118,7 +120,8 @@ function LeaveTeam({ team }: { team: Team }) {
     const leave = useMutation({ mutationFn: () => teamApi.remove(team.handle, me!.nick), onSuccess: refresh });
     return (
         <div className={styles.actions}>
-            <Button variant="danger" onPress={() => { if (window.confirm('Вийти з команди?')) leave.mutate(); }}>Вийти з команди</Button>
+            <Button variant="danger" onPress={() => void askConfirm({ title: 'Вийти з команди?', confirmLabel: 'Вийти', danger: true })
+                .then((yes) => { if (yes) leave.mutate(); })}>Вийти з команди</Button>
         </div>
     );
 }

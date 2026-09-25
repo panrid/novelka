@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { ROLE_LABELS, TARGET_LABELS, adminApi, type AuditEntry, type Person, type Preview, type SiteSettingsView, type Target } from '../../admin/api';
 import { useMe } from '../../auth/me';
+import { Markup } from '../../community/Markup';
 import { relativeTime } from '../../lib/dates';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
@@ -10,6 +11,7 @@ import { Segmented } from '../../ui/Segmented';
 import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
 import styles from './admin.module.css';
+import { askText } from '../../ui/ask';
 
 const RANK = { reader: 0, moderator: 1, admin: 2, owner: 3 } as const;
 
@@ -59,7 +61,7 @@ function PreviewBox({ target, preview }: { target: Target; preview: Preview }) {
                         search={preview.team ? { t: preview.team } : {}}>{preview.where}</Link>
                     : preview.where}</>}
             </div>
-            {preview.text && target !== 'edition' && <div className={styles.quote}>{preview.text}</div>}
+            {preview.text && target !== 'edition' && <div className={styles.quote}><Markup text={preview.text} /></div>}
             {preview.imageUrl && <img className={styles.picture} src={preview.imageUrl} alt="Картинка, на яку поскаржились" />}
         </>
     );
@@ -88,8 +90,12 @@ export function ModerationPage() {
                         Скарг: {item.reports} · перша {relativeTime(new Date(item.firstAt))} · «{item.reasons.join('», «')}»
                     </div>
                     <div className={styles.actions}>
-                        <Button onPress={() => act.mutate(() => adminApi.decide(item.target, item.targetId, 'hide',
-                            window.prompt('Чому приховано? (побачать інші модератори)') ?? undefined))}>Приховати</Button>
+                        <Button onPress={() => void askText({
+                            title: 'Приховати', label: 'Причина', hint: 'Необовʼязково. Її побачать інші модератори.', optional: true,
+                            confirmLabel: 'Приховати', danger: true,
+                        }).then((reason) => {
+                            if (reason !== null) act.mutate(() => adminApi.decide(item.target, item.targetId, 'hide', reason || undefined));
+                        })}>Приховати</Button>
                         <Button variant="secondary" onPress={() => act.mutate(() => adminApi.decide(item.target, item.targetId, 'dismiss'))}>
                             Відхилити скаргу
                         </Button>

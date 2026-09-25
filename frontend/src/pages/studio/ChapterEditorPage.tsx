@@ -11,6 +11,7 @@ import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { relativeTime } from '../../lib/dates';
 import styles from './editor.module.css';
+import { askConfirm } from '../../ui/ask';
 
 const AUTOSAVE_MS = 1500;
 
@@ -119,12 +120,11 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                         className={styles.icon} aria-label="Історія змін"><History size={20} aria-hidden /></Link>
                 )}
                 {view.mayAddPictures && (
-                    <button type="button" className={styles.icon} aria-label="Видалити главу" onClick={() => {
-                        const question = live
-                            ? 'Видалити опубліковану главу? Читачі більше її не побачать. Можна лише останню главу.'
-                            : 'Видалити цю главу? Вона ще не опублікована.';
-                        if (window.confirm(question)) removeChapter.mutate();
-                    }}><Trash2 size={20} aria-hidden /></button>
+                    <button type="button" className={styles.icon} aria-label="Видалити главу" onClick={() => void askConfirm({
+                        title: 'Видалити главу?',
+                        text: live ? 'Читачі більше її не побачать. Видалити можна лише останню опубліковану главу.' : 'Вона ще не опублікована.',
+                        confirmLabel: 'Видалити', danger: true,
+                    }).then((yes) => { if (yes) removeChapter.mutate(); })}><Trash2 size={20} aria-hidden /></button>
                 )}
                 <Button onPress={() => publish.mutate()} pending={publish.isPending} pendingLabel="Публікуємо…" isDisabled={!unpublished || blocks.length === 0 || !title.trim()}>
                     Опублікувати

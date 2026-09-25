@@ -11,6 +11,9 @@ import { commentApi, type Comment } from './api';
 import { Composer, type ReplyTarget } from './Composer';
 import { Markup } from './Markup';
 import styles from './discussion.module.css';
+import { askText } from '../ui/ask';
+
+const REPORT = { title: 'Поскаржитися на коментар', label: 'Що не так?', hint: 'Причину побачать лише модератори.', confirmLabel: 'Надіслати скаргу' };
 
 const MODERATORS = new Set(['moderator', 'admin', 'owner']);
 
@@ -118,10 +121,9 @@ function Item({ comment, onReply, onChanged, focus: focused, me }: {
                         <button type="button" onClick={() => act(commentApi.remove(comment.id))}>{comment.mine ? 'Видалити' : 'Приховати'}</button>
                     )}
                     {me && !comment.mine && (
-                        <button type="button" onClick={() => {
-                            const reason = window.prompt('Що не так із цим коментарем?');
+                        <button type="button" onClick={() => void askText(REPORT).then((reason) => {
                             if (reason) void messagingApi.report('comment', comment.id, reason).then(() => setNote('Скаргу надіслано.'), (e: Error) => setNote(e.message));
-                        }}>Поскаржитися</button>
+                        })}>Поскаржитися</button>
                     )}
                 </div>
                 {note && <div className={styles.muted}>{note}</div>}

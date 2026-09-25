@@ -13,6 +13,7 @@ import { Notice } from '../../ui/Notice';
 import { relativeTime } from '../../lib/dates';
 import { changes, characters, paragraphs } from '../../lib/plural';
 import styles from './studio.module.css';
+import { askConfirm } from '../../ui/ask';
 
 export function useEditionId() {
     const { editionId } = useParams({ strict: false }) as { editionId: string };
@@ -108,7 +109,8 @@ export function EditionPage() {
                     {chapter.hasMyDraft && <span className={`${styles.badge} ${styles.badgeOn}`}>чернетка</span>}
                     {translator && !chapter.published && (
                         <button type="button" className={styles.iconButton} aria-label={`Видалити главу ${chapter.number}`}
-                            onClick={() => { if (window.confirm('Видалити цю неопубліковану главу?')) remove.mutate(chapter.number); }}>
+                            onClick={() => void askConfirm({ title: 'Видалити главу?', text: 'Вона ще не опублікована.', confirmLabel: 'Видалити', danger: true })
+                                .then((yes) => { if (yes) remove.mutate(chapter.number); })}>
                             <Trash2 size={18} aria-hidden />
                         </button>
                     )}

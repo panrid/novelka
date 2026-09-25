@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderAt } from '../../test/render';
@@ -9,24 +9,29 @@ const person = (role: string) => ({
 });
 const REPORT = {
     target: 'comment', targetId: 40, reports: 2, reasons: ['образи', 'спам'], firstAt: new Date().toISOString(),
-    preview: { author: 'lysytsia', text: 'Грубий коментар', imageUrl: null, where: 'Маг води, глава 3', slug: 'mah-vody', chapter: 3, team: 'panrid', hidden: false },
+    preview: { author: 'lysytsia', text: 'Грубий **коментар**', imageUrl: null, where: 'Маг води, глава 3', slug: 'mah-vody', chapter: 3, team: 'panrid', hidden: false },
 };
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('administration', () => {
     it('a moderator hides a reported comment with a reason', async () => {
-        vi.spyOn(window, 'prompt').mockReturnValue('образи');
         const { calls } = await renderAt('/admin/moderation', {
             'GET /api/me': { body: person('moderator') },
             'GET /api/admin/reports': { body: [REPORT] },
             'POST /api/admin/reports/comment/40': { status: 200 },
         });
-        const item = (await screen.findByText('Грубий коментар')).closest('article')!;
+        const bold = await screen.findByText('коментар');
+        expect(bold.tagName).toMatch(/^(B|STRONG)$/);
+        const item = bold.closest('article')!;
         expect(within(item).getByText(/Скарг: 2/)).toHaveTextContent('«образи», «спам»');
         expect(within(item).getByRole('link', { name: 'Маг води, глава 3' })).toHaveAttribute('href', '/n/mah-vody/3?t=panrid');
         await userEvent.click(within(item).getByRole('button', { name: 'Приховати' }));
-        expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ action: 'hide', reason: 'образи' });
+        const dialog = await screen.findByRole('dialog', { name: 'Приховати' });
+        await userEvent.type(within(dialog).getByLabelText('Причина'), 'образи');
+        await userEvent.click(within(dialog).getByRole('button', { name: 'Приховати' }));
+        await waitFor(() => expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ action: 'hide', reason: 'образи' }));
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
     it('an administrator gives roles up to moderator, and the owner up to administrator', async () => {
