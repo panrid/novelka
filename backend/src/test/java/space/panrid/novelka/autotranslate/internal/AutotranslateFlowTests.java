@@ -284,6 +284,10 @@ class AutotranslateFlowTests {
         assertThat(quote.path("proofreadModel").path("enabled").asBoolean()).isFalse();
         assertThat(owner.browser().post(base + "/autotranslate/quote", """
                 {"to":2,"from":1,"redo":true,"models":{"translate":"nobody/none"}}""").status()).isEqualTo(400);
+        assertThat(owner.browser().post(base + "/autotranslate/quote", """
+                {"to":2,"from":1,"redo":true,"models":{"translate":"fake/plain"}}""").status())
+                .as("a model without structured answers is refused before it costs anything").isEqualTo(400);
+        assertThat(read(owner.browser().get("/api/studio/autotranslate/models?q=plain"))).as("and not offered").isEmpty();
 
         model.reset();
         assertThat(owner.browser().post(base + "/autotranslate/jobs", plan).status()).isEqualTo(201);
@@ -291,6 +295,8 @@ class AutotranslateFlowTests {
         assertThat(model.calls).as("new answers from the new model, analysis kept").containsExactly("translation", "translation");
         assertThat(db.select(AI_CALL.MODEL).from(AI_CALL).where(AI_CALL.JOB_ID.eq(jobId(edition)), AI_CALL.STAGE.eq("translate"))
                 .fetch(AI_CALL.MODEL)).containsOnly("fake/better");
+        assertThat(model.requests).as("a model that takes no temperature does not get one")
+                .allSatisfy(request -> assertThat(request.has("temperature")).isFalse());
         assertThat(read(new Browser(port).get("/api/novels/" + slug + "/chapters/1")).path("blocks").toString())
                 .as("no proofreading this time").doesNotContain("✓");
 

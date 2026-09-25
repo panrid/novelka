@@ -259,6 +259,9 @@ class Jobs {
         if (!found.outputs().contains("text")) {
             throw UserFacingException.badRequest("Модель «%s» не пише текст.".formatted(id));
         }
+        if (!found.accepts("structured_outputs")) {
+            throw UserFacingException.badRequest("Модель «%s» не вміє відповідати в потрібному форматі. Оберіть іншу.".formatted(id));
+        }
         return new Settings.Stage(found.id(), found.inputPerMillion(), found.outputPerMillion(), base.enabled());
     }
 

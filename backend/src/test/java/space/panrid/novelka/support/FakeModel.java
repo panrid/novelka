@@ -24,6 +24,8 @@ public class FakeModel implements AiTransport {
     private final Deque<Trouble> troubles = new ConcurrentLinkedDeque<>();
     /** Schema name of every request that reached the «provider». */
     public final List<String> calls = new CopyOnWriteArrayList<>();
+    /** The requests as sent, to check what parameters each model got. */
+    public final List<JsonNode> requests = new CopyOnWriteArrayList<>();
     /** How many blocks each translation request carried. */
     public final List<Integer> translatedBlocks = new CopyOnWriteArrayList<>();
 
@@ -34,6 +36,7 @@ public class FakeModel implements AiTransport {
     public void reset() {
         troubles.clear();
         calls.clear();
+        requests.clear();
         translatedBlocks.clear();
     }
 
@@ -54,9 +57,14 @@ public class FakeModel implements AiTransport {
         return new Reply(200, """
                 {"data":[
                  {"id":"openai/gpt-4.1-mini","name":"GPT-4.1 Mini","pricing":{"prompt":"0.0000004","completion":"0.0000016"},
-                  "context_length":1000000,"architecture":{"output_modalities":["text"]}},
+                  "context_length":1000000,"architecture":{"output_modalities":["text"]},
+                  "supported_parameters":["max_tokens","response_format","structured_outputs","temperature"]},
                  {"id":"fake/better","name":"Better Translator","pricing":{"prompt":"0.000002","completion":"0.000008"},
-                  "context_length":200000,"architecture":{"output_modalities":["text"]}},
+                  "context_length":200000,"architecture":{"output_modalities":["text"]},
+                  "supported_parameters":["max_tokens","response_format","structured_outputs"]},
+                 {"id":"fake/plain","name":"Plain Talker","pricing":{"prompt":"0.000001","completion":"0.000001"},
+                  "context_length":8000,"architecture":{"output_modalities":["text"]},
+                  "supported_parameters":["max_tokens","temperature"]},
                  {"id":"fake/painter","name":"Painter","pricing":{"prompt":"0","completion":"0"},
                   "context_length":0,"architecture":{"output_modalities":["image"]}}%s]}""".formatted(EXTRA));
     }
@@ -72,6 +80,7 @@ public class FakeModel implements AiTransport {
         String schema = request.path("response_format").path("json_schema").path("name").asString("");
         String user = request.path("messages").path(1).path("content").asString();
         calls.add(schema);
+        requests.add(request);
         Trouble trouble = troubles.poll();
         if (trouble == Trouble.RATE_LIMIT) {
             return new Reply(429, "{\"error\":{\"message\":\"rate limited\"}}");

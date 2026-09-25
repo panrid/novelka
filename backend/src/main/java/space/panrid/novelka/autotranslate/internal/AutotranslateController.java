@@ -153,6 +153,8 @@ class AutotranslateController {
         int at = stage == null ? -1 : STAGES.indexOf(stage);
         return ai.models().stream()
                 .filter(model -> model.outputs().contains(output))
+                // Analysis and translation need answers in a fixed JSON shape; without it a model cannot work here.
+                .filter(model -> !output.equals("text") || model.accepts("structured_outputs"))
                 .filter(model -> {
                     String haystack = (model.id() + " " + model.name()).toLowerCase(java.util.Locale.ROOT);
                     return words.stream().allMatch(haystack::contains);

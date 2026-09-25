@@ -130,6 +130,10 @@ class AiService implements Ai {
             finish(id, "failed", reply.body(), 0L, "HTTP " + status);
             throw new AiException(Kind.FAILED, "OpenRouter не приймає ключ.");
         }
+        if (status == 404 && reply.body() != null && reply.body().contains("No endpoints found")) {
+            finish(id, "failed", reply.body(), 0L, "HTTP 404");
+            throw new AiException(Kind.FAILED, "Ця модель не підтримує потрібних параметрів запиту (структуровану відповідь). Оберіть іншу модель.");
+        }
         if (status != 200) {
             finish(id, status >= 500 ? "uncertain" : "failed", reply.body(), status >= 500 ? null : 0L, "HTTP " + status);
             throw new AiException(status >= 500 ? Kind.UNCERTAIN : Kind.FAILED,
@@ -281,7 +285,12 @@ class AiService implements Ai {
                 Map.of("role", "system", "content", request.system()),
                 Map.of("role", "user", "content", request.user())));
         body.put("max_tokens", request.maxTokens());
-        body.put("temperature", 0.3);
+        // Some models take no temperature; with require_parameters OpenRouter would find no endpoint for them.
+        boolean temperature = models().stream().filter(model -> model.id().equals(request.model())).findFirst()
+                .map(model -> model.accepts("temperature")).orElse(true);
+        if (temperature) {
+            body.put("temperature", 0.3);
+        }
         body.put("usage", Map.of("include", true));
         if (request.schema() != null) {
             body.put("response_format", Map.of("type", "json_schema", "json_schema",
@@ -324,9 +333,12 @@ class AiService implements Ai {
                     JsonNode pricing = model.path("pricing");
                     List<String> outputs = new java.util.ArrayList<>();
                     model.path("architecture").path("output_modalities").forEach(kind -> outputs.add(kind.asString()));
+                    List<String> parameters = new java.util.ArrayList<>();
+                    model.path("supported_parameters").forEach(parameter -> parameters.add(parameter.asString()));
                     fresh.add(new AiModel(model.path("id").asString(), model.path("name").asString(""),
                             perMillion(pricing.path("prompt")), perMillion(pricing.path("completion")),
-                            model.path("context_length").asInt(0), outputs.isEmpty() ? List.of("text") : List.copyOf(outputs)));
+                            model.path("context_length").asInt(0), outputs.isEmpty() ? List.of("text") : List.copyOf(outputs),
+                            List.copyOf(parameters)));
                 }
                 fresh.sort(java.util.Comparator.comparing(AiModel::id));
                 models = List.copyOf(fresh);
