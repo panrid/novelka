@@ -17,7 +17,8 @@ final class Views {
             OffsetDateTime lastPublishedAt) {
     }
 
-    record ContinueItem(Card card, int chapterNumber, float position) {
+    /** {@code chapterLabel}: the number readers see (see ChapterLabels); null shows the position. */
+    record ContinueItem(Card card, int chapterNumber, float position, String chapterLabel) {
     }
 
     /** @param firstLabel the number readers see for {@code firstNumber} (null: the position), likewise {@code lastLabel} */
@@ -74,6 +75,6 @@ final class Views {
     record LibraryPage(List<LibraryItem> items, java.util.Map<String, Integer> counts) {
     }
 
-    record LibraryItem(Card card, String list, Integer chapterNumber) {
+    record LibraryItem(Card card, String list, Integer chapterNumber, String chapterLabel) {
     }
 }

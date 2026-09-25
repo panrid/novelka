@@ -26,14 +26,14 @@ export function HomePage() {
     return (
         <section className={styles.page}>
             <h1 className="visually-hidden">Що почитати</h1>
-            {continueReading.map(({ card, chapterNumber, position }) => (
+            {continueReading.map(({ card, chapterNumber, position, chapterLabel }) => (
                 <Link key={card.editionId} className={styles.continue} to="/n/$slug/$number"
                     params={{ slug: card.novelSlug, number: String(chapterNumber) }} search={teamSearch(card)}>
                     <Cover url={card.coverUrl} title={card.title} seed={card.novelSlug} width={44} />
                     <div className={styles.grow}>
                         <div className={styles.small}>Продовжити</div>
                         <div className={styles.ellipsis} style={{ fontWeight: 500 }}>{card.title}</div>
-                        <div className={styles.small}>Глава {chapterNumber} з {card.chapterCount}</div>
+                        <div className={styles.small}>Глава {chapterLabel || chapterNumber} · {chapterNumber} з {card.chapterCount}</div>
                         <div className={styles.bar}><span style={{ width: `${Math.round(position * 100)}%` }} /></div>
                     </div>
                 </Link>

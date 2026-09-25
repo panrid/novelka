@@ -6,7 +6,7 @@ import { Dialog, DialogTrigger, Button as AriaButton, Popover } from 'react-aria
 import { useMe } from '../../auth/me';
 import { Discussion, useCommentCount } from '../../community/Discussion';
 import { Blocks } from '../../reading/Blocks';
-import { chapterHeading, readingApi, type ReaderChapter } from '../../reading/api';
+import { chapterHeading, readingApi, type NovelPage, type ReaderChapter } from '../../reading/api';
 import { localProgress, saveLocalProgress } from '../../reading/progress';
 import { chapterQuery } from '../../reading/queries';
 import { useReaderSize, useTheme, type Theme } from '../../reading/theme';
@@ -93,7 +93,17 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
             // «Назад» into this chapter should restore the fresh place, not the one it was opened with.
             client.setQueryData<ReaderChapter>(['chapter', opened.novelSlug, team ?? '', opened.number],
                 (cached) => (cached ? { ...cached, savedPosition: position } : cached));
-            void readingApi.saveProgress(opened.edition.editionId, opened.number, position).catch(() => {
+            // The novel page shows «Продовжити · гл. N» at once, even if its request beats this save.
+            client.setQueriesData<NovelPage>({ queryKey: ['novel', opened.novelSlug] }, (cached) =>
+                cached?.viewer && cached.edition.editionId === opened.edition.editionId
+                    ? { ...cached, viewer: { ...cached.viewer, chapterNumber: opened.number, position, chapterLabel: opened.label ?? null } }
+                    : cached);
+            void readingApi.saveProgress(opened.edition.editionId, opened.number, position).then(() => {
+                // Pages opened meanwhile may have read the place before it was saved.
+                for (const key of [['novel', opened.novelSlug], ['home'], ['library']]) {
+                    void client.invalidateQueries({ queryKey: key });
+                }
+            }, () => {
                 // Offline or signed out elsewhere: the local copy keeps the place meanwhile.
             });
         }

@@ -37,14 +37,14 @@ describe('home', () => {
     it('offers continue, popular and new chapters right away', async () => {
         await renderAt('/', {
             'GET /api/home': { body: {
-                continueReading: [{ card: CARD, chapterNumber: 12, position: 0.6 }],
+                continueReading: [{ card: CARD, chapterNumber: 12, position: 0.6, chapterLabel: '11' }],
                 popular: [CARD],
                 newChapters: [{ card: CARD, firstNumber: 41, lastNumber: 44, publishedAt: new Date(Date.now() - 5 * 3600_000).toISOString() }],
             } },
         });
 
         expect(await screen.findByText('Продовжити')).toBeInTheDocument();
-        expect(screen.getByText('Глава 12 з 44')).toBeInTheDocument();
+        expect(screen.getByText('Глава 11 · 12 з 44')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Популярне/ })).toBeInTheDocument();
         expect(screen.getByText(/Глави 41–44 · 5 годин тому/)).toBeInTheDocument();
     });

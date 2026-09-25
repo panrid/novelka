@@ -29,7 +29,7 @@ export type TextBlock = {
 };
 
 export type Home = {
-    continueReading: { card: Card; chapterNumber: number; position: number }[];
+    continueReading: { card: Card; chapterNumber: number; position: number; chapterLabel: string | null }[];
     popular: Card[];
     newChapters: { card: Card; firstNumber: number; lastNumber: number; publishedAt: string; firstLabel?: string | null; lastLabel?: string | null }[];
 };
@@ -123,7 +123,7 @@ export const readingApi = {
     saveProgress: (editionId: number, chapterNumber: number, position: number) =>
         api<void>(`/api/progress/${editionId}`, { method: 'PUT', body: JSON.stringify({ chapterNumber, position }) }),
     library: (list: ListName) =>
-        api<{ items: { card: Card; list: ListName; chapterNumber: number | null }[]; counts: Record<ListName, number> }>(
+        api<{ items: { card: Card; list: ListName; chapterNumber: number | null; chapterLabel: string | null }[]; counts: Record<ListName, number> }>(
             `/api/library?list=${list}`),
     setList: (editionId: number, list: ListName | null) =>
         api<void>(`/api/library/${editionId}`, { method: 'PUT', body: JSON.stringify({ list }) }),

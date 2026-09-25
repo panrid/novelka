@@ -198,8 +198,9 @@ class ReadingQueries {
     }
 
     List<Views.ContinueItem> continueReading(long accountId, boolean adult, int limit) {
-        List<Record> rows = cards(READING_PROGRESS.CHAPTER_NUMBER, READING_PROGRESS.POSITION)
+        List<Record> rows = cards(READING_PROGRESS.CHAPTER_NUMBER, READING_PROGRESS.POSITION, CHAPTER.LABEL)
                 .join(READING_PROGRESS).on(READING_PROGRESS.EDITION_ID.eq(EDITION.ID))
+                .leftJoin(CHAPTER).on(CHAPTER.EDITION_ID.eq(EDITION.ID), CHAPTER.NUMBER.eq(READING_PROGRESS.CHAPTER_NUMBER))
                 .where(READING_PROGRESS.ACCOUNT_ID.eq(accountId).and(visible(adult)))
                 .orderBy(READING_PROGRESS.UPDATED_AT.desc())
                 .limit(limit)
@@ -208,7 +209,7 @@ class ReadingQueries {
         List<Views.ContinueItem> result = new ArrayList<>();
         for (int i = 0; i < cards.size(); i++) {
             result.add(new Views.ContinueItem(cards.get(i), rows.get(i).get(READING_PROGRESS.CHAPTER_NUMBER),
-                    rows.get(i).get(READING_PROGRESS.POSITION)));
+                    rows.get(i).get(READING_PROGRESS.POSITION), rows.get(i).get(CHAPTER.LABEL)));
         }
         return result;
     }
@@ -395,15 +396,16 @@ class ReadingQueries {
         db.select(LIBRARY_ENTRY.LIST, DSL.count()).from(LIBRARY_ENTRY).join(EDITION).on(EDITION.ID.eq(LIBRARY_ENTRY.EDITION_ID))
                 .where(mine.and(visible(adult))).groupBy(LIBRARY_ENTRY.LIST)
                 .forEach(r -> counts.put(r.value1(), r.value2()));
-        List<Record> rows = cards(READING_PROGRESS.CHAPTER_NUMBER).join(LIBRARY_ENTRY).on(LIBRARY_ENTRY.EDITION_ID.eq(EDITION.ID))
+        List<Record> rows = cards(READING_PROGRESS.CHAPTER_NUMBER, CHAPTER.LABEL).join(LIBRARY_ENTRY).on(LIBRARY_ENTRY.EDITION_ID.eq(EDITION.ID))
                 .leftJoin(READING_PROGRESS).on(READING_PROGRESS.EDITION_ID.eq(EDITION.ID).and(READING_PROGRESS.ACCOUNT_ID.eq(accountId)))
+                .leftJoin(CHAPTER).on(CHAPTER.EDITION_ID.eq(EDITION.ID), CHAPTER.NUMBER.eq(READING_PROGRESS.CHAPTER_NUMBER))
                 .where(mine.and(LIBRARY_ENTRY.LIST.eq(list)).and(visible(adult)))
                 .orderBy(DSL.greatest(LIBRARY_ENTRY.UPDATED_AT, DSL.coalesce(READING_PROGRESS.UPDATED_AT, LIBRARY_ENTRY.UPDATED_AT)).desc())
                 .fetch();
         List<Card> cards = toCards(rows);
         List<Views.LibraryItem> items = new ArrayList<>();
         for (int i = 0; i < cards.size(); i++) {
-            items.add(new Views.LibraryItem(cards.get(i), list, rows.get(i).get(READING_PROGRESS.CHAPTER_NUMBER)));
+            items.add(new Views.LibraryItem(cards.get(i), list, rows.get(i).get(READING_PROGRESS.CHAPTER_NUMBER), rows.get(i).get(CHAPTER.LABEL)));
         }
         return new Views.LibraryPage(items, counts);
     }

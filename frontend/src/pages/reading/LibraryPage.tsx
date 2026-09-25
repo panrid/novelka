@@ -46,7 +46,7 @@ export function LibraryPage() {
                         : `У списку «${LIST_LABELS[list]}» поки порожньо. Додати можна на сторінці новели.`}
                 </p>
             )}
-            {library.data?.items.map(({ card, chapterNumber }) => (
+            {library.data?.items.map(({ card, chapterNumber, chapterLabel }) => (
                 <Link key={card.editionId} className={styles.row}
                     to={chapterNumber ? '/n/$slug/$number' : '/n/$slug'}
                     params={{ slug: card.novelSlug, number: String(chapterNumber ?? 1) }} search={teamSearch(card)}>
@@ -54,7 +54,7 @@ export function LibraryPage() {
                     <div className={styles.grow}>
                         <div className={styles.ellipsis} style={{ fontWeight: 500 }}>{card.title}</div>
                         <div className={styles.small}>
-                            {chapterNumber ? `Глава ${chapterNumber} з ${card.chapterCount}` : `${card.chapterCount} ${chaptersWord(card.chapterCount)}`}
+                            {chapterNumber ? `Глава ${chapterLabel || chapterNumber} · ${chapterNumber} з ${card.chapterCount}` : `${card.chapterCount} ${chaptersWord(card.chapterCount)}`}
                         </div>
                         {chapterNumber ? <div className={styles.bar}><span style={{ width: `${Math.round((chapterNumber / Math.max(1, card.chapterCount)) * 100)}%` }} /></div> : null}
                     </div>
