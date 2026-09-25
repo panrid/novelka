@@ -190,7 +190,7 @@ class AutotranslateController {
     }
 
     record GlossaryPage(List<GlossaryItem> items, int total, int page, boolean hasMore, List<Integer> chapters,
-            java.util.Map<String, Integer> counts) {
+            java.util.Map<Integer, String> labels, java.util.Map<String, Integer> counts) {
     }
 
     @GetMapping("/editions/{editionId}/glossary")
@@ -202,7 +202,7 @@ class AutotranslateController {
         return new GlossaryPage(found.items().stream()
                 .map(entry -> new GlossaryItem(entry.id(), entry.ukrainian(), entry.kind(), entry.gender(), entry.note(),
                         entry.sourceChapter(), entry.manual(), entry.status()))
-                .toList(), found.total(), found.page(), found.hasMore(), found.chapters(), found.counts());
+                .toList(), found.total(), found.page(), found.hasMore(), found.chapters(), found.labels(), found.counts());
     }
 
     record StatusChange(List<Long> ids, String status) {

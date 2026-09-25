@@ -3,9 +3,11 @@ import { Link, useParams } from '@tanstack/react-router';
 import { diffWords } from 'diff';
 import { useState } from 'react';
 import { ORIGIN_LABELS } from '../../studio/labels';
+import { chapterHeading } from '../../reading/api';
 import { studioApi, type StudioBlock } from '../../studio/api';
 import { Notice } from '../../ui/Notice';
 import { relativeTime } from '../../lib/dates';
+import { characters, paragraphs } from '../../lib/plural';
 import styles from './studio.module.css';
 import editor from './editor.module.css';
 
@@ -16,12 +18,13 @@ export function HistoryPage() {
     const id = Number(editionId);
     const chapter = Number(number);
     const revisions = useQuery({ queryKey: ['studio-revisions', id, chapter], queryFn: () => studioApi.revisions(id, chapter) });
+    const view = useQuery({ queryKey: ['studio-editor', id, chapter], queryFn: () => studioApi.editor(id, chapter), staleTime: Infinity });
     const [open, setOpen] = useState<number | null>(null);
 
     return (
         <section className={styles.page}>
             <p><Link to="/studio/$editionId/chapters/$number" params={{ editionId, number }}>← До редактора</Link></p>
-            <h1 className={styles.title}>Історія глави {chapter}</h1>
+            <h1 className={styles.title}>Історія: {view.data ? chapterHeading(view.data) : `глава ${chapter}`}</h1>
             {revisions.isError && <Notice tone="error">{revisions.error.message}</Notice>}
             {revisions.data?.map((revision) => (
                 <div key={revision.id}>
@@ -30,7 +33,7 @@ export function HistoryPage() {
                         <div className={styles.grow}>
                             <div>{revision.authorNick ?? 'Новелка'} · {ORIGIN_LABELS[revision.origin] ?? revision.origin}</div>
                             <div className={styles.muted}>
-                                {relativeTime(new Date(revision.createdAt))} · {revision.blocksChanged} абзаців · {revision.charsChanged} знаків
+                                {relativeTime(new Date(revision.createdAt))} · {paragraphs(revision.blocksChanged)} · {characters(revision.charsChanged)}
                             </div>
                         </div>
                         {revision.published && <span className={styles.badge}>зараз у читачів</span>}

@@ -7,6 +7,7 @@ import { Markup } from '../../community/Markup';
 import { messagingApi, type MessageLine } from '../../inbox/api';
 import { Avatar } from '../../ui/Avatar';
 import { Notice } from '../../ui/Notice';
+import { members } from '../../lib/plural';
 import styles from './inbox.module.css';
 
 export function ConversationPage() {
@@ -50,7 +51,7 @@ export function ConversationPage() {
                 {first.kind !== 'team' && <Avatar nick={first.title} url={first.avatarUrl} size={32} />}
                 <div className={styles.grow}>
                     <h1 className={styles.title}>{first.kind === 'team' ? `$${first.teamHandle}` : first.title}</h1>
-                    {first.kind === 'group' && <div className={styles.muted}>{first.members.length} учасників</div>}
+                    {first.kind === 'group' && <div className={styles.muted}>{members(first.members.length)}</div>}
                     {first.kind === 'team' && <div className={styles.muted}>чат команди</div>}
                 </div>
                 {first.kind === 'direct' && first.title && (

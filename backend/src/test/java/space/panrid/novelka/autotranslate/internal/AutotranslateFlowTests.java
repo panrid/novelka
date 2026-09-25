@@ -110,6 +110,9 @@ class AutotranslateFlowTests {
         assertThat(chapter.path("blocks").toString()).doesNotContain("雪").contains("Юкі: переклад s2 ✓");
         assertThat(chapter.path("blocks")).extracting(block -> block.path("type").asString())
                 .containsExactly("preface", "paragraph", "paragraph", "separator", "paragraph", "afterword");
+        JsonNode history = read(owner.browser().get("/api/studio/editions/" + edition + "/chapters/2/revisions")).path(0);
+        assertThat(history.path("blocksChanged").asInt()).as("the machine version shows its own size").isEqualTo(6);
+        assertThat(history.path("charsChanged").asInt()).isPositive();
 
         JsonNode glossary = read(owner.browser().get("/api/studio/editions/" + edition + "/glossary")).path("items");
         assertThat(glossary).as("the novel's own title and one name").hasSize(2);
@@ -301,6 +304,7 @@ class AutotranslateFlowTests {
         JsonNode page = read(owner.browser().get(base + "/glossary?sort=alpha"));
         assertThat(page.path("items")).extracting(item -> item.path("ukrainian").asString()).containsExactly("Ліхтарник із туману", "Юкі");
         assertThat(page.path("chapters")).extracting(JsonNode::asInt).containsExactly(1);
+        assertThat(page.path("labels").path("1").asString()).as("the number readers will see").isEqualTo("1");
         long yuki = page.path("items").path(1).path("id").asLong();
         assertThat(read(owner.browser().get(base + "/glossary?chapter=1")).path("items")).singleElement()
                 .satisfies(item -> assertThat(item.path("ukrainian").asString()).isEqualTo("Юкі"));

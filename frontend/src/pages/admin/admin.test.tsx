@@ -9,7 +9,7 @@ const person = (role: string) => ({
 });
 const REPORT = {
     target: 'comment', targetId: 40, reports: 2, reasons: ['образи', 'спам'], firstAt: new Date().toISOString(),
-    preview: { author: 'lysytsia', text: 'Грубий коментар', imageUrl: null, where: 'Маг води', slug: 'mah-vody', chapter: 3, team: 'panrid', hidden: false },
+    preview: { author: 'lysytsia', text: 'Грубий коментар', imageUrl: null, where: 'Маг води, глава 3', slug: 'mah-vody', chapter: 3, team: 'panrid', hidden: false },
 };
 
 afterEach(() => vi.unstubAllGlobals());

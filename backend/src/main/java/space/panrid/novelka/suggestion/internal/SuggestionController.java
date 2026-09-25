@@ -70,10 +70,11 @@ class SuggestionController {
             int occurrences, boolean stale, OffsetDateTime createdAt) {
     }
 
-    record QueueRow(int number, String title, int pending) {
+    record QueueRow(int number, String label, String title, int pending) {
     }
 
-    record MySuggestion(long id, String novelSlug, String novelTitle, String teamHandle, int chapter, String kind,
+    /** {@code chapterLabel} is the number readers see: "" for a chapter without one. */
+    record MySuggestion(long id, String novelSlug, String novelTitle, String teamHandle, int chapter, String chapterLabel, String kind,
             String preview, String state, String reviewNote, OffsetDateTime updatedAt) {
     }
 
@@ -151,14 +152,15 @@ class SuggestionController {
         Viewer viewer = access.requireSignedIn();
         return db.select(SUGGESTION.ID, NOVEL.SLUG, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), TEAM.HANDLE, CHAPTER.NUMBER,
                         SUGGESTION.KIND, SUGGESTION.PROPOSED, SUGGESTION.FIND_TEXT, SUGGESTION.REPLACEMENT, SUGGESTION.STATE,
-                        SUGGESTION.REVIEW_NOTE, SUGGESTION.UPDATED_AT)
+                        SUGGESTION.REVIEW_NOTE, SUGGESTION.UPDATED_AT, CHAPTER.LABEL)
                 .from(SUGGESTION).join(CHAPTER).on(CHAPTER.ID.eq(SUGGESTION.CHAPTER_ID))
                 .join(EDITION).on(EDITION.ID.eq(CHAPTER.EDITION_ID)).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
                 .join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
                 .where(SUGGESTION.AUTHOR_ID.eq(viewer.accountId()).and(SUGGESTION.STATE.ne("withdrawn")))
                 .orderBy(SUGGESTION.UPDATED_AT.desc())
                 .limit(200)
-                .fetch(r -> new MySuggestion(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(), r.value6(),
+                .fetch(r -> new MySuggestion(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(),
+                        r.value13() == null ? String.valueOf(r.value5()) : r.value13(), r.value6(),
                         preview(r.value6(), r.value7() == null ? null : r.value7().data(), r.value8(), r.value9()),
                         r.value10(), r.value11(), r.value12()));
     }
@@ -169,13 +171,13 @@ class SuggestionController {
     List<QueueRow> queue(@PathVariable long editionId) {
         access.requireTextEditor(editionId);
         var pending = DSL.count().as("pending");
-        return db.select(CHAPTER.NUMBER, REVISION.TITLE, pending)
+        return db.select(CHAPTER.NUMBER, CHAPTER.LABEL, REVISION.TITLE, pending)
                 .from(SUGGESTION).join(CHAPTER).on(CHAPTER.ID.eq(SUGGESTION.CHAPTER_ID))
                 .join(REVISION).on(REVISION.ID.eq(CHAPTER.PUBLISHED_REVISION_ID))
                 .where(CHAPTER.EDITION_ID.eq(editionId).and(SUGGESTION.STATE.eq("pending")))
-                .groupBy(CHAPTER.NUMBER, REVISION.TITLE)
+                .groupBy(CHAPTER.NUMBER, CHAPTER.LABEL, REVISION.TITLE)
                 .orderBy(CHAPTER.NUMBER)
-                .fetch(r -> new QueueRow(r.value1(), r.value2(), r.value3()));
+                .fetch(r -> new QueueRow(r.value1(), r.value2(), r.value3(), r.value4()));
     }
 
     @GetMapping("/api/studio/editions/{editionId}/chapters/{number}/suggestions")

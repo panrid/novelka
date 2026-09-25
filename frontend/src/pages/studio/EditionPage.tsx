@@ -11,6 +11,7 @@ import { Button } from '../../ui/Button';
 import { LinkButton } from '../../ui/LinkButton';
 import { Notice } from '../../ui/Notice';
 import { relativeTime } from '../../lib/dates';
+import { changes, characters, paragraphs } from '../../lib/plural';
 import styles from './studio.module.css';
 
 export function useEditionId() {
@@ -86,7 +87,7 @@ export function EditionPage() {
                     {queue.data!.map((row) => (
                         <Link key={row.number} className={styles.row} to="/n/$slug/$number"
                             params={{ slug: edition.novelSlug, number: String(row.number) }} search={{ t: edition.teamHandle }}>
-                            <div className={styles.grow}>{row.number}. {row.title}</div>
+                            <div className={styles.grow}>{chapterHeading(row)}</div>
                             <span className={`${styles.badge} ${styles.badgeOn}`}>{row.pending}</span>
                         </Link>
                     ))}
@@ -128,7 +129,7 @@ export function EditionPage() {
                             {contributions.data!.map((row) => (
                                 <tr key={row.nick}>
                                     <td>{row.nick}</td>
-                                    <td>{row.revisions} змін · {row.blocksChanged} абзаців · {row.charsChanged} знаків</td>
+                                    <td>{changes(row.revisions)} · {paragraphs(row.blocksChanged)} · {characters(row.charsChanged)}</td>
                                 </tr>
                             ))}
                         </tbody>

@@ -13,7 +13,7 @@ export type ReviewItem = {
 };
 
 export type MySuggestion = {
-    id: number; novelSlug: string; novelTitle: string; teamHandle: string; chapter: number; kind: string;
+    id: number; novelSlug: string; novelTitle: string; teamHandle: string; chapter: number; chapterLabel: string; kind: string;
     preview: string; state: 'draft' | 'pending' | 'accepted' | 'rejected' | 'stale'; reviewNote: string | null; updatedAt: string;
 };
 
@@ -34,7 +34,7 @@ export const suggestionApi = {
     submit: (editionId: number) => api<{ count: number }>('/api/suggestions/submit', { method: 'POST', body: JSON.stringify({ editionId }) }),
     withdraw: (id: number) => api<void>(`/api/suggestions/${id}`, { method: 'DELETE' }),
     history: () => api<MySuggestion[]>('/api/me/suggestions'),
-    queue: (editionId: number) => api<{ number: number; title: string; pending: number }[]>(`/api/studio/editions/${editionId}/suggestions`),
+    queue: (editionId: number) => api<{ number: number; label: string | null; title: string; pending: number }[]>(`/api/studio/editions/${editionId}/suggestions`),
     pending: (editionId: number, number: number) => api<ReviewItem[]>(studio(editionId, number)),
     review: (editionId: number, number: number, decisions: { id: number; accept: boolean; content?: Span[] }[]) =>
         api<{ revisionId: number | null; accepted: number; rejected: number; stale: number }>(`${studio(editionId, number)}/review`,

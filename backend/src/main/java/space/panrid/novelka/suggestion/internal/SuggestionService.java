@@ -28,6 +28,7 @@ import space.panrid.novelka.platform.text.Span;
 import space.panrid.novelka.platform.web.RateLimiter;
 import space.panrid.novelka.platform.web.UserFacingException;
 import space.panrid.novelka.suggestion.SuggestionsReviewed;
+import space.panrid.novelka.suggestion.SuggestionsSubmitted;
 import space.panrid.novelka.text.BlockRules;
 import space.panrid.novelka.text.ChangeStats;
 import space.panrid.novelka.text.Chapters;
@@ -195,6 +196,7 @@ class SuggestionService {
                 .fetchOne(SUGGESTION_BATCH.ID);
         db.update(SUGGESTION).set(SUGGESTION.STATE, "pending").set(SUGGESTION.BATCH_ID, batch).set(SUGGESTION.UPDATED_AT, now())
                 .where(SUGGESTION.ID.in(draftIds)).execute();
+        events.publishEvent(new SuggestionsSubmitted(editionId, viewer.accountId(), draftIds.size()));
         return draftIds.size();
     }
 

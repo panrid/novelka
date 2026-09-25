@@ -24,7 +24,7 @@ export function MySuggestionsPage() {
                     <div className={styles.grow}>
                         <Link to="/n/$slug/$number" params={{ slug: item.novelSlug, number: String(item.chapter) }} search={{ t: item.teamHandle }}
                             style={{ color: 'var(--text)', textDecoration: 'none' }}>
-                            {item.novelTitle} · глава {item.chapter}
+                            {item.novelTitle}{item.chapterLabel ? ` · глава ${item.chapterLabel}` : ''}
                         </Link>
                         <p style={{ margin: '4px 0', fontFamily: 'var(--font-reading)' }}>{item.preview}</p>
                         <div className={styles.muted}>

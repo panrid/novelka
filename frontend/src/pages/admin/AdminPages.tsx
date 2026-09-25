@@ -56,7 +56,7 @@ function PreviewBox({ target, preview }: { target: Target; preview: Preview }) {
                 {preview.author && <> · {target === 'edition' ? `$${preview.author}` : <Link to="/u/$nick" params={{ nick: preview.author }}>{preview.author}</Link>}</>}
                 {preview.where && <> · {preview.slug
                     ? <Link to={preview.chapter ? '/n/$slug/$number' : '/n/$slug'} params={{ slug: preview.slug, number: String(preview.chapter ?? '') }}
-                        search={preview.team ? { t: preview.team } : {}}>{preview.where}{preview.chapter ? `, глава ${preview.chapter}` : ''}</Link>
+                        search={preview.team ? { t: preview.team } : {}}>{preview.where}</Link>
                     : preview.where}</>}
             </div>
             {preview.text && target !== 'edition' && <div className={styles.quote}>{preview.text}</div>}

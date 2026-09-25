@@ -49,6 +49,11 @@ export function GlossaryPage() {
     const reset = (apply: () => void) => { apply(); setPage(1); setSelected(new Set()); };
     const chapters = data?.chapters ?? [];
     const chapterAt = chapter ? chapters.indexOf(chapter) : -1;
+    // Readers' numbers, not positions: a prologue is «0» or goes by its title.
+    const shown = (n: number) => {
+        const label = data?.labels?.[n] ?? String(n);
+        return /^\d/.test(label) ? { from: `з глави ${label}`, badge: `гл. ${label}` } : { from: `з «${label}»`, badge: label };
+    };
     const toggle = (entryId: number) => setSelected((current) => {
         const next = new Set(current);
         if (next.has(entryId)) next.delete(entryId); else next.add(entryId);
@@ -78,7 +83,7 @@ export function GlossaryPage() {
                     <select className={styles.select} value={chapter ?? ''} aria-label="Глава"
                         onChange={(event) => reset(() => setChapter(event.target.value ? Number(event.target.value) : undefined))}>
                         <option value="">Усі глави</option>
-                        {chapters.map((n) => <option key={n} value={n}>з глави {n}</option>)}
+                        {chapters.map((n) => <option key={n} value={n}>{shown(n).from}</option>)}
                     </select>
                 </label>
                 <Button variant="secondary" isDisabled={chapterAt <= 0} onPress={() => reset(() => setChapter(chapters[chapterAt - 1]))}>‹</Button>
@@ -116,7 +121,7 @@ export function GlossaryPage() {
                             </div>
                         </button>
                         <span className={`${styles.badge} ${entry.status === 'new' ? styles.badgeOn : ''}`}>{STATUS_BADGE[entry.status]}</span>
-                        {entry.chapter ? <span className={styles.badge}>гл. {entry.chapter}</span> : null}
+                        {entry.chapter ? <span className={styles.badge}>{shown(entry.chapter).badge}</span> : null}
                     </div>
                 ))}
             {data && <Pager page={page} total={data.total} size={50} onPage={(next) => { setPage(next); setSelected(new Set()); }} />}

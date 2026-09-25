@@ -65,6 +65,13 @@ class SuggestionFlowTests {
         assertThat(read(reader.browser().post("/api/suggestions/submit", json("editionId", edition))).path("count").asInt()).isEqualTo(2);
         JsonNode queue = read(owner.browser().get("/api/studio/editions/" + edition + "/suggestions"));
         assertThat(queue).singleElement().satisfies(row -> assertThat(row.path("pending").asInt()).isEqualTo(2));
+        JsonNode told = space.panrid.novelka.support.Eventually.eventually(
+                () -> read(owner.browser().get("/api/notifications")), page -> page.toString().contains("suggestions_submitted")).path("items");
+        assertThat(told).as("the team hears about the batch").anySatisfy(item -> {
+            assertThat(item.path("kind").asString()).isEqualTo("suggestions_submitted");
+            assertThat(item.path("payload").path("actorNick").asString()).isEqualTo(reader.nick());
+            assertThat(item.path("payload").path("count").asInt()).isGreaterThanOrEqualTo(2);
+        });
 
         JsonNode pending = read(owner.browser().get("/api/studio/editions/" + edition + "/chapters/1/suggestions"));
         assertThat(pending).hasSize(2).allSatisfy(item -> assertThat(item.path("stale").asBoolean()).isFalse());

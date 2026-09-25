@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { chaptersWord } from '../../reading/api';
 import { notificationApi, type Notification } from '../../inbox/api';
 import { relativeTime } from '../../lib/dates';
+import { plural } from '../../lib/plural';
 import { Notice } from '../../ui/Notice';
 import { InboxNav } from './InboxNav';
 import styles from './inbox.module.css';
@@ -32,7 +33,7 @@ export function NotificationsPage() {
             <InboxNav />
             {pages.isError && <Notice tone="error">{pages.error.message}</Notice>}
             {pages.isSuccess && items.length === 0 && (
-                <p className={styles.muted}>Поки тихо. Тут зʼявляться відповіді, згадки, нові глави з вашої бібліотеки й рішення щодо ваших правок.</p>
+                <p className={styles.muted}>Поки тихо. Тут зʼявляться відповіді, згадки, нові глави з вашої бібліотеки, правки до ваших перекладів і рішення щодо ваших правок.</p>
             )}
             {items.map((item) => <Row key={item.id} item={item} />)}
             {pages.hasNextPage && (
@@ -63,6 +64,10 @@ function Row({ item }: { item: Notification }) {
             excerpt = undefined;
             break;
         }
+        case 'suggestions_submitted':
+            // Batches from different people add up, so only a single one names its author.
+            title = (p.count ?? 1) === 1 ? `${p.actorNick} пропонує правку` : `${p.count} ${plural(p.count ?? 0, 'нова правка', 'нові правки', 'нових правок')}`;
+            break;
         case 'suggestions_reviewed':
             title = `Ваші правки перевірено: прийнято ${p.accepted}, відхилено ${p.rejected}`;
             break;
@@ -77,6 +82,9 @@ function Row({ item }: { item: Notification }) {
         </div>
     );
     const className = `${styles.item} ${item.read ? '' : styles.unread}`;
+    if (item.kind === 'suggestions_submitted' && p.editionId) {
+        return <Link to="/studio/$editionId" params={{ editionId: String(p.editionId) }} className={className}>{body}</Link>;
+    }
     if (p.where === 'chat') {
         return <Link to="/inbox/chat" className={className}>{body}</Link>;
     }

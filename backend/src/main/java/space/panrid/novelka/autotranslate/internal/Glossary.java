@@ -1,5 +1,6 @@
 package space.panrid.novelka.autotranslate.internal;
 
+import static space.panrid.novelka.jooq.Tables.CHAPTER_ANALYSIS;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_ENTRY;
 
 import java.util.ArrayList;
@@ -68,7 +69,9 @@ class Glossary {
     static final int PAGE = 50;
     static final Set<String> STATUSES = Set.of("new", "approved", "rejected");
 
-    record Page(List<Entry> items, int total, int page, boolean hasMore, List<Integer> chapters, Map<String, Integer> counts) {
+    /** {@code labels}: what readers see for each chapter in {@code chapters} — its number, or its title when it has none. */
+    record Page(List<Entry> items, int total, int page, boolean hasMore, List<Integer> chapters, Map<Integer, String> labels,
+            Map<String, Integer> counts) {
     }
 
     /**
@@ -95,7 +98,11 @@ class Glossary {
         Map<String, Integer> counts = new java.util.HashMap<>(Map.of("new", 0, "approved", 0, "rejected", 0));
         db.select(GLOSSARY_ENTRY.STATUS, DSL.count()).from(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.EDITION_ID.eq(editionId))
                 .groupBy(GLOSSARY_ENTRY.STATUS).forEach(r -> counts.put(r.value1(), r.value2()));
-        return new Page(items, total, at, at * PAGE < total, chapters, counts);
+        Map<Integer, String> labels = new java.util.HashMap<>();
+        db.select(CHAPTER_ANALYSIS.NUMBER, CHAPTER_ANALYSIS.LABEL, CHAPTER_ANALYSIS.TITLE).from(CHAPTER_ANALYSIS)
+                .where(CHAPTER_ANALYSIS.EDITION_ID.eq(editionId), CHAPTER_ANALYSIS.NUMBER.in(chapters))
+                .forEach(r -> labels.put(r.value1(), r.value2() == null ? String.valueOf(r.value1()) : r.value2().isEmpty() ? r.value3() : r.value2()));
+        return new Page(items, total, at, at * PAGE < total, chapters, labels, counts);
     }
 
     /** «Затвердити», «Відхилити» or «Повернути в нові» for the selected entries. */

@@ -32,7 +32,7 @@ export type GlossaryItem = {
     status: GlossaryStatus;
 };
 export type GlossaryPage = {
-    items: GlossaryItem[]; total: number; page: number; hasMore: boolean; chapters: number[]; counts: Record<GlossaryStatus, number>;
+    items: GlossaryItem[]; total: number; page: number; hasMore: boolean; chapters: number[]; labels: Record<number, string>; counts: Record<GlossaryStatus, number>;
 };
 /** A chapter analysed: its Ukrainian title and the number readers will see. */
 export type ChapterAnalysis = { number: number; title: string; label: string | null; edited: boolean; translated: boolean };

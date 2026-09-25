@@ -5,6 +5,8 @@ import { studioApi } from '../../studio/api';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { useEditionId } from './EditionPage';
+import { chaptersWord } from '../../reading/api';
+import { characters } from '../../lib/plural';
 import styles from './studio.module.css';
 
 /** Upload → see how the file splits into chapters and what gets simplified → publish. */
@@ -50,13 +52,13 @@ export function ImportPage() {
                     {preview.data.simplified.length > 0 && (
                         <Notice tone="info">{preview.data.simplified.map((line) => <p key={line}>{line}</p>)}</Notice>
                     )}
-                    <h2 className={styles.sectionTitle}>Буде {preview.data.chapters.length} глав(и), починаючи з {preview.data.firstNumber}</h2>
+                    <h2 className={styles.sectionTitle}>Буде {preview.data.chapters.length} {chaptersWord(preview.data.chapters.length)}, починаючи з {preview.data.firstNumber}</h2>
                     <table className={styles.table}>
                         <tbody>
                             {preview.data.chapters.map((chapter, index) => (
                                 <tr key={index}>
                                     <td>{preview.data.firstNumber + index}. {chapter.title}</td>
-                                    <td>{chapter.characters} знаків{chapter.pictures ? ` · картинок: ${chapter.pictures}` : ''}</td>
+                                    <td>{characters(chapter.characters)}{chapter.pictures ? ` · картинок: ${chapter.pictures}` : ''}</td>
                                 </tr>
                             ))}
                         </tbody>

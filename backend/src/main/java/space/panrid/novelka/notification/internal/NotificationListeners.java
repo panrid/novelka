@@ -23,6 +23,7 @@ import org.springframework.stereotype.Component;
 import space.panrid.novelka.community.ChatMentioned;
 import space.panrid.novelka.community.CommentPosted;
 import space.panrid.novelka.suggestion.SuggestionsReviewed;
+import space.panrid.novelka.suggestion.SuggestionsSubmitted;
 import space.panrid.novelka.text.ChaptersPublished;
 
 /**
@@ -85,6 +86,21 @@ class NotificationListeners {
         base.put("accepted", reviewed.accepted());
         base.put("rejected", reviewed.rejected());
         inbox.add(reviewed.authorId(), "suggestions_reviewed", base);
+    }
+
+    /** Everyone in the team may review, so everyone hears; one unread row per translation counts them up. */
+    @ApplicationModuleListener
+    void on(SuggestionsSubmitted submitted) {
+        Map<String, Object> base = place(submitted.editionId(), null);
+        base.put("actorNick", nick(submitted.authorId()));
+        long team = db.select(EDITION.TEAM_ID).from(EDITION).where(EDITION.ID.eq(submitted.editionId())).fetchSingle(EDITION.TEAM_ID);
+        Set<Long> people = new LinkedHashSet<>();
+        people.add(db.select(TEAM.OWNER_ID).from(TEAM).where(TEAM.ID.eq(team)).fetchSingle(TEAM.OWNER_ID));
+        people.addAll(db.select(TEAM_MEMBER.ACCOUNT_ID).from(TEAM_MEMBER).where(TEAM_MEMBER.TEAM_ID.eq(team)).fetch(TEAM_MEMBER.ACCOUNT_ID));
+        people.remove(submitted.authorId());
+        for (long person : people) {
+            inbox.addCounted(person, "suggestions_submitted", "suggestions:" + submitted.editionId(), base, submitted.count());
+        }
     }
 
     private void mentions(List<Long> accounts, List<Long> teams, Map<String, Object> base, Set<Long> told) {

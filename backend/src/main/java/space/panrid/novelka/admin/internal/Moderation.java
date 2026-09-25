@@ -1,6 +1,7 @@
 package space.panrid.novelka.admin.internal;
 
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
+import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.CHAT_MESSAGE;
 import static space.panrid.novelka.jooq.Tables.COMMENT;
 import static space.panrid.novelka.jooq.Tables.EDITION;
@@ -195,12 +196,18 @@ class Moderation {
         switch (target) {
             case "comment" -> {
                 Record r = db.select(ACCOUNT.NICK, COMMENT.BODY, NOVEL.SLUG, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), COMMENT.CHAPTER_NUMBER,
-                                TEAM.HANDLE, COMMENT.HIDDEN_AT)
+                                TEAM.HANDLE, COMMENT.HIDDEN_AT, CHAPTER.LABEL)
                         .from(COMMENT).join(ACCOUNT).on(ACCOUNT.ID.eq(COMMENT.AUTHOR_ID)).join(EDITION).on(EDITION.ID.eq(COMMENT.EDITION_ID))
                         .join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
+                        .leftJoin(CHAPTER).on(CHAPTER.EDITION_ID.eq(COMMENT.EDITION_ID), CHAPTER.NUMBER.eq(COMMENT.CHAPTER_NUMBER))
                         .where(COMMENT.ID.eq(id)).fetchOne();
-                return r == null ? gone() : new Preview(r.get(ACCOUNT.NICK), mentions.render(r.get(COMMENT.BODY)), null,
-                        r.get(3, String.class), r.get(NOVEL.SLUG), r.get(COMMENT.CHAPTER_NUMBER), r.get(TEAM.HANDLE),
+                if (r == null) {
+                    return gone();
+                }
+                Integer chapter = r.get(COMMENT.CHAPTER_NUMBER);
+                String label = chapter == null ? "" : r.get(CHAPTER.LABEL) == null ? String.valueOf(chapter) : r.get(CHAPTER.LABEL);
+                return new Preview(r.get(ACCOUNT.NICK), mentions.render(r.get(COMMENT.BODY)), null,
+                        r.get(3, String.class) + (label.isEmpty() ? "" : ", глава " + label), r.get(NOVEL.SLUG), chapter, r.get(TEAM.HANDLE),
                         r.get(COMMENT.HIDDEN_AT) != null);
             }
             case "chat" -> {

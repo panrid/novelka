@@ -341,8 +341,25 @@ class ChapterService implements Chapters {
                 .groupBy(REVISION.ID, ACCOUNT.NICK, REVISION.ORIGIN, REVISION.CREATED_AT)
                 .orderBy(REVISION.CREATED_AT.desc(), REVISION.ID.desc())
                 .limit(200)
-                .fetch(r -> new RevisionInfo(r.value1(), r.value2(), r.value3(), r.value4(), r.value5().intValue(),
-                        r.value6().intValue(), r.value1().equals(chapter.getPublishedRevisionId())));
+                .fetch(r -> {
+                    int blocks = r.value5().intValue();
+                    int chars = r.value6().intValue();
+                    if (r.value2() == null) {
+                        // Machine versions credit nobody, so their size comes from the text itself.
+                        ChangeStats stats = machineStats(r.value1());
+                        blocks = stats.blocksChanged();
+                        chars = stats.charsChanged();
+                    }
+                    return new RevisionInfo(r.value1(), r.value2(), r.value3(), r.value4(), blocks, chars,
+                            r.value1().equals(chapter.getPublishedRevisionId()));
+                });
+    }
+
+    private ChangeStats machineStats(long revisionId) {
+        var revision = db.select(REVISION.PARENT_ID, REVISION.BLOCKS).from(REVISION).where(REVISION.ID.eq(revisionId)).fetchOne();
+        JSONB parent = revision.value1() == null ? null
+                : db.select(REVISION.BLOCKS).from(REVISION).where(REVISION.ID.eq(revision.value1())).fetchOne(REVISION.BLOCKS);
+        return ChangeStats.between(blocks(parent), blocks(revision.value2()));
     }
 
     @Override

@@ -59,6 +59,20 @@ class Inbox {
         nudge(recipientId);
     }
 
+    /** One unread row per group whose «count» grows: suggestions sent to a team one batch after another. */
+    void addCounted(long recipientId, String kind, String groupKey, Map<String, Object> payload, int count) {
+        Map<String, Object> fresh = new java.util.HashMap<>(payload);
+        fresh.put("count", count);
+        db.execute("""
+                INSERT INTO notification (recipient_id, kind, group_key, payload) VALUES (?, ?, ?, ?::jsonb)
+                ON CONFLICT (recipient_id, group_key) WHERE read_at IS NULL AND group_key IS NOT NULL
+                DO UPDATE SET payload = EXCLUDED.payload || jsonb_build_object(
+                        'count', (notification.payload ->> 'count')::int + (EXCLUDED.payload ->> 'count')::int),
+                    created_at = now()
+                """, recipientId, kind, groupKey, json.writeValueAsString(fresh));
+        nudge(recipientId);
+    }
+
     record Item(long id, String kind, Map<String, Object> payload, OffsetDateTime createdAt, boolean read) {
     }
 

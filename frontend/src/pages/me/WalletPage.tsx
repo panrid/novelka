@@ -9,6 +9,7 @@ import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
 import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
+import { chaptersWord } from '../../reading/api';
 import styles from '../studio/studio.module.css';
 
 const PERIODS = [
@@ -49,7 +50,7 @@ export function WalletPage() {
             {data.report.length === 0 && <p className={styles.muted}>За цей час перекладених глав немає.</p>}
             {data.report.map((row) => (
                 <div key={row.model} className={styles.entry}>
-                    <b>{row.model}</b> <span className={styles.muted}>· {row.chapters} глав · разом {dollars(row.total, 3)}</span>
+                    <b>{row.model}</b> <span className={styles.muted}>· {row.chapters} {chaptersWord(row.chapters)} · разом {dollars(row.total, 3)}</span>
                     <table className={styles.table}>
                         <thead><tr><th /><th>мін.</th><th>серед.</th><th>макс.</th></tr></thead>
                         <tbody>

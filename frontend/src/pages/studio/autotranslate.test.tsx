@@ -124,7 +124,7 @@ describe('autotranslate', () => {
 
 describe('glossary', () => {
     const page = (items: object[], counts = { new: 2, approved: 1, rejected: 0 }) => ({
-        items, total: items.length, page: 1, hasMore: false, chapters: [1, 2], counts,
+        items, total: items.length, page: 1, hasMore: false, chapters: [1, 2], labels: { 1: 'Пролог', 2: '1' }, counts,
     });
     const entry = (id: number, ukrainian: string, status = 'new') => ({
         id, ukrainian, kind: 'character', gender: 'male', note: null, chapter: 1, manual: false, status,
@@ -137,6 +137,8 @@ describe('glossary', () => {
             'POST /api/studio/editions/4/glossary/status': { body: { changed: 1 } },
         });
         expect(await screen.findByRole('button', { name: 'Нові · 2' })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('option', { name: 'з «Пролог»' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'з глави 1' })).toBeInTheDocument();
         await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Глава' }), '1');
         await vi.waitFor(() => expect(calls.some((call) => call.path.endsWith('/glossary') && call.method === 'GET')).toBe(true));
         await userEvent.click(screen.getByRole('button', { name: 'Виділити' }));
