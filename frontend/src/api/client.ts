@@ -61,8 +61,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (!response.ok) {
         throw await problem(response);
     }
-    if (response.status === 204) {
-        return undefined as T;
-    }
-    return (await response.json()) as T;
+    // A change that returns nothing may answer 200 with an empty body, not only 204.
+    const text = await response.text();
+    return (text ? JSON.parse(text) : undefined) as T;
 }

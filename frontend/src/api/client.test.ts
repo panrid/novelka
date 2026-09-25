@@ -54,4 +54,10 @@ describe('api', () => {
         expect(new Headers(getInit.headers).get('X-XSRF-TOKEN')).toBeNull();
         expect(new Headers(postInit.headers).get('X-XSRF-TOKEN')).toBe('abc123');
     });
+
+    it('accepts a successful change with an empty body (Spring answers 200, not 204, for void)', async () => {
+        vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 200 })));
+
+        await expect(api('/api/anything', { method: 'PUT', body: '{}' })).resolves.toBeUndefined();
+    });
 });
