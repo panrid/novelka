@@ -63,8 +63,8 @@ export function WalletPage() {
             ))}
 
             <h2 className={styles.sectionTitle}>Моделі й ціни</h2>
-            {/* Saved settings coming back start the form afresh. */}
-            <SettingsForm key={JSON.stringify(data.settings)} settings={data.settings} />
+            {/* Initialised once: the saved values come back equal, and «Збережено» stays visible. */}
+            <SettingsForm settings={data.settings} />
 
             <Illustrations days={Number(days)} />
         </section>
@@ -140,7 +140,7 @@ function Illustrations({ days }: { days: number }) {
                     ? `Намальовано ${spent.pictures}, разом ${dollars(spent.usd, 3)}, в середньому ${dollars(spent.average, 3)} за картинку з описом.`
                     : 'За цей час нічого не малювали.'}
             </p>
-            <IllustrationForm key={JSON.stringify(settings)} settings={settings} />
+            <IllustrationForm settings={settings} />
         </>
     );
 }

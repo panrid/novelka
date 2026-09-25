@@ -29,6 +29,7 @@ import { NewPublication } from '../pages/studio/NewPublication';
 import { AutotranslatePage } from '../pages/studio/AutotranslatePage';
 import { GlossaryPage } from '../pages/studio/GlossaryPage';
 import { WalletPage } from '../pages/me/WalletPage';
+import { AdminHome, AuditPage, ModerationPage, SiteSettingsPage, UsersPage } from '../pages/admin/AdminPages';
 import { ChatPage } from '../pages/inbox/ChatPage';
 import { ConversationAboutPage } from '../pages/inbox/ConversationAboutPage';
 import { ConversationPage } from '../pages/inbox/ConversationPage';
@@ -113,6 +114,11 @@ const routeTree = rootRoute.addChildren([
     studio('/inbox/messages/new', NewGroupPage, 'Нова група'),
     studio('/inbox/messages/$id', ConversationPage, 'Розмова'),
     studio('/inbox/messages/$id/about', ConversationAboutPage, 'Про розмову'),
+    studio('/admin', AdminHome, 'Адміністрування'),
+    studio('/admin/moderation', ModerationPage, 'Модерація'),
+    studio('/admin/users', UsersPage, 'Користувачі й ролі'),
+    studio('/admin/settings', SiteSettingsPage, 'Налаштування сайту'),
+    studio('/admin/audit', AuditPage, 'Журнал дій'),
     createRoute({ getParentRoute: () => rootRoute, path: '/inbox/chat', component: ChatPage, head: title('Чат') }),
     createRoute({ getParentRoute: () => rootRoute, path: '/me', component: MePage, head: title('Я') }),
     studio('/me/suggestions', MySuggestionsPage, 'Мої правки'),

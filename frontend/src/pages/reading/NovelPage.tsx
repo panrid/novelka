@@ -8,6 +8,7 @@ import { useMe } from '../../auth/me';
 import { Discussion, useCommentCount } from '../../community/Discussion';
 import discussionStyles from '../../community/discussion.module.css';
 import { commentApi } from '../../community/api';
+import { adminApi } from '../../admin/api';
 import { Sheet } from '../../ui/Sheet';
 import { Blocks } from '../../reading/Blocks';
 import { Cover } from '../../reading/Cover';
@@ -145,6 +146,7 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                 </Link>
             ))}
             {novel.origin === 'translation' && !novel.viewer?.teamRole && <RelayOffer novel={novel} />}
+            <HideEdition editionId={edition.editionId} />
             <DiscussionButton editionId={edition.editionId} />
         </section>
     );
@@ -315,6 +317,26 @@ function Stars({ novel }: { novel: Novel }) {
             <span className={styles.muted}>
                 {edition.rating != null ? `${edition.rating.toFixed(1).replace('.', ',')} · оцінок: ${edition.ratings ?? 0}` : 'ще без оцінок'}
             </span>
+        </div>
+    );
+}
+
+/** Administrators hide a translation that breaks the rules; it comes back from «Приховане». */
+function HideEdition({ editionId }: { editionId: number }) {
+    const me = useMe();
+    const navigate = useNavigate();
+    const hide = useMutation({
+        mutationFn: (reason: string) => adminApi.hide('edition', editionId, reason),
+        onSuccess: () => void navigate({ to: '/admin/moderation' }),
+    });
+    if (me?.role !== 'admin' && me?.role !== 'owner') return null;
+    return (
+        <div style={{ marginTop: 24 }}>
+            <Button variant="danger" onPress={() => {
+                const reason = window.prompt('Чому приховати цей переклад? Причину побачать інші модератори.');
+                if (reason) hide.mutate(reason);
+            }}>Приховати переклад</Button>
+            {hide.isError && <Notice tone="error">{hide.error.message}</Notice>}
         </div>
     );
 }
