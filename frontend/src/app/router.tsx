@@ -27,6 +27,9 @@ import { EditionPage } from '../pages/studio/EditionPage';
 import { HistoryPage } from '../pages/studio/HistoryPage';
 import { ImportPage } from '../pages/studio/ImportPage';
 import { NewPublication } from '../pages/studio/NewPublication';
+import { AutotranslatePage } from '../pages/studio/AutotranslatePage';
+import { GlossaryPage } from '../pages/studio/GlossaryPage';
+import { WalletPage } from '../pages/me/WalletPage';
 import { RelayPage } from '../pages/studio/RelayPage';
 import { StudioHome } from '../pages/studio/StudioHome';
 import { MyTeamsPage } from '../pages/team/MyTeamsPage';
@@ -122,6 +125,9 @@ const routeTree = rootRoute.addChildren([
     studio('/studio/$editionId/about', AboutPage, 'Дані й обкладинка'),
     studio('/studio/$editionId/import', ImportPage, 'Глави з файлу'),
     studio('/studio/$editionId/relay', RelayPage, 'Естафета'),
+    studio('/studio/$editionId/translate', AutotranslatePage, 'Автопереклад'),
+    studio('/studio/$editionId/glossary', GlossaryPage, 'Словник'),
+    studio('/me/wallet', WalletPage, 'Шаги'),
     studio('/studio/$editionId/chapters/$number', ChapterEditorPage, 'Редактор'),
     studio('/studio/$editionId/chapters/$number/history', HistoryPage, 'Історія глави'),
     createRoute({ getParentRoute: () => rootRoute, path: '/team/$handle', component: TeamPage, head: ({ params }) => ({ meta: [{ title: `$${params.handle} — Новелка` }] }) }),

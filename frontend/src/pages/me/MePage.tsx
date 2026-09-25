@@ -44,6 +44,7 @@ export function MePage() {
             </Link>
             <nav className={styles.menu} aria-label="Особисте">
                 <Link to="/studio" className={styles.menuItem}>Студія — мої переклади й твори</Link>
+                {me.role === 'owner' && <Link to="/me/wallet" className={styles.menuItem}>Шаги й автопереклад</Link>}
                 <Link to="/me/suggestions" className={styles.menuItem}>Мої правки</Link>
                 <Link to="/me/settings" className={styles.menuItem}>Налаштування</Link>
                 <Link to="/me/settings/privacy" className={styles.menuItem}>Приватність</Link>

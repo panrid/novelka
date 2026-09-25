@@ -44,8 +44,12 @@ class Preparation {
     }
 
     EditionRef prepare(SyosetuLink link, long teamId) {
+        boolean known = catalog.novelBySource(link.key()).isPresent();
+        if (!known && !ai.configured()) {
+            throw UserFacingException.badRequest("Ключ OpenRouter не налаштовано на сервері: назву й опис нема чим перекласти.");
+        }
         SourceNovel novel = sources.novel(link);
-        if (catalog.novelBySource(link.key()).isPresent()) {
+        if (known) {
             return catalog.importNovel(new ImportedNovel(link.key(), link.url(), novel.title(), novel.author(),
                     novel.title(), novel.author(), List.of(), novel.chapters(), link.adult(), teamId));
         }

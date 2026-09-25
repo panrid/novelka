@@ -150,3 +150,62 @@
     text-align: right;
     color: var(--muted);
 }
+
+.quote {
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    font-size: 15px;
+}
+
+.jobCard {
+    margin: 14px 0;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+
+.jobHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.progress {
+    height: 6px;
+    margin-bottom: 8px;
+    border-radius: 3px;
+    background: var(--surface-2);
+    overflow: hidden;
+}
+
+.progress > span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.4s;
+}
+
+.entry {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.numbers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+/* A row that is a button: looks like the link rows. */
+.plain {
+    width: 100%;
+    border-top: 0;
+    border-left: 0;
+    border-right: 0;
+    background: none;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+}

@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { useMe } from '../../auth/me';
 import { studioApi, teamApi, type StudioBlock } from '../../studio/api';
+import { autotranslateApi } from '../../studio/autotranslate';
 import { TextEditor } from '../../studio/TextEditor';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
@@ -10,7 +11,7 @@ import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
 import styles from './studio.module.css';
 
-type Kind = 'human' | 'original';
+type Kind = 'human' | 'original' | 'syosetu';
 
 export function NewPublication() {
     const me = useMe();
@@ -25,17 +26,24 @@ export function NewPublication() {
     const [team, setTeam] = useState('');
     const publishing = (teams.data ?? []).filter((t) => t.role !== 'editor');
 
+    const [link, setLink] = useState('');
+    const chosenTeam = team || publishing[0]?.handle || '';
+    const prepare = useMutation({
+        mutationFn: () => autotranslateApi.prepare(link.trim(), chosenTeam),
+        onSuccess: ({ editionId }) => void navigate({ to: '/studio/$editionId/translate', params: { editionId: String(editionId) } }),
+    });
     const create = useMutation({
         mutationFn: () => studioApi.create({
-            kind, title: title.trim(), author: author.trim(), description,
-            tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean), adult, team: team || publishing[0]?.handle || '',
+            kind: kind === 'original' ? 'original' : 'human', title: title.trim(), author: author.trim(), description,
+            tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean), adult, team: chosenTeam,
         }),
         onSuccess: ({ editionId }) => void navigate({ to: '/studio/$editionId', params: { editionId: String(editionId) } }),
     });
 
     function submit(event: FormEvent) {
         event.preventDefault();
-        create.mutate();
+        if (kind === 'syosetu') prepare.mutate();
+        else create.mutate();
     }
 
     return (
@@ -46,12 +54,17 @@ export function NewPublication() {
                     text="Ви перекладаєте самі. Далі — глави в редакторі або з файлів .txt і .md." />
                 <Choice on={kind === 'original'} onPick={() => setKind('original')} icon="✦" title="Свій твір"
                     text="Ваша власна історія українською. Ви — автор." />
-                <Choice on={false} disabled icon="↻" title="Автопереклад із Syosetu"
-                    text={me?.role === 'owner' ? 'Зʼявиться на етапі 5.' : 'Поки доступний лише власнику сайту.'} />
+                <Choice on={kind === 'syosetu'} onPick={() => setKind('syosetu')} disabled={me?.role !== 'owner'} icon="↻"
+                    title="Автопереклад із Syosetu"
+                    text={me?.role === 'owner' ? 'Вставте посилання — назву й опис перекладемо одразу, далі глави «до N».' : 'Поки доступний лише власнику сайту.'} />
                 <Choice on={false} disabled icon="⇢" title="Продовжити покинутий"
                     text="Відкрийте новелу — якщо переклад вільний, там буде кнопка «Продовжити переклад»." />
             </div>
             <form className={styles.form} onSubmit={submit}>
+                {kind === 'syosetu' ? (
+                    <TextInput label="Посилання на новелу" value={link} onChange={setLink} isRequired inputMode="url"
+                        placeholder="https://ncode.syosetu.com/…" hint="Сторінка новели на Syosetu." />
+                ) : <>
                 <TextInput label="Назва" value={title} onChange={setTitle} isRequired />
                 {kind === 'human'
                     ? <TextInput label="Автор оригіналу" value={author} onChange={setAuthor} hint="Українською, як читачі шукатимуть." />
@@ -61,6 +74,7 @@ export function NewPublication() {
                     <TextEditor mode="description" blocks={description} onChange={setDescription} label="Опис" placeholder="Про що історія?" />
                 </div>
                 <TextInput label="Теги" value={tags} onChange={setTags} hint="Через кому: фентезі, перевтілення, затишне" />
+                </>}
                 {publishing.length > 1 && (
                     <label>
                         <div className={styles.label}>Команда</div>
@@ -69,11 +83,18 @@ export function NewPublication() {
                         </select>
                     </label>
                 )}
-                <Toggle label="Для дорослих (18+)" isSelected={adult} onChange={setAdult} />
+                {kind !== 'syosetu' && <Toggle label="Для дорослих (18+)" isSelected={adult} onChange={setAdult} />}
                 {create.isError && <Notice tone="error">{create.error.message}</Notice>}
-                <Button type="submit" wide pending={create.isPending} pendingLabel="Створюємо…" isDisabled={!title.trim()}>
-                    Створити
-                </Button>
+                {prepare.isError && <Notice tone="error">{prepare.error.message}</Notice>}
+                {kind === 'syosetu' ? (
+                    <Button type="submit" wide pending={prepare.isPending} pendingLabel="Готуємо: читаємо й перекладаємо опис…" isDisabled={!link.trim()}>
+                        Підготувати
+                    </Button>
+                ) : (
+                    <Button type="submit" wide pending={create.isPending} pendingLabel="Створюємо…" isDisabled={!title.trim()}>
+                        Створити
+                    </Button>
+                )}
             </form>
         </section>
     );
