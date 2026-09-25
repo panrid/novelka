@@ -71,6 +71,12 @@ record Settings(Stage analyze, Stage translate, Stage proofread, int segmentChar
         return Math.round(total);
     }
 
+    /** One stage of a chapter at a model's prices: 0 analysis, 1 translation, 2 proofreading. */
+    static long stageMicroUsd(int stage, int chars, double inputPerMillion, double outputPerMillion) {
+        double thousands = chars / 1000.0;
+        return Math.round(thousands * (TOKENS_PER_THOUSAND[stage][0] * inputPerMillion + TOKENS_PER_THOUSAND[stage][1] * outputPerMillion));
+    }
+
     static int shah(int chars) {
         return Math.max(1, (chars + CHARS_PER_SHAH - 1) / CHARS_PER_SHAH);
     }

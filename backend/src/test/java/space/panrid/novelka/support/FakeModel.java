@@ -42,6 +42,13 @@ public class FakeModel implements AiTransport {
         return true;
     }
 
+    /** A catalogue longer than any page, as OpenRouter's is. */
+    private static final String EXTRA = java.util.stream.IntStream.rangeClosed(1, 30)
+            .mapToObj(n -> """
+                    ,{"id":"fake/extra-%d","name":"Extra %d","pricing":{"prompt":"0.000001","completion":"0.000002"},
+                     "context_length":1000,"architecture":{"output_modalities":["text"]}}""".formatted(n, n))
+            .collect(java.util.stream.Collectors.joining());
+
     @Override
     public Reply models() {
         return new Reply(200, """
@@ -51,7 +58,7 @@ public class FakeModel implements AiTransport {
                  {"id":"fake/better","name":"Better Translator","pricing":{"prompt":"0.000002","completion":"0.000008"},
                   "context_length":200000,"architecture":{"output_modalities":["text"]}},
                  {"id":"fake/painter","name":"Painter","pricing":{"prompt":"0","completion":"0"},
-                  "context_length":0,"architecture":{"output_modalities":["image"]}}]}""");
+                  "context_length":0,"architecture":{"output_modalities":["image"]}}%s]}""".formatted(EXTRA));
     }
 
     @Override

@@ -264,12 +264,23 @@ class AutotranslateFlowTests {
         });
         assertThat(read(owner.browser().get("/api/studio/autotranslate/models?output=image"))).extracting(m -> m.path("id").asString())
                 .containsExactly("fake/painter");
+        assertThat(read(owner.browser().get("/api/studio/autotranslate/models"))).as("the whole catalogue, not a first page").hasSize(32);
+        assertThat(read(owner.browser().get("/api/studio/autotranslate/models?q=gpt%20mini"))).extracting(m -> m.path("id").asString())
+                .as("every word, in any order").containsExactly("openai/gpt-4.1-mini");
+        double wholeChapter = models.get(0).path("chapterUsd").asDouble();
+        double translation = read(owner.browser().get("/api/studio/autotranslate/models?q=better&chars=6000&stage=translate"))
+                .get(0).path("chapterUsd").asDouble();
+        assertThat(translation).as("the price of the stage being chosen").isPositive().isLessThan(wholeChapter);
 
         String plan = """
                 {"kind":"translate","from":1,"to":2,"redo":true,"models":{"translate":"fake/better","proofreadEnabled":false}}""";
         JsonNode quote = read(owner.browser().post(base + "/autotranslate/quote", plan));
         assertThat(quote.path("chapters").asInt()).isEqualTo(2);
         assertThat(quote.path("translateModel").path("model").asString()).isEqualTo("fake/better");
+        JsonNode usual = read(owner.browser().post(base + "/autotranslate/quote", """
+                {"kind":"translate","from":1,"to":2,"redo":true,"models":{"proofreadEnabled":false}}"""));
+        assertThat(quote.path("shah").asInt()).as("a five times dearer model takes more шаги, not a refusal")
+                .isGreaterThan(usual.path("shah").asInt() * 2);
         assertThat(quote.path("proofreadModel").path("enabled").asBoolean()).isFalse();
         assertThat(owner.browser().post(base + "/autotranslate/quote", """
                 {"to":2,"from":1,"redo":true,"models":{"translate":"nobody/none"}}""").status()).isEqualTo(400);

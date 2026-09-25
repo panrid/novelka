@@ -60,8 +60,8 @@ export const autotranslateApi = {
     cancel: (id: number, jobId: number) => api<void>(`${base(id)}/autotranslate/jobs/${jobId}/cancel`, json('POST', {})),
     resume: (id: number, jobId: number) => api<void>(`${base(id)}/autotranslate/jobs/${jobId}/resume`, json('POST', {})),
     processes: (page = 1) => api<Process[]>(`/api/studio/autotranslate/processes?page=${page}`),
-    models: (q: string, chars: number, output: 'text' | 'image' = 'text') =>
-        api<ModelChoice[]>(`/api/studio/autotranslate/models?q=${encodeURIComponent(q)}&chars=${chars}&output=${output}`),
+    models: (q: string, chars: number, output: 'text' | 'image' = 'text', stage?: 'analyze' | 'translate' | 'proofread') =>
+        api<ModelChoice[]>(`/api/studio/autotranslate/models?q=${encodeURIComponent(q)}&chars=${chars}&output=${output}${stage ? `&stage=${stage}` : ''}`),
     analysis: (id: number, page: number) => api<AnalysisPage>(`${base(id)}/analysis?page=${page}`),
     editAnalysis: (id: number, number: number, body: { title: string; label: string | null }) =>
         api<void>(`${base(id)}/analysis/${number}`, json('PUT', body)),

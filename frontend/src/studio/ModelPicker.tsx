@@ -1,23 +1,26 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { plural } from '../lib/plural';
 import { useDebounced } from '../lib/useDebounced';
 import { autotranslateApi, dollars } from './autotranslate';
 import styles from './modelPicker.module.css';
 
 /**
- * A model from OpenRouter's catalogue: type part of its name, pick from the list; each
- * option says what an average chapter costs with it (analysis, translation, proofreading).
+ * A model from OpenRouter's catalogue: type words of its name, pick from the list; each
+ * option says what this stage of an average chapter costs with it. Dear models are listed too:
+ * the quote then asks more шаги.
  */
-export function ModelPicker({ label, value, onChange, chars, hint }: {
-    label: string; value: string; onChange: (model: string) => void; chars: number; hint?: string | undefined;
+export function ModelPicker({ label, value, onChange, chars, stage, hint }: {
+    label: string; value: string; onChange: (model: string) => void; chars: number;
+    stage: 'analyze' | 'translate' | 'proofread'; hint?: string | undefined;
 }) {
     const [text, setText] = useState(value);
     const [open, setOpen] = useState(false);
     const [highlight, setHighlight] = useState(0);
     const query = useDebounced(text, 300);
     const models = useQuery({
-        queryKey: ['models', query, chars],
-        queryFn: () => autotranslateApi.models(query === value ? '' : query, chars),
+        queryKey: ['models', query, chars, stage],
+        queryFn: () => autotranslateApi.models(query === value ? '' : query, chars, 'text', stage),
         enabled: open,
         staleTime: 5 * 60_000,
     });
@@ -28,6 +31,10 @@ export function ModelPicker({ label, value, onChange, chars, hint }: {
         setOpen(false);
     };
     const id = `model-${label.replace(/\s+/g, '-')}`;
+    // The list is long: keep the option chosen with the arrows in sight.
+    useEffect(() => {
+        document.getElementById(`${id}-${highlight}`)?.scrollIntoView?.({ block: 'nearest' });
+    }, [id, highlight]);
     return (
         <div className={styles.picker}>
             <label className={styles.label} htmlFor={id}>{label}</label>
@@ -53,8 +60,9 @@ export function ModelPicker({ label, value, onChange, chars, hint }: {
             {hint && <div className={styles.hint}>{hint}</div>}
             {options.length > 0 && (
                 <ul id={`${id}-list`} className={styles.list} role="listbox" aria-label={label}>
+                    <li role="presentation" className={styles.count}>{plural(options.length, 'модель', 'моделі', 'моделей')}</li>
                     {options.map((model, index) => (
-                        <li key={model.id} role="option" aria-selected={index === highlight}
+                        <li key={model.id} id={`${id}-${index}`} role="option" aria-selected={index === highlight}
                             className={index === highlight ? styles.on : styles.option}
                             onMouseDown={(event) => { event.preventDefault(); choose(model.id); }}>
                             <span className={styles.name}>{model.id}</span>

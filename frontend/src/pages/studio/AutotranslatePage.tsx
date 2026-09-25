@@ -127,17 +127,17 @@ export function AutotranslatePage() {
                                         : 'Глави перекладуться знову й вийдуть новою версією; попередня лишиться в історії глави.'}
                                 </p>
                             )}
-                            <ModelPicker label="Модель аналізу" value={model('analyze')} chars={data.averageChars}
+                            <ModelPicker label="Модель аналізу" stage="analyze" value={model('analyze')} chars={data.averageChars}
                                 onChange={(analyze) => setModels({ ...models, analyze })}
                                 hint={kind === 'translate' ? 'Для глав, які ще не проаналізовано.' : undefined} />
                             {kind === 'translate' && (
                                 <>
-                                    <ModelPicker label="Модель перекладу" value={model('translate')} chars={data.averageChars}
+                                    <ModelPicker label="Модель перекладу" stage="translate" value={model('translate')} chars={data.averageChars}
                                         onChange={(translate) => setModels({ ...models, translate })} />
                                     <Toggle label="Вичитка" isSelected={models.proofreadEnabled ?? data.settings.proofread.enabled}
                                         onChange={(proofreadEnabled) => setModels({ ...models, proofreadEnabled })} />
                                     {(models.proofreadEnabled ?? data.settings.proofread.enabled) && (
-                                        <ModelPicker label="Модель вичитки" value={model('proofread')} chars={data.averageChars}
+                                        <ModelPicker label="Модель вичитки" stage="proofread" value={model('proofread')} chars={data.averageChars}
                                             onChange={(proofread) => setModels({ ...models, proofread })} />
                                     )}
                                 </>

@@ -72,3 +72,9 @@
     color: var(--muted);
     font-size: 12px;
 }
+
+.count {
+    padding: 4px 10px 6px;
+    color: var(--muted);
+    font-size: 12px;
+}

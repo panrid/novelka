@@ -39,7 +39,7 @@ export function WalletPage() {
                     ? 'OpenRouter не відповів про залишок. Перевірте ключ керування.'
                     : 'Ключ OpenRouter не налаштовано на сервері.'}</Notice>}
             <p className={styles.muted}>
-                Залишок на OpenRouter. Один шаг — до 10 000 знаків оригіналу, зараз {dollars(data.usdPerShah, 3)}.
+                Залишок на OpenRouter. Один шаг — до 10 000 знаків оригіналу моделями сайту, зараз {dollars(data.usdPerShah, 3)}; з дорожчою моделлю глава займає більше шагів.
 
             </p>
 

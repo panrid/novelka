@@ -190,7 +190,8 @@ class Jobs {
             throw UserFacingException.badRequest((analyze ? "Ці глави вже проаналізовано." : "Ці глави вже перекладено.")
                     + " Щоб зробити їх заново, увімкніть «Зробити заново» в розширених налаштуваннях.");
         }
-        Settings settings = withModels(settings(), plan.models());
+        Settings site = settings();
+        Settings settings = withModels(site, plan.models());
         Map<Integer, Integer> known = db.select(SOURCE_CHAPTER.NUMBER, SOURCE_CHAPTER.CHARS).from(SOURCE_CHAPTER)
                 .where(SOURCE_CHAPTER.NOVEL_ID.eq(novel.novelId())).fetchMap(SOURCE_CHAPTER.NUMBER, SOURCE_CHAPTER.CHARS);
         int guess = known.isEmpty() ? UNKNOWN_CHAPTER_CHARS
@@ -205,10 +206,11 @@ class Jobs {
             Integer chars = known.get(number);
             estimated |= chars == null;
             int size = chars == null ? guess : chars;
-            shah += Settings.shah(size);
             boolean needsAnalysis = analyze || !analyzed.contains(number);
             unanalyzed += !analyze && !analyzed.contains(number) ? 1 : 0;
-            expected += settings.expectedMicroUsd(size, needsAnalysis, !analyze);
+            long chosen = settings.expectedMicroUsd(size, needsAnalysis, !analyze);
+            expected += chosen;
+            shah += shahFor(size, chosen, site.expectedMicroUsd(size, needsAnalysis, !analyze));
         }
         if (analyze) {
             shah = analysisShah(shah);
@@ -217,6 +219,18 @@ class Jobs {
                 settings.usd(shah), Settings.usdOfMicro(expected), estimated, unanalyzed,
                 settings.analyze(), settings.translate(), settings.proofread());
         return new Prepared(quote, numbers, settings);
+    }
+
+    /**
+     * A шаг pays for 10 000 characters at the site's models. Any model may be chosen: one that
+     * costs more takes proportionally more шаги, a cheaper one never takes fewer.
+     */
+    static int shahFor(int chars, long chosenMicroUsd, long siteMicroUsd) {
+        int base = Settings.shah(chars);
+        if (siteMicroUsd <= 0 || chosenMicroUsd <= siteMicroUsd) {
+            return base;
+        }
+        return (int) Math.ceil(base * (double) chosenMicroUsd / siteMicroUsd);
     }
 
     /** The site's models with this run's choices, each priced from OpenRouter's catalogue. */

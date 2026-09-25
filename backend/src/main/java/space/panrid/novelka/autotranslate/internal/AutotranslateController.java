@@ -137,23 +137,37 @@ class AutotranslateController {
     record ModelChoice(String id, String name, double inputPerMillion, double outputPerMillion, BigDecimal chapterUsd) {
     }
 
-    /** OpenRouter models whose id or name contains what was typed, with the price of a chapter. */
+    private static final List<String> STAGES = List.of("analyze", "translate", "proofread");
+
+    /**
+     * Every OpenRouter model whose id or name has all the words typed, with what a chapter costs
+     * with it: for one stage when {@code stage} is given, else for all three.
+     */
     @GetMapping("/autotranslate/models")
     List<ModelChoice> models(@RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "6000") int chars,
-            @RequestParam(defaultValue = "text") String output) {
+            @RequestParam(defaultValue = "text") String output, @RequestParam(required = false) String stage) {
         owner();
-        String query = q.strip().toLowerCase(java.util.Locale.ROOT);
+        List<String> words = java.util.Arrays.stream(q.strip().toLowerCase(java.util.Locale.ROOT).split("[\\s/:-]+"))
+                .filter(word -> !word.isEmpty()).toList();
+        int size = Math.max(500, chars);
+        int at = stage == null ? -1 : STAGES.indexOf(stage);
         return ai.models().stream()
                 .filter(model -> model.outputs().contains(output))
-                .filter(model -> query.isEmpty() || model.id().toLowerCase(java.util.Locale.ROOT).contains(query)
-                        || model.name().toLowerCase(java.util.Locale.ROOT).contains(query))
-                .limit(20)
+                .filter(model -> {
+                    String haystack = (model.id() + " " + model.name()).toLowerCase(java.util.Locale.ROOT);
+                    return words.stream().allMatch(haystack::contains);
+                })
                 .map(model -> {
-                    Settings.Stage stage = new Settings.Stage(model.id(), model.inputPerMillion(), model.outputPerMillion(), true);
-                    long micro = Settings.defaults().withModels(stage, stage, stage).expectedMicroUsd(Math.max(500, chars), true, true);
+                    long micro = at >= 0
+                            ? Settings.stageMicroUsd(at, size, model.inputPerMillion(), model.outputPerMillion())
+                            : Settings.defaults().withModels(stageOf(model), stageOf(model), stageOf(model)).expectedMicroUsd(size, true, true);
                     return new ModelChoice(model.id(), model.name(), model.inputPerMillion(), model.outputPerMillion(), Settings.usdOfMicro(micro));
                 })
                 .toList();
+    }
+
+    private static Settings.Stage stageOf(space.panrid.novelka.ai.AiModel model) {
+        return new Settings.Stage(model.id(), model.inputPerMillion(), model.outputPerMillion(), true);
     }
 
     // ---- chapter titles and numbers from analysis, checked before translating ---------------
