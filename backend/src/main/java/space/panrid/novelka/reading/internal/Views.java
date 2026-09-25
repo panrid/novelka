@@ -32,12 +32,13 @@ final class Views {
     record TagCount(String name, String slug, int novels) {
     }
 
+    /** @param rating average stars, null until someone rates */
     record EditionSummary(long editionId, String teamHandle, String teamName, String kind, String status,
-            int chapterCount, String coverUrl) {
+            int chapterCount, String coverUrl, Double rating, int ratings) {
     }
 
     /** {@code teamRole}: owner, translator or editor when the viewer works on this edition. */
-    record ViewerState(String list, Integer chapterNumber, Float position, String teamRole) {
+    record ViewerState(String list, Integer chapterNumber, Float position, String teamRole, Integer myRating) {
     }
 
     record NovelPage(String slug, String title, String author, String origin, List<ReaderBlock> description,

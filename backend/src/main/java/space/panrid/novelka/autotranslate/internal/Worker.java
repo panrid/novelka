@@ -13,7 +13,6 @@ import org.jooq.impl.DSL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -174,7 +173,6 @@ class Worker {
 
     /** The schedule; switched off in tests, which call {@link #drain()} themselves. */
     @Component
-    @EnableScheduling
     @ConditionalOnProperty(name = "novelka.autotranslate.worker", havingValue = "true", matchIfMissing = true)
     static class Schedule {
 

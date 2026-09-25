@@ -17,6 +17,7 @@ import java.util.Map;
 
 import org.jooq.DSLContext;
 import org.jooq.JSONB;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ import space.panrid.novelka.platform.text.Block;
 import space.panrid.novelka.platform.text.Span;
 import space.panrid.novelka.platform.web.RateLimiter;
 import space.panrid.novelka.platform.web.UserFacingException;
+import space.panrid.novelka.suggestion.SuggestionsReviewed;
 import space.panrid.novelka.text.BlockRules;
 import space.panrid.novelka.text.ChangeStats;
 import space.panrid.novelka.text.Chapters;
@@ -61,7 +63,10 @@ class SuggestionService {
     private final Clock clock;
     private final RateLimiter drafts;
 
-    SuggestionService(DSLContext db, Chapters chapters, JsonMapper json, Clock clock) {
+    private final ApplicationEventPublisher events;
+
+    SuggestionService(DSLContext db, Chapters chapters, JsonMapper json, Clock clock, ApplicationEventPublisher events) {
+        this.events = events;
         this.db = db;
         this.chapters = chapters;
         this.json = json;
@@ -253,6 +258,20 @@ class SuggestionService {
         mark(accepted, "accepted", reviewer, now, reviewNote, revisionId);
         mark(rejected, "rejected", reviewer, now, reviewNote, null);
         mark(stale, "stale", reviewer, now, reviewNote, null);
+        Map<Long, int[]> byAuthor = new LinkedHashMap<>();
+        for (SuggestionRecord suggestion : pending) {
+            int[] counts = byAuthor.computeIfAbsent(suggestion.getAuthorId(), id -> new int[2]);
+            if (accepted.contains(suggestion.getId())) {
+                counts[0]++;
+            } else if (rejected.contains(suggestion.getId())) {
+                counts[1]++;
+            }
+        }
+        byAuthor.forEach((author, counts) -> {
+            if (author != reviewer.accountId() && counts[0] + counts[1] > 0) {
+                events.publishEvent(new SuggestionsReviewed(editionId, number, author, counts[0], counts[1]));
+            }
+        });
         return new ReviewResult(revisionId, accepted.size(), rejected.size(), stale.size());
     }
 

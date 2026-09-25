@@ -3,6 +3,7 @@ package space.panrid.novelka.reading.internal;
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.EDITION;
+import static space.panrid.novelka.jooq.Tables.EDITION_RATING;
 import static space.panrid.novelka.jooq.Tables.LIBRARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.NOVEL_TAG;
@@ -264,13 +265,20 @@ class ReadingQueries {
 
     List<EditionSummary> summaries(List<EditionRow> editions) {
         Map<Long, StoredImage> covers = images.findAll(editions.stream().map(EditionRow::coverImageId).toList());
-        return editions.stream().map(e -> summary(e, covers)).toList();
+        Map<Long, ? extends Record> ratings = editions.isEmpty() ? Map.<Long, Record>of()
+                : db.select(EDITION_RATING.EDITION_ID, DSL.avg(EDITION_RATING.SCORE), DSL.count()).from(EDITION_RATING)
+                        .where(EDITION_RATING.EDITION_ID.in(editions.stream().map(EditionRow::id).toList()))
+                        .groupBy(EDITION_RATING.EDITION_ID).fetchMap(EDITION_RATING.EDITION_ID);
+        return editions.stream().map(e -> summary(e, covers, ratings.get(e.id()))).toList();
     }
 
-    private static EditionSummary summary(EditionRow e, Map<Long, StoredImage> covers) {
+    private static EditionSummary summary(EditionRow e, Map<Long, StoredImage> covers, Record rating) {
         StoredImage cover = e.coverImageId() == null ? null : covers.get(e.coverImageId());
+        java.math.BigDecimal average = rating == null ? null : rating.get(1, java.math.BigDecimal.class);
         return new EditionSummary(e.id(), e.teamHandle(), e.teamName(), e.kind(), e.status(), e.chapterCount(),
-                cover == null ? null : cover.url(COVER_WIDTH));
+                cover == null ? null : cover.url(COVER_WIDTH),
+                average == null ? null : average.setScale(1, java.math.RoundingMode.HALF_UP).doubleValue(),
+                rating == null ? 0 : rating.get(2, Integer.class));
     }
 
     List<String> allTags(long novelId) {
@@ -336,8 +344,11 @@ class ReadingQueries {
                 .leftJoin(TEAM_MEMBER).on(TEAM_MEMBER.TEAM_ID.eq(TEAM.ID).and(TEAM_MEMBER.ACCOUNT_ID.eq(accountId)))
                 .where(EDITION.ID.eq(editionId))
                 .fetchOne(0, String.class);
+        Short rating = db.select(EDITION_RATING.SCORE).from(EDITION_RATING)
+                .where(EDITION_RATING.ACCOUNT_ID.eq(accountId), EDITION_RATING.EDITION_ID.eq(editionId)).fetchOne(EDITION_RATING.SCORE);
         return new Views.ViewerState(list, progress == null ? null : progress.get(READING_PROGRESS.CHAPTER_NUMBER),
-                progress == null ? null : progress.get(READING_PROGRESS.POSITION), teamRole);
+                progress == null ? null : progress.get(READING_PROGRESS.POSITION), teamRole,
+                rating == null ? null : rating.intValue());
     }
 
     // ---- library --------------------------------------------------------------------------

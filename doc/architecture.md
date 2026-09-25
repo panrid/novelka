@@ -358,11 +358,13 @@ edition_rating   account_id, edition_id, score (1..5)
 
 ### community
 ```
-comment          id, target (edition|chapter), target_id, author_id, reply_to,
-                 body, edited_at, deleted_at, hidden_at, hidden_by, hidden_reason
+comment          id, edition_id, chapter_number null (null — про переклад загалом), author_id,
+                 reply_to (завжди коментар верхнього рівня), body, score,
+                 edited_at, deleted_at, hidden_at, hidden_by, hidden_reason
 chat_message     id, author_id, reply_to, body, deleted_at, hidden_*
 mention          source (comment|chat|message), source_id, account_id null, team_id null
-vote             account_id, target (comment|edition), target_id, value (-1|1)
+comment_vote     comment_id, account_id, value (-1|1)
+edition_rating   edition_id, account_id, score (1..5)
 report           id, reporter_id, target (comment|chat|dm|image), target_id, reason,
                  state (open|resolved|dismissed), resolved_by, created_at
 ```

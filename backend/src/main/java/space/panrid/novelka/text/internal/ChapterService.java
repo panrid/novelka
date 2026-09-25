@@ -19,6 +19,7 @@ import org.jooq.DSLContext;
 import org.jooq.JSONB;
 import org.jooq.Record;
 import org.jooq.impl.DSL;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ import space.panrid.novelka.platform.web.UserFacingException;
 import space.panrid.novelka.text.BlockRules;
 import space.panrid.novelka.text.ChangeStats;
 import space.panrid.novelka.text.ChapterFiles;
+import space.panrid.novelka.text.ChaptersPublished;
 import space.panrid.novelka.text.Chapters;
 import space.panrid.novelka.text.EditorModels;
 import space.panrid.novelka.text.EditorModels.Contribution;
@@ -51,8 +53,10 @@ class ChapterService implements Chapters {
     private final JsonMapper json;
     private final Catalog catalog;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
-    ChapterService(DSLContext db, JsonMapper json, Catalog catalog, Clock clock) {
+    ChapterService(DSLContext db, JsonMapper json, Catalog catalog, Clock clock, ApplicationEventPublisher events) {
+        this.events = events;
         this.db = db;
         this.json = json;
         this.catalog = catalog;
@@ -86,6 +90,9 @@ class ChapterService implements Chapters {
             numbers.add(next++);
         }
         refreshCounters(editionId, now);
+        if (!numbers.isEmpty()) {
+            events.publishEvent(new ChaptersPublished(editionId, numbers.getFirst(), numbers.getLast()));
+        }
         return numbers;
     }
 
@@ -123,6 +130,9 @@ class ChapterService implements Chapters {
                 .set(CHAPTER.UPDATED_AT, now)
                 .where(CHAPTER.ID.eq(chapterId)).execute();
         refreshCounters(editionId, firstTime ? now : null);
+        if (firstTime) {
+            events.publishEvent(new ChaptersPublished(editionId, number, number));
+        }
         return revisionId;
     }
 
@@ -240,6 +250,9 @@ class ChapterService implements Chapters {
                 .where(EDITOR_DRAFT.CHAPTER_ID.eq(chapter.getId()).and(EDITOR_DRAFT.ACCOUNT_ID.eq(accountId)))
                 .execute();
         refreshCounters(editionId, current == null ? now : null);
+        if (current == null) {
+            events.publishEvent(new ChaptersPublished(editionId, number, number));
+        }
         return revisionId;
     }
 

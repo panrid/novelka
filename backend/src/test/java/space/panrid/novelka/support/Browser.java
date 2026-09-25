@@ -35,6 +35,15 @@ public class Browser {
         return send(HttpRequest.newBuilder(URI.create(base + path)).GET());
     }
 
+    /** Lines of a server-sent event stream as they arrive; the stream stays open in the background. */
+    public java.util.concurrent.BlockingQueue<String> stream(String path) {
+        java.util.concurrent.BlockingQueue<String> lines = new java.util.concurrent.LinkedBlockingQueue<>();
+        http.sendAsync(HttpRequest.newBuilder(URI.create(base + path)).header("Accept", "text/event-stream").GET().build(),
+                        HttpResponse.BodyHandlers.ofLines())
+                .thenAccept(response -> response.body().forEach(lines::add));
+        return lines;
+    }
+
     public Response post(String path, String json) {
         if (csrf().isEmpty()) {
             get("/api/me"); // any response sets the XSRF-TOKEN cookie

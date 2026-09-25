@@ -8,3 +8,6 @@ novelka:
   # Tests run the queue themselves (Worker.drain) instead of on a schedule.
   autotranslate:
     worker: false
+server:
+  # Open event streams must not hold the test JVM for the graceful-shutdown timeout.
+  shutdown: immediate

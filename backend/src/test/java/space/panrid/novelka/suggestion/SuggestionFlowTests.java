@@ -72,6 +72,12 @@ class SuggestionFlowTests {
                 .formatted(pending.get(0).path("id").asLong(), pending.get(1).path("id").asLong());
         JsonNode result = read(owner.browser().post("/api/studio/editions/" + edition + "/chapters/1/suggestions/review", decisions));
         assertThat(result.path("accepted").asInt()).isEqualTo(2);
+        JsonNode inbox = space.panrid.novelka.support.Eventually.eventually(
+                () -> read(reader.browser().get("/api/notifications")), page -> !page.path("items").isEmpty()).path("items");
+        assertThat(inbox).anySatisfy(item -> {
+            assertThat(item.path("kind").asString()).isEqualTo("suggestions_reviewed");
+            assertThat(item.path("payload").path("accepted").asInt()).isEqualTo(2);
+        });
 
         JsonNode text = read(new Browser(port).get("/api/novels/" + slug + "/chapters/1")).path("blocks");
         assertThat(text.get(0).path("content").get(0).path("text").asString()).isEqualTo("Але це не було розкішне ліжко.");
