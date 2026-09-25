@@ -3,6 +3,8 @@ import { Link, useParams } from '@tanstack/react-router';
 import { ArrowLeft, History } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/client';
+import { useMe } from '../../auth/me';
+import { IllustrateSheet } from './IllustrateSheet';
 import { studioApi, type EditorView, type StudioBlock } from '../../studio/api';
 import { TextEditor } from '../../studio/TextEditor';
 import { Button } from '../../ui/Button';
@@ -29,6 +31,9 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
     const client = useQueryClient();
     // Opening a chapter with my draft continues the draft; otherwise the published text.
     const [title, setTitle] = useState(view.draft?.title || view.title);
+    const me = useMe();
+    // Drawing is for the site owner at launch (рішення 21).
+    const [drawing, setDrawing] = useState<{ fragment: string; insert: (picture: { id: number; url: string }) => void } | null>(null);
     const [blocks, setBlocks] = useState<StudioBlock[]>(view.draft?.blocks ?? view.blocks);
     const [base, setBase] = useState<number | null>(view.draft?.baseRevisionId ?? view.revisionId);
     const [save, setSave] = useState<Save>(view.draft ? 'saved' : 'idle');
@@ -129,7 +134,12 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                     <input className={styles.titleInput} aria-label="Назва глави" placeholder="Назва глави" value={title}
                         onChange={(event) => changed(() => setTitle(event.target.value))} />
                 </div>
+                {drawing && (
+                    <IllustrateSheet editionId={editionId} chapter={view.number} fragment={drawing.fragment}
+                        onInsert={drawing.insert} onClose={() => setDrawing(null)} />
+                )}
                 <TextEditor mode="chapter" blocks={blocks} onChange={(next) => changed(() => setBlocks(next))}
+                    onIllustrate={me?.role === 'owner' ? (fragment, insert) => setDrawing({ fragment, insert }) : undefined}
                     mayAddPictures={view.mayAddPictures} label="Текст глави" placeholder="Почніть писати або вставте текст…" />
             </div>
         </div>

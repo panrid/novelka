@@ -12,6 +12,12 @@ public interface Ai {
      */
     AiAnswer ask(AiRequest request);
 
+    /**
+     * Draws a picture. Every call is a new picture: an identical request is not answered
+     * from the journal, since «ще варіант» asks for exactly that.
+     */
+    AiPicture image(AiImageRequest request);
+
     /** Money spent by a job, in millionths of a dollar; an answer that may be lost counts at its estimate. */
     long spentMicroUsd(long jobId);
 

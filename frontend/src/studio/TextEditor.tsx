@@ -11,7 +11,7 @@ import Text from '@tiptap/extension-text';
 import Underline from '@tiptap/extension-underline';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
-import { ImagePlus, Link2, Minus, Redo2, Undo2 } from 'lucide-react';
+import { ImagePlus, Link2, Minus, Redo2, Sparkles, Undo2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Dialog, Heading as DialogHeading, Modal, ModalOverlay } from 'react-aria-components';
 import { Button } from '../ui/Button';
@@ -49,9 +49,14 @@ type Props = {
     mayAddPictures?: boolean;
     label: string;
     placeholder?: string;
+    /**
+     * «Намалювати»: gets the selected text (or the paragraph the cursor is in) and a
+     * function that puts the finished picture right after that paragraph.
+     */
+    onIllustrate?: ((fragment: string, insert: (picture: { id: number; url: string }) => void) => void) | undefined;
 };
 
-export function TextEditor({ blocks, onChange, mode, mayAddPictures = false, label, placeholder }: Props) {
+export function TextEditor({ blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate }: Props) {
     const chapter = mode === 'chapter';
     const editor = useEditor({
         extensions: [
@@ -74,12 +79,15 @@ export function TextEditor({ blocks, onChange, mode, mayAddPictures = false, lab
     return (
         <div className={styles.wrap}>
             <EditorContent editor={editor} />
-            <Toolbar editor={editor} chapter={chapter} mayAddPictures={chapter && mayAddPictures} />
+            <Toolbar editor={editor} chapter={chapter} mayAddPictures={chapter && mayAddPictures}
+                onIllustrate={chapter && mayAddPictures ? onIllustrate : undefined} />
         </div>
     );
 }
 
-function Toolbar({ editor, chapter, mayAddPictures }: { editor: Editor; chapter: boolean; mayAddPictures: boolean }) {
+function Toolbar({ editor, chapter, mayAddPictures, onIllustrate }: {
+    editor: Editor; chapter: boolean; mayAddPictures: boolean; onIllustrate: Props['onIllustrate'];
+}) {
     const state = useEditorState({
         editor,
         selector: ({ editor: e }) => ({
@@ -101,11 +109,23 @@ function Toolbar({ editor, chapter, mayAddPictures }: { editor: Editor; chapter:
             {button('Закреслений', state.strike, () => editor.chain().focus().toggleStrike().run(), <s>З</s>)}
             {chapter && button('Розділювач сцен', false, () => editor.chain().focus().setHorizontalRule().run(), <Minus size={18} aria-hidden />)}
             {mayAddPictures && <PictureButtons editor={editor} />}
+            {onIllustrate && button('Намалювати сцену', false, () => illustrate(editor, onIllustrate), <Sparkles size={18} aria-hidden />)}
             <span className={styles.spacer} />
             {state.undo && button('Скасувати', false, () => editor.chain().focus().undo().run(), <Undo2 size={18} aria-hidden />)}
             {state.redo && button('Повторити', false, () => editor.chain().focus().redo().run(), <Redo2 size={18} aria-hidden />)}
         </div>
     );
+}
+
+/** The selected text, or the whole paragraph when nothing is selected; the picture goes after that paragraph. */
+function illustrate(editor: Editor, onIllustrate: NonNullable<Props['onIllustrate']>) {
+    const { from, to, $to } = editor.state.selection;
+    const selected = editor.state.doc.textBetween(from, to, '\n').trim();
+    const fragment = selected || $to.parent.textContent.trim();
+    const after = $to.depth >= 1 ? $to.after(1) : editor.state.doc.content.size;
+    onIllustrate(fragment, (picture) => {
+        editor.chain().focus().insertContentAt(after, { type: 'image', attrs: { src: picture.url, imageId: picture.id } }).run();
+    });
 }
 
 function PictureButtons({ editor }: { editor: Editor }) {

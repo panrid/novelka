@@ -63,7 +63,16 @@ public class FakeModel implements AiTransport {
         if (trouble == Trouble.LOST) {
             throw new Lost("timeout");
         }
+        if (request.has("modalities")) {
+            String picture = java.util.Base64.getEncoder().encodeToString(Pictures.png(400, 500, java.awt.Color.CYAN));
+            return new Reply(200, JSON.writeValueAsString(Map.of(
+                    "choices", List.of(Map.of("message", Map.of("role", "assistant", "content", "",
+                            "images", List.of(Map.of("type", "image_url", "image_url", Map.of("url", "data:image/png;base64," + picture)))))),
+                    "usage", Map.of("prompt_tokens", 60, "completion_tokens", 1290, "cost", 0.039))));
+        }
         Object answer = switch (schema) {
+            case "illustration_prompt" -> Map.of("prompt", "A young man by a lighthouse at night, lantern light, "
+                    + (user.contains("light novel") ? "light novel style" : "no style"));
             case "novel" -> Map.of("title", "Ліхтарник із туману", "author", "Сакура Юкі",
                     "description", "Перший абзац опису.\n\nДругий абзац опису.");
             case "glossary" -> Map.of(

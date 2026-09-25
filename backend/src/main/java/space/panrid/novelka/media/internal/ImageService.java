@@ -56,6 +56,18 @@ class ImageService implements Images {
         if (!uploads.tryAcquire(Long.toString(ownerAccountId))) {
             throw UserFacingException.tooManyRequests();
         }
+        return save(ownerAccountId, kind, content);
+    }
+
+    @Override
+    public StoredImage storeDrawn(long ownerAccountId, byte[] content, String prompt, String fragment, long aiCallId) {
+        StoredImage image = save(ownerAccountId, ImageKind.ILLUSTRATION, content);
+        db.update(IMAGE).set(IMAGE.PROMPT, prompt).set(IMAGE.FRAGMENT, fragment).set(IMAGE.AI_CALL_ID, aiCallId)
+                .where(IMAGE.ID.eq(image.id())).execute();
+        return image;
+    }
+
+    private StoredImage save(long ownerAccountId, ImageKind kind, byte[] content) {
         ImageProcessor.Processed processed = ImageProcessor.process(content, kind);
         LocalDate today = LocalDate.now(clock.withZone(ZoneOffset.UTC));
         String base = "%d/%02d/%s".formatted(today.getYear(), today.getMonthValue(), randomName());

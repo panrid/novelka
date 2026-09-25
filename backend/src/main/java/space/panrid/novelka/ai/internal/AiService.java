@@ -29,6 +29,8 @@ import space.panrid.novelka.ai.AiAnswer;
 import space.panrid.novelka.ai.AiCredits;
 import space.panrid.novelka.ai.AiException;
 import space.panrid.novelka.ai.AiException.Kind;
+import space.panrid.novelka.ai.AiImageRequest;
+import space.panrid.novelka.ai.AiPicture;
 import space.panrid.novelka.ai.AiRequest;
 import space.panrid.novelka.ai.AiTransport;
 import space.panrid.novelka.jooq.tables.records.AiCallRecord;
@@ -112,7 +114,8 @@ class AiService implements Ai {
         return received(id, reply);
     }
 
-    private AiAnswer received(long id, AiTransport.Reply reply) {
+    /** Any answer but 200 becomes a journal entry and an exception telling whether it may be paid. */
+    private void requireSuccess(long id, AiTransport.Reply reply) {
         int status = reply.status();
         if (status == 429 || status == 502 || status == 503 || status == 408) {
             finish(id, "failed", reply.body(), 0L, "HTTP " + status);
@@ -131,6 +134,10 @@ class AiService implements Ai {
             throw new AiException(status >= 500 ? Kind.UNCERTAIN : Kind.FAILED,
                     "OpenRouter відповів помилкою (%d).".formatted(status));
         }
+    }
+
+    private AiAnswer received(long id, AiTransport.Reply reply) {
+        requireSuccess(id, reply);
         Parsed parsed;
         try {
             parsed = parse(reply.body());
@@ -156,6 +163,78 @@ class AiService implements Ai {
     }
 
     private record Parsed(String content, boolean cut, String error) {
+    }
+
+    @Override
+    public AiPicture image(AiImageRequest request) {
+        if (!transport.configured()) {
+            throw new AiException(Kind.FAILED, "Ключ OpenRouter не налаштовано.");
+        }
+        Map<String, Object> request_ = new LinkedHashMap<>();
+        request_.put("model", request.model());
+        request_.put("messages", List.of(Map.of("role", "user", "content", request.prompt())));
+        request_.put("modalities", List.of("image", "text"));
+        request_.put("image_config", Map.of("aspect_ratio", request.aspectRatio()));
+        request_.put("usage", Map.of("include", true));
+        String body = json.writeValueAsString(request_);
+        long id = db.insertInto(AI_CALL)
+                .set(AI_CALL.JOB_ID, request.tag().jobId())
+                .set(AI_CALL.CHAPTER_NUMBER, request.tag().chapterNumber())
+                .set(AI_CALL.STAGE, request.tag().stage())
+                .set(AI_CALL.MODEL, request.model())
+                // A new picture every time: the hash never matches an earlier call.
+                .set(AI_CALL.REQUEST_HASH, sha256(body + "#" + java.util.UUID.randomUUID()))
+                .set(AI_CALL.REQUEST, JSONB.valueOf(body))
+                .set(AI_CALL.COST_ESTIMATED_MUSD, request.estimateMicroUsd())
+                .returning(AI_CALL.ID).fetchSingle().getId();
+        AiTransport.Reply reply;
+        try {
+            reply = transport.chat(body);
+        } catch (AiTransport.NotSent error) {
+            finish(id, "failed", null, 0L, "не надіслано: " + error.getMessage());
+            throw new AiException(Kind.UNPAID, "Не вдалося зʼєднатися з OpenRouter.");
+        } catch (AiTransport.Lost error) {
+            finish(id, "uncertain", null, null, "відповідь загубилася: " + error.getMessage());
+            throw new AiException(Kind.UNCERTAIN, "Відповідь моделі загубилася дорогою. Її могли вже оплатити.");
+        }
+        requireSuccess(id, reply);
+        JsonNode root;
+        try {
+            root = json.readTree(reply.body());
+        } catch (RuntimeException unreadable) {
+            finish(id, "uncertain", null, null, "нечитабельна відповідь");
+            throw new AiException(Kind.UNCERTAIN, "OpenRouter повернув нечитабельну відповідь. Її могли вже оплатити.");
+        }
+        if (root.has("error")) {
+            finish(id, "failed", reply.body(), 0L, root.path("error").path("message").asString("error"));
+            throw new AiException(Kind.UNPAID, "Постачальник моделі не впорався із запитом.");
+        }
+        JsonNode usage = root.path("usage");
+        long cost = usage.has("cost") ? new BigDecimal(usage.path("cost").asString("0")).movePointRight(6).longValue() : -1;
+        String url = root.path("choices").path(0).path("message").path("images").path(0).path("image_url").path("url").asString("");
+        java.util.regex.Matcher data = java.util.regex.Pattern.compile("^data:(image/[a-z+.-]+);base64,(.+)$", java.util.regex.Pattern.DOTALL)
+                .matcher(url);
+        byte[] content = null;
+        String mime = null;
+        if (data.matches()) {
+            mime = data.group(1);
+            content = java.util.Base64.getMimeDecoder().decode(data.group(2));
+        }
+        // The journal keeps the answer without the picture itself: megabytes of base64 help nobody there.
+        String kept = reply.body().replace(url, content == null ? "" : "[%s, %d байтів]".formatted(mime, content.length));
+        db.update(AI_CALL)
+                .set(AI_CALL.STATE, "complete")
+                .set(AI_CALL.RESPONSE, JSONB.valueOf(kept))
+                .set(AI_CALL.COST_ACTUAL_MUSD, cost < 0 ? null : cost)
+                .set(AI_CALL.TOKENS_IN, usage.path("prompt_tokens").asInt(0))
+                .set(AI_CALL.TOKENS_OUT, usage.path("completion_tokens").asInt(0))
+                .set(AI_CALL.ERROR, content == null ? "у відповіді немає картинки" : null)
+                .set(AI_CALL.FINISHED_AT, now())
+                .where(AI_CALL.ID.eq(id)).execute();
+        if (content == null) {
+            throw new AiException(Kind.FAILED, "Модель відповіла без картинки. Спробуйте змінити опис.");
+        }
+        return new AiPicture(id, content, mime, Math.max(cost, 0));
     }
 
     private Parsed parse(String body) {

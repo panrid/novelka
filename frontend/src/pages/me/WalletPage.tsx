@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { autotranslateApi, dollars, money, type Settings, type Stage } from '../../studio/autotranslate';
+import { illustrationApi, type IllustrationSettings } from '../../studio/illustrations';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
@@ -64,6 +65,8 @@ export function WalletPage() {
             <h2 className={styles.sectionTitle}>Моделі й ціни</h2>
             {/* Saved settings coming back start the form afresh. */}
             <SettingsForm key={JSON.stringify(data.settings)} settings={data.settings} />
+
+            <Illustrations days={Number(days)} />
         </section>
     );
 }
@@ -121,5 +124,49 @@ function NumberField({ label, value, onChange, step = false }: { label: string; 
                 const parsed = Number(next.replace(',', '.'));
                 if (next.trim() && Number.isFinite(parsed)) onChange(parsed);
             }} />
+    );
+}
+
+/** Pictures drawn in the period, and the model, price and style of the next ones. */
+function Illustrations({ days }: { days: number }) {
+    const overview = useQuery({ queryKey: ['illustration-settings', days], queryFn: () => illustrationApi.settings(days) });
+    if (!overview.data) return null;
+    const { spent, settings } = overview.data;
+    return (
+        <>
+            <h2 className={styles.sectionTitle}>Ілюстрації</h2>
+            <p className={styles.muted}>
+                {spent.pictures > 0
+                    ? `Намальовано ${spent.pictures}, разом ${dollars(spent.usd, 3)}, в середньому ${dollars(spent.average, 3)} за картинку з описом.`
+                    : 'За цей час нічого не малювали.'}
+            </p>
+            <IllustrationForm key={JSON.stringify(settings)} settings={settings} />
+        </>
+    );
+}
+
+function IllustrationForm({ settings }: { settings: IllustrationSettings }) {
+    const client = useQueryClient();
+    const [draft, setDraft] = useState(settings);
+    const save = useMutation({
+        mutationFn: () => illustrationApi.saveSettings(draft),
+        onSuccess: () => {
+            void client.invalidateQueries({ queryKey: ['illustration-settings'] });
+            void client.invalidateQueries({ queryKey: ['illustration-price'] });
+        },
+    });
+    return (
+        <form className={styles.form} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
+            <TextInput label="Модель, що малює" value={draft.model} onChange={(model) => setDraft({ ...draft, model })}
+                hint="Як на OpenRouter, напр. google/gemini-2.5-flash-image" />
+            <NumberField label="Ціна картинки, $ (для кошторису)" value={draft.microUsdPerImage / 1_000_000} step
+                onChange={(usd) => setDraft({ ...draft, microUsdPerImage: Math.round(usd * 1_000_000) })} />
+            <TextInput label="Стиль (додається до кожного опису)" value={draft.style} multiline
+                onChange={(style) => setDraft({ ...draft, style })} />
+            <TextInput label="Модель, що складає опис" value={draft.promptModel} onChange={(promptModel) => setDraft({ ...draft, promptModel })} />
+            {save.isError && <Notice tone="error">{save.error.message}</Notice>}
+            {save.isSuccess && <Notice tone="success">Збережено.</Notice>}
+            <Button type="submit" pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти</Button>
+        </form>
     );
 }

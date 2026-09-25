@@ -9,6 +9,8 @@ export default defineConfig({
         proxy: {
             // The API runs from `./gradlew :backend:bootRun` on 8080.
             '/api': 'http://127.0.0.1:8080',
+            // Uploaded and drawn pictures are served by the backend too.
+            '/media': 'http://127.0.0.1:8080',
         },
     },
     build: {

@@ -17,6 +17,12 @@ public interface Images {
     /** Downloads a picture by an https link (safely, see RemoteImages) and stores it like an upload. */
     StoredImage storeFromUrl(long ownerAccountId, ImageKind kind, String url);
 
+    /**
+     * Stores a picture a model drew for a chapter, with what it was drawn from; no upload
+     * limit, since the drawing itself is paid and rare.
+     */
+    StoredImage storeDrawn(long ownerAccountId, byte[] content, String prompt, String fragment, long aiCallId);
+
     /** URLs of a picture, unless moderators hid it. */
     Optional<StoredImage> find(long imageId);
 
