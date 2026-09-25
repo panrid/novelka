@@ -13,6 +13,7 @@ const NOVEL = {
     slug: 'mah-vody', title: 'Маг води', author: 'Тадаші Хісахо', origin: 'translation',
     description: [{ id: 'd1', type: 'paragraph', content: [{ text: 'Рьо перевтілився.', marks: [] }], imageUrl: null }],
     tags: ['Фентезі'], edition: EDITION, editions: [EDITION], adult: false, lastPublishedAt: null, viewer: null,
+    relay: { free: false, reason: null, lastNumber: 44, continuations: [] },
 };
 const ME = {
     id: 1, nick: 'mika', email: 'mika@example.com', emailVerified: true, role: 'reader', bio: '', avatarUrl: null,
@@ -24,7 +25,7 @@ const CHAPTER = {
         { id: 'b1', type: 'paragraph', content: [{ text: 'Це не було ', marks: [] }, { text: 'розкішне', marks: ['bold'] }, { text: ' ліжко.', marks: [] }], imageUrl: null },
         { id: 'b2', type: 'separator', content: [], imageUrl: null },
     ],
-    previous: 11, next: 13, savedPosition: null,
+    previous: 11, next: 13, savedPosition: null, continuation: null,
 };
 
 afterEach(() => {

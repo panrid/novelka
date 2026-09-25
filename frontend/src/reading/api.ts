@@ -57,8 +57,11 @@ export type NovelPage = {
     editions: EditionSummary[];
     adult: boolean;
     lastPublishedAt: string | null;
-    viewer: { list: ListName | null; chapterNumber: number | null; position: number | null } | null;
+    viewer: { list: ListName | null; chapterNumber: number | null; position: number | null; teamRole: 'owner' | 'translator' | 'editor' | null } | null;
+    relay: { free: boolean; reason: 'abandoned' | 'inactive' | 'unanswered' | null; lastNumber: number; continuations: Continuation[] };
 };
+
+export type Continuation = { teamHandle: string; teamName: string; firstNumber: number };
 
 export type ChapterRow = { number: number; title: string; publishedAt: string };
 
@@ -72,6 +75,7 @@ export type ReaderChapter = {
     previous: number | null;
     next: number | null;
     savedPosition: number | null;
+    continuation: Continuation | null;
 };
 
 export type CatalogQuery = { q?: string; tags?: string[]; kind?: string; machine?: string; sort?: string; page?: number };

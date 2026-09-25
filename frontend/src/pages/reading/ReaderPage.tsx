@@ -175,6 +175,11 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
                 <nav className={styles.end} aria-label="Інші глави">
                     {chapter.next ? (
                         <Link {...chapterLink(chapter.next)} className={styles.nextButton}>Наступна глава →</Link>
+                    ) : chapter.continuation ? (
+                        <Link to="/n/$slug/$number" params={{ slug: chapter.novelSlug, number: String(chapter.continuation.firstNumber) }}
+                            search={{ t: chapter.continuation.teamHandle }} className={styles.nextButton}>
+                            Продовження від ${chapter.continuation.teamHandle} — глава {chapter.continuation.firstNumber} →
+                        </Link>
                     ) : (
                         <p className={styles.finished}>Це остання перекладена глава. Нові зʼявляться на головній і у «Вхідних».</p>
                     )}

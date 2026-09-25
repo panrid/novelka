@@ -61,6 +61,9 @@ class StudioFlowTests {
                 text("Ніч перша", null, "Ліхтарі спалахнули одночасно.")));
         long revision = published.path("revisionId").asLong();
 
+        assertThat(read(owner.browser().get("/api/novels/" + slug)).path("viewer").path("teamRole").asString())
+                .as("the novel page offers «Керувати» to the team").isEqualTo("owner");
+
         JsonNode reader = read(new Browser(port).get("/api/novels/" + slug + "/chapters/1"));
         assertThat(reader.path("title").asString()).isEqualTo("Ніч перша");
         assertThat(reader.path("blocks").get(0).path("content").get(0).path("text").asString()).isEqualTo("Ліхтарі спалахнули одночасно.");

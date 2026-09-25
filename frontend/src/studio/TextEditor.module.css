@@ -1,0 +1,174 @@
+.wrap {
+    position: relative;
+}
+
+.chapter,
+.description {
+    outline: none;
+    color: var(--text-reading);
+    font-family: var(--font-reading);
+    line-height: 1.7;
+}
+
+.chapter {
+    min-height: 55vh;
+    padding-bottom: 96px;
+    font-size: 17px;
+}
+
+.description {
+    min-height: 120px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    font-size: 15px;
+}
+
+.description:focus-within {
+    outline: 2px solid var(--focus);
+    outline-offset: -1px;
+}
+
+.chapter:focus-visible {
+    outline: none;
+}
+
+.chapter p,
+.description p {
+    margin: 0 0 0.8em;
+}
+
+.chapter h2 {
+    font-size: 1.1em;
+    margin: 1em 0 0.5em;
+}
+
+.chapter hr {
+    border: 0;
+    margin: 1.4em 0;
+    text-align: center;
+}
+
+.chapter hr::after {
+    content: '◇';
+    color: var(--faint);
+}
+
+.chapter img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1em 0;
+    border-radius: var(--radius);
+}
+
+.chapter :global(.ProseMirror-selectednode) {
+    outline: 2px solid var(--accent);
+}
+
+.chapter :global(p.is-editor-empty:first-child::before),
+.description :global(p.is-editor-empty:first-child::before) {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    color: var(--faint);
+    pointer-events: none;
+}
+
+.toolbar,
+.toolbarFixed {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px;
+    background: var(--surface);
+}
+
+.toolbar {
+    margin-top: 6px;
+    border-radius: 10px;
+}
+
+.toolbarFixed {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    padding-bottom: calc(6px + var(--safe-bottom));
+    border-top: 1px solid var(--line);
+}
+
+.tool {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 38px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--text);
+    font: 15px var(--font-ui);
+    cursor: pointer;
+}
+
+.tool:disabled {
+    opacity: 0.4;
+}
+
+.on {
+    background: var(--surface-2);
+    color: var(--accent);
+}
+
+.spacer {
+    flex: 1;
+}
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgb(0 0 0 / 60%);
+}
+
+.modal {
+    width: 100%;
+    max-width: 480px;
+}
+
+.dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px var(--gutter) calc(16px + var(--safe-bottom));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: var(--surface);
+    outline: none;
+}
+
+.dialogTitle {
+    font: 600 16px var(--font-ui);
+    margin: 0;
+}
+
+.dialogActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+@media (min-width: 768px) {
+    .overlay {
+        align-items: center;
+    }
+
+    .dialog {
+        border-radius: var(--radius-lg);
+    }
+}

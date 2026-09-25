@@ -3,7 +3,7 @@ import styles from './ui.module.css';
 
 export type TextInputProps = Omit<TextFieldProps, 'className' | 'children'> & {
     label: string;
-    hint?: string;
+    hint?: string | undefined;
     /** A message from the server about this field. */
     error?: string | undefined;
     multiline?: boolean;

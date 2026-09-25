@@ -10,6 +10,7 @@ import static space.panrid.novelka.jooq.Tables.READING_PROGRESS;
 import static space.panrid.novelka.jooq.Tables.REVISION;
 import static space.panrid.novelka.jooq.Tables.TAG;
 import static space.panrid.novelka.jooq.Tables.TEAM;
+import static space.panrid.novelka.jooq.Tables.TEAM_MEMBER;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -330,8 +331,13 @@ class ReadingQueries {
         Record progress = db.select(READING_PROGRESS.CHAPTER_NUMBER, READING_PROGRESS.POSITION).from(READING_PROGRESS)
                 .where(READING_PROGRESS.ACCOUNT_ID.eq(accountId).and(READING_PROGRESS.EDITION_ID.eq(editionId)))
                 .fetchOne();
+        String teamRole = db.select(DSL.when(TEAM.OWNER_ID.eq(accountId), "owner").otherwise(TEAM_MEMBER.ROLE))
+                .from(EDITION).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
+                .leftJoin(TEAM_MEMBER).on(TEAM_MEMBER.TEAM_ID.eq(TEAM.ID).and(TEAM_MEMBER.ACCOUNT_ID.eq(accountId)))
+                .where(EDITION.ID.eq(editionId))
+                .fetchOne(0, String.class);
         return new Views.ViewerState(list, progress == null ? null : progress.get(READING_PROGRESS.CHAPTER_NUMBER),
-                progress == null ? null : progress.get(READING_PROGRESS.POSITION));
+                progress == null ? null : progress.get(READING_PROGRESS.POSITION), teamRole);
     }
 
     // ---- library --------------------------------------------------------------------------

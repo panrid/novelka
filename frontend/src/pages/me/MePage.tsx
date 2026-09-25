@@ -43,6 +43,7 @@ export function MePage() {
                 </div>
             </Link>
             <nav className={styles.menu} aria-label="Особисте">
+                <Link to="/studio" className={styles.menuItem}>Студія — мої переклади й твори</Link>
                 <Link to="/me/settings" className={styles.menuItem}>Налаштування</Link>
                 <Link to="/me/settings/privacy" className={styles.menuItem}>Приватність</Link>
             </nav>

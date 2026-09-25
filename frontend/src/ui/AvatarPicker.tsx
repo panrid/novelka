@@ -4,16 +4,23 @@ import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { Button } from './Button';
 import styles from './AvatarPicker.module.css';
 
-const OUTPUT_SIZE = 512;
+/** A round avatar, 512×512. */
+export function AvatarPicker(props: { onCropped: (image: Blob) => void; label?: string; pending?: boolean }) {
+    return <ImagePicker {...props} aspect={1} round width={512} title="Оберіть, що буде в колі" />;
+}
 
 /**
- * Pick a photo and crop it to a circle before upload. The browser applies the photo's
- * rotation when drawing, and the canvas output carries no camera metadata.
+ * Pick a photo and crop it before upload. The browser applies the photo's rotation when
+ * drawing, and the canvas output carries no camera metadata.
  */
-export function AvatarPicker({ onCropped, label = 'Вибрати фото', pending = false }: {
+export function ImagePicker({ onCropped, label = 'Вибрати фото', pending = false, aspect, round = false, width, title }: {
     onCropped: (image: Blob) => void;
     label?: string;
     pending?: boolean;
+    aspect: number;
+    round?: boolean;
+    width: number;
+    title: string;
 }) {
     const input = useRef<HTMLInputElement>(null);
     const [source, setSource] = useState<string | null>(null);
@@ -42,7 +49,7 @@ export function AvatarPicker({ onCropped, label = 'Вибрати фото', pen
 
     async function done() {
         if (source && area) {
-            onCropped(await cropToBlob(source, area));
+            onCropped(await cropToBlob(source, area, width, Math.round(width / aspect)));
         }
         close();
     }
@@ -56,10 +63,10 @@ export function AvatarPicker({ onCropped, label = 'Вибрати фото', pen
             <ModalOverlay className={styles.overlay} isOpen={source !== null} onOpenChange={(open) => !open && close()} isDismissable>
                 <Modal className={styles.modal}>
                     <Dialog className={styles.dialog}>
-                        <Heading slot="title" className={styles.heading}>Оберіть, що буде в колі</Heading>
+                        <Heading slot="title" className={styles.heading}>{title}</Heading>
                         <div className={styles.area}>
                             {source && (
-                                <Cropper image={source} crop={crop} zoom={zoom} aspect={1} cropShape="round" showGrid={false}
+                                <Cropper image={source} crop={crop} zoom={zoom} aspect={aspect} cropShape={round ? 'round' : 'rect'} showGrid={false}
                                     onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={(_, pixels) => setArea(pixels)} />
                             )}
                         </div>
@@ -78,16 +85,16 @@ export function AvatarPicker({ onCropped, label = 'Вибрати фото', pen
     );
 }
 
-async function cropToBlob(source: string, area: Area): Promise<Blob> {
+async function cropToBlob(source: string, area: Area, width: number, height: number): Promise<Blob> {
     const image = new Image();
     image.src = source;
     await image.decode();
     const canvas = document.createElement('canvas');
-    canvas.width = OUTPUT_SIZE;
-    canvas.height = OUTPUT_SIZE;
+    canvas.width = width;
+    canvas.height = height;
     const context = canvas.getContext('2d')!;
     context.imageSmoothingQuality = 'high';
-    context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+    context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, width, height);
     return new Promise((resolve, reject) =>
         canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('crop failed'))), 'image/jpeg', 0.92));
 }

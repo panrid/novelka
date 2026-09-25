@@ -19,6 +19,16 @@ import { NovelPage } from '../pages/reading/NovelPage';
 import { ReaderPage } from '../pages/reading/ReaderPage';
 import { chapterQuery, novelQuery } from '../reading/queries';
 import { Placeholder } from '../pages/Placeholder';
+import { AboutPage } from '../pages/studio/AboutPage';
+import { ChapterEditorPage } from '../pages/studio/ChapterEditorPage';
+import { EditionPage } from '../pages/studio/EditionPage';
+import { HistoryPage } from '../pages/studio/HistoryPage';
+import { ImportPage } from '../pages/studio/ImportPage';
+import { NewPublication } from '../pages/studio/NewPublication';
+import { RelayPage } from '../pages/studio/RelayPage';
+import { StudioHome } from '../pages/studio/StudioHome';
+import { MyTeamsPage } from '../pages/team/MyTeamsPage';
+import { TeamPage } from '../pages/team/TeamPage';
 import { Shell } from './Shell';
 
 export type RouterContext = { queryClient: QueryClient };
@@ -48,6 +58,10 @@ const teamSearch = (search: Record<string, unknown>): { t?: string } =>
 const LIST_NAMES = ['reading', 'planned', 'done', 'paused', 'dropped'] as const;
 const listSearch = (search: Record<string, unknown>): { list?: (typeof LIST_NAMES)[number] } =>
     LIST_NAMES.includes(search.list as (typeof LIST_NAMES)[number]) ? { list: search.list as (typeof LIST_NAMES)[number] } : {};
+
+/** Studio pages: signed-in only; team rights are checked by the API on every call. */
+const studio = <TPath extends string>(path: TPath, component: () => React.ReactNode, heading: string) =>
+    createRoute({ getParentRoute: () => rootRoute, path, component, beforeLoad: requireSignedIn, head: title(heading) });
 
 const placeholder = <TPath extends string>(path: TPath, heading: string, text: string) =>
     createRoute({
@@ -94,6 +108,16 @@ const routeTree = rootRoute.addChildren([
     }),
     placeholder('/inbox', 'Вхідні', 'Тут будуть сповіщення, повідомлення й загальний чат.'),
     createRoute({ getParentRoute: () => rootRoute, path: '/me', component: MePage, head: title('Я') }),
+    studio('/studio', StudioHome, 'Студія'),
+    studio('/studio/new', NewPublication, 'Нова публікація'),
+    studio('/studio/teams', MyTeamsPage, 'Мої команди'),
+    studio('/studio/$editionId', EditionPage, 'Студія'),
+    studio('/studio/$editionId/about', AboutPage, 'Дані й обкладинка'),
+    studio('/studio/$editionId/import', ImportPage, 'Глави з файлу'),
+    studio('/studio/$editionId/relay', RelayPage, 'Естафета'),
+    studio('/studio/$editionId/chapters/$number', ChapterEditorPage, 'Редактор'),
+    studio('/studio/$editionId/chapters/$number/history', HistoryPage, 'Історія глави'),
+    createRoute({ getParentRoute: () => rootRoute, path: '/team/$handle', component: TeamPage, head: ({ params }) => ({ meta: [{ title: `$${params.handle} — Новелка` }] }) }),
     createRoute({
         getParentRoute: () => rootRoute, path: '/me/settings', component: SettingsPage,
         beforeLoad: requireSignedIn, head: title('Налаштування'),

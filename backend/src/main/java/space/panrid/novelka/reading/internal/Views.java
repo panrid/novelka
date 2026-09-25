@@ -36,7 +36,8 @@ final class Views {
             int chapterCount, String coverUrl) {
     }
 
-    record ViewerState(String list, Integer chapterNumber, Float position) {
+    /** {@code teamRole}: owner, translator or editor when the viewer works on this edition. */
+    record ViewerState(String list, Integer chapterNumber, Float position, String teamRole) {
     }
 
     record NovelPage(String slug, String title, String author, String origin, List<ReaderBlock> description,

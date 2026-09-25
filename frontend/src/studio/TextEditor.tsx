@@ -1,0 +1,174 @@
+import { Extension, type JSONContent } from '@tiptap/core';
+import Bold from '@tiptap/extension-bold';
+import Document from '@tiptap/extension-document';
+import Heading from '@tiptap/extension-heading';
+import HorizontalRule from '@tiptap/extension-horizontal-rule';
+import Image from '@tiptap/extension-image';
+import Italic from '@tiptap/extension-italic';
+import Paragraph from '@tiptap/extension-paragraph';
+import Strike from '@tiptap/extension-strike';
+import Text from '@tiptap/extension-text';
+import Underline from '@tiptap/extension-underline';
+import { Placeholder, UndoRedo } from '@tiptap/extensions';
+import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
+import { ImagePlus, Link2, Minus, Redo2, Undo2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Dialog, Heading as DialogHeading, Modal, ModalOverlay } from 'react-aria-components';
+import { Button } from '../ui/Button';
+import { Notice } from '../ui/Notice';
+import { TextInput } from '../ui/TextInput';
+import { studioApi, type StudioBlock } from './api';
+import { toBlocks, toDocument } from './document';
+import styles from './TextEditor.module.css';
+
+/** Keeps each paragraph's id and kind (preface, afterword) on its editor node. */
+const BlockIdentity = Extension.create({
+    name: 'blockIdentity',
+    addGlobalAttributes() {
+        return [{
+            types: ['paragraph', 'heading', 'horizontalRule', 'image'],
+            attributes: {
+                blockId: { default: null, keepOnSplit: false, parseHTML: () => null, renderHTML: () => ({}) },
+                kind: { default: null, parseHTML: () => null, renderHTML: () => ({}) },
+            },
+        }];
+    },
+});
+
+const Picture = Image.extend({
+    addAttributes() {
+        return { ...this.parent?.(), imageId: { default: null, renderHTML: () => ({}) } };
+    },
+});
+
+type Props = {
+    blocks: StudioBlock[];
+    onChange: (blocks: StudioBlock[]) => void;
+    /** A chapter gets separators, headings and (for translators) pictures; a description only marks. */
+    mode: 'chapter' | 'description';
+    mayAddPictures?: boolean;
+    label: string;
+    placeholder?: string;
+};
+
+export function TextEditor({ blocks, onChange, mode, mayAddPictures = false, label, placeholder }: Props) {
+    const chapter = mode === 'chapter';
+    const editor = useEditor({
+        extensions: [
+            Document, Text, Paragraph, Bold, Italic, Underline, Strike, UndoRedo, BlockIdentity,
+            Placeholder.configure({ placeholder: placeholder ?? '' }),
+            ...(chapter ? [Heading.configure({ levels: [2] }), HorizontalRule, Picture.configure({ inline: false })] : []),
+        ],
+        content: toDocument(blocks) as JSONContent,
+        editorProps: {
+            attributes: { class: chapter ? styles.chapter : styles.description, 'aria-label': label, 'aria-multiline': 'true', role: 'textbox' },
+            // Pasted Word or web text keeps only what the site supports: the schema drops the rest.
+            transformPastedHTML: (html) => html.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ''),
+        },
+        onUpdate: ({ editor: changed }) => onChange(toBlocks(changed.getJSON())),
+    });
+
+    if (!editor) {
+        return null;
+    }
+    return (
+        <div className={styles.wrap}>
+            <EditorContent editor={editor} />
+            <Toolbar editor={editor} chapter={chapter} mayAddPictures={chapter && mayAddPictures} />
+        </div>
+    );
+}
+
+function Toolbar({ editor, chapter, mayAddPictures }: { editor: Editor; chapter: boolean; mayAddPictures: boolean }) {
+    const state = useEditorState({
+        editor,
+        selector: ({ editor: e }) => ({
+            bold: e.isActive('bold'), italic: e.isActive('italic'), underline: e.isActive('underline'), strike: e.isActive('strike'),
+            undo: e.can().undo(), redo: e.can().redo(),
+        }),
+    });
+    const button = (name: string, active: boolean, run: () => void, content: React.ReactNode) => (
+        <button type="button" className={`${styles.tool} ${active ? styles.on : ''}`} aria-label={name} aria-pressed={active}
+            onMouseDown={(event) => event.preventDefault()} onClick={run}>
+            {content}
+        </button>
+    );
+    return (
+        <div className={chapter ? styles.toolbarFixed : styles.toolbar} role="toolbar" aria-label="Форматування">
+            {button('Жирний', state.bold, () => editor.chain().focus().toggleBold().run(), <b>Ж</b>)}
+            {button('Курсив', state.italic, () => editor.chain().focus().toggleItalic().run(), <i>К</i>)}
+            {button('Підкреслений', state.underline, () => editor.chain().focus().toggleUnderline().run(), <u>П</u>)}
+            {button('Закреслений', state.strike, () => editor.chain().focus().toggleStrike().run(), <s>З</s>)}
+            {chapter && button('Розділювач сцен', false, () => editor.chain().focus().setHorizontalRule().run(), <Minus size={18} aria-hidden />)}
+            {mayAddPictures && <PictureButtons editor={editor} />}
+            <span className={styles.spacer} />
+            {state.undo && button('Скасувати', false, () => editor.chain().focus().undo().run(), <Undo2 size={18} aria-hidden />)}
+            {state.redo && button('Повторити', false, () => editor.chain().focus().redo().run(), <Redo2 size={18} aria-hidden />)}
+        </div>
+    );
+}
+
+function PictureButtons({ editor }: { editor: Editor }) {
+    const input = useRef<HTMLInputElement>(null);
+    const [linkOpen, setLinkOpen] = useState(false);
+    const [url, setUrl] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const insert = (picture: { id: number; url: string }) =>
+        editor.chain().focus().insertContent({ type: 'image', attrs: { src: picture.url, imageId: picture.id } }).run();
+
+    async function fromFile(file: File | undefined) {
+        if (!file) return;
+        setBusy(true);
+        try {
+            insert(await studioApi.uploadImage(file, 'illustration'));
+        } catch (failure) {
+            window.alert((failure as Error).message);
+        } finally {
+            setBusy(false);
+            if (input.current) input.current.value = '';
+        }
+    }
+
+    async function fromLink() {
+        setBusy(true);
+        setError(null);
+        try {
+            insert(await studioApi.imageFromUrl(url.trim()));
+            setLinkOpen(false);
+            setUrl('');
+        } catch (failure) {
+            setError((failure as Error).message);
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    return (
+        <>
+            <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(event) => void fromFile(event.target.files?.[0])} />
+            <button type="button" className={styles.tool} aria-label="Картинка з файлу" disabled={busy}
+                onMouseDown={(event) => event.preventDefault()} onClick={() => input.current?.click()}>
+                <ImagePlus size={18} aria-hidden />
+            </button>
+            <button type="button" className={styles.tool} aria-label="Картинка за посиланням" disabled={busy}
+                onMouseDown={(event) => event.preventDefault()} onClick={() => setLinkOpen(true)}>
+                <Link2 size={18} aria-hidden />
+            </button>
+            <ModalOverlay className={styles.overlay} isOpen={linkOpen} onOpenChange={setLinkOpen} isDismissable>
+                <Modal className={styles.modal}>
+                    <Dialog className={styles.dialog}>
+                        <DialogHeading slot="title" className={styles.dialogTitle}>Картинка за посиланням</DialogHeading>
+                        <TextInput label="Посилання" value={url} onChange={setUrl} placeholder="https://…" hint="Сайт збереже копію в себе." />
+                        {error && <Notice tone="error">{error}</Notice>}
+                        <div className={styles.dialogActions}>
+                            <Button variant="secondary" onPress={() => setLinkOpen(false)}>Скасувати</Button>
+                            <Button onPress={() => void fromLink()} pending={busy} pendingLabel="Завантажуємо…" isDisabled={!url.startsWith('https://')}>Вставити</Button>
+                        </div>
+                    </Dialog>
+                </Modal>
+            </ModalOverlay>
+        </>
+    );
+}

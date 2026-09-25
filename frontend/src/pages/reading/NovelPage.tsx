@@ -8,6 +8,7 @@ import { useMe } from '../../auth/me';
 import { Blocks } from '../../reading/Blocks';
 import { Cover } from '../../reading/Cover';
 import { LIST_LABELS, STATUS_LABELS, chaptersWord, readingApi, type ListName, type NovelPage as Novel } from '../../reading/api';
+import { relayApi } from '../../studio/api';
 import { localProgress } from '../../reading/progress';
 import { novelQuery } from '../../reading/queries';
 import { Button } from '../../ui/Button';
@@ -117,8 +118,70 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                 </div>
             )}
 
+            {novel.viewer?.teamRole && (
+                <div className={styles.actions}>
+                    <LinkButton to="/studio/$editionId" params={{ editionId: String(edition.editionId) }} variant="secondary" wide>
+                        Керувати
+                    </LinkButton>
+                </div>
+            )}
+
             <ChapterList slug={novel.slug} team={team} current={resume} />
+
+            {novel.relay.continuations.map((next) => (
+                <Link key={next.teamHandle} to="/n/$slug/$number" params={{ slug: novel.slug, number: String(next.firstNumber) }}
+                    search={{ t: next.teamHandle }} className={styles.continuation}>
+                    Продовження від ${next.teamHandle} — з глави {next.firstNumber} →
+                </Link>
+            ))}
+            {novel.origin === 'translation' && !novel.viewer?.teamRole && <RelayOffer novel={novel} />}
         </section>
+    );
+}
+
+const RELAY_REASONS = {
+    abandoned: 'Команда позначила переклад покинутим.',
+    inactive: 'Власник перекладу давно не заходив на сайт.',
+    unanswered: 'Нових глав давно немає, а на запит продовжити ніхто не відповів.',
+};
+
+/** «Естафета» for readers: continue a free translation, or ask the team for permission. */
+function RelayOffer({ novel }: { novel: Novel }) {
+    const me = useMe();
+    const navigate = useNavigate();
+    const [asked, setAsked] = useState(false);
+    const start = useMutation({
+        mutationFn: () => relayApi.start(novel.edition.editionId, '', 'human'),
+        onSuccess: ({ editionId }) => void navigate({ to: '/studio/$editionId', params: { editionId: String(editionId) } }),
+    });
+    const ask = useMutation({
+        mutationFn: (message: string) => relayApi.ask(novel.edition.editionId, '', message),
+        onSuccess: () => setAsked(true),
+    });
+    if (!me) return null;
+    if (novel.relay.free) {
+        return (
+            <div className={styles.relay}>
+                <b>Переклад вільний для продовження</b>
+                <p className={styles.muted}>{novel.relay.reason ? RELAY_REASONS[novel.relay.reason] : ''} Ваш переклад почнеться з глави {novel.relay.lastNumber + 1}.</p>
+                {start.isError && <Notice tone="error">{start.error.message}</Notice>}
+                <Button variant="secondary" onPress={() => start.mutate()} pending={start.isPending}>Продовжити переклад</Button>
+            </div>
+        );
+    }
+    if (novel.edition.status === 'completed') return null;
+    return (
+        <div className={styles.relay}>
+            {asked ? <p className={styles.muted}>Запит надіслано. Власник отримав лист.</p> : (
+                <>
+                    {ask.isError && <Notice tone="error">{ask.error.message}</Notice>}
+                    <button type="button" className={styles.more} onClick={() => {
+                        const message = window.prompt('Кілька слів власнику перекладу (необовʼязково):', '');
+                        if (message !== null) ask.mutate(message);
+                    }}>Хочу продовжити цей переклад</button>
+                </>
+            )}
+        </div>
     );
 }
 
