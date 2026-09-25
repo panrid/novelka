@@ -39,3 +39,32 @@ GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, за бажан�
 Контейнери v1 (Compose-проєкт `infra`) перший деплой видаляє. Том з базою v1
 (`infra_novelka-data`) лишається на сервері як копія; видалити, коли вже не потрібен:
 `docker volume rm infra_novelka-data infra_caddy-data infra_caddy-config`.
+
+## Резервні копії
+
+Сервіс `backup` раз на добу кладе в том `novelka_backups` копію бази
+(`novelka-РРРР-ММ-ДД.dump`, 14 днів) і картинок (`media-РРРР-ММ-ДД.tgz`, 7 днів).
+Копії лежать на тому самому сервері: від помилки чи поганої міграції вони рятують,
+від утрати сервера — ні. Час від часу забирайте свіжу копію собі:
+
+```sh
+ssh novelka@62.72.33.247 'docker run --rm -v novelka_backups:/b alpine ls -l /b'
+ssh novelka@62.72.33.247 'docker run --rm -v novelka_backups:/b alpine cat /b/novelka-РРРР-ММ-ДД.dump' > novelka.dump
+```
+
+Відновлення бази (сайт на цей час зупиняється):
+
+```sh
+cd /opt/novelka
+docker compose --env-file .env.production -f infra/production.compose.yaml stop app
+docker compose --env-file .env.production -f infra/production.compose.yaml exec -T postgres \
+    pg_restore -U novelka -d novelka --clean --if-exists < novelka.dump
+docker compose --env-file .env.production -f infra/production.compose.yaml start app
+```
+
+Картинки: `docker run --rm -v novelka_media:/m -v novelka_backups:/b alpine tar xzf /b/media-РРРР-ММ-ДД.tgz -C /m`.
+
+## Моніторинг
+
+`.github/workflows/uptime.yml` кожні 15 хвилин перевіряє `/api/health` і головну.
+Якщо сайт не відповідає, запуск падає, і GitHub надсилає лист власнику репозиторію.

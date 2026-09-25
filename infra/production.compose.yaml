@@ -50,6 +50,33 @@ services:
       postgres:
         condition: service_healthy
 
+  # Once a day: the database (14 days kept) and the pictures (7 days kept) into the «backups» volume.
+  # Restore: see doc/deployment.md.
+  backup:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: ${NOVELKA_DB_PASSWORD}
+    volumes:
+      - backups:/backups
+      - media:/media:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          day=$$(date +%F)
+          pg_dump -h postgres -U novelka -d novelka -Fc -f /backups/novelka-$$day.dump.part \
+            && mv /backups/novelka-$$day.dump.part /backups/novelka-$$day.dump \
+            && echo "database saved: novelka-$$day.dump"
+          tar czf /backups/media-$$day.tgz.part -C /media . && mv /backups/media-$$day.tgz.part /backups/media-$$day.tgz
+          find /backups -name 'novelka-*.dump' -mtime +14 -delete
+          find /backups -name 'media-*.tgz' -mtime +7 -delete
+          sleep 86400
+        done
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   caddy:
     image: caddy:2.10-alpine
     restart: unless-stopped
@@ -66,5 +93,6 @@ services:
 volumes:
   postgres:
   media:
+  backups:
   caddy-data:
   caddy-config:
