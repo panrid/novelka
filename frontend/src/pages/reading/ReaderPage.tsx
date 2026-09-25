@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react
 import { Dialog, DialogTrigger, Button as AriaButton, Popover } from 'react-aria-components';
 import { useMe } from '../../auth/me';
 import { Blocks } from '../../reading/Blocks';
-import { readingApi, type ReaderChapter } from '../../reading/api';
+import { chapterHeading, readingApi, type ReaderChapter } from '../../reading/api';
 import { localProgress, saveLocalProgress } from '../../reading/progress';
 import { chapterQuery } from '../../reading/queries';
 import { useReaderSize, useTheme, type Theme } from '../../reading/theme';
@@ -178,7 +178,7 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
                 </Link>
                 <div className={styles.where}>
                     <div className={styles.novel}>{chapter.novelTitle}</div>
-                    <div className={styles.count}>Глава {chapter.number} з {chapter.edition.chapterCount}</div>
+                    <div className={styles.count}>{chapter.label === null ? `Глава ${chapter.number}` : chapter.number} з {chapter.edition.chapterCount}</div>
                 </div>
                 <TextSettings size={size} setSize={setSize} />
                 <Link to="/n/$slug" params={{ slug: chapter.novelSlug }} search={search} hash="chapters" className={styles.icon} aria-label="Зміст">
@@ -187,7 +187,7 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
             </header>
 
             <article className={styles.text} style={{ fontSize: size }} onClick={toggleBars}>
-                <h1 className={styles.chapterTitle}>{chapter.number}. {chapter.title}</h1>
+                <h1 className={styles.chapterTitle}>{chapterHeading(chapter)}</h1>
                 {review.items.length > 0 && !reviewing && (
                     <div className={suggestionStyles.banner}>
                         <span>Правок на перевірку: {review.items.length}</span>

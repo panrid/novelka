@@ -166,17 +166,20 @@ class StudioFlowTests {
         long edition = createPublication(owner, "З файлу", "original");
         owner.browser().post("/api/studio/editions/" + edition + "/chapters", "{}");
         owner.browser().post(chapter(edition, 1) + "/publish", text("Вступ", null, "Текст."));
-        byte[] file = "# Друга\nАбзац.\n# Третя\n**Жирний** абзац.\n## підзаголовок\n".getBytes(StandardCharsets.UTF_8);
+        byte[] file = "# Друга\nАбзац.\n# Глава 31.1. Третя\n**Жирний** абзац.\n## підзаголовок\n".getBytes(StandardCharsets.UTF_8);
 
         JsonNode preview = read(owner.browser().upload("/api/studio/editions/" + edition + "/import/preview", "file", "book.md", "text/markdown", file));
         assertThat(preview.path("firstNumber").asInt()).isEqualTo(2);
-        assertThat(preview.path("chapters")).extracting(c -> c.path("title").asString()).containsExactly("Друга", "Третя");
+        assertThat(preview.path("chapters")).extracting(c -> c.path("title").asString()).containsExactly("Друга", "Глава 31.1. Третя");
         assertThat(preview.path("simplified").get(0).asString()).contains("Підзаголовки");
 
         JsonNode imported = read(owner.browser().upload("/api/studio/editions/" + edition + "/import", "file", "book.md", "text/markdown", file));
         assertThat(imported.path("numbers")).extracting(JsonNode::asInt).containsExactly(2, 3);
         JsonNode overview = read(owner.browser().get("/api/studio/editions/" + edition));
         assertThat(overview.path("chapterCount").asInt()).isEqualTo(3);
+        JsonNode third = read(owner.browser().get("/api/studio/editions/" + edition + "/chapters")).path(0);
+        assertThat(third.path("label").asString()).as("the number from the file is kept").isEqualTo("31.1");
+        assertThat(third.path("title").asString()).isEqualTo("Третя");
         assertThat(overview.path("author").asString()).as("an original work is signed by its author").isEqualTo(owner.nick());
     }
 

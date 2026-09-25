@@ -39,10 +39,12 @@ class AutotranslateController {
     private final Ai ai;
     private final DSLContext db;
     private final Teams teams;
+    private final Analyses analyses;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
-            Teams teams) {
+            Teams teams, Analyses analyses) {
         this.teams = teams;
+        this.analyses = analyses;
         this.access = access;
         this.preparation = preparation;
         this.jobs = jobs;
@@ -82,28 +84,32 @@ class AutotranslateController {
     }
 
     record Overview(boolean configured, boolean showShah, int sourceChapters, int nextNumber, int publishedChapters,
+            int lastAnalyzed, int nextToAnalyze,
             Jobs.Balance balance, BigDecimal usdPerShah, Jobs.Quote quote, List<Jobs.JobView> jobs) {
     }
 
     @GetMapping("/editions/{editionId}/autotranslate")
-    Overview overview(@PathVariable long editionId, @RequestParam(required = false) Integer to) {
+    Overview overview(@PathVariable long editionId, @RequestParam(required = false) Integer to,
+            @RequestParam(defaultValue = "translate") String kind) {
         Viewer viewer = ownerTranslating(editionId);
         Jobs.Novel novel = jobs.novel(editionId);
         boolean showShah = db.select(ACCOUNT.SHOW_SHAH).from(ACCOUNT).where(ACCOUNT.ID.eq(viewer.accountId())).fetchSingle().value1();
         Settings settings = jobs.settings();
         return new Overview(ai.configured(), showShah, novel.sourceChapters(), novel.nextNumber(), novel.publishedChapters(),
+                novel.lastAnalyzed(), novel.nextToAnalyze(),
                 jobs.balance().orElse(null), Settings.usdOfMicro(settings.microUsdPerShah()),
-                to == null ? null : jobs.quote(editionId, to), jobs.jobs(editionId));
+                to == null ? null : jobs.quote(editionId, to, kind), jobs.jobs(editionId));
     }
 
-    record StartRequest(int to) {
+    /** @param kind «analyze» (glossary and chapter titles only) or «translate» */
+    record StartRequest(int to, String kind) {
     }
 
     @PostMapping("/editions/{editionId}/autotranslate/jobs")
     @ResponseStatus(HttpStatus.CREATED)
     Jobs.JobView start(@PathVariable long editionId, @RequestBody StartRequest body) {
         Viewer viewer = ownerTranslating(editionId);
-        long jobId = jobs.start(editionId, body.to(), viewer.accountId());
+        long jobId = jobs.start(editionId, body.to(), "analyze".equals(body.kind()) ? "analyze" : "translate", viewer.accountId());
         return jobs.view(jobs.job(editionId, jobId).orElseThrow());
     }
 
@@ -117,6 +123,33 @@ class AutotranslateController {
     void resume(@PathVariable long editionId, @PathVariable long jobId) {
         ownerTranslating(editionId);
         jobs.resume(editionId, jobId);
+    }
+
+    // ---- chapter titles and numbers from analysis, checked before translating ---------------
+
+    record AnalysisItem(int number, String title, String label, boolean edited) {
+    }
+
+    @GetMapping("/editions/{editionId}/analysis")
+    List<AnalysisItem> analysis(@PathVariable long editionId) {
+        access.requireTextEditor(editionId);
+        return analyses.from(editionId, jobs.novel(editionId).nextNumber()).stream()
+                .map(done -> new AnalysisItem(done.number(), done.title(), done.label(), done.edited())).toList();
+    }
+
+    record AnalysisChange(String title, String label) {
+    }
+
+    @PutMapping("/editions/{editionId}/analysis/{number}")
+    void editAnalysis(@PathVariable long editionId, @PathVariable int number, @RequestBody AnalysisChange body) {
+        access.requireTranslator(editionId);
+        analyses.edit(editionId, number, body.title(), body.label());
+    }
+
+    @PostMapping("/editions/{editionId}/glossary/checked")
+    void allChecked(@PathVariable long editionId) {
+        access.requireTranslator(editionId);
+        glossary.markAllChecked(editionId);
     }
 
     // ---- glossary: the team edits it, the Japanese side stays on the server (рішення 8) --------

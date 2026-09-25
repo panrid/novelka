@@ -124,11 +124,39 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                         {conflict && <> <button type="button" className={styles.link} onClick={() => void client.invalidateQueries({ queryKey: ['studio-editor', editionId, view.number] })}>Відкрити главу знову</button></>}
                     </Notice>
                 )}
-                <input className={styles.titleInput} aria-label="Назва глави" placeholder="Назва глави" value={title}
-                    onChange={(event) => changed(() => setTitle(event.target.value))} />
+                <div className={styles.titleRow}>
+                    <LabelInput editionId={editionId} number={view.number} initial={view.label} />
+                    <input className={styles.titleInput} aria-label="Назва глави" placeholder="Назва глави" value={title}
+                        onChange={(event) => changed(() => setTitle(event.target.value))} />
+                </div>
                 <TextEditor mode="chapter" blocks={blocks} onChange={(next) => changed(() => setBlocks(next))}
                     mayAddPictures={view.mayAddPictures} label="Текст глави" placeholder="Почніть писати або вставте текст…" />
             </div>
         </div>
+    );
+}
+
+/**
+ * The number readers see, saved on its own when the field is left: «0», «31.1», or empty
+ * for none. Untouched, it is the chapter's position.
+ */
+function LabelInput({ editionId, number, initial }: { editionId: number; number: number; initial: string | null }) {
+    const client = useQueryClient();
+    const [value, setValue] = useState(initial ?? String(number));
+    const [saved, setSaved] = useState(initial ?? String(number));
+    const save = useMutation({
+        mutationFn: (label: string) => studioApi.setLabel(editionId, number, label === String(number) ? null : label),
+        onSuccess: (_, label) => {
+            setSaved(label);
+            void client.invalidateQueries({ queryKey: ['studio-chapters', editionId] });
+        },
+    });
+    return (
+        <span className={styles.labelField}>
+            <input className={styles.labelInput} aria-label="Номер глави на сайті" title="Номер на сайті: 0, 12, 31.1 або порожньо — без номера"
+                inputMode="decimal" value={value} onChange={(event) => setValue(event.target.value)}
+                onBlur={() => { if (value.trim() !== saved) save.mutate(value.trim()); }} />
+            {save.isError && <span role="alert" className={styles.labelError}>{save.error.message}</span>}
+        </span>
     );
 }

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { useMe } from '../../auth/me';
 import { Cover } from '../../reading/Cover';
-import { STATUS_LABELS, chaptersWord, type Status } from '../../reading/api';
+import { STATUS_LABELS, chapterHeading, chaptersWord, type Status } from '../../reading/api';
 import { ROLE_LABELS, studioApi } from '../../studio/api';
 import { suggestionApi } from '../../reading/suggestions';
 import { Button } from '../../ui/Button';
@@ -88,7 +88,7 @@ export function EditionPage() {
                 <Link key={chapter.number} className={styles.row}
                     to="/studio/$editionId/chapters/$number" params={{ editionId: String(id), number: String(chapter.number) }}>
                     <div className={styles.grow}>
-                        <div className={styles.ellipsis}>{chapter.number}. {chapter.title || 'Без назви'}</div>
+                        <div className={styles.ellipsis}>{chapterHeading(chapter)}</div>
                         <div className={styles.muted}>{relativeTime(new Date(chapter.updatedAt))}</div>
                     </div>
                     {!chapter.published && <span className={styles.badge}>не опубліковано</span>}

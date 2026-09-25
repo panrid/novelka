@@ -103,7 +103,8 @@ class AutotranslateFlowTests {
 
         String slug = read(owner.browser().get("/api/studio/editions/" + edition)).path("novelSlug").asString();
         JsonNode chapter = read(new Browser(port).get("/api/novels/" + slug + "/chapters/2"));
-        assertThat(chapter.path("title").asString()).isEqualTo("Світло");
+        assertThat(chapter.path("title").asString()).as("the number is the site's, not the title's").isEqualTo("Світло");
+        assertThat(chapter.path("label").asString()).isEqualTo("2");
         assertThat(chapter.path("blocks").toString()).doesNotContain("雪").contains("Юкі: переклад s2 ✓");
         assertThat(chapter.path("blocks")).extracting(block -> block.path("type").asString())
                 .containsExactly("preface", "paragraph", "paragraph", "separator", "paragraph", "afterword");
@@ -173,6 +174,49 @@ class AutotranslateFlowTests {
                 .status()).isEqualTo(200);
         assertThat(owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/jobs", json("to", 1)).status())
                 .as("a new job after cancelling").isEqualTo(201);
+    }
+
+    @Test
+    void analysisRunsFirstSoTheGlossaryAndTitlesAreCheckedBeforeTranslating() {
+        syosetu.add(code, new FakeSyosetu.Novel("灯台守の夜", "桜ゆき", "あらすじ。", 6, java.util.Map.of(
+                1, "第0話　プロローグ", 2, "第1話　灯り", 3, "第1.1話　続き", 4, "閑話　ある夜")));
+        long edition = prepare();
+        String base = "/api/studio/editions/" + edition;
+
+        JsonNode quote = read(owner.browser().get(base + "/autotranslate?to=4&kind=analyze")).path("quote");
+        assertThat(quote.path("kind").asString()).isEqualTo("analyze");
+        assertThat(quote.path("shah").asInt()).as("a quarter of a шаг per chapter").isEqualTo(1);
+        assertThat(owner.browser().post(base + "/autotranslate/jobs", json("to", 4, "kind", "analyze")).status()).isEqualTo(201);
+        worker.drain();
+
+        assertThat(model.calls).containsOnly("glossary").hasSize(4);
+        JsonNode overview = read(owner.browser().get(base + "/autotranslate?to=6"));
+        assertThat(overview.path("publishedChapters").asInt()).as("nothing translated yet").isZero();
+        assertThat(overview.path("lastAnalyzed").asInt()).isEqualTo(4);
+        assertThat(overview.path("quote").path("unanalyzed").asInt()).as("5 and 6 have no analysis").isEqualTo(2);
+
+        JsonNode titles = read(owner.browser().get(base + "/analysis"));
+        assertThat(titles).extracting(item -> item.path("label").asString(null)).containsExactly("0", "1", "1.1", "");
+        assertThat(titles.path(0).path("title").asString()).isEqualTo("Світло");
+        assertThat(titles.path(3).path("title").asString()).isEqualTo("Інтерлюдія");
+        assertThat(owner.browser().put(base + "/analysis/1", json("title", "Пролог", "label", "0")).status()).isEqualTo(200);
+        assertThat(owner.browser().put(base + "/analysis/2", json("title", "Ліхтар", "label", "1,5")).status()).isEqualTo(200);
+        assertThat(owner.browser().put(base + "/analysis/2", json("title", "Ліхтар", "label", "перша")).status()).isEqualTo(400);
+
+        JsonNode glossary = read(owner.browser().get(base + "/glossary"));
+        assertThat(glossary.path(0).path("manual").asBoolean()).as("not checked yet").isFalse();
+        owner.browser().post(base + "/glossary/checked", "{}");
+        assertThat(read(owner.browser().get(base + "/glossary")).path(0).path("manual").asBoolean()).isTrue();
+
+        model.reset();
+        owner.browser().post(base + "/autotranslate/jobs", json("to", 4));
+        worker.drain();
+        assertThat(model.calls).as("analysis is not paid twice").doesNotContain("glossary").hasSize(8);
+
+        String slug = read(owner.browser().get(base)).path("novelSlug").asString();
+        JsonNode list = read(new Browser(port).get("/api/novels/" + slug + "/chapters")).path("items");
+        assertThat(list).extracting(row -> row.path("label").asString(null) + " " + row.path("title").asString())
+                .containsExactly("0 Пролог", "1.5 Ліхтар", "1.1 Світло", " Інтерлюдія");
     }
 
     @Test

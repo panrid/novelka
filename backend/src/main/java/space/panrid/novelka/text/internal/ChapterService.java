@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import space.panrid.novelka.catalog.Catalog;
 import space.panrid.novelka.jooq.tables.records.ChapterRecord;
 import space.panrid.novelka.platform.text.Block;
+import space.panrid.novelka.platform.text.ChapterLabels;
 import space.panrid.novelka.platform.web.UserFacingException;
 import space.panrid.novelka.text.BlockRules;
 import space.panrid.novelka.text.ChangeStats;
@@ -65,14 +66,18 @@ class ChapterService implements Chapters {
         int next = nextNumber(editionId);
         List<Integer> numbers = new ArrayList<>();
         for (ChapterFiles.ParsedChapter parsed : chapters) {
+            // «Глава 31.1. Ніч» from a file keeps its number for readers and «Ніч» as the title.
+            String[] split = ChapterLabels.splitUkrainian(parsed.title()).filter(parts -> !parts[1].isEmpty()).orElse(null);
+            String title = split == null ? parsed.title() : split[1];
             long chapterId = db.insertInto(CHAPTER)
                     .set(CHAPTER.EDITION_ID, editionId)
                     .set(CHAPTER.NUMBER, next)
+                    .set(CHAPTER.LABEL, split == null ? null : split[0])
                     .set(CHAPTER.FIRST_PUBLISHED_AT, now)
                     .set(CHAPTER.UPDATED_AT, now)
                     .returning(CHAPTER.ID)
                     .fetchOne(CHAPTER.ID);
-            long revisionId = insertRevision(chapterId, null, parsed.title(), parsed.blocks(), origin, authorId, now);
+            long revisionId = insertRevision(chapterId, null, title, parsed.blocks(), origin, authorId, now);
             if (authorId != null) {
                 ChangeStats stats = ChangeStats.between(List.of(), parsed.blocks());
                 recordContribution(revisionId, authorId, stats);
@@ -86,10 +91,14 @@ class ChapterService implements Chapters {
 
     @Override
     @Transactional
-    public long publishMachine(long editionId, int number, String title, List<Block> blocks, long sourceChapterId,
-            int sourceChars, long jobId, String sourceHash) {
+    public long publishMachine(long editionId, int number, String label, String title, List<Block> blocks,
+            long sourceChapterId, int sourceChars, long jobId, String sourceHash) {
         blocks = BlockRules.normalize(blocks);
-        title = BlockRules.title(title);
+        // A machine chapter may have only a number («第12話»): then readers see «Глава 12».
+        title = title == null || title.isBlank() ? "" : BlockRules.title(title);
+        if (!ChapterLabels.valid(label)) {
+            label = null;
+        }
         OffsetDateTime now = now();
         db.execute("SELECT 1 FROM edition WHERE id = ? FOR UPDATE", editionId);
         ChapterRecord chapter = db.selectFrom(CHAPTER)
@@ -109,11 +118,24 @@ class ChapterService implements Chapters {
                 .set(CHAPTER.PUBLISHED_REVISION_ID, revisionId)
                 .set(CHAPTER.SOURCE_CHAPTER_ID, sourceChapterId)
                 .set(CHAPTER.SOURCE_CHARS, sourceChars)
+                .set(CHAPTER.LABEL, label)
                 .set(CHAPTER.FIRST_PUBLISHED_AT, DSL.coalesce(CHAPTER.FIRST_PUBLISHED_AT, DSL.val(now)))
                 .set(CHAPTER.UPDATED_AT, now)
                 .where(CHAPTER.ID.eq(chapterId)).execute();
         refreshCounters(editionId, firstTime ? now : null);
         return revisionId;
+    }
+
+    @Override
+    @Transactional
+    public void setLabel(long editionId, int number, String label) {
+        String value = label == null ? null : label.strip().replace(',', '.');
+        if (!ChapterLabels.valid(value)) {
+            throw UserFacingException.badRequest("Номер — число, можна з крапкою: 0, 12, 31.1. Порожньо — без номера.");
+        }
+        chapter(editionId, number);
+        db.update(CHAPTER).set(CHAPTER.LABEL, value).set(CHAPTER.UPDATED_AT, now())
+                .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(number)).execute();
     }
 
     @Override
@@ -138,7 +160,7 @@ class ChapterService implements Chapters {
         return new EditorState(chapter.getId(), number,
                 published == null ? "" : published.get(REVISION.TITLE),
                 published == null ? List.of() : blocks(published.get(REVISION.BLOCKS)),
-                chapter.getPublishedRevisionId(), chapter.getPublishedRevisionId() != null, draft);
+                chapter.getPublishedRevisionId(), chapter.getPublishedRevisionId() != null, draft, chapter.getLabel());
     }
 
     @Override
@@ -258,13 +280,14 @@ class ChapterService implements Chapters {
     public List<StudioChapter> studioChapters(long editionId, long accountId, int page, int size) {
         var hasDraft = DSL.exists(DSL.selectOne().from(EDITOR_DRAFT)
                 .where(EDITOR_DRAFT.CHAPTER_ID.eq(CHAPTER.ID).and(EDITOR_DRAFT.ACCOUNT_ID.eq(accountId))));
-        return db.select(CHAPTER.NUMBER, REVISION.TITLE, CHAPTER.PUBLISHED_REVISION_ID, DSL.field(hasDraft), CHAPTER.UPDATED_AT)
+        return db.select(CHAPTER.NUMBER, REVISION.TITLE, CHAPTER.PUBLISHED_REVISION_ID, DSL.field(hasDraft), CHAPTER.UPDATED_AT,
+                        CHAPTER.LABEL)
                 .from(CHAPTER).leftJoin(REVISION).on(REVISION.ID.eq(CHAPTER.PUBLISHED_REVISION_ID))
                 .where(CHAPTER.EDITION_ID.eq(editionId))
                 .orderBy(CHAPTER.NUMBER.desc())
                 .limit(size).offset((page - 1) * size)
                 .fetch(r -> new StudioChapter(r.value1(), r.value2() == null ? "" : r.value2(), r.value3() != null,
-                        r.value4(), r.value5()));
+                        r.value4(), r.value5(), r.value6()));
     }
 
     @Override

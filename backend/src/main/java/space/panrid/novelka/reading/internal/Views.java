@@ -52,7 +52,8 @@ final class Views {
     record Continuation(String teamHandle, String teamName, int firstNumber) {
     }
 
-    record ChapterRow(int number, String title, OffsetDateTime publishedAt) {
+    /** @param label number readers see; null means {@code number}, empty means none */
+    record ChapterRow(int number, String title, OffsetDateTime publishedAt, String label) {
     }
 
     record ReaderBlock(String id, String type, List<Span> content, String imageUrl) {
@@ -61,7 +62,7 @@ final class Views {
     /** {@code savedPosition}: where the signed-in reader stopped in this very chapter, 0..1. */
     record ReaderChapter(String novelSlug, String novelTitle, EditionSummary edition, int number, String title,
             List<ReaderBlock> blocks, Integer previous, Integer next, Float savedPosition, Continuation continuation,
-            String teamRole) {
+            String teamRole, String label) {
     }
 
     record LibraryPage(List<LibraryItem> items, java.util.Map<String, Integer> counts) {

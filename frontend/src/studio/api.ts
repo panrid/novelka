@@ -23,12 +23,12 @@ export type Overview = {
     teamHandle: string; teamName: string; role: TeamRole;
 };
 
-export type StudioChapter = { number: number; title: string; published: boolean; hasMyDraft: boolean; updatedAt: string };
+export type StudioChapter = { number: number; title: string; published: boolean; hasMyDraft: boolean; updatedAt: string; label: string | null };
 
 export type EditorView = {
     number: number; title: string; blocks: StudioBlock[]; revisionId: number | null; published: boolean;
     draft: { title: string; blocks: StudioBlock[]; baseRevisionId: number | null; updatedAt: string } | null;
-    role: TeamRole; mayAddPictures: boolean; previous: number | null; next: number | null;
+    role: TeamRole; mayAddPictures: boolean; previous: number | null; next: number | null; label: string | null;
 };
 
 export type RevisionInfo = {
@@ -85,6 +85,7 @@ export const studioApi = {
     discardDraft: (id: number, number: number) => api<void>(`${chapter(id, number)}/draft`, { method: 'DELETE' }),
     publish: (id: number, number: number, body: { title: string; blocks: StudioBlock[]; baseRevisionId: number | null }) =>
         api<{ revisionId: number }>(`${chapter(id, number)}/publish`, json('POST', body)),
+    setLabel: (id: number, number: number, label: string | null) => api<void>(`${chapter(id, number)}/label`, json('PUT', { label })),
     revisions: (id: number, number: number) => api<RevisionInfo[]>(`${chapter(id, number)}/revisions`),
     revision: (id: number, number: number, revisionId: number) => api<RevisionView>(`${chapter(id, number)}/revisions/${revisionId}`),
     previewImport: (id: number, file: File) => {

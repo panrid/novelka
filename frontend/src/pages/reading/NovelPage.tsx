@@ -7,7 +7,7 @@ import { ApiError } from '../../api/client';
 import { useMe } from '../../auth/me';
 import { Blocks } from '../../reading/Blocks';
 import { Cover } from '../../reading/Cover';
-import { LIST_LABELS, STATUS_LABELS, chaptersWord, readingApi, type ListName, type NovelPage as Novel } from '../../reading/api';
+import { LIST_LABELS, STATUS_LABELS, chapterHeading, chaptersWord, readingApi, type ListName, type NovelPage as Novel } from '../../reading/api';
 import { relayApi } from '../../studio/api';
 import { localProgress } from '../../reading/progress';
 import { novelQuery } from '../../reading/queries';
@@ -246,7 +246,7 @@ function ChapterList({ slug, team, current }: { slug: string; team: string | und
                     <li key={row.number}>
                         <Link to="/n/$slug/$number" params={{ slug, number: String(row.number) }} search={team ? { t: team } : {}}
                             className={`${styles.chapter} ${row.number === current ? styles.here : ''}`}>
-                            <span>{row.number}. {row.title}</span>
+                            <span>{chapterHeading(row)}</span>
                             {row.number === current && <span className={styles.muted}>тут зупинились</span>}
                         </Link>
                     </li>

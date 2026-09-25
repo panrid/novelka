@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
-import { KIND_LABELS, autotranslateApi, type Gender, type GlossaryItem, type GlossaryKind } from '../../studio/autotranslate';
+import { chapterHeading } from '../../reading/api';
+import { KIND_LABELS, autotranslateApi, type ChapterAnalysis, type Gender, type GlossaryItem, type GlossaryKind } from '../../studio/autotranslate';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
@@ -16,10 +17,20 @@ const GENDER_LABELS: Record<Gender, string> = { male: 'чоловічий', fema
  */
 export function GlossaryPage() {
     const id = useEditionId();
+    const client = useQueryClient();
     const entries = useQuery({ queryKey: ['glossary', id], queryFn: () => autotranslateApi.glossary(id) });
+    const analysis = useQuery({ queryKey: ['analysis', id], queryFn: () => autotranslateApi.analysis(id) });
     const [filter, setFilter] = useState('');
+    const [onlyNew, setOnlyNew] = useState(false);
     const [editing, setEditing] = useState<number | null>(null);
-    const shown = (entries.data ?? []).filter((entry) => entry.ukrainian.toLowerCase().includes(filter.trim().toLowerCase()));
+    const unchecked = (entries.data ?? []).filter((entry) => !entry.manual).length;
+    const shown = (entries.data ?? [])
+        .filter((entry) => !onlyNew || !entry.manual)
+        .filter((entry) => entry.ukrainian.toLowerCase().includes(filter.trim().toLowerCase()));
+    const checkAll = useMutation({
+        mutationFn: () => autotranslateApi.allChecked(id),
+        onSuccess: () => void client.invalidateQueries({ queryKey: ['glossary', id] }),
+    });
 
     return (
         <section className={styles.page}>
@@ -28,7 +39,23 @@ export function GlossaryPage() {
             <p className={styles.muted}>
                 Імена й терміни, які автопереклад пише однаково в усіх главах. Виправлення діє з наступної перекладеної глави.
             </p>
+            {(analysis.data?.length ?? 0) > 0 && (
+                <>
+                    <h2 className={styles.sectionTitle}>Назви глав перед перекладом</h2>
+                    <p className={styles.muted}>Номер — як на сайті: 0, 12, 31.1 або порожньо, якщо без номера (пролог, побічна історія).</p>
+                    {analysis.data!.map((chapter) => <AnalysisRow key={chapter.number} editionId={id} chapter={chapter} />)}
+                </>
+            )}
+            <h2 className={styles.sectionTitle}>Імена й терміни</h2>
             {entries.isError && <Notice tone="error">{entries.error.message}</Notice>}
+            {unchecked > 0 && (
+                <div className={styles.actions}>
+                    <Button variant={onlyNew ? 'primary' : 'secondary'} onPress={() => setOnlyNew(!onlyNew)}>
+                        Неперевірені: {unchecked}
+                    </Button>
+                    <Button variant="secondary" onPress={() => checkAll.mutate()} pending={checkAll.isPending}>Усе перевірено</Button>
+                </div>
+            )}
             {(entries.data?.length ?? 0) > 8 && <TextInput label="Пошук" value={filter} onChange={setFilter} />}
             {entries.data?.length === 0 && <p className={styles.muted}>Словник порожній: він заповниться під час перекладу.</p>}
             {shown.map((entry) => editing === entry.id
@@ -43,7 +70,8 @@ export function GlossaryPage() {
                                 {entry.note ? ` · ${entry.note}` : ''}
                             </div>
                         </div>
-                        {entry.chapter && <span className={styles.badge}>з глави {entry.chapter}</span>}
+                        {!entry.manual && <span className={`${styles.badge} ${styles.badgeOn}`}>не перевірено</span>}
+                        {entry.chapter && <span className={styles.badge}>гл. {entry.chapter}</span>}
                     </button>
                 ))}
         </section>
@@ -83,6 +111,28 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
                 <Button variant="secondary" onPress={onDone}>Скасувати</Button>
                 <Button variant="danger" onPress={() => remove.mutate()} isDisabled={remove.isPending}>Видалити</Button>
             </div>
+        </form>
+    );
+}
+
+/** One analysed chapter: its number on the site and its title, fixed before translating. */
+function AnalysisRow({ editionId, chapter }: { editionId: number; chapter: ChapterAnalysis }) {
+    const client = useQueryClient();
+    const [label, setLabel] = useState(chapter.label ?? String(chapter.number));
+    const [title, setTitle] = useState(chapter.title);
+    const changed = label !== (chapter.label ?? String(chapter.number)) || title !== chapter.title;
+    const save = useMutation({
+        mutationFn: () => autotranslateApi.editAnalysis(editionId, chapter.number,
+            { title, label: label.trim() === String(chapter.number) ? null : label.trim() }),
+        onSuccess: () => void client.invalidateQueries({ queryKey: ['analysis', editionId] }),
+    });
+    return (
+        <form className={`${styles.entry} ${styles.analysisRow}`} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}
+            aria-label={`Глава ${chapter.number}: ${chapterHeading({ ...chapter, title })}`}>
+            <TextInput label="№" value={label} onChange={setLabel} inputMode="decimal" />
+            <TextInput label="Назва" value={title} onChange={setTitle} />
+            {changed && <Button type="submit" pending={save.isPending}>Зберегти</Button>}
+            {save.isError && <Notice tone="error">{save.error.message}</Notice>}
         </form>
     );
 }

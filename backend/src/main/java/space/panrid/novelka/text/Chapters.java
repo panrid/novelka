@@ -24,8 +24,13 @@ public interface Chapters {
      * Publishes a machine translation of an original chapter as a new revision, creating the
      * chapter under that number if it does not exist yet. Pictures must already be stored.
      */
-    long publishMachine(long editionId, int number, String title, List<Block> blocks, long sourceChapterId,
-            int sourceChars, long jobId, String sourceHash);
+    long publishMachine(long editionId, int number, String label, String title, List<Block> blocks,
+            long sourceChapterId, int sourceChars, long jobId, String sourceHash);
+
+    /**
+     * The number readers see: «0», «31.1»; empty for none («Пролог»); null for the position.
+     */
+    void setLabel(long editionId, int number, String label);
 
     /** A new empty chapter at the end, unpublished until its first «Опублікувати». */
     int createChapter(long editionId);

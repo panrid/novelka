@@ -126,6 +126,12 @@ class Glossary {
         }
     }
 
+    /** «Усе перевірено»: entries from analysis count as checked, as if the owner had saved each. */
+    void markAllChecked(long editionId) {
+        db.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.MANUAL, true)
+                .where(GLOSSARY_ENTRY.EDITION_ID.eq(editionId), GLOSSARY_ENTRY.MANUAL.isFalse()).execute();
+    }
+
     void delete(long editionId, long entryId) {
         db.deleteFrom(GLOSSARY_ENTRY)
                 .where(GLOSSARY_ENTRY.ID.eq(entryId), GLOSSARY_ENTRY.EDITION_ID.eq(editionId)).execute();

@@ -63,7 +63,15 @@ export type NovelPage = {
 
 export type Continuation = { teamHandle: string; teamName: string; firstNumber: number };
 
-export type ChapterRow = { number: number; title: string; publishedAt: string };
+/** `label`: the number readers see («0», «31.1»); null means the position, '' means no number. */
+export type ChapterRow = { number: number; title: string; publishedAt: string; label: string | null };
+
+/** «31.1. Ніч», «Пролог» (no number), «Глава 12» (a number without a title). */
+export function chapterHeading(chapter: { number: number; label?: string | null; title: string }): string {
+    const shown = chapter.label ?? String(chapter.number);
+    if (!chapter.title) return shown ? `Глава ${shown}` : 'Без назви';
+    return shown ? `${shown}. ${chapter.title}` : chapter.title;
+}
 
 export type ReaderChapter = {
     novelSlug: string;
@@ -77,6 +85,7 @@ export type ReaderChapter = {
     savedPosition: number | null;
     continuation: Continuation | null;
     teamRole: 'owner' | 'translator' | 'editor' | null;
+    label: string | null;
 };
 
 export type CatalogQuery = { q?: string; tags?: string[]; kind?: string; machine?: string; sort?: string; page?: number };

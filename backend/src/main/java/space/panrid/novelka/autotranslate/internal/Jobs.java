@@ -2,6 +2,7 @@ package space.panrid.novelka.autotranslate.internal;
 
 import static space.panrid.novelka.jooq.Tables.AI_CALL;
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
+import static space.panrid.novelka.jooq.Tables.CHAPTER_ANALYSIS;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.JOB;
 import static space.panrid.novelka.jooq.Tables.JOB_STEP;
@@ -80,7 +81,15 @@ class Jobs {
 
     // ---- quote --------------------------------------------------------------------------------
 
-    record Novel(long novelId, int sourceChapters, int nextNumber, int publishedChapters) {
+    /**
+     * @param nextNumber   first chapter not yet translated
+     * @param lastAnalyzed last chapter whose analysis is ready (0 if none)
+     */
+    record Novel(long novelId, int sourceChapters, int nextNumber, int publishedChapters, int lastAnalyzed) {
+
+        int nextToAnalyze() {
+            return Math.max(nextNumber, lastAnalyzed + 1);
+        }
     }
 
     Novel novel(long editionId) {
@@ -95,17 +104,32 @@ class Jobs {
                 .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull()).fetchOne(0, Integer.class);
         int published = db.fetchCount(CHAPTER, CHAPTER.EDITION_ID.eq(editionId).and(CHAPTER.PUBLISHED_REVISION_ID.isNotNull()));
         Integer count = row.get(NOVEL.SOURCE_CHAPTER_COUNT);
-        return new Novel(row.get(NOVEL.ID), count == null ? 0 : count, Math.max(last + 1, row.get(EDITION.FIRST_NUMBER)), published);
+        return new Novel(row.get(NOVEL.ID), count == null ? 0 : count, Math.max(last + 1, row.get(EDITION.FIRST_NUMBER)), published,
+                db.select(DSL.coalesce(DSL.max(CHAPTER_ANALYSIS.NUMBER), 0)).from(CHAPTER_ANALYSIS)
+                        .where(CHAPTER_ANALYSIS.EDITION_ID.eq(editionId)).fetchOne(0, Integer.class));
     }
 
-    record Quote(int from, int to, int chapters, int shah, BigDecimal usd, boolean estimated) {
+    /**
+     * @param kind       analyze or translate
+     * @param unanalyzed chapters of a translation that have no analysis yet: their glossary
+     *                   cannot be checked before they are translated
+     */
+    record Quote(String kind, int from, int to, int chapters, int shah, BigDecimal usd, boolean estimated, int unanalyzed) {
     }
 
-    Quote quote(long editionId, int to) {
+    /** Analysis is about a quarter of a chapter's work: its price in шаги. */
+    static int analysisShah(int translationShah) {
+        return Math.max(1, (translationShah + 3) / 4);
+    }
+
+    Quote quote(long editionId, int to, String kind) {
         Novel novel = novel(editionId);
-        int from = novel.nextNumber();
+        boolean analyze = "analyze".equals(kind);
+        int from = analyze ? novel.nextToAnalyze() : novel.nextNumber();
         if (to < from) {
-            throw UserFacingException.badRequest(from == 1 ? "Вкажіть номер глави." : "Глави до %d уже перекладено.".formatted(from - 1));
+            throw UserFacingException.badRequest(from == 1 ? "Вкажіть номер глави."
+                    : analyze ? "Глави до %d уже проаналізовано.".formatted(from - 1)
+                    : "Глави до %d уже перекладено.".formatted(from - 1));
         }
         if (to > novel.sourceChapters()) {
             throw UserFacingException.badRequest("В оригіналі поки %d глав.".formatted(novel.sourceChapters()));
@@ -121,7 +145,11 @@ class Jobs {
             estimated |= chars == null;
             shah += Settings.shah(chars == null ? guess : chars);
         }
-        return new Quote(from, to, to - from + 1, shah, settings().usd(shah), estimated);
+        if (analyze) {
+            shah = analysisShah(shah);
+        }
+        int unanalyzed = analyze ? 0 : Math.max(0, to - Math.max(from - 1, novel.lastAnalyzed()));
+        return new Quote(analyze ? "analyze" : "translate", from, to, to - from + 1, shah, settings().usd(shah), estimated, unanalyzed);
     }
 
     // ---- balance ------------------------------------------------------------------------------
@@ -140,7 +168,7 @@ class Jobs {
     // ---- lifecycle ----------------------------------------------------------------------------
 
     @Transactional
-    long start(long editionId, int to, long ownerId) {
+    long start(long editionId, int to, String kind, long ownerId) {
         db.execute("SELECT 1 FROM edition WHERE id = ? FOR UPDATE", editionId);
         if (db.fetchExists(JOB, JOB.EDITION_ID.eq(editionId).and(JOB.STATE.in("queued", "running", "failed")))) {
             throw UserFacingException.conflict("Для цієї новели вже є незавершений переклад. Продовжте або скасуйте його.");
@@ -148,9 +176,10 @@ class Jobs {
         if (!ai.configured()) {
             throw UserFacingException.badRequest("Ключ OpenRouter не налаштовано на сервері.");
         }
-        Quote quote = quote(editionId, to);
+        Quote quote = quote(editionId, to, kind);
         long jobId = db.insertInto(JOB)
                 .set(JOB.EDITION_ID, editionId)
+                .set(JOB.KIND, quote.kind())
                 .set(JOB.REQUESTED_BY, ownerId)
                 .set(JOB.FIRST_NUMBER, quote.from())
                 .set(JOB.LAST_NUMBER, quote.to())
@@ -193,7 +222,7 @@ class Jobs {
     record StepView(int number, String stage, String state, String error) {
     }
 
-    record JobView(long id, String state, int from, int to, int done, int quoteShah, BigDecimal spentUsd, int spentShah,
+    record JobView(long id, String kind, String state, int from, int to, int done, int quoteShah, BigDecimal spentUsd, int spentShah,
             StepView current, String error, OffsetDateTime createdAt, OffsetDateTime finishedAt) {
     }
 
@@ -215,7 +244,7 @@ class Jobs {
         long spent = ai.spentMicroUsd(job.getId());
         Settings settings = json.readValue(job.getSettings().data(), Settings.class);
         int spentShah = (int) Math.ceil((double) spent / settings.microUsdPerShah());
-        return new JobView(job.getId(), job.getState(), job.getFirstNumber(), job.getLastNumber(), done, job.getQuoteShah(),
+        return new JobView(job.getId(), job.getKind(), job.getState(), job.getFirstNumber(), job.getLastNumber(), done, job.getQuoteShah(),
                 Settings.usdOfMicro(spent), spentShah, current, job.getError(), job.getCreatedAt(), job.getFinishedAt());
     }
 

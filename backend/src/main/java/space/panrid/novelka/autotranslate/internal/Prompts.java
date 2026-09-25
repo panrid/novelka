@@ -32,7 +32,10 @@ final class Prompts {
             For each: the Japanese form exactly as written in the text, its reading in hiragana if known (else ""),
             the Ukrainian form, the kind, the gender for characters if the text shows it (else "unknown"),
             and a short Ukrainian note (who or what it is, at most one sentence). Never guess a reading or gender.
-            Also translate the chapter title when one is given; otherwise return "".
+            Also translate the chapter title when one is given, WITHOUT its numbering: drop 第3話, 其の三, 003, 3.,
+            Episode 3 and the like and return only the name (the site shows the number itself). Keep words that are
+            the name, such as Пролог, Епілог, Інтерлюдія, Побічна історія. If the title is only a number or none
+            is given, return "".
             Readings may appear in the text as 漢字《かんじ》; they are hints, not part of the name.
             """ + NAMES;
 

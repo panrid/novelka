@@ -209,3 +209,14 @@
     font: inherit;
     cursor: pointer;
 }
+
+.analysisRow {
+    display: grid;
+    grid-template-columns: 4.5em 1fr;
+    gap: 8px;
+    align-items: end;
+}
+
+.analysisRow > :nth-child(n + 3) {
+    grid-column: 1 / -1;
+}

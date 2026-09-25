@@ -64,7 +64,8 @@ public class FakeModel implements AiTransport {
             case "novel" -> Map.of("title", "Ліхтарник із туману", "author", "Сакура Юкі",
                     "description", "Перший абзац опису.\n\nДругий абзац опису.");
             case "glossary" -> Map.of(
-                    "title", user.contains("Chapter title: (none)") ? "" : "Світло",
+                    // Like a real model, it sometimes keeps the number the site must strip.
+                    "title", user.contains("Chapter title: (none)") ? "" : user.contains("閑話") ? "Інтерлюдія" : "Глава 9. Світло",
                     "entries", user.contains("ユキ") && !user.contains("→ Юкі")
                             ? List.of(Map.of("japanese", "ユキ", "reading", "ゆき", "ukrainian", "Юкі", "kind", "character",
                                     "gender", "female", "note", "Головна героїня."))

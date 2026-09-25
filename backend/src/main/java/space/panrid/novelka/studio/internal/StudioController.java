@@ -93,7 +93,7 @@ class StudioController {
     }
 
     record EditorView(int number, String title, List<StudioBlock> blocks, Long revisionId, boolean published,
-            EditorDraft draft, String role, boolean mayAddPictures, Integer previous, Integer next) {
+            EditorDraft draft, String role, boolean mayAddPictures, Integer previous, Integer next, String label) {
     }
 
     record TextRequest(String title, List<Block> blocks, Long baseRevisionId) {
@@ -235,7 +235,8 @@ class StudioController {
         EditorModels.Draft draft = state.draft();
         return new EditorView(number, state.title(), studioBlocks(state.blocks()), state.revisionId(), state.published(),
                 draft == null ? null : new EditorDraft(draft.title(), studioBlocks(draft.blocks()), draft.baseRevisionId(), draft.updatedAt()),
-                who.role().code(), who.role().translates(), neighbour(editionId, number, false), neighbour(editionId, number, true));
+                who.role().code(), who.role().translates(), neighbour(editionId, number, false), neighbour(editionId, number, true),
+                state.label());
     }
 
     @PutMapping("/editions/{editionId}/chapters/{number}/draft")
@@ -250,6 +251,16 @@ class StudioController {
     void discardDraft(@PathVariable long editionId, @PathVariable int number) {
         EditionAccess who = access.requireTextEditor(editionId);
         chapters.discardDraft(editionId, number, who.viewer().accountId());
+    }
+
+    record LabelRequest(String label) {
+    }
+
+    /** The number readers see; any team member who edits text may fix it. */
+    @PutMapping("/editions/{editionId}/chapters/{number}/label")
+    void label(@PathVariable long editionId, @PathVariable int number, @RequestBody LabelRequest body) {
+        access.requireTextEditor(editionId);
+        chapters.setLabel(editionId, number, body.label());
     }
 
     @PostMapping("/editions/{editionId}/chapters/{number}/publish")

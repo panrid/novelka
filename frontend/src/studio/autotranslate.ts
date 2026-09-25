@@ -1,17 +1,25 @@
 import { api } from '../api/client';
 
-export type Quote = { from: number; to: number; chapters: number; shah: number; usd: number; estimated: boolean };
+export type JobKind = 'analyze' | 'translate';
+export type Quote = {
+    kind: JobKind; from: number; to: number; chapters: number; shah: number; usd: number; estimated: boolean;
+    /** Chapters of a translation without analysis: their glossary cannot be checked first. */
+    unanalyzed: number;
+};
 export type Balance = { shah: number; usd: number };
 export type JobState = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
 export type Job = {
-    id: number; state: JobState; from: number; to: number; done: number; quoteShah: number; spentUsd: number; spentShah: number;
+    id: number; kind: JobKind; state: JobState; from: number; to: number; done: number; quoteShah: number; spentUsd: number; spentShah: number;
     current: { number: number; stage: string; state: string; error: string | null } | null;
     error: string | null; createdAt: string; finishedAt: string | null;
 };
 export type AutotranslateOverview = {
     configured: boolean; showShah: boolean; sourceChapters: number; nextNumber: number; publishedChapters: number;
+    lastAnalyzed: number; nextToAnalyze: number;
     balance: Balance | null; usdPerShah: number; quote: Quote | null; jobs: Job[];
 };
+/** A chapter analysed but not yet translated: its Ukrainian title and the number readers will see. */
+export type ChapterAnalysis = { number: number; title: string; label: string | null; edited: boolean };
 export type GlossaryKind = 'character' | 'place' | 'organization' | 'term' | 'other';
 export type Gender = 'male' | 'female' | 'unknown';
 export type GlossaryItem = {
@@ -35,8 +43,13 @@ const base = (id: number) => `/api/studio/editions/${id}`;
 export const autotranslateApi = {
     prepare: (url: string, team: string) =>
         api<{ editionId: number; novelSlug: string }>('/api/studio/autotranslate/prepare', json('POST', { url, team })),
-    overview: (id: number, to?: number) => api<AutotranslateOverview>(`${base(id)}/autotranslate${to ? `?to=${to}` : ''}`),
-    start: (id: number, to: number) => api<Job>(`${base(id)}/autotranslate/jobs`, json('POST', { to })),
+    overview: (id: number, to: number | undefined, kind: JobKind) =>
+        api<AutotranslateOverview>(`${base(id)}/autotranslate?kind=${kind}${to ? `&to=${to}` : ''}`),
+    start: (id: number, to: number, kind: JobKind) => api<Job>(`${base(id)}/autotranslate/jobs`, json('POST', { to, kind })),
+    analysis: (id: number) => api<ChapterAnalysis[]>(`${base(id)}/analysis`),
+    editAnalysis: (id: number, number: number, body: { title: string; label: string | null }) =>
+        api<void>(`${base(id)}/analysis/${number}`, json('PUT', body)),
+    allChecked: (id: number) => api<void>(`${base(id)}/glossary/checked`, json('POST', {})),
     cancel: (id: number, jobId: number) => api<void>(`${base(id)}/autotranslate/jobs/${jobId}/cancel`, json('POST', {})),
     resume: (id: number, jobId: number) => api<void>(`${base(id)}/autotranslate/jobs/${jobId}/resume`, json('POST', {})),
     glossary: (id: number) => api<GlossaryItem[]>(`${base(id)}/glossary`),

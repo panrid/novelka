@@ -8,13 +8,13 @@ const OWNER = {
     dmPolicy: 'everyone', showReading: true, adultConfirmed: true, showShah: true,
 };
 const OVERVIEW = {
-    configured: true, showShah: true, sourceChapters: 5, nextNumber: 1, publishedChapters: 0,
+    configured: true, showShah: true, sourceChapters: 5, nextNumber: 1, publishedChapters: 0, lastAnalyzed: 0, nextToAnalyze: 1,
     balance: { shah: 208, usd: 7.5 }, usdPerShah: 0.036,
-    quote: { from: 1, to: 3, chapters: 3, shah: 3, usd: 0.11, estimated: true },
+    quote: { kind: 'translate', from: 1, to: 3, chapters: 3, shah: 3, usd: 0.11, estimated: true, unanalyzed: 3 },
     jobs: [],
 };
 const FAILED_JOB = {
-    id: 9, state: 'failed', from: 1, to: 3, done: 1, quoteShah: 3, spentUsd: 0.012, spentShah: 1,
+    id: 9, kind: 'translate', state: 'failed', from: 1, to: 3, done: 1, quoteShah: 3, spentUsd: 0.012, spentShah: 1,
     current: { number: 2, stage: 'translate', state: 'failed', error: 'Відповідь моделі загубилася дорогою.' },
     error: 'Відповідь моделі загубилася дорогою. Перевірте баланс і натисніть «Продовжити».', createdAt: '2026-09-25T08:00:00Z', finishedAt: null,
 };
@@ -30,13 +30,27 @@ describe('autotranslate', () => {
         });
 
         expect(await screen.findByText(/Баланс:/)).toHaveTextContent('208 шагів');
+        await userEvent.click(screen.getByRole('radio', { name: 'Переклад' }));
         const start = screen.getByRole('button', { name: 'Почати переклад' });
         expect(start).toBeDisabled();
 
         await userEvent.type(screen.getByLabelText('Перекласти з глави 1 до глави…'), '3');
         expect(await screen.findByText(/3 глави · орієнтовно/)).toHaveTextContent('3 шаги');
+        expect(screen.getByText(/словник для них складеться під час перекладу/)).toBeInTheDocument();
         await userEvent.click(start);
-        expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ to: 3 });
+        expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ to: 3, kind: 'translate' });
+    });
+
+    it('starts with analysis alone, at a quarter of the price', async () => {
+        const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/4/autotranslate': { body: { ...OVERVIEW, quote: { ...OVERVIEW.quote, kind: 'analyze', shah: 1, usd: 0.04, unanalyzed: 0 } } },
+            'POST /api/studio/editions/4/autotranslate/jobs': { status: 201, body: {} },
+        });
+        await userEvent.type(await screen.findByLabelText('Аналізувати з глави 1 до глави…'), '3');
+        expect(await screen.findByText(/Аналіз — чверть шагу/)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Почати аналіз' }));
+        expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ to: 3, kind: 'analyze' });
     });
 
     it('speaks dollars when the owner switched шаги off', async () => {
@@ -45,6 +59,7 @@ describe('autotranslate', () => {
             'GET /api/studio/editions/4/autotranslate': { body: { ...OVERVIEW, showShah: false } },
         });
         expect(await screen.findByText(/Баланс:/)).toHaveTextContent('$7,50');
+        await userEvent.click(screen.getByRole('radio', { name: 'Переклад' }));
         await userEvent.type(screen.getByLabelText('Перекласти з глави 1 до глави…'), '3');
         expect(await screen.findByText(/3 глави · орієнтовно/)).toHaveTextContent('$0,11');
     });

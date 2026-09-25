@@ -278,24 +278,24 @@ class ReadingQueries {
     }
 
     Views.Page<ChapterRow> chapters(long editionId, boolean newestFirst, int page, int size) {
-        List<ChapterRow> rows = db.select(CHAPTER.NUMBER, REVISION.TITLE, CHAPTER.FIRST_PUBLISHED_AT)
+        List<ChapterRow> rows = db.select(CHAPTER.NUMBER, REVISION.TITLE, CHAPTER.FIRST_PUBLISHED_AT, CHAPTER.LABEL)
                 .from(CHAPTER).join(REVISION).on(REVISION.ID.eq(CHAPTER.PUBLISHED_REVISION_ID))
                 .where(CHAPTER.EDITION_ID.eq(editionId))
                 .orderBy(newestFirst ? CHAPTER.NUMBER.desc() : CHAPTER.NUMBER.asc())
                 .limit(size + 1).offset((page - 1) * size)
-                .fetch(r -> new ChapterRow(r.value1(), r.value2(), r.value3()));
+                .fetch(r -> new ChapterRow(r.value1(), r.value2(), r.value3(), r.value4()));
         boolean more = rows.size() > size;
         return new Views.Page<>(more ? rows.subList(0, size) : rows, page, more);
     }
 
-    record ChapterText(int number, String title, JSONB blocks) {
+    record ChapterText(int number, String title, JSONB blocks, String label) {
     }
 
     Optional<ChapterText> chapter(long editionId, int number) {
-        return db.select(CHAPTER.NUMBER, REVISION.TITLE, REVISION.BLOCKS)
+        return db.select(CHAPTER.NUMBER, REVISION.TITLE, REVISION.BLOCKS, CHAPTER.LABEL)
                 .from(CHAPTER).join(REVISION).on(REVISION.ID.eq(CHAPTER.PUBLISHED_REVISION_ID))
                 .where(CHAPTER.EDITION_ID.eq(editionId).and(CHAPTER.NUMBER.eq(number)))
-                .fetchOptional(r -> new ChapterText(r.value1(), r.value2(), r.value3()));
+                .fetchOptional(r -> new ChapterText(r.value1(), r.value2(), r.value3(), r.value4()));
     }
 
     /** Numbers of the published chapters around {@code number}; gaps in numbering are skipped. */

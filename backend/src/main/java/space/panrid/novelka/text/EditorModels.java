@@ -15,12 +15,13 @@ public final class EditorModels {
     }
 
     /** One chapter as the editor opens it: the published text and, if any, my unsaved draft. */
+    /** @param label the number readers see (see ChapterLabels); null means the position */
     public record EditorState(long chapterId, int number, String title, List<Block> blocks, Long revisionId,
-            boolean published, Draft draft) {
+            boolean published, Draft draft, String label) {
     }
 
     public record StudioChapter(int number, String title, boolean published, boolean hasMyDraft,
-            OffsetDateTime updatedAt) {
+            OffsetDateTime updatedAt, String label) {
     }
 
     public record RevisionInfo(long id, String authorNick, String origin, OffsetDateTime createdAt,

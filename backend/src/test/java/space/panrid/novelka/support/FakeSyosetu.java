@@ -14,7 +14,12 @@ import space.panrid.novelka.source.SyosetuHttp;
  */
 public class FakeSyosetu implements SyosetuHttp {
 
-    public record Novel(String title, String author, String story, int chapters) {
+    /** @param titles original chapter titles by position; others are «第N話　灯り» */
+    public record Novel(String title, String author, String story, int chapters, Map<Integer, String> titles) {
+
+        public Novel(String title, String author, String story, int chapters) {
+            this(title, author, story, chapters, Map.of());
+        }
     }
 
     private final Map<String, Novel> novels = new ConcurrentHashMap<>();
@@ -42,13 +47,18 @@ public class FakeSyosetu implements SyosetuHttp {
         if (novel == null || parts.length < 2) {
             throw UserFacingException.notFound("На Syosetu такої сторінки немає.");
         }
-        return chapterPage(parts[0], Integer.parseInt(parts[1]));
+        int number = Integer.parseInt(parts[1]);
+        return chapterPage(parts[0], number, novel.titles().getOrDefault(number, "第%d話　灯り".formatted(number)));
     }
 
     public static String chapterPage(String code, int number) {
+        return chapterPage(code, number, "第%d話　灯り".formatted(number));
+    }
+
+    public static String chapterPage(String code, int number, String title) {
         return """
                 <html><body><article class="p-novel">
-                <h1 class="p-novel__title p-novel__title--rensai">第%1$d話　灯り</h1>
+                <h1 class="p-novel__title p-novel__title--rensai">%3$s</h1>
                 <div class="js-novel-text p-novel__text p-novel__text--preface"><p id="Lp1">前書きです。</p></div>
                 <div class="js-novel-text p-novel__text">
                 <p id="L1">　<ruby>雪<rp>(</rp><rt>ユキ</rt><rp>)</rp></ruby>は灯台を見た。</p>
@@ -58,6 +68,6 @@ public class FakeSyosetu implements SyosetuHttp {
                 <p id="L5">夜が明けた。</p>
                 </div>
                 <div class="js-novel-text p-novel__text p-novel__text--afterword"><p id="La1">後書きです。%2$s</p></div>
-                </article></body></html>""".formatted(number, code);
+                </article></body></html>""".formatted(number, code, title);
     }
 }

@@ -32,6 +32,7 @@ import space.panrid.novelka.jooq.tables.records.JobStepRecord;
 import space.panrid.novelka.media.ImageKind;
 import space.panrid.novelka.media.Images;
 import space.panrid.novelka.platform.text.Block;
+import space.panrid.novelka.platform.text.ChapterLabels;
 import space.panrid.novelka.platform.text.Span;
 import space.panrid.novelka.platform.web.UserFacingException;
 import space.panrid.novelka.source.SourceText;
@@ -56,11 +57,13 @@ class Pipeline {
     private final Chapters chapters;
     private final Images images;
     private final Glossary glossary;
+    private final Analyses analyses;
     private final JsonMapper json;
     private final Clock clock;
 
-    Pipeline(DSLContext db, Ai ai, Sources sources, Chapters chapters, Images images, Glossary glossary, JsonMapper json,
-            Clock clock) {
+    Pipeline(DSLContext db, Ai ai, Sources sources, Chapters chapters, Images images, Glossary glossary, Analyses analyses,
+            JsonMapper json, Clock clock) {
+        this.analyses = analyses;
         this.db = db;
         this.ai = ai;
         this.sources = sources;
@@ -89,8 +92,10 @@ class Pipeline {
         List<Block> text = source.blocks().stream().filter(block -> !block.text().isBlank()).toList();
         Calls calls = new Calls(job, settings, number);
 
+        // Analysis done earlier (maybe by an «analysis only» job, maybe corrected since) is reused.
+        boolean analyzedBefore = analyses.find(editionId, number).filter(done -> done.sourceChapterId() == source.id()).isPresent();
         List<List<Block>> bigParts = parts(text, settings.segmentChars() * 3);
-        for (int part = 0; part < bigParts.size(); part++) {
+        for (int part = 0; part < bigParts.size() && !analyzedBefore; part++) {
             if (checkpoint.analyzed.contains(part)) {
                 continue;
             }
@@ -107,6 +112,19 @@ class Pipeline {
             glossary.addFromAnalysis(editionId, number, proposed);
             checkpoint.analyzed.add(part);
             save(step, "analyze", checkpoint);
+        }
+
+        if (!analyzedBefore) {
+            String label = analyses.label(novelId, source.title());
+            String title = checkpoint.title == null ? "" : checkpoint.title;
+            if (label != null && !label.isEmpty() || ChapterLabels.fromJapanese(source.title()).isPresent()) {
+                title = ChapterLabels.withoutNumber(title);
+            }
+            analyses.save(editionId, number, source.id(), title, label, job.getId());
+        }
+        if ("analyze".equals(job.getKind())) {
+            save(step, "done", checkpoint);
+            return;
         }
 
         List<List<Block>> parts = parts(text, settings.segmentChars());
@@ -157,10 +175,10 @@ class Pipeline {
                     }
                 }
             }
-            String title = checkpoint.title == null || checkpoint.title.isBlank() ? "Глава " + number : checkpoint.title;
+            Analyses.Analysis analysis = analyses.find(editionId, number).orElseThrow();
             checkpoint.summary = summary(checkpoint, parts.size());
-            checkpoint.revisionId = chapters.publishMachine(editionId, number, title, blocks, source.id(), source.chars(),
-                    job.getId(), source.hash());
+            checkpoint.revisionId = chapters.publishMachine(editionId, number, analysis.label(), analysis.title(), blocks,
+                    source.id(), source.chars(), job.getId(), source.hash());
         }
         save(step, "done", checkpoint);
     }

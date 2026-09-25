@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { chaptersWord } from '../../reading/api';
-import { JOB_LABELS, STAGE_LABELS, autotranslateApi, dollars, money, type Job } from '../../studio/autotranslate';
+import { JOB_LABELS, STAGE_LABELS, autotranslateApi, dollars, money, type Job, type JobKind } from '../../studio/autotranslate';
+import { Segmented } from '../../ui/Segmented';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
@@ -17,10 +18,11 @@ export function AutotranslatePage() {
     const id = useEditionId();
     const client = useQueryClient();
     const [to, setTo] = useState('');
+    const [kind, setKind] = useState<JobKind>('analyze');
     const target = /^\d{1,5}$/.test(to) ? Number(to) : undefined;
     const overview = useQuery({
-        queryKey: ['autotranslate', id, target ?? null],
-        queryFn: () => autotranslateApi.overview(id, target),
+        queryKey: ['autotranslate', id, kind, target ?? null],
+        queryFn: () => autotranslateApi.overview(id, target, kind),
         placeholderData: (previous) => previous,
         refetchInterval: (query) => (active(query.state.data?.jobs[0]) ? 3_000 : false),
         retry: false,
@@ -31,7 +33,7 @@ export function AutotranslatePage() {
         void client.invalidateQueries({ queryKey: ['autotranslate', id] });
         void client.invalidateQueries({ queryKey: ['studio-chapters', id] });
     };
-    const start = useMutation({ mutationFn: () => autotranslateApi.start(id, target!), onSuccess: () => { setTo(''); refresh(); } });
+    const start = useMutation({ mutationFn: () => autotranslateApi.start(id, target!, kind), onSuccess: () => { setTo(''); refresh(); } });
     const cancel = useMutation({ mutationFn: (jobId: number) => autotranslateApi.cancel(id, jobId), onSuccess: refresh });
     const resume = useMutation({ mutationFn: (jobId: number) => autotranslateApi.resume(id, jobId), onSuccess: refresh });
 
@@ -44,7 +46,8 @@ export function AutotranslatePage() {
     if (!data && overview.isError) return <Notice tone="error">{overview.error.message}</Notice>;
     if (!data) return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
     const show = data.showShah;
-    const left = data.sourceChapters - data.nextNumber + 1;
+    const from = kind === 'analyze' ? data.nextToAnalyze : data.nextNumber;
+    const left = data.sourceChapters - from + 1;
     const busy = job && (active(job) || job.state === 'failed');
     const quoteError = overview.isError && target ? overview.error.message : null;
 
@@ -53,7 +56,8 @@ export function AutotranslatePage() {
             <Link to="/studio/$editionId" params={{ editionId: String(id) }} className={styles.muted}>‹ До перекладу</Link>
             <h1 className={styles.title}>Автопереклад</h1>
             <p className={styles.muted}>
-                В оригіналі {data.sourceChapters} {chaptersWord(data.sourceChapters)}, перекладено {data.publishedChapters}.
+                В оригіналі {data.sourceChapters} {chaptersWord(data.sourceChapters)}, перекладено {data.publishedChapters}
+                {data.lastAnalyzed > 0 && <>, проаналізовано до {data.lastAnalyzed}</>}.
                 {data.balance && <> Баланс: <b>{money(data.balance.shah, data.balance.usd, show)}</b>.</>}
             </p>
             {!data.configured && <Notice tone="error">Ключ OpenRouter не налаштовано на сервері.</Notice>}
@@ -63,9 +67,21 @@ export function AutotranslatePage() {
                 pending={cancel.isPending || resume.isPending} />}
             {(cancel.isError || resume.isError) && <Notice tone="error">{(cancel.error ?? resume.error)!.message}</Notice>}
 
+            {!busy && (
+                <Segmented label="Що робимо" value={kind} onChange={(next) => { setKind(next); setTo(''); }} options={[
+                    { value: 'analyze', label: 'Аналіз і словник' },
+                    { value: 'translate', label: 'Переклад' },
+                ]} />
+            )}
+            {!busy && kind === 'analyze' && (
+                <p className={styles.muted}>
+                    Модель збере імена й терміни в словник і перекладе назви глав. Перевірте їх, а тоді запускайте переклад:
+                    він візьме готовий аналіз і не платитиме за нього вдруге.
+                </p>
+            )}
             {!busy && left > 0 && (
                 <form className={styles.form} onSubmit={(event) => { event.preventDefault(); if (target) start.mutate(); }}>
-                    <TextInput label={`Перекласти з глави ${data.nextNumber} до глави…`} value={to} onChange={setTo}
+                    <TextInput label={`${kind === 'analyze' ? 'Аналізувати' : 'Перекласти'} з глави ${from} до глави…`} value={to} onChange={setTo}
                         inputMode="numeric" hint={`Щонайбільше ${data.sourceChapters}.`} />
                     {data.quote && target === data.quote.to && (
                         <div className={styles.quote} aria-live="polite">
@@ -75,22 +91,29 @@ export function AutotranslatePage() {
                             </div>
                             <div className={styles.muted}>
                                 Шаг — до 10 000 знаків оригіналу{show ? ` (≈ ${dollars(data.usdPerShah, 3)})` : ''}.
+                                {data.quote.kind === 'analyze' && ' Аналіз — чверть шагу на главу.'}
                                 {data.quote.estimated && ' Довжину ще не завантажених глав оцінено за вже відомими.'}
                             </div>
+                            {data.quote.unanalyzed > 0 && (
+                                <div className={styles.muted}>
+                                    {data.quote.unanalyzed === data.quote.chapters ? 'Ці глави' : `Останні ${data.quote.unanalyzed} ${chaptersWord(data.quote.unanalyzed)}`}
+                                    {' '}ще не проаналізовано: словник для них складеться під час перекладу, перевірити його заздалегідь не вийде.
+                                </div>
+                            )}
                         </div>
                     )}
                     {quoteError && <Notice tone="error">{quoteError}</Notice>}
                     {start.isError && <Notice tone="error">{start.error.message}</Notice>}
                     <Button type="submit" wide pending={start.isPending} pendingLabel="Запускаємо…"
                         isDisabled={!data.quote || target !== data.quote.to || !data.configured}>
-                        Почати переклад
+                        {kind === 'analyze' ? 'Почати аналіз' : 'Почати переклад'}
                     </Button>
                 </form>
             )}
-            {!busy && left <= 0 && <p className={styles.muted}>Усі глави оригіналу вже перекладено.</p>}
+            {!busy && left <= 0 && <p className={styles.muted}>{kind === 'analyze' ? 'Усі глави оригіналу вже проаналізовано.' : 'Усі глави оригіналу вже перекладено.'}</p>}
 
             <nav className={styles.menu} aria-label="Ще">
-                <Link to="/studio/$editionId/glossary" params={{ editionId: String(id) }} className={styles.menuItem}>Словник імен і термінів</Link>
+                <Link to="/studio/$editionId/glossary" params={{ editionId: String(id) }} className={styles.menuItem}>Перевірити словник і назви глав</Link>
                 <Link to="/me/wallet" className={styles.menuItem}>Моделі, ціни й собівартість</Link>
             </nav>
 
@@ -99,7 +122,7 @@ export function AutotranslatePage() {
                     <h2 className={styles.sectionTitle}>Раніше</h2>
                     {data.jobs.slice(1).map((old) => (
                         <div key={old.id} className={styles.row}>
-                            <div className={styles.grow}>Глави {old.from}–{old.to} · {JOB_LABELS[old.state]}</div>
+                            <div className={styles.grow}>{old.kind === 'analyze' ? 'Аналіз' : 'Переклад'} {old.from}–{old.to} · {JOB_LABELS[old.state]}</div>
                             <span className={styles.muted}>{money(old.spentShah, old.spentUsd, show)} · {relativeTime(new Date(old.createdAt))}</span>
                         </div>
                     ))}
@@ -117,7 +140,7 @@ function JobCard({ job, showShah, usdPerShah, onCancel, onResume, pending }: {
     return (
         <div className={styles.jobCard} aria-live="polite">
             <div className={styles.jobHead}>
-                <b>Глави {job.from}–{job.to}</b>
+                <b>{job.kind === 'analyze' ? 'Аналіз' : 'Переклад'}: глави {job.from}–{job.to}</b>
                 <span className={styles.badge}>{JOB_LABELS[job.state]}</span>
             </div>
             <div className={styles.progress} role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={job.done}
