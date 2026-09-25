@@ -148,7 +148,7 @@ class Conversations {
                     avatar = picture == null ? null : picture.url(256);
                 }
             }
-            String text = message == null ? null : message.getDeletedAt() != null ? "Повідомлення видалено"
+            String text = message == null ? null : message.getDeletedAt() != null || message.getHiddenAt() != null ? "Повідомлення видалено"
                     : texts.get(i).isEmpty() ? "Картинка" : mentions.excerpt(message.getBody(), 90);
             items.add(new Summary(id, kind, title, avatar, handle, other, text,
                     message == null || message.getAuthorId() == null ? null : names.get(message.getAuthorId()).nick(),
@@ -240,8 +240,10 @@ class Conversations {
     record Picture(long id, String url, String thumbUrl) {
     }
 
+    /** @param hidden a moderator hid it after a report; like {@code deleted}, nothing of it is shown */
     record Line(long id, String kind, String authorNick, String authorAvatarUrl, String body, List<Picture> pictures,
-            Long replyTo, String replyExcerpt, OffsetDateTime createdAt, OffsetDateTime editedAt, boolean deleted, boolean mine) {
+            Long replyTo, String replyExcerpt, OffsetDateTime createdAt, OffsetDateTime editedAt, boolean deleted, boolean mine,
+            boolean hidden) {
     }
 
     record Member(String nick, String avatarUrl, String role) {
@@ -304,17 +306,18 @@ class Conversations {
         List<Line> out = new ArrayList<>();
         for (int i = 0; i < page.size(); i++) {
             MessageRecord m = page.get(i);
-            boolean deleted = m.getDeletedAt() != null;
+            boolean hidden = m.getHiddenAt() != null;
+            boolean deleted = m.getDeletedAt() != null || hidden;
             Person author = m.getAuthorId() == null ? null : names.get(m.getAuthorId());
             List<Picture> pictures = deleted ? List.of() : pictureIds.getOrDefault(m.getId(), List.of()).stream()
                     .map(stored::get).filter(Objects::nonNull)
                     .map(image -> new Picture(image.id(), image.url(1280), image.url(640))).toList();
             MessageRecord answered = m.getReplyTo() == null ? null : replied.get(m.getReplyTo());
-            String excerpt = answered == null ? null : answered.getDeletedAt() != null ? "Повідомлення видалено"
+            String excerpt = answered == null ? null : answered.getDeletedAt() != null || answered.getHiddenAt() != null ? "Повідомлення видалено"
                     : mentions.excerpt(answered.getBody(), 80);
             out.add(new Line(m.getId(), m.getKind(), author == null ? null : author.nick(), author == null ? null : author.avatarUrl(),
                     deleted ? "" : bodies.get(i), pictures, m.getReplyTo(), excerpt, m.getCreatedAt(), m.getEditedAt(), deleted,
-                    m.getAuthorId() != null && m.getAuthorId() == me));
+                    m.getAuthorId() != null && m.getAuthorId() == me, hidden));
         }
         return out;
     }

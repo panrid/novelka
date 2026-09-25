@@ -16,6 +16,7 @@ import space.panrid.novelka.account.internal.EmailTokens.Purpose;
 import space.panrid.novelka.platform.mail.Mailer;
 import space.panrid.novelka.platform.tx.AfterCommit;
 import space.panrid.novelka.platform.web.RateLimiter;
+import space.panrid.novelka.platform.SiteSettings;
 import space.panrid.novelka.platform.web.UserFacingException;
 
 @Service
@@ -35,11 +36,13 @@ class AccountService {
     private final RateLimiter signInsByAddress;
     private final RateLimiter signInsByLogin;
     private final RateLimiter registrationsByAddress;
+    private final SiteSettings settings;
     // Spent on unknown logins, so a wrong nick takes as long as a wrong password.
     private final String dummyHash;
 
     AccountService(AccountRepository accounts, EmailTokens tokens, AccountMails mails, Mailer mailer,
-            PasswordEncoder passwords, Clock clock, AccountLimits limits) {
+            PasswordEncoder passwords, Clock clock, AccountLimits limits, SiteSettings settings) {
+        this.settings = settings;
         this.accounts = accounts;
         this.tokens = tokens;
         this.mails = mails;
@@ -55,6 +58,10 @@ class AccountService {
     /** Creates an unconfirmed account and sends the confirmation letter. */
     @Transactional
     void register(String rawNick, String rawEmail, String rawPassword, String clientAddress) {
+        if (!settings.flag(SiteSettings.REGISTRATION_OPEN, true)) {
+            throw new UserFacingException(org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Реєстрацію тимчасово закрито. Спробуйте пізніше.", "registration-closed");
+        }
         if (!registrationsByAddress.tryAcquire(clientAddress)) {
             throw UserFacingException.tooManyRequests();
         }

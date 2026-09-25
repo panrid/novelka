@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
 
 import space.panrid.novelka.account.internal.AccountRepository;
+import space.panrid.novelka.platform.SiteSettings;
 import space.panrid.novelka.platform.web.UserFacingException;
 
 /**
@@ -20,15 +21,22 @@ import space.panrid.novelka.platform.web.UserFacingException;
 public class CurrentUser {
 
     private final AccountRepository accounts;
+    private final SiteSettings settings;
     private Optional<Viewer> viewer;
 
-    CurrentUser(AccountRepository accounts) {
+    CurrentUser(AccountRepository accounts, SiteSettings settings) {
         this.accounts = accounts;
+        this.settings = settings;
     }
 
     public Optional<Viewer> viewer() {
         if (viewer == null) {
             viewer = principalId().flatMap(accounts::viewer);
+            // With 18+ switched off for the site, nobody counts as having confirmed their age.
+            if (viewer.isPresent() && viewer.get().adultConfirmed() && !settings.flag(SiteSettings.ADULT_ENABLED, true)) {
+                Viewer v = viewer.get();
+                viewer = Optional.of(new Viewer(v.accountId(), v.nick(), v.role(), false));
+            }
         }
         return viewer;
     }

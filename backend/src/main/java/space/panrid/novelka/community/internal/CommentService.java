@@ -47,8 +47,11 @@ class CommentService {
     private final ApplicationEventPublisher events;
     private final Clock clock;
     private final RateLimiter posting;
+    private final space.panrid.novelka.platform.audit.AuditLog audit;
 
-    CommentService(DSLContext db, Mentions mentions, People people, ApplicationEventPublisher events, Clock clock) {
+    CommentService(DSLContext db, Mentions mentions, People people, ApplicationEventPublisher events, Clock clock,
+            space.panrid.novelka.platform.audit.AuditLog audit) {
+        this.audit = audit;
         this.db = db;
         this.mentions = mentions;
         this.people = people;
@@ -169,9 +172,11 @@ class CommentService {
         if (comment.getAuthorId() == viewer.accountId()) {
             db.update(COMMENT).set(COMMENT.DELETED_AT, now()).where(COMMENT.ID.eq(commentId)).execute();
         } else if (viewer.role().atLeast(SiteRole.MODERATOR)) {
+            String why = reason == null || reason.isBlank() ? null : reason.strip();
             db.update(COMMENT).set(COMMENT.HIDDEN_AT, now()).set(COMMENT.HIDDEN_BY, viewer.accountId())
-                    .set(COMMENT.HIDDEN_REASON, reason == null || reason.isBlank() ? null : reason.strip())
+                    .set(COMMENT.HIDDEN_REASON, why)
                     .where(COMMENT.ID.eq(commentId)).execute();
+            audit.record(viewer.accountId(), "hide", "comment", commentId, why == null ? java.util.Map.of() : java.util.Map.of("reason", why));
         } else {
             throw new UserFacingException(HttpStatus.FORBIDDEN, "Видаляти можна лише свої коментарі.");
         }

@@ -40,8 +40,11 @@ class ChatService {
     private final LiveEvents live;
     private final Clock clock;
     private final RateLimiter writing;
+    private final space.panrid.novelka.platform.audit.AuditLog audit;
 
-    ChatService(DSLContext db, Mentions mentions, People people, ApplicationEventPublisher events, LiveEvents live, Clock clock) {
+    ChatService(DSLContext db, Mentions mentions, People people, ApplicationEventPublisher events, LiveEvents live, Clock clock,
+            space.panrid.novelka.platform.audit.AuditLog audit) {
+        this.audit = audit;
         this.db = db;
         this.mentions = mentions;
         this.people = people;
@@ -116,6 +119,7 @@ class ChatService {
         } else if (viewer.role().atLeast(SiteRole.MODERATOR)) {
             db.update(CHAT_MESSAGE).set(CHAT_MESSAGE.HIDDEN_AT, now()).set(CHAT_MESSAGE.HIDDEN_BY, viewer.accountId())
                     .where(CHAT_MESSAGE.ID.eq(id)).execute();
+            audit.record(viewer.accountId(), "hide", "chat", id, java.util.Map.of());
         } else {
             throw new UserFacingException(HttpStatus.FORBIDDEN, "Видаляти можна лише свої повідомлення.");
         }

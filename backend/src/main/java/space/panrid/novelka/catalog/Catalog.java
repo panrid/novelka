@@ -31,4 +31,9 @@ public interface Catalog {
     void updateEdition(long editionId, EditionChanges changes);
 
     void setCover(long editionId, Long imageId);
+
+    /** An administrator hides a translation from the catalog and its readers (the team still sees it). */
+    void hideEdition(long editionId, long adminId, String reason);
+
+    void restoreEdition(long editionId);
 }

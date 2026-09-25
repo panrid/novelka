@@ -174,12 +174,10 @@ class CommunityFlowTests {
     @Test
     void theSiteChatMentionsAndRatings() {
         read(reader.browser().post("/api/chat", json("body", "Привіт, @" + translator.nick() + "!")));
-        long line = read(new Browser(port).get("/api/chat")).path(-1).path("id").asLong();
         JsonNode lines = read(new Browser(port).get("/api/chat"));
         assertThat(lines.get(lines.size() - 1).path("body").asString()).isEqualTo("Привіт, @" + translator.nick() + "!");
         assertThat(new Browser(port).post("/api/chat", json("body", "гість")).status()).isEqualTo(401);
         read(translator.browser().post("/api/chat", json("body", "Привіт!", "replyTo", lines.get(lines.size() - 1).path("id").asLong())));
-        assertThat(line).isNotNull();
         assertThat(inbox(translator, 1).path("items").path(0).path("payload").path("where").asString()).isEqualTo("chat");
 
         read(reader.browser().put("/api/editions/" + edition + "/rating", json("score", 4)));

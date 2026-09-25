@@ -67,6 +67,18 @@ class ImageService implements Images {
         return image;
     }
 
+    @Override
+    public void hide(long imageId, long moderatorId, String reason) {
+        db.update(IMAGE).set(IMAGE.HIDDEN_AT, org.jooq.impl.DSL.currentOffsetDateTime()).set(IMAGE.HIDDEN_BY, moderatorId)
+                .set(IMAGE.HIDDEN_REASON, reason).where(IMAGE.ID.eq(imageId), IMAGE.HIDDEN_AT.isNull()).execute();
+    }
+
+    @Override
+    public void restore(long imageId) {
+        db.update(IMAGE).setNull(IMAGE.HIDDEN_AT).setNull(IMAGE.HIDDEN_BY).setNull(IMAGE.HIDDEN_REASON)
+                .where(IMAGE.ID.eq(imageId)).execute();
+    }
+
     private StoredImage save(long ownerAccountId, ImageKind kind, byte[] content) {
         ImageProcessor.Processed processed = ImageProcessor.process(content, kind);
         LocalDate today = LocalDate.now(clock.withZone(ZoneOffset.UTC));

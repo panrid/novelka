@@ -1,18 +1,11 @@
 package space.panrid.novelka.community.internal;
 
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
-import static space.panrid.novelka.jooq.Tables.CHAT_MESSAGE;
-import static space.panrid.novelka.jooq.Tables.COMMENT;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITION_RATING;
-import static space.panrid.novelka.jooq.Tables.IMAGE;
-import static space.panrid.novelka.jooq.Tables.MESSAGE;
-import static space.panrid.novelka.jooq.Tables.REPORT;
 import static space.panrid.novelka.jooq.Tables.TEAM;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
@@ -174,39 +167,5 @@ class CommunityController {
                 .orderBy(ACCOUNT.NICK_KEY).limit(8).fetch();
         var avatars = people.of(rows.map(r -> r.value2()));
         return rows.map(r -> new Suggestion(r.value1(), null, avatars.get(r.value2()).avatarUrl()));
-    }
-
-    // ---- reports ------------------------------------------------------------------------------
-
-    private static final Set<String> TARGETS = Set.of("comment", "chat", "message", "image");
-
-    record Report(String target, long targetId, String reason) {
-    }
-
-    /** One report per person and thing; repeating it just keeps the first. */
-    @PostMapping("/reports")
-    @ResponseStatus(HttpStatus.CREATED)
-    Map<String, Boolean> report(@RequestBody Report body) {
-        Viewer viewer = currentUser.requireSignedIn();
-        String reason = body.reason() == null ? "" : body.reason().strip();
-        if (!TARGETS.contains(body.target())) {
-            throw UserFacingException.badRequest("Невідомо, на що скарга.");
-        }
-        if (reason.isEmpty() || reason.length() > 500) {
-            throw UserFacingException.badRequest("Коротко опишіть, що не так (до 500 знаків).");
-        }
-        boolean exists = switch (body.target()) {
-            case "comment" -> db.fetchExists(COMMENT, COMMENT.ID.eq(body.targetId()));
-            case "chat" -> db.fetchExists(CHAT_MESSAGE, CHAT_MESSAGE.ID.eq(body.targetId()));
-            case "message" -> db.fetchExists(MESSAGE, MESSAGE.ID.eq(body.targetId()));
-            default -> db.fetchExists(IMAGE, IMAGE.ID.eq(body.targetId()));
-        };
-        if (!exists) {
-            throw UserFacingException.notFound("Цього вже немає.");
-        }
-        db.insertInto(REPORT).set(REPORT.REPORTER_ID, viewer.accountId()).set(REPORT.TARGET, body.target())
-                .set(REPORT.TARGET_ID, body.targetId()).set(REPORT.REASON, reason)
-                .onConflictDoNothing().execute();
-        return Map.of("received", true);
     }
 }

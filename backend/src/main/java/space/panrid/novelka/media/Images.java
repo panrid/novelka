@@ -23,6 +23,11 @@ public interface Images {
      */
     StoredImage storeDrawn(long ownerAccountId, byte[] content, String prompt, String fragment, long aiCallId);
 
+    /** A moderator hides a picture everywhere it is used. */
+    void hide(long imageId, long moderatorId, String reason);
+
+    void restore(long imageId);
+
     /** URLs of a picture, unless moderators hid it. */
     Optional<StoredImage> find(long imageId);
 

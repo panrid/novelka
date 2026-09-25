@@ -14,6 +14,10 @@ public class SiteSettings {
 
     /** Months of silence after which a translation is free to continue (рішення 4). */
     public static final String RELAY_INACTIVE_MONTHS = "relay.inactive_months";
+    /** Whether new people can sign up. */
+    public static final String REGISTRATION_OPEN = "registration.open";
+    /** Whether 18+ translations are shown at all (to those who said they are adults). */
+    public static final String ADULT_ENABLED = "adult.enabled";
 
     private final DSLContext db;
 
@@ -32,6 +36,13 @@ public class SiteSettings {
                     }
                 })
                 .orElse(fallback);
+    }
+
+    public boolean flag(String key, boolean fallback) {
+        return json(key).map(value -> {
+            String text = value.strip();
+            return text.equals("true") ? Boolean.TRUE : text.equals("false") ? Boolean.FALSE : null;
+        }).orElse(null) instanceof Boolean value ? value : fallback;
     }
 
     /** The stored JSON of a setting. */

@@ -256,4 +256,21 @@ class CatalogService implements Catalog {
         }
         return candidate;
     }
+
+    @Override
+    @Transactional
+    public void hideEdition(long editionId, long adminId, String reason) {
+        int changed = db.update(EDITION).set(EDITION.HIDDEN_AT, DSL.currentOffsetDateTime()).set(EDITION.HIDDEN_BY, adminId)
+                .set(EDITION.HIDDEN_REASON, reason).where(EDITION.ID.eq(editionId), EDITION.HIDDEN_AT.isNull()).execute();
+        if (changed == 0 && !db.fetchExists(EDITION, EDITION.ID.eq(editionId))) {
+            throw UserFacingException.notFound("Такої новели немає.");
+        }
+    }
+
+    @Override
+    @Transactional
+    public void restoreEdition(long editionId) {
+        db.update(EDITION).setNull(EDITION.HIDDEN_AT).setNull(EDITION.HIDDEN_BY).setNull(EDITION.HIDDEN_REASON)
+                .where(EDITION.ID.eq(editionId)).execute();
+    }
 }
