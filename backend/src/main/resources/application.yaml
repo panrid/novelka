@@ -38,6 +38,10 @@ spring:
       republish-outstanding-events-on-restart: true
 
 novelka:
+  ai:
+    api-key: ${NOVELKA_OPENROUTER_KEY:}
+    # Management key: only to show the credits left at OpenRouter.
+    management-key: ${NOVELKA_OPENROUTER_MANAGEMENT_KEY:}
   media:
     dir: ${NOVELKA_MEDIA_DIR:data/media}
   public-url: ${NOVELKA_PUBLIC_URL:http://127.0.0.1:5173}

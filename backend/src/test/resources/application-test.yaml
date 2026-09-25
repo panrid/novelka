@@ -5,3 +5,6 @@ novelka:
     registrations-per-address: 1000
   media:
     dir: build/test-media
+  # Tests run the queue themselves (Worker.drain) instead of on a schedule.
+  autotranslate:
+    worker: false

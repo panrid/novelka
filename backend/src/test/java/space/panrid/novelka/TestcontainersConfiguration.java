@@ -6,9 +6,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import space.panrid.novelka.support.FakeModel;
+import space.panrid.novelka.support.FakeSyosetu;
 import space.panrid.novelka.support.TestMailbox;
 
-/** A real PostgreSQL 17 and a mailbox that keeps letters instead of sending them. */
+/** A real PostgreSQL 17, a mailbox that keeps letters, and Syosetu and the model faked. */
 @TestConfiguration(proxyBeanMethods = false)
 public class TestcontainersConfiguration {
 
@@ -22,5 +24,17 @@ public class TestcontainersConfiguration {
     @Primary
     TestMailbox testMailbox() {
         return new TestMailbox();
+    }
+
+    @Bean
+    @Primary
+    FakeSyosetu fakeSyosetu() {
+        return new FakeSyosetu();
+    }
+
+    @Bean
+    @Primary
+    FakeModel fakeModel() {
+        return new FakeModel();
     }
 }

@@ -20,6 +20,13 @@ public interface Chapters {
      */
     List<Integer> publishNew(long editionId, List<ChapterFiles.ParsedChapter> chapters, String origin, Long authorId);
 
+    /**
+     * Publishes a machine translation of an original chapter as a new revision, creating the
+     * chapter under that number if it does not exist yet. Pictures must already be stored.
+     */
+    long publishMachine(long editionId, int number, String title, List<Block> blocks, long sourceChapterId,
+            int sourceChars, long jobId, String sourceHash);
+
     /** A new empty chapter at the end, unpublished until its first «Опублікувати». */
     int createChapter(long editionId);
 

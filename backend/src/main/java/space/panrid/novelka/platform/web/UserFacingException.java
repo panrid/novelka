@@ -44,6 +44,11 @@ public class UserFacingException extends RuntimeException {
         return new UserFacingException(HttpStatus.NOT_FOUND, message);
     }
 
+    /** Another site we depend on (Syosetu, the AI provider) failed. */
+    public static UserFacingException badGateway(String message) {
+        return new UserFacingException(HttpStatus.BAD_GATEWAY, message);
+    }
+
     public static UserFacingException tooManyRequests() {
         return new UserFacingException(HttpStatus.TOO_MANY_REQUESTS,
                 "Забагато спроб. Зачекайте трохи й спробуйте знову.");

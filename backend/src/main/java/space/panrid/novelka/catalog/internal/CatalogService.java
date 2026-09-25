@@ -27,6 +27,7 @@ import space.panrid.novelka.catalog.Catalog;
 import space.panrid.novelka.catalog.EditionChanges;
 import space.panrid.novelka.catalog.EditionData;
 import space.panrid.novelka.catalog.EditionRef;
+import space.panrid.novelka.catalog.ImportedNovel;
 import space.panrid.novelka.catalog.NewNovel;
 import space.panrid.novelka.platform.text.Block;
 import space.panrid.novelka.platform.text.Slugs;
@@ -77,6 +78,50 @@ class CatalogService implements Catalog {
                 .returning(EDITION.ID)
                 .fetchOne(EDITION.ID);
         return new EditionRef(novelId, editionId, slug);
+    }
+
+    @Override
+    @Transactional
+    public EditionRef importNovel(ImportedNovel novel) {
+        Long novelId = novelBySource(novel.sourceKey()).orElse(null);
+        String slug;
+        if (novelId == null) {
+            String title = title(novel.title());
+            slug = freeSlug(Slugs.slug(title, 60));
+            novelId = db.insertInto(NOVEL)
+                    .set(NOVEL.SOURCE, "syosetu")
+                    .set(NOVEL.SOURCE_KEY, novel.sourceKey())
+                    .set(NOVEL.SOURCE_URL, novel.sourceUrl())
+                    .set(NOVEL.TITLE_ORIGINAL, novel.titleOriginal())
+                    .set(NOVEL.AUTHOR_ORIGINAL, novel.authorOriginal())
+                    .set(NOVEL.TITLE, title)
+                    .set(NOVEL.AUTHOR, novel.author() == null ? "" : novel.author().strip())
+                    .set(NOVEL.DESCRIPTION, JSONB.valueOf(json.writeValueAsString(novel.description())))
+                    .set(NOVEL.SOURCE_CHAPTER_COUNT, novel.sourceChapterCount())
+                    .set(NOVEL.SLUG, slug)
+                    .returning(NOVEL.ID)
+                    .fetchOne(NOVEL.ID);
+        } else {
+            db.update(NOVEL).set(NOVEL.SOURCE_CHAPTER_COUNT, novel.sourceChapterCount()).where(NOVEL.ID.eq(novelId)).execute();
+            slug = db.select(NOVEL.SLUG).from(NOVEL).where(NOVEL.ID.eq(novelId)).fetchOne(NOVEL.SLUG);
+        }
+        Long editionId = db.select(EDITION.ID).from(EDITION)
+                .where(EDITION.NOVEL_ID.eq(novelId), EDITION.TEAM_ID.eq(novel.teamId())).fetchOne(EDITION.ID);
+        if (editionId == null) {
+            editionId = db.insertInto(EDITION)
+                    .set(EDITION.NOVEL_ID, novelId)
+                    .set(EDITION.TEAM_ID, novel.teamId())
+                    .set(EDITION.KIND, "machine")
+                    .set(EDITION.ADULT, novel.adult())
+                    .returning(EDITION.ID)
+                    .fetchOne(EDITION.ID);
+        }
+        return new EditionRef(novelId, editionId, slug);
+    }
+
+    @Override
+    public Optional<Long> novelBySource(String sourceKey) {
+        return db.select(NOVEL.ID).from(NOVEL).where(NOVEL.SOURCE_KEY.eq(sourceKey)).fetchOptional(NOVEL.ID);
     }
 
     @Override

@@ -86,6 +86,38 @@ class ChapterService implements Chapters {
 
     @Override
     @Transactional
+    public long publishMachine(long editionId, int number, String title, List<Block> blocks, long sourceChapterId,
+            int sourceChars, long jobId, String sourceHash) {
+        blocks = BlockRules.normalize(blocks);
+        title = BlockRules.title(title);
+        OffsetDateTime now = now();
+        db.execute("SELECT 1 FROM edition WHERE id = ? FOR UPDATE", editionId);
+        ChapterRecord chapter = db.selectFrom(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(editionId).and(CHAPTER.NUMBER.eq(number))).fetchOne();
+        boolean firstTime = chapter == null || chapter.getPublishedRevisionId() == null;
+        long chapterId = chapter != null ? chapter.getId() : db.insertInto(CHAPTER)
+                .set(CHAPTER.EDITION_ID, editionId)
+                .set(CHAPTER.NUMBER, number)
+                .set(CHAPTER.UPDATED_AT, now)
+                .returning(CHAPTER.ID)
+                .fetchOne(CHAPTER.ID);
+        long revisionId = insertRevision(chapterId, chapter == null ? null : chapter.getPublishedRevisionId(),
+                title, blocks, "ai", null, now);
+        db.update(REVISION).set(REVISION.JOB_ID, jobId).set(REVISION.SOURCE_HASH, sourceHash)
+                .where(REVISION.ID.eq(revisionId)).execute();
+        db.update(CHAPTER)
+                .set(CHAPTER.PUBLISHED_REVISION_ID, revisionId)
+                .set(CHAPTER.SOURCE_CHAPTER_ID, sourceChapterId)
+                .set(CHAPTER.SOURCE_CHARS, sourceChars)
+                .set(CHAPTER.FIRST_PUBLISHED_AT, DSL.coalesce(CHAPTER.FIRST_PUBLISHED_AT, DSL.val(now)))
+                .set(CHAPTER.UPDATED_AT, now)
+                .where(CHAPTER.ID.eq(chapterId)).execute();
+        refreshCounters(editionId, firstTime ? now : null);
+        return revisionId;
+    }
+
+    @Override
+    @Transactional
     public int createChapter(long editionId) {
         int number = nextNumber(editionId);
         db.insertInto(CHAPTER).set(CHAPTER.EDITION_ID, editionId).set(CHAPTER.NUMBER, number)
