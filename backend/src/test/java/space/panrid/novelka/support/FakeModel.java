@@ -17,13 +17,15 @@ import tools.jackson.databind.json.JsonMapper;
  */
 public class FakeModel implements AiTransport {
 
-    public enum Trouble { NONE, RATE_LIMIT, LOST, DROP_BLOCK, CUT, NO_CREDITS }
+    public enum Trouble { NONE, RATE_LIMIT, LOST, DROP_BLOCK, GARBLE, CUT, NO_CREDITS }
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
     private final Deque<Trouble> troubles = new ConcurrentLinkedDeque<>();
     /** Schema name of every request that reached the «provider». */
     public final List<String> calls = new CopyOnWriteArrayList<>();
+    /** How many blocks each translation request carried. */
+    public final List<Integer> translatedBlocks = new CopyOnWriteArrayList<>();
 
     public void troubleNext(Trouble... next) {
         troubles.addAll(List.of(next));
@@ -32,6 +34,7 @@ public class FakeModel implements AiTransport {
     public void reset() {
         troubles.clear();
         calls.clear();
+        translatedBlocks.clear();
     }
 
     @Override
@@ -77,8 +80,12 @@ public class FakeModel implements AiTransport {
                     blocks.add(Map.of("id", block.path("id").asString(),
                             "text", (known ? "Юкі: " : "") + "переклад " + block.path("id").asString()));
                 }
+                translatedBlocks.add(blocks.size());
                 if (trouble == Trouble.DROP_BLOCK) {
                     blocks.removeLast();
+                }
+                if (trouble == Trouble.GARBLE) {
+                    blocks.addFirst(Map.of("id", "x1", "text", "чужий абзац"));
                 }
                 yield Map.of("blocks", blocks, "summary", "Коротко про частину.");
             }

@@ -32,6 +32,12 @@ final class Prompts {
             For each: the Japanese form exactly as written in the text, its reading in hiragana if known (else ""),
             the Ukrainian form, the kind, the gender for characters if the text shows it (else "unknown"),
             and a short Ukrainian note (who or what it is, at most one sentence). Never guess a reading or gender.
+            The Ukrainian form is exactly what the translation will write: ONE form, no parentheses, no
+            alternatives, no romaji. Transliterate only proper names; skills, spells, items, titles and other
+            meaningful terms are translated into Ukrainian words (鑑定スキル → навичка оцінки, 氷の槍 → Крижаний спис,
+            火打ち石 → кресало). A part of a name already listed (a given name, a surname) is not a new person: add
+            it as the same person only if the glossary lacks it, with the same Ukrainian name. Skip everyday words
+            that need no fixed translation.
             Also translate the chapter title when one is given, WITHOUT its numbering: drop 第3話, 其の三, 003, 3.,
             Episode 3 and the like and return only the name (the site shows the number itself). Keep words that are
             the name, such as Пролог, Епілог, Інтерлюдія, Побічна історія. If the title is only a number or none
@@ -50,6 +56,8 @@ final class Prompts {
             - Readings written as 漢字《かんじ》 are hints; do not put them in the translation.
             - Dialogue in 「」 becomes Ukrainian dialogue with a dash (— Так, — сказав він.) or «» for quotes inside text.
             - Onomatopoeia becomes Ukrainian onomatopoeia or a short description.
+            - Blocks of type preface and afterword are the author's notes; translate them fully too, including
+              announcements, dates and thanks.
             - No notes, no comments, no untranslated Japanese.
             Also write a short summary (2–4 sentences, Ukrainian) of what happens in this part, for the next part's context.
             """ + NAMES;

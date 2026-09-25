@@ -110,8 +110,8 @@ class AutotranslateFlowTests {
                 .containsExactly("preface", "paragraph", "paragraph", "separator", "paragraph", "afterword");
 
         JsonNode glossary = read(owner.browser().get("/api/studio/editions/" + edition + "/glossary"));
-        assertThat(glossary).hasSize(1);
-        assertThat(glossary.toString()).contains("Юкі").doesNotContain("ユキ");
+        assertThat(glossary).as("the novel's own title and one name").hasSize(2);
+        assertThat(glossary.toString()).contains("Юкі").contains("Ліхтарник із туману").doesNotContain("ユキ");
 
         JsonNode next = read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate?to=5"));
         assertThat(next.path("quote").path("from").asInt()).as("translated chapters are not touched").isEqualTo(4);
@@ -137,8 +137,11 @@ class AutotranslateFlowTests {
         worker.drain();
         assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate")).path("jobs").path(0)
                 .path("state").asString()).isEqualTo("done");
-        assertThat(model.calls).as("analyze after 429, translate twice, proofread")
+        assertThat(model.calls).as("analyze after 429, translate, the left-out line alone, proofread")
                 .containsExactly("glossary", "glossary", "translation", "translation", "proofread");
+        assertThat(model.translatedBlocks.getLast()).as("only the missing paragraph is asked again").isEqualTo(1);
+        String slug = read(owner.browser().get("/api/studio/editions/" + edition)).path("novelSlug").asString();
+        assertThat(read(new Browser(port).get("/api/novels/" + slug + "/chapters/1")).path("blocks")).hasSize(6);
     }
 
     @Test
@@ -161,10 +164,10 @@ class AutotranslateFlowTests {
     }
 
     @Test
-    void aModelThatKeepsDroppingParagraphsStopsTheJobWithAClearReason() {
+    void aModelThatKeepsAnsweringWithForeignParagraphsStopsTheJobWithAClearReason() {
         long edition = prepare();
         owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/jobs", json("to", 1));
-        model.troubleNext(Trouble.NONE, Trouble.DROP_BLOCK, Trouble.DROP_BLOCK, Trouble.DROP_BLOCK);
+        model.troubleNext(Trouble.NONE, Trouble.GARBLE, Trouble.GARBLE, Trouble.GARBLE);
         worker.drain();
         JsonNode job = read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate")).path("jobs").path(0);
         assertThat(job.path("state").asString()).isEqualTo("failed");

@@ -33,9 +33,11 @@ class Preparation {
     private final Catalog catalog;
     private final Ai ai;
     private final Jobs jobs;
+    private final Glossary glossary;
     private final JsonMapper json;
 
-    Preparation(Sources sources, Catalog catalog, Ai ai, Jobs jobs, JsonMapper json) {
+    Preparation(Sources sources, Catalog catalog, Ai ai, Jobs jobs, Glossary glossary, JsonMapper json) {
+        this.glossary = glossary;
         this.sources = sources;
         this.catalog = catalog;
         this.ai = ai;
@@ -76,9 +78,14 @@ class Preparation {
         if (answer == null) {
             throw UserFacingException.badGateway("Модель не змогла перекласти назву новели. Спробуйте ще раз.");
         }
-        return catalog.importNovel(new ImportedNovel(link.key(), link.url(), novel.title(), novel.author(),
-                answer.path("title").asString().strip(), answer.path("author").asString("").strip(),
+        String title = answer.path("title").asString().strip();
+        EditionRef ref = catalog.importNovel(new ImportedNovel(link.key(), link.url(), novel.title(), novel.author(),
+                title, answer.path("author").asString("").strip(),
                 paragraphs(answer.path("description").asString("")), novel.chapters(), link.adult(), teamId));
+        // Authors mention their own book in notes; the translation must call it by the site's title.
+        glossary.addFromAnalysis(ref.editionId(), 0, List.of(
+                new Glossary.Proposed(novel.title(), "", title, "other", "unknown", "Назва цієї новели.")));
+        return ref;
     }
 
     static List<Block> paragraphs(String text) {

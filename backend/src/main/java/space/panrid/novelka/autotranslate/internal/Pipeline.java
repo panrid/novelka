@@ -136,9 +136,9 @@ class Pipeline {
             }
             String context = part == 0 ? previousSummary : checkpoint.summaries.get(String.valueOf(part - 1));
             List<Line> before = part == 0 ? List.of() : tail(checkpoint.draft.get(String.valueOf(part - 1)));
-            JsonNode answer = translate(calls, editionId, part, parts.get(part), context, before);
-            checkpoint.draft.put(key, lines(answer));
-            checkpoint.summaries.put(key, answer.path("summary").asString("").strip());
+            Translated translated = translate(calls, editionId, part, parts.get(part), context, before);
+            checkpoint.draft.put(key, translated.lines());
+            checkpoint.summaries.put(key, translated.summary());
             save(step, "translate", checkpoint);
         }
 
@@ -148,8 +148,7 @@ class Pipeline {
                 if (checkpoint.revised.containsKey(key)) {
                     continue;
                 }
-                JsonNode answer = proofread(calls, editionId, part, parts.get(part), checkpoint.draft.get(key));
-                checkpoint.revised.put(key, lines(answer));
+                checkpoint.revised.put(key, proofread(calls, editionId, part, parts.get(part), checkpoint.draft.get(key)));
                 save(step, "proofread", checkpoint);
             }
         }
@@ -194,7 +193,29 @@ class Pipeline {
                 Math.min(16_000, 2_000 + blocks.size() * 40), answer -> null);
     }
 
-    private JsonNode translate(Calls calls, long editionId, int part, List<Block> blocks, String context, List<Line> before) {
+    record Translated(List<Line> lines, String summary) {
+    }
+
+    /**
+     * A part in one request. Models sometimes leave out a few lines (an author's note, an
+     * announcement); those are then asked for on their own instead of paying for the whole
+     * part again.
+     */
+    private Translated translate(Calls calls, long editionId, int part, List<Block> blocks, String context, List<Line> before) {
+        JsonNode answer = calls.ask("translate", part, Prompts.TRANSLATE, translateRequest(editionId, blocks, context, before),
+                "translation", Prompts.blocksSchema(true), maxTokens(joined(blocks)), reply -> usable(reply, blocks));
+        List<Line> lines = lines(answer);
+        List<Block> missing = missing(blocks, lines);
+        if (!missing.isEmpty()) {
+            log.info("Chapter {} part {}: {} lines left out, asking for them alone", calls.number, part, missing.size());
+            JsonNode extra = calls.ask("translate", part, Prompts.TRANSLATE, translateRequest(editionId, missing, context, lines),
+                    "translation", Prompts.blocksSchema(true), maxTokens(joined(missing)), reply -> complete(reply, missing));
+            lines = merged(blocks, lines, lines(extra));
+        }
+        return new Translated(lines, answer.path("summary").asString("").strip());
+    }
+
+    private String translateRequest(long editionId, List<Block> blocks, String context, List<Line> before) {
         String text = joined(blocks);
         StringBuilder user = new StringBuilder();
         user.append("Glossary:\n").append(glossaryLines(editionId, text)).append("\n\n");
@@ -203,15 +224,15 @@ class Pipeline {
         }
         if (!before.isEmpty()) {
             user.append("The previous translated lines (context only):\n");
-            before.forEach(line -> user.append(line.text()).append('\n'));
+            tail(before).forEach(line -> user.append(line.text()).append('\n'));
             user.append('\n');
         }
         user.append("Blocks to translate (JSON):\n").append(json.writeValueAsString(input(blocks)));
-        return calls.ask("translate", part, Prompts.TRANSLATE, user.toString(), "translation", Prompts.blocksSchema(true),
-                maxTokens(text), answer -> complete(answer, blocks));
+        return user.toString();
     }
 
-    private JsonNode proofread(Calls calls, long editionId, int part, List<Block> blocks, List<Line> draft) {
+    /** The edited part; a line the editor left out keeps its draft translation. */
+    private List<Line> proofread(Calls calls, long editionId, int part, List<Block> blocks, List<Line> draft) {
         String text = joined(blocks);
         Map<String, String> byId = new HashMap<>();
         draft.forEach(line -> byId.put(line.id(), line.text()));
@@ -224,8 +245,57 @@ class Pipeline {
             pairs.add(pair);
         }
         String user = "Glossary:\n" + glossaryLines(editionId, text) + "\n\nBlocks (JSON):\n" + json.writeValueAsString(pairs);
-        return calls.ask("proofread", part, Prompts.PROOFREAD, user, "proofread", Prompts.blocksSchema(false),
-                maxTokens(text), answer -> complete(answer, blocks));
+        JsonNode answer = calls.ask("proofread", part, Prompts.PROOFREAD, user, "proofread", Prompts.blocksSchema(false),
+                maxTokens(text), reply -> usable(reply, blocks));
+        return merged(blocks, lines(answer), draft);
+    }
+
+    /**
+     * Null when the answer is the given blocks in order, each at most once and with text,
+     * possibly with a few left out; otherwise what is wrong.
+     */
+    static String usable(JsonNode answer, List<Block> blocks) {
+        JsonNode lines = answer.path("blocks");
+        int at = 0;
+        for (JsonNode line : lines) {
+            String id = line.path("id").asString("");
+            while (at < blocks.size() && !blocks.get(at).id().equals(id)) {
+                at++;
+            }
+            if (at == blocks.size()) {
+                return "абзац «%s» зайвий, повторений або переставлений".formatted(id);
+            }
+            if (line.path("text").asString("").isBlank()) {
+                return "абзац " + id + " порожній";
+            }
+            at++;
+        }
+        if (lines.size() * 2 < blocks.size()) {
+            return "абзаців %d замість %d".formatted(lines.size(), blocks.size());
+        }
+        return null;
+    }
+
+    private static List<Block> missing(List<Block> blocks, List<Line> lines) {
+        java.util.Set<String> done = new java.util.HashSet<>();
+        lines.forEach(line -> done.add(line.id()));
+        return blocks.stream().filter(block -> !done.contains(block.id())).toList();
+    }
+
+    /** Lines in the order of the blocks, taken from the first list that has them. */
+    private static List<Line> merged(List<Block> blocks, List<Line> first, List<Line> second) {
+        Map<String, Line> a = new HashMap<>();
+        first.forEach(line -> a.put(line.id(), line));
+        Map<String, Line> b = new HashMap<>();
+        second.forEach(line -> b.put(line.id(), line));
+        List<Line> out = new ArrayList<>();
+        for (Block block : blocks) {
+            Line line = a.containsKey(block.id()) ? a.get(block.id()) : b.get(block.id());
+            if (line != null) {
+                out.add(line);
+            }
+        }
+        return out;
     }
 
     /** Null when every block came back exactly once with text; otherwise what is wrong. */
