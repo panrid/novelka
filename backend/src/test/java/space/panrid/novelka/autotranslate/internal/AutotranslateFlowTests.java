@@ -263,7 +263,7 @@ class AutotranslateFlowTests {
             assertThat(model.path("chapterUsd").decimalValue()).isPositive();
         });
         assertThat(read(owner.browser().get("/api/studio/autotranslate/models?output=image"))).extracting(m -> m.path("id").asString())
-                .containsExactly("fake/painter");
+                .containsExactlyInAnyOrder("fake/painter", "fake/drawer");
         assertThat(read(owner.browser().get("/api/studio/autotranslate/models"))).as("the whole catalogue, not a first page").hasSize(32);
         assertThat(read(owner.browser().get("/api/studio/autotranslate/models?q=gpt%20mini"))).extracting(m -> m.path("id").asString())
                 .as("every word, in any order").containsExactly("openai/gpt-4.1-mini");

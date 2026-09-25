@@ -338,7 +338,7 @@ class AiService implements Ai {
                     fresh.add(new AiModel(model.path("id").asString(), model.path("name").asString(""),
                             perMillion(pricing.path("prompt")), perMillion(pricing.path("completion")),
                             model.path("context_length").asInt(0), outputs.isEmpty() ? List.of("text") : List.copyOf(outputs),
-                            List.copyOf(parameters)));
+                            List.copyOf(parameters), perMillion(pricing.path("image_output"))));
                 }
                 fresh.sort(java.util.Comparator.comparing(AiModel::id));
                 models = List.copyOf(fresh);

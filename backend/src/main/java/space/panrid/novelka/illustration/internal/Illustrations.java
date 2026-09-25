@@ -67,6 +67,17 @@ class Illustrations {
                 || settings.promptModel() == null || !settings.promptModel().matches("[a-z0-9._-]+/[a-zA-Z0-9._:-]+")) {
             throw UserFacingException.badRequest("Перевірте назви моделей (вигляд «постачальник/модель»).");
         }
+        // The catalogue decides when it is at hand; without it the names are taken as typed.
+        var catalogue = ai.models();
+        if (!catalogue.isEmpty()) {
+            if (catalogue.stream().noneMatch(model -> model.id().equals(settings.model()) && model.outputs().contains("image"))) {
+                throw UserFacingException.badRequest("Модель «%s» не малює. Оберіть її зі списку.".formatted(settings.model()));
+            }
+            if (catalogue.stream().noneMatch(model -> model.id().equals(settings.promptModel()) && model.outputs().contains("text")
+                    && model.accepts("structured_outputs"))) {
+                throw UserFacingException.badRequest("Модель опису «%s» не підходить. Оберіть її зі списку.".formatted(settings.promptModel()));
+            }
+        }
         if (settings.microUsdPerImage() < 1_000 || settings.microUsdPerImage() > 2_000_000) {
             throw UserFacingException.badRequest("Ціна картинки — від $0,001 до $2.");
         }

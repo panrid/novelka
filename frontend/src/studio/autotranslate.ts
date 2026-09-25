@@ -23,7 +23,10 @@ export type AutotranslateOverview = {
     settings: Settings; jobs: Job[];
 };
 export type Process = { editionId: number; title: string; slug: string; job: Job };
-export type ModelChoice = { id: string; name: string; inputPerMillion: number; outputPerMillion: number; chapterUsd: number };
+export type ModelRating = 'recommended' | 'usual' | 'weak';
+/** Which models the pickers list: only recommended, also usual ones, or weak ones too. */
+export type ModelShow = 'recommended' | 'usual' | 'weak';
+export type ModelChoice = { id: string; name: string; inputPerMillion: number; outputPerMillion: number; chapterUsd: number; rating: ModelRating };
 export type GlossaryKind = 'character' | 'place' | 'organization' | 'term' | 'other';
 export type Gender = 'male' | 'female' | 'unknown';
 export type GlossaryStatus = 'new' | 'approved' | 'rejected';
@@ -60,8 +63,8 @@ export const autotranslateApi = {
     cancel: (id: number, jobId: number) => api<void>(`${base(id)}/autotranslate/jobs/${jobId}/cancel`, json('POST', {})),
     resume: (id: number, jobId: number) => api<void>(`${base(id)}/autotranslate/jobs/${jobId}/resume`, json('POST', {})),
     processes: (page = 1) => api<Process[]>(`/api/studio/autotranslate/processes?page=${page}`),
-    models: (q: string, chars: number, output: 'text' | 'image' = 'text', stage?: 'analyze' | 'translate' | 'proofread') =>
-        api<ModelChoice[]>(`/api/studio/autotranslate/models?q=${encodeURIComponent(q)}&chars=${chars}&output=${output}${stage ? `&stage=${stage}` : ''}`),
+    models: (q: string, chars: number, output: 'text' | 'image' = 'text', stage?: 'analyze' | 'translate' | 'proofread', show: ModelShow = 'usual') =>
+        api<ModelChoice[]>(`/api/studio/autotranslate/models?q=${encodeURIComponent(q)}&chars=${chars}&output=${output}${stage ? `&stage=${stage}` : ''}&show=${show}`),
     analysis: (id: number, page: number) => api<AnalysisPage>(`${base(id)}/analysis?page=${page}`),
     editAnalysis: (id: number, number: number, body: { title: string; label: string | null }) =>
         api<void>(`${base(id)}/analysis/${number}`, json('PUT', body)),

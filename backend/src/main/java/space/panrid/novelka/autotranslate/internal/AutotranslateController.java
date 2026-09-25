@@ -134,38 +134,70 @@ class AutotranslateController {
      * @param chapterUsd a chapter of {@code chars} through analysis, translation and
      *                   proofreading, all by this model
      */
-    record ModelChoice(String id, String name, double inputPerMillion, double outputPerMillion, BigDecimal chapterUsd) {
+    /**
+     * {@code chapterUsd}: a chapter (or its stage) for text models, one picture for models that draw.
+     * {@code rating}: recommended, usual or weak (see {@link ModelRatings}).
+     */
+    record ModelChoice(String id, String name, double inputPerMillion, double outputPerMillion, BigDecimal chapterUsd, String rating) {
     }
 
     private static final List<String> STAGES = List.of("analyze", "translate", "proofread");
 
     /**
-     * Every OpenRouter model whose id or name has all the words typed, with what a chapter costs
-     * with it: for one stage when {@code stage} is given, else for all three.
+     * OpenRouter models whose id or name has all the words typed, recommended ones first, with
+     * what a chapter costs: for one stage when {@code stage} is given, else for all three.
+     * {@code show}: «recommended» only, «usual» (without weak ones) or «weak» (everything that can
+     * translate). Models that cannot translate are never listed.
      */
     @GetMapping("/autotranslate/models")
     List<ModelChoice> models(@RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "6000") int chars,
-            @RequestParam(defaultValue = "text") String output, @RequestParam(required = false) String stage) {
+            @RequestParam(defaultValue = "text") String output, @RequestParam(required = false) String stage,
+            @RequestParam(defaultValue = "usual") String show) {
         owner();
         List<String> words = java.util.Arrays.stream(q.strip().toLowerCase(java.util.Locale.ROOT).split("[\\s/:-]+"))
                 .filter(word -> !word.isEmpty()).toList();
         int size = Math.max(500, chars);
         int at = stage == null ? -1 : STAGES.indexOf(stage);
+        boolean text = !output.equals("image");
         return ai.models().stream()
-                .filter(model -> model.outputs().contains(output))
+                .filter(model -> model.outputs().contains(output) && !model.id().startsWith("openrouter/") && !model.id().endsWith(":batch"))
+                // Models that draw write text too, but they are the illustrator's choice, not the translator's.
+                .filter(model -> !text || !model.outputs().contains("image"))
                 // Analysis and translation need answers in a fixed JSON shape; without it a model cannot work here.
-                .filter(model -> !output.equals("text") || model.accepts("structured_outputs"))
+                .filter(model -> !text || model.accepts("structured_outputs"))
                 .filter(model -> {
                     String haystack = (model.id() + " " + model.name()).toLowerCase(java.util.Locale.ROOT);
                     return words.stream().allMatch(haystack::contains);
                 })
+                .filter(model -> !text || shown(ModelRatings.of(model.id()), show))
+                .sorted(java.util.Comparator.comparing((space.panrid.novelka.ai.AiModel model) ->
+                        text && ModelRatings.of(model.id()) == ModelRatings.Rating.RECOMMENDED ? 0 : 1))
                 .map(model -> {
-                    long micro = at >= 0
+                    long micro = !text ? pictureMicroUsd(model) : at >= 0
                             ? Settings.stageMicroUsd(at, size, model.inputPerMillion(), model.outputPerMillion())
                             : Settings.defaults().withModels(stageOf(model), stageOf(model), stageOf(model)).expectedMicroUsd(size, true, true);
-                    return new ModelChoice(model.id(), model.name(), model.inputPerMillion(), model.outputPerMillion(), Settings.usdOfMicro(micro));
+                    String rating = text ? ModelRatings.of(model.id()).name().toLowerCase(java.util.Locale.ROOT) : "usual";
+                    return new ModelChoice(model.id(), model.name(), model.inputPerMillion(), model.outputPerMillion(),
+                            Settings.usdOfMicro(micro), rating);
                 })
                 .toList();
+    }
+
+    /**
+     * A picture: about 1 290 image tokens (what Gemini draws; our first real picture cost $0.0387
+     * at $30 per million) plus a short description to read.
+     */
+    private static long pictureMicroUsd(space.panrid.novelka.ai.AiModel model) {
+        return Math.round(1290 * model.imageOutputPerMillion() + 300 * model.inputPerMillion());
+    }
+
+    private static boolean shown(ModelRatings.Rating rating, String show) {
+        return switch (rating) {
+            case RECOMMENDED -> true;
+            case USUAL -> !show.equals("recommended");
+            case WEAK -> show.equals("weak");
+            case AWFUL -> false;
+        };
     }
 
     private static Settings.Stage stageOf(space.panrid.novelka.ai.AiModel model) {

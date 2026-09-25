@@ -7,9 +7,10 @@ import java.util.List;
  *
  * @param outputs    what it answers with: text, image
  * @param parameters request parameters it accepts (temperature, structured_outputs…); empty when unknown
+ * @param imageOutputPerMillion dollars per million tokens of a drawn picture, 0 for models that do not draw
  */
 public record AiModel(String id, String name, double inputPerMillion, double outputPerMillion, int contextLength,
-        List<String> outputs, List<String> parameters) {
+        List<String> outputs, List<String> parameters, double imageOutputPerMillion) {
 
     /** Unknown counts as yes: the request then goes as before and OpenRouter decides. */
     public boolean accepts(String parameter) {

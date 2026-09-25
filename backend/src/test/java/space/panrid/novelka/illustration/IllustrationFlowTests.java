@@ -87,6 +87,30 @@ class IllustrationFlowTests {
     }
 
     @Test
+    void theArtistIsChosenFromModelsThatDraw() {
+        JsonNode artists = read(owner.browser().get("/api/studio/autotranslate/models?output=image"));
+        assertThat(artists).extracting(m -> m.path("id").asString()).containsExactlyInAnyOrder("fake/painter", "fake/drawer");
+        JsonNode drawer = java.util.stream.StreamSupport.stream(artists.spliterator(), false)
+                .filter(m -> m.path("id").asString().equals("fake/drawer")).findFirst().orElseThrow();
+        assertThat(drawer.path("chapterUsd").doubleValue()).as("about a picture's price").isBetween(0.03, 0.05);
+        assertThat(read(owner.browser().get("/api/studio/autotranslate/models?q=drawer")))
+                .as("a model that draws is not offered for translation").isEmpty();
+
+        String settings = """
+                {"model":"%s","microUsdPerImage":40000,"style":"soft","promptModel":"%s","promptInputPerMillion":0.4,"promptOutputPerMillion":1.6}""";
+        assertThat(owner.browser().put("/api/studio/illustrations/settings", settings.formatted("openai/gpt-4.1-mini", "openai/gpt-4.1-mini")).status())
+                .as("a text model cannot draw").isEqualTo(400);
+        assertThat(owner.browser().put("/api/studio/illustrations/settings", settings.formatted("fake/drawer", "fake/plain")).status())
+                .as("the description needs structured answers").isEqualTo(400);
+        try {
+            assertThat(owner.browser().put("/api/studio/illustrations/settings", settings.formatted("fake/drawer", "openai/gpt-4.1-mini")).status())
+                    .isBetween(200, 204);
+        } finally {
+            db.execute("DELETE FROM site_setting WHERE key = 'illustration.settings'");
+        }
+    }
+
+    @Test
     void onlyTheSiteOwnerDraws() {
         Person translator = Accounts.signedIn(port, mailbox);
         long own = read(translator.browser().post("/api/studio/editions", """

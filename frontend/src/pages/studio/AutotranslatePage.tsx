@@ -2,8 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { chaptersWord } from '../../reading/api';
-import { JOB_LABELS, STAGE_LABELS, autotranslateApi, dollars, money, type Job, type JobKind, type Plan } from '../../studio/autotranslate';
+import { JOB_LABELS, STAGE_LABELS, autotranslateApi, dollars, money, type Job, type JobKind, type ModelShow, type Plan } from '../../studio/autotranslate';
 import { ModelPicker } from '../../studio/ModelPicker';
+import pickerStyles from '../../studio/modelPicker.module.css';
 import { useDebounced } from '../../lib/useDebounced';
 import { relativeTime } from '../../lib/dates';
 import { Button } from '../../ui/Button';
@@ -33,6 +34,9 @@ export function AutotranslatePage() {
     const [from, setFrom] = useState('');
     const [redo, setRedo] = useState(false);
     const [models, setModels] = useState<NonNullable<Plan['models']>>({});
+    const [onlyRecommended, setOnlyRecommended] = useState(true);
+    const [withWeak, setWithWeak] = useState(false);
+    const modelShow: ModelShow = onlyRecommended ? 'recommended' : withWeak ? 'weak' : 'usual';
 
     const data = overview.data;
     const firstOpen = data ? (kind === 'analyze' ? data.nextToAnalyze : data.nextNumber) : 1;
@@ -127,17 +131,27 @@ export function AutotranslatePage() {
                                         : 'Глави перекладуться знову й вийдуть новою версією; попередня лишиться в історії глави.'}
                                 </p>
                             )}
-                            <ModelPicker label="Модель аналізу" stage="analyze" value={model('analyze')} chars={data.averageChars}
+                            <div className={pickerStyles.filters}>
+                                <label>
+                                    <input type="checkbox" checked={onlyRecommended} onChange={(event) => setOnlyRecommended(event.target.checked)} />
+                                    <span>Лише рекомендовані моделі</span>
+                                </label>
+                                <label>
+                                    <input type="checkbox" checked={withWeak} disabled={onlyRecommended} onChange={(event) => setWithWeak(event.target.checked)} />
+                                    <span>Показати й слабкі</span>
+                                </label>
+                            </div>
+                            <ModelPicker label="Модель аналізу" show={modelShow} stage="analyze" value={model('analyze')} chars={data.averageChars}
                                 onChange={(analyze) => setModels({ ...models, analyze })}
                                 hint={kind === 'translate' ? 'Для глав, які ще не проаналізовано.' : undefined} />
                             {kind === 'translate' && (
                                 <>
-                                    <ModelPicker label="Модель перекладу" stage="translate" value={model('translate')} chars={data.averageChars}
+                                    <ModelPicker label="Модель перекладу" show={modelShow} stage="translate" value={model('translate')} chars={data.averageChars}
                                         onChange={(translate) => setModels({ ...models, translate })} />
                                     <Toggle label="Вичитка" isSelected={models.proofreadEnabled ?? data.settings.proofread.enabled}
                                         onChange={(proofreadEnabled) => setModels({ ...models, proofreadEnabled })} />
                                     {(models.proofreadEnabled ?? data.settings.proofread.enabled) && (
-                                        <ModelPicker label="Модель вичитки" stage="proofread" value={model('proofread')} chars={data.averageChars}
+                                        <ModelPicker label="Модель вичитки" show={modelShow} stage="proofread" value={model('proofread')} chars={data.averageChars}
                                             onChange={(proofread) => setModels({ ...models, proofread })} />
                                     )}
                                 </>

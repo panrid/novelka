@@ -62,7 +62,7 @@ describe('autotranslate', () => {
         const { calls } = await renderAt('/studio/4/translate', {
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/4/autotranslate': { body: OVERVIEW },
-            'GET /api/studio/autotranslate/models': { body: [{ id: 'fake/better', name: 'Better', inputPerMillion: 2, outputPerMillion: 8, chapterUsd: 0.21 }] },
+            'GET /api/studio/autotranslate/models': { body: [{ id: 'fake/better', name: 'Better', inputPerMillion: 2, outputPerMillion: 8, chapterUsd: 0.21, rating: 'recommended' }] },
             'POST /api/studio/editions/4/autotranslate/quote': { body: quote({ kind: 'analyze', from: 1, to: 20, chapters: 20, shah: 5 }) },
             'POST /api/studio/editions/4/autotranslate/jobs': { status: 201, body: {} },
         });
@@ -74,12 +74,21 @@ describe('autotranslate', () => {
         await userEvent.type(picker, 'better');
         const option = await screen.findByRole('option', { name: /fake\/better/ }, { timeout: 2000 });
         expect(option).toHaveTextContent('≈ $0,210 за главу');
+        expect(option).toHaveTextContent('рекомендована');
+        // Only recommended models until the box is cleared.
+        expect(calls.filter((call) => call.path.includes('/models')).every((call) => call.query.includes('show=recommended'))).toBe(true);
+        expect(screen.getByRole('checkbox', { name: 'Показати й слабкі' })).toBeDisabled();
         await userEvent.click(option);
         await userEvent.type(screen.getByLabelText('Аналізувати з глави 1 до глави…'), '20');
         await screen.findByText(/20 глав/, {}, { timeout: 2000 });
         await userEvent.click(screen.getByRole('button', { name: 'Почати аналіз' }));
         expect(calls.find((call) => call.path.endsWith('/jobs'))?.body)
             .toEqual({ kind: 'analyze', to: 20, from: 1, redo: true, models: { analyze: 'fake/better' } });
+
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Лише рекомендовані моделі' }));
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Показати й слабкі' }));
+        await userEvent.click(screen.getByRole('combobox', { name: 'Модель аналізу' }));
+        await vi.waitFor(() => expect(calls.some((call) => call.query.includes('show=weak'))).toBe(true), { timeout: 2000 });
     });
 
     it('speaks dollars when the owner switched шаги off', async () => {

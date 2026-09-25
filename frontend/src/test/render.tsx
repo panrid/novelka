@@ -11,13 +11,13 @@ type Route = { status?: number; body?: unknown };
  * Unknown calls answer 404, and every call is recorded in `calls`.
  */
 export async function renderAt(path: string, api: Record<string, Route | ((body: unknown) => Route)> = {}) {
-    const calls: { method: string; path: string; body: unknown }[] = [];
+    const calls: { method: string; path: string; query: string; body: unknown }[] = [];
     vi.stubGlobal('fetch', vi.fn(async (input: string, init: RequestInit = {}) => {
         const method = (init.method ?? 'GET').toUpperCase();
         const url = new URL(input, 'http://localhost');
         const pathname = decodeURIComponent(url.pathname);
         const body = typeof init.body === 'string' ? JSON.parse(init.body) : init.body;
-        calls.push({ method, path: pathname, body });
+        calls.push({ method, path: pathname, query: url.search, body });
         const handler = api[`${method} ${pathname}`];
         const reply = typeof handler === 'function' ? handler(body) : handler;
         if (!reply) {

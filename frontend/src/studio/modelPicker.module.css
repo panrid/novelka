@@ -78,3 +78,31 @@
     color: var(--muted);
     font-size: 12px;
 }
+
+.good {
+    color: var(--accent);
+    font-size: 12px;
+}
+
+.weak {
+    color: var(--danger);
+    font-size: 12px;
+}
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    font-size: 14px;
+}
+
+.filters label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.filters input:disabled + span {
+    opacity: 0.5;
+}

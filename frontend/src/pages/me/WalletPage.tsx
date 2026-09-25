@@ -4,6 +4,7 @@ import { autotranslateApi, dollars, money, type Settings, type Stage } from '../
 import { meApi } from '../../auth/api';
 import { useSetMe } from '../../auth/me';
 import { illustrationApi, type IllustrationSettings } from '../../studio/illustrations';
+import { ModelPicker } from '../../studio/ModelPicker';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
@@ -86,10 +87,10 @@ function SettingsForm({ settings }: { settings: Settings }) {
         setDraft((current) => ({ ...current, [key]: { ...current[key], ...patch } }));
     return (
         <form className={styles.form} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
-            <StageFields title="Аналіз і словник" stage={draft.analyze} onChange={stage('analyze')} />
-            <StageFields title="Переклад" stage={draft.translate} onChange={stage('translate')} />
+            <StageFields title="Аналіз і словник" kind="analyze" stage={draft.analyze} onChange={stage('analyze')} />
+            <StageFields title="Переклад" kind="translate" stage={draft.translate} onChange={stage('translate')} />
             <Toggle label="Вичитка другою моделлю" isSelected={draft.proofread.enabled} onChange={(enabled) => stage('proofread')({ enabled })} />
-            {draft.proofread.enabled && <StageFields title="Вичитка" stage={draft.proofread} onChange={stage('proofread')} />}
+            {draft.proofread.enabled && <StageFields title="Вичитка" kind="proofread" stage={draft.proofread} onChange={stage('proofread')} />}
             <div className={styles.numbers}>
                 <NumberField label="Частина глави, знаків" value={draft.segmentChars} onChange={(segmentChars) => setDraft({ ...draft, segmentChars })} />
                 <NumberField label="Собівартість шагу, $" value={draft.microUsdPerShah / 1_000_000} step
@@ -105,12 +106,16 @@ function SettingsForm({ settings }: { settings: Settings }) {
     );
 }
 
-function StageFields({ title, stage, onChange }: { title: string; stage: Stage; onChange: (patch: Partial<Stage>) => void }) {
+function StageFields({ title, kind, stage, onChange }: {
+    title: string; kind: 'analyze' | 'translate' | 'proofread'; stage: Stage; onChange: (patch: Partial<Stage>) => void;
+}) {
     return (
         <fieldset className={styles.entry} style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className={styles.label}>{title}</legend>
-            <TextInput label="Модель" value={stage.model} onChange={(model) => onChange({ model })} hint="Як на OpenRouter: постачальник/модель" />
-            <div className={styles.numbers}>
+            <ModelPicker label="Модель" stage={kind} value={stage.model}
+                onChange={(model, choice) => onChange({ model, inputPerMillion: choice.inputPerMillion, outputPerMillion: choice.outputPerMillion })} />
+            {/* Keyed by the model: choosing one from the list fills in its prices. */}
+            <div className={styles.numbers} key={stage.model}>
                 <NumberField label="Вхід, $ за 1 млн токенів" value={stage.inputPerMillion} step onChange={(inputPerMillion) => onChange({ inputPerMillion })} />
                 <NumberField label="Вихід, $ за 1 млн токенів" value={stage.outputPerMillion} step onChange={(outputPerMillion) => onChange({ outputPerMillion })} />
             </div>
@@ -161,13 +166,17 @@ function IllustrationForm({ settings }: { settings: IllustrationSettings }) {
     });
     return (
         <form className={styles.form} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
-            <TextInput label="Модель, що малює" value={draft.model} onChange={(model) => setDraft({ ...draft, model })}
-                hint="Як на OpenRouter, напр. google/gemini-2.5-flash-image" />
-            <NumberField label="Ціна картинки, $ (для кошторису)" value={draft.microUsdPerImage / 1_000_000} step
+            <ModelPicker label="Модель, що малює" output="image" value={draft.model}
+                onChange={(model, choice) => setDraft({ ...draft, model, microUsdPerImage: Math.max(1_000, Math.round(choice.chapterUsd * 1_000_000)) })}
+                hint="Лише моделі, що малюють. Ціна картинки підставиться сама, її можна поправити." />
+            <NumberField key={draft.model} label="Ціна картинки, $ (для кошторису)" value={draft.microUsdPerImage / 1_000_000} step
                 onChange={(usd) => setDraft({ ...draft, microUsdPerImage: Math.round(usd * 1_000_000) })} />
             <TextInput label="Стиль (додається до кожного опису)" value={draft.style} multiline
                 onChange={(style) => setDraft({ ...draft, style })} />
-            <TextInput label="Модель, що складає опис" value={draft.promptModel} onChange={(promptModel) => setDraft({ ...draft, promptModel })} />
+            <ModelPicker label="Модель, що складає опис" value={draft.promptModel}
+                onChange={(promptModel, choice) => setDraft({
+                    ...draft, promptModel, promptInputPerMillion: choice.inputPerMillion, promptOutputPerMillion: choice.outputPerMillion,
+                })} />
             {save.isError && <Notice tone="error">{save.error.message}</Notice>}
             {save.isSuccess && <Notice tone="success">Збережено.</Notice>}
             <Button type="submit" pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти</Button>

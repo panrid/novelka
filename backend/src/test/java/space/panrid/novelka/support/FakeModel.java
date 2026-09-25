@@ -66,7 +66,10 @@ public class FakeModel implements AiTransport {
                   "context_length":8000,"architecture":{"output_modalities":["text"]},
                   "supported_parameters":["max_tokens","temperature"]},
                  {"id":"fake/painter","name":"Painter","pricing":{"prompt":"0","completion":"0"},
-                  "context_length":0,"architecture":{"output_modalities":["image"]}}%s]}""".formatted(EXTRA));
+                  "context_length":0,"architecture":{"output_modalities":["image"]}},
+                 {"id":"fake/drawer","name":"Drawer","pricing":{"prompt":"0.0000003","completion":"0.0000025","image_output":"0.00003"},
+                  "context_length":32000,"architecture":{"output_modalities":["image","text"]},
+                  "supported_parameters":["max_tokens","response_format","structured_outputs","temperature"]}%s]}""".formatted(EXTRA));
     }
 
     @Override
