@@ -30,6 +30,9 @@ public final class EditorModels {
     public record RevisionText(long id, String title, List<Block> blocks, String parentTitle, List<Block> parentBlocks) {
     }
 
+    public record CurrentText(long chapterId, int number, long revisionId, String title, List<Block> blocks) {
+    }
+
     public record Contribution(String nick, int revisions, int blocksChanged, int charsChanged) {
     }
 }

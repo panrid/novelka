@@ -31,6 +31,7 @@ import space.panrid.novelka.text.BlockRules;
 import space.panrid.novelka.text.ChangeStats;
 import space.panrid.novelka.text.ChapterFiles;
 import space.panrid.novelka.text.Chapters;
+import space.panrid.novelka.text.EditorModels;
 import space.panrid.novelka.text.EditorModels.Contribution;
 import space.panrid.novelka.text.EditorModels.Draft;
 import space.panrid.novelka.text.EditorModels.EditorState;
@@ -185,6 +186,39 @@ class ChapterService implements Chapters {
                 .where(EDITOR_DRAFT.CHAPTER_ID.eq(chapter.getId()).and(EDITOR_DRAFT.ACCOUNT_ID.eq(accountId)))
                 .execute();
         refreshCounters(editionId, current == null ? now : null);
+        return revisionId;
+    }
+
+    @Override
+    public EditorModels.CurrentText current(long editionId, int number) {
+        ChapterRecord chapter = chapter(editionId, number);
+        if (chapter.getPublishedRevisionId() == null) {
+            throw UserFacingException.notFound("Такої глави немає.");
+        }
+        var revision = db.selectFrom(REVISION).where(REVISION.ID.eq(chapter.getPublishedRevisionId())).fetchOne();
+        return new EditorModels.CurrentText(chapter.getId(), number, revision.getId(), revision.getTitle(), blocks(revision.getBlocks()));
+    }
+
+    @Override
+    @Transactional
+    public long publishFromSuggestions(long editionId, int number, String rawTitle, List<Block> rawBlocks,
+            long baseRevisionId, long reviewerId, java.util.Map<Long, ChangeStats> credits) {
+        String title = BlockRules.title(rawTitle);
+        List<Block> blocks = BlockRules.normalize(rawBlocks);
+        ChapterRecord chapter = db.selectFrom(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(editionId).and(CHAPTER.NUMBER.eq(number)))
+                .forUpdate().fetchOptional()
+                .orElseThrow(() -> UserFacingException.notFound("Такої глави немає."));
+        if (!Long.valueOf(baseRevisionId).equals(chapter.getPublishedRevisionId())) {
+            throw new UserFacingException(HttpStatus.CONFLICT,
+                    "Поки ви перевіряли правки, главу оновили. Відкрийте перевірку ще раз.", "chapter-changed");
+        }
+        OffsetDateTime now = now();
+        long revisionId = insertRevision(chapter.getId(), baseRevisionId, title, blocks, "suggestion", reviewerId, now);
+        credits.forEach((accountId, stats) -> recordContribution(revisionId, accountId, stats));
+        db.update(CHAPTER).set(CHAPTER.PUBLISHED_REVISION_ID, revisionId).set(CHAPTER.UPDATED_AT, now)
+                .where(CHAPTER.ID.eq(chapter.getId())).execute();
+        refreshCounters(editionId, null);
         return revisionId;
     }
 

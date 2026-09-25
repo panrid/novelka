@@ -38,6 +38,16 @@ public interface Chapters {
     long publish(long editionId, int number, long accountId, String title, List<Block> blocks, Long baseRevisionId,
             boolean mayAddPictures);
 
+    /** The published text of a chapter, or 404 if it has none. */
+    EditorModels.CurrentText current(long editionId, int number);
+
+    /**
+     * Publishes a revision made from other people's suggestions: one revision for the whole
+     * batch, each suggestion's author credited with their share.
+     */
+    long publishFromSuggestions(long editionId, int number, String title, List<Block> blocks, long baseRevisionId,
+            long reviewerId, java.util.Map<Long, ChangeStats> credits);
+
     List<StudioChapter> studioChapters(long editionId, long accountId, int page, int size);
 
     List<RevisionInfo> revisions(long editionId, int number);
