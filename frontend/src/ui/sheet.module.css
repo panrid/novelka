@@ -1,6 +1,8 @@
 .overlay {
     position: fixed;
     inset: 0;
+    /* Above the on-screen keyboard (see ui/keyboard.ts). */
+    padding-bottom: var(--keyboard-inset, 0px);
     z-index: 100;
     display: flex;
     align-items: flex-end;
@@ -17,7 +19,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    max-height: 90dvh;
+    max-height: min(90dvh, calc(var(--visible-height, 100dvh) - 24px));
     overflow-y: auto;
     padding: 16px var(--gutter) calc(16px + var(--safe-bottom));
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -27,7 +29,7 @@
 }
 
 .tall {
-    height: 90dvh;
+    height: min(90dvh, calc(var(--visible-height, 100dvh) - 24px));
 }
 
 .sheetTitle {

@@ -168,7 +168,7 @@ export function ReviewCard({ item, verdict, onDecide, currentBlocks = [] }: {
     item: ReviewItem; verdict: Verdict | undefined; onDecide: (verdict: Verdict) => void; currentBlocks?: TextBlock[];
 }) {
     return (
-        <div className={`${styles.card} ${verdict === 'accept' ? styles.accepted : verdict === 'reject' ? styles.rejected : ''}`}>
+        <div data-review-card className={`${styles.card} ${verdict === 'accept' ? styles.accepted : verdict === 'reject' ? styles.rejected : ''}`}>
             {item.kind === 'block' && item.current && item.proposed && (
                 <p className={styles.diff}>
                     {diffWords(text(item.current), text(item.proposed)).map((part, index) =>

@@ -211,3 +211,24 @@
     background: color-mix(in srgb, var(--accent) 25%, transparent);
     transition: background 1.2s ease-out;
 }
+
+.reviewSteps {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 8px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.reviewSteps button {
+    min-width: 44px;
+    min-height: 36px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: none;
+    color: var(--text);
+    font-size: 20px;
+    cursor: pointer;
+}

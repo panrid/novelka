@@ -284,6 +284,7 @@ function Reader({ chapter, team, find }: { chapter: ReaderChapter; team: string 
             {reviewing ? (
                 <footer className={styles.bottom}>
                     {review.apply.isError && <Notice tone="error">{review.apply.error.message}</Notice>}
+                    <ReviewSteps count={review.items.length} />
                     <div className={styles.buttons}>
                         <Button variant="secondary" onPress={() => setReviewing(false)}>Закрити</Button>
                         <Button variant="secondary" onPress={review.acceptAll}>Прийняти всі</Button>
@@ -357,4 +358,29 @@ function showBlock(blockId: string) {
         block.classList.add(styles.flash!);
         window.setTimeout(() => block.classList.remove(styles.flash!), 2200);
     });
+}
+
+/** «‹ Правка 2 з 5 ›»: goes from one suggestion card to the next instead of scrolling by hand. */
+function ReviewSteps({ count }: { count: number }) {
+    const [at, setAt] = useState(0);
+    const cards = () => [...document.querySelectorAll<HTMLElement>('[data-review-card]')];
+    const middle = () => window.innerHeight / 2;
+    const go = (card: HTMLElement | undefined) => card?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    useEffect(() => {
+        const update = () => setAt(cards().filter((card) => card.getBoundingClientRect().top < middle() + 10).length);
+        // Entering the review goes straight to the first card.
+        requestAnimationFrame(() => { go(cards()[0]); update(); });
+        window.addEventListener('scroll', update, { passive: true });
+        return () => window.removeEventListener('scroll', update);
+    }, [count]);
+    if (count === 0) return null;
+    return (
+        <div className={styles.reviewSteps}>
+            <button type="button" aria-label="Попередня правка"
+                onClick={() => go(cards().reverse().find((card) => card.getBoundingClientRect().bottom < middle() - 10))}>‹</button>
+            <span>Правка {Math.max(1, at)} з {count}</span>
+            <button type="button" aria-label="Наступна правка"
+                onClick={() => go(cards().find((card) => card.getBoundingClientRect().top > middle() + 10))}>›</button>
+        </div>
+    );
 }

@@ -15,6 +15,8 @@ export type StudioBlock = {
 export type MyEdition = {
     editionId: number; novelSlug: string; title: string; coverUrl: string | null; kind: string; status: string;
     chapterCount: number; teamHandle: string; teamName: string; role: TeamRole; drafts: number;
+    /** Readers' suggestions waiting for the team. */
+    pendingSuggestions: number;
 };
 
 export type Overview = {

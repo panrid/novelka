@@ -14,7 +14,8 @@ export function useLiveEvents() {
         if (!me || typeof EventSource === 'undefined') return undefined;
         const source = new EventSource('/api/events');
         const refresh = (...keys: string[]) => keys.forEach((key) => void client.invalidateQueries({ queryKey: [key] }));
-        source.addEventListener('notifications', () => refresh('notifications', 'inbox-counts'));
+        // A notification may be about suggestions: the Studio counts them too.
+        source.addEventListener('notifications', () => refresh('notifications', 'inbox-counts', 'studio', 'suggestion-queue'));
         source.addEventListener('message', (event) => {
             const id = (JSON.parse((event as MessageEvent<string>).data) as { conversationId?: number }).conversationId;
             refresh('conversations', 'inbox-counts');

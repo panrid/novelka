@@ -36,6 +36,7 @@ export function StudioHome() {
                             {item.chapterCount} {chaptersWord(item.chapterCount)} · ${item.teamHandle} · {ROLE_LABELS[item.role]}
                         </div>
                     </div>
+                    {item.pendingSuggestions > 0 && <span className={`${styles.badge} ${styles.badgeOn}`}>правок: {item.pendingSuggestions}</span>}
                     {item.drafts > 0 && <span className={`${styles.badge} ${styles.badgeOn}`}>чернеток: {item.drafts}</span>}
                 </Link>
             ))}

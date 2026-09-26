@@ -5,6 +5,7 @@ import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITOR_DRAFT;
 import static space.panrid.novelka.jooq.Tables.IMAGE;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
+import static space.panrid.novelka.jooq.Tables.SUGGESTION;
 import static space.panrid.novelka.jooq.Tables.TEAM;
 import static space.panrid.novelka.jooq.Tables.TEAM_MEMBER;
 
@@ -63,7 +64,7 @@ class StudioController {
     // ---- request and response shapes -------------------------------------------------------
 
     record MyEdition(long editionId, String novelSlug, String title, String coverUrl, String kind, String status,
-            int chapterCount, String teamHandle, String teamName, String role, int drafts) {
+            int chapterCount, String teamHandle, String teamName, String role, int drafts, int pendingSuggestions) {
     }
 
     record CreateRequest(String kind, String title, String author, List<Block> description, List<String> tags,
@@ -144,8 +145,11 @@ class StudioController {
         var member = DSL.select(TEAM_MEMBER.TEAM_ID).from(TEAM_MEMBER).where(TEAM_MEMBER.ACCOUNT_ID.eq(viewer.accountId()));
         var drafts = DSL.select(DSL.count()).from(EDITOR_DRAFT).join(CHAPTER).on(CHAPTER.ID.eq(EDITOR_DRAFT.CHAPTER_ID))
                 .where(CHAPTER.EDITION_ID.eq(EDITION.ID).and(EDITOR_DRAFT.ACCOUNT_ID.eq(viewer.accountId()))).<Integer>asField("drafts");
+        // Readers' suggestions waiting for the team: shown on the Studio tab and next to the translation.
+        var pending = DSL.select(DSL.count()).from(SUGGESTION).join(CHAPTER).on(CHAPTER.ID.eq(SUGGESTION.CHAPTER_ID))
+                .where(CHAPTER.EDITION_ID.eq(EDITION.ID).and(SUGGESTION.STATE.eq("pending"))).<Integer>asField("pending");
         var rows = db.select(EDITION.ID, NOVEL.SLUG, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), EDITION.COVER_IMAGE_ID,
-                        EDITION.KIND, EDITION.STATUS, EDITION.CHAPTER_COUNT, TEAM.ID, drafts)
+                        EDITION.KIND, EDITION.STATUS, EDITION.CHAPTER_COUNT, TEAM.ID, drafts, pending)
                 .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
                 .where(TEAM.OWNER_ID.eq(viewer.accountId()).or(TEAM.ID.in(member)))
                 .orderBy(DSL.greatest(EDITION.CREATED_AT, DSL.coalesce(EDITION.LAST_PUBLISHED_AT, EDITION.CREATED_AT)).desc())
@@ -155,7 +159,7 @@ class StudioController {
             TeamInfo team = teams.find(r.value8()).orElseThrow();
             TeamRole role = teams.roleOf(r.value8(), viewer.accountId()).orElseThrow();
             return new MyEdition(r.value1(), r.value2(), r.value3(), cover(covers, r.value4()), r.value5(), r.value6(),
-                    r.value7(), team.handle(), team.name(), role.code(), r.value9());
+                    r.value7(), team.handle(), team.name(), role.code(), r.value9(), r.value10());
         });
     }
 

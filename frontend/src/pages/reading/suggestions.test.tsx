@@ -87,6 +87,8 @@ describe('review by the team', () => {
 
         await userEvent.click(await screen.findByRole('button', { name: 'Перевірити' }));
         expect(screen.getByText('oleh · «рід»')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Наступна правка' })).toBeInTheDocument();
+        expect(screen.getByText(/Правка 1 з 1/)).toBeInTheDocument();
         await userEvent.click(screen.getByRole('button', { name: '✓ Прийняти' }));
         await userEvent.click(screen.getByRole('button', { name: 'Застосувати (1)' }));
 
