@@ -23,17 +23,53 @@
 
 .icon {
     display: inline-flex;
+    flex: none;
     align-items: center;
     justify-content: center;
     width: 40px;
     height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: none;
     color: var(--text);
+    cursor: pointer;
+}
+
+.icon:hover {
+    background: var(--surface);
 }
 
 .where {
     flex: 1;
     min-width: 0;
     font-size: 15px;
+}
+
+.where b {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* «чернетку збережено» may take two short lines rather than be cut. */
+.where .state {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: 1.25;
+}
+
+@media (max-width: 420px) {
+    .top {
+        gap: 4px;
+    }
+
+    .top > :last-child {
+        padding-inline: 12px;
+    }
 }
 
 .state {

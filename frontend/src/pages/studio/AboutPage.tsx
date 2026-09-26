@@ -47,7 +47,7 @@ function AboutForm({ edition }: { edition: Overview }) {
 
     return (
         <section className={styles.page}>
-            <p><Link to="/studio/$editionId" params={{ editionId: String(edition.editionId) }}>← До публікації</Link></p>
+            <Link to="/studio/$editionId" params={{ editionId: String(edition.editionId) }} className={styles.muted}>‹ До публікації</Link>
             <h1 className={styles.title}>Дані й обкладинка</h1>
 
             <div className={styles.head} style={{ margin: '14px 0' }}>

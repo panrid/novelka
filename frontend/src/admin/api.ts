@@ -7,7 +7,9 @@ export type Preview = {
 };
 export type Reported = { target: Target; targetId: number; reports: number; reasons: string[]; firstAt: string; preview: Preview };
 export type Hidden = { target: Target; targetId: number; hiddenAt: string; hiddenBy: string | null; reason: string | null; preview: Preview };
-export type Person = { nick: string; role: 'reader' | 'moderator' | 'admin' | 'owner'; email: string | null; createdAt: string; lastSeenAt: string | null };
+export type Person = { nick: string; role: 'reader' | 'moderator' | 'admin' | 'owner'; email: string | null; createdAt: string; lastSeenAt: string | null;
+    /** Free and held шаги; only the site owner sees them. */
+    shahs?: number | null };
 export type SiteSettingsView = { relayInactiveMonths: number; registrationOpen: boolean; adultEnabled: boolean };
 export type AuditEntry = {
     id: number; actor: string; action: string; targetType: string; targetId: number | null; details: Record<string, unknown>; createdAt: string;

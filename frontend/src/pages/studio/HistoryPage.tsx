@@ -23,7 +23,7 @@ export function HistoryPage() {
 
     return (
         <section className={styles.page}>
-            <p><Link to="/studio/$editionId/chapters/$number" params={{ editionId, number }}>← До редактора</Link></p>
+            <Link to="/studio/$editionId/chapters/$number" params={{ editionId, number }} className={styles.muted}>‹ До редактора</Link>
             <h1 className={styles.title}>Історія: {view.data ? chapterHeading(view.data) : `глава ${chapter}`}</h1>
             {revisions.isError && <Notice tone="error">{revisions.error.message}</Notice>}
             {revisions.data?.map((revision) => (

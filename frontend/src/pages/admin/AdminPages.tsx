@@ -147,7 +147,7 @@ export function UsersPage() {
             {granted && <Notice tone="success">{granted}</Notice>}
             {granting && (
                 <GrantSheet nick={granting} onClose={() => setGranting(null)}
-                    onDone={(message) => { setGranting(null); setGranted(message); }} />
+                    onDone={(message) => { setGranting(null); setGranted(message); void client.invalidateQueries({ queryKey: ['admin-users'] }); }} />
             )}
             {people.data?.map((person) => {
                 const editable = person.nick !== me?.nick && person.role !== 'owner' && (rank >= RANK.owner || RANK[person.role] < RANK.admin);
@@ -159,6 +159,13 @@ export function UsersPage() {
                                 {person.email ? `${person.email} · ` : ''}
                                 {person.lastSeenAt ? `останній візит ${relativeTime(new Date(person.lastSeenAt))}` : 'ще не було на сайті'}
                             </div>
+                            {rank >= RANK.owner && person.nick !== me?.nick && (
+                                <div className={styles.muted}>
+                                    {person.shahs ?? 0} {shahWord(person.shahs ?? 0)}{' · '}
+                                    <button type="button" className={styles.linkButton} aria-label={`Нарахувати шаги ${person.nick}`}
+                                        onClick={() => { setGranted(null); setGranting(person.nick); }}>нарахувати</button>
+                                </div>
+                            )}
                         </div>
                         {editable ? (
                             <select className={styles.select} aria-label={`Роль ${person.nick}`} value={person.role}
@@ -166,11 +173,6 @@ export function UsersPage() {
                                 {grantable.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
                             </select>
                         ) : <span className={styles.muted}>{ROLE_LABELS[person.role]}</span>}
-                        {rank >= RANK.owner && (
-                            <Button variant="quiet" aria-label={`Нарахувати шаги ${person.nick}`} onPress={() => { setGranted(null); setGranting(person.nick); }}>
-                                + шаги
-                            </Button>
-                        )}
                     </div>
                 );
             })}
@@ -236,7 +238,7 @@ function SettingsForm({ initial }: { initial: SiteSettingsView }) {
             <Toggle label="Новели 18+ на сайті" isSelected={draft.adultEnabled} onChange={(adultEnabled) => setDraft({ ...draft, adultEnabled })} />
             <p className={styles.muted}>Вимкнено — дорослих новел не бачить ніхто, навіть ті, хто підтвердив вік.</p>
             <TextInput label="Строк естафети, місяців" value={months} onChange={setMonths} inputMode="numeric"
-                hint="Переклад стає вільним, якщо власник команди стільки не заходив (рішення 4)." />
+                hint="Переклад стає вільним, якщо власник команди стільки не заходив." />
             {save.isError && <Notice tone="error">{save.error.message}</Notice>}
             {save.isSuccess && <Notice tone="success">Збережено.</Notice>}
             <Button type="submit" pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти</Button>

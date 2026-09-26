@@ -1,6 +1,7 @@
 package space.panrid.novelka.admin.internal;
 
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
+import static space.panrid.novelka.jooq.Tables.SHAH_BALANCE;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -36,19 +37,22 @@ class Staff {
     }
 
     /** @param email only for the owner: administrators do not need people's addresses */
-    record Person(String nick, String role, String email, OffsetDateTime createdAt, OffsetDateTime lastSeenAt) {
+    /** {@code email} and {@code shahs} (free plus held) only for the site owner. */
+    record Person(String nick, String role, String email, OffsetDateTime createdAt, OffsetDateTime lastSeenAt, Integer shahs) {
     }
 
     List<Person> find(Viewer viewer, String query) {
         String q = query == null ? "" : query.strip().toLowerCase(java.util.Locale.ROOT);
         boolean owner = viewer.role() == SiteRole.OWNER;
-        return db.select(ACCOUNT.NICK, ACCOUNT.SITE_ROLE, ACCOUNT.EMAIL, ACCOUNT.CREATED_AT, ACCOUNT.LAST_SEEN_AT).from(ACCOUNT)
+        var shahs = DSL.coalesce(SHAH_BALANCE.AVAILABLE.plus(SHAH_BALANCE.RESERVED), DSL.zero());
+        return db.select(ACCOUNT.NICK, ACCOUNT.SITE_ROLE, ACCOUNT.EMAIL, ACCOUNT.CREATED_AT, ACCOUNT.LAST_SEEN_AT, shahs).from(ACCOUNT)
+                .leftJoin(SHAH_BALANCE).on(SHAH_BALANCE.ACCOUNT_ID.eq(ACCOUNT.ID))
                 .where(q.isEmpty() ? DSL.noCondition()
                         : owner ? ACCOUNT.NICK_KEY.contains(q).or(ACCOUNT.EMAIL_KEY.contains(q)) : ACCOUNT.NICK_KEY.contains(q))
                 // Staff first, then the most recently seen.
                 .orderBy(DSL.when(ACCOUNT.SITE_ROLE.eq("reader"), 1).otherwise(0), ACCOUNT.LAST_SEEN_AT.desc().nullsLast())
                 .limit(50)
-                .fetch(r -> new Person(r.value1(), r.value2(), owner ? r.value3() : null, r.value4(), r.value5()));
+                .fetch(r -> new Person(r.value1(), r.value2(), owner ? r.value3() : null, r.value4(), r.value5(), owner ? r.value6() : null));
     }
 
     @Transactional

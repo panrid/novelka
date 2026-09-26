@@ -248,7 +248,8 @@ export function JobCard({ job, showShah, usdPerShah, onCancel, onResume, pending
                 {job.current && active(job) && <> · глава {job.current.number}: {STAGE_LABELS[job.current.stage] ?? job.current.stage}</>}
                 {job.personal && !active(job) && job.state !== 'failed'
                     ? <>{' · '}списано {job.chargedShah} {shahWord(job.chargedShah)}</>
-                    : <>{' · '}витрачено {money(job.spentShah, job.spentUsd, showShah)} з {money(job.quoteShah, job.quoteShah * usdPerShah, showShah)}{job.personal && ' у резерві'}</>}
+                    : <>{' · '}витрачено {money(job.spentShah, job.spentUsd, showShah)} · {job.personal ? 'резерв' : 'кошторис'}{' '}
+                        {money(job.quoteShah, job.quoteShah * usdPerShah, showShah)}</>}
             </div>
             {job.current?.error && active(job) && <p className={styles.muted}>{job.current.error}</p>}
             {job.state === 'failed' && job.error && <Notice tone="error">{job.error}</Notice>}

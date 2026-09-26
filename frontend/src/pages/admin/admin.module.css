@@ -118,3 +118,13 @@
     gap: 14px;
     max-width: 480px;
 }
+
+.linkButton {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}

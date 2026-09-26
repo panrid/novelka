@@ -27,3 +27,12 @@ export function ErrorPage() {
         </section>
     );
 }
+
+/** While a page waits for its data (slow network, the server restarting): never a blank screen. */
+export function PendingPage() {
+    return (
+        <section className={styles.page} aria-busy="true">
+            <p className={styles.text}>Завантажуємо…</p>
+        </section>
+    );
+}

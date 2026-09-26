@@ -25,7 +25,10 @@ const STATUS_BADGE: Record<GlossaryStatus, string> = { new: 'нове', approved
 export function GlossaryPage() {
     const id = useEditionId();
     const client = useQueryClient();
-    const [status, setStatus] = useState<GlossaryStatus | 'all'>('new');
+    const [chosen, setStatus] = useState<GlossaryStatus | 'all' | null>(null);
+    // Until a filter is picked: the new entries to review, or everything once none are new.
+    const [counts, setCounts] = useState<Record<GlossaryStatus, number> | null>(null);
+    const status: GlossaryStatus | 'all' = chosen ?? (counts && counts.new === 0 ? 'all' : 'new');
     const [chapter, setChapter] = useState<number | undefined>(undefined);
     const [sort, setSort] = useState<'alpha' | 'chapter'>('alpha');
     const [search, setSearch] = useState('');
@@ -41,6 +44,7 @@ export function GlossaryPage() {
         placeholderData: (previous) => previous,
     });
     const data = entries.data;
+    if (data && data.counts !== counts && JSON.stringify(data.counts) !== JSON.stringify(counts)) setCounts(data.counts);
     const refresh = () => void client.invalidateQueries({ queryKey: ['glossary', id] });
     const change = useMutation({
         mutationFn: (next: GlossaryStatus) => autotranslateApi.setStatus(id, [...selected], next),
@@ -64,7 +68,7 @@ export function GlossaryPage() {
         <section className={styles.page}>
             <Link to="/studio/$editionId/translate" params={{ editionId: String(id) }} className={styles.muted}>‹ Автопереклад</Link>
             <h1 className={styles.title}>Словник</h1>
-            <p className={styles.muted}>
+            <p className={styles.muted} style={{ marginBottom: 12 }}>
                 Імена й терміни, які автопереклад пише однаково в усіх главах. Відхилені до перекладу не потрапляють; виправлення
                 діє з наступної перекладеної глави.
             </p>

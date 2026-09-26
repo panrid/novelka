@@ -34,7 +34,7 @@ export function ImportPage() {
 
     return (
         <section className={styles.page}>
-            <p><Link to="/studio/$editionId" params={{ editionId: String(id) }}>← До публікації</Link></p>
+            <Link to="/studio/$editionId" params={{ editionId: String(id) }} className={styles.muted}>‹ До публікації</Link>
             <h1 className={styles.title}>Глави з файлу</h1>
             <p className={styles.muted}>
                 .txt або .md у кодуванні UTF-8. У .md нова глава починається з «# Назва», у .txt — з рядка «Глава N».

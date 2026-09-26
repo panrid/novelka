@@ -110,7 +110,8 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
             <header className={styles.top}>
                 <Link to="/studio/$editionId" params={params} className={styles.icon} aria-label="До публікації"><ArrowLeft size={22} aria-hidden /></Link>
                 <div className={styles.where}>
-                    <b>Глава {view.number}</b>
+                    {/* The number readers see; a chapter without one (a prologue) goes by its title. */}
+                    <b>{view.label === '' ? (title.trim() || 'Без номера') : `Гл. ${view.label ?? view.number}`}</b>
                     <div className={styles.state} aria-live="polite">
                         {save === 'saving' ? 'зберігаємо…' : save === 'saved' ? 'чернетку збережено' : save === 'error' ? 'не вдалося зберегти, спробуємо ще' : live ? 'опубліковано' : 'ще не опубліковано'}
                     </div>

@@ -6,7 +6,7 @@ import { LoginPage } from '../pages/auth/LoginPage';
 import { RegisterPage } from '../pages/auth/RegisterPage';
 import { ResetPage } from '../pages/auth/ResetPage';
 import { TokenPage } from '../pages/auth/TokenPage';
-import { ErrorPage, NotFoundPage } from '../pages/ErrorPages';
+import { ErrorPage, NotFoundPage, PendingPage } from '../pages/ErrorPages';
 import { MePage } from '../pages/me/MePage';
 import { MySuggestionsPage } from '../pages/me/MySuggestionsPage';
 import { PrivacyPage } from '../pages/me/PrivacyPage';
@@ -182,6 +182,9 @@ export function createAppRouter(queryClient: QueryClient, history?: RouterHistor
         routeTree,
         context: { queryClient },
         defaultPreload: 'intent',
+        // Shown when a page's data takes longer than a moment; the frame stays drawn around it.
+        defaultPendingComponent: PendingPage,
+        defaultPendingMs: 400,
         scrollRestoration: true,
         ...(history ? { history } : {}),
     });

@@ -11,6 +11,7 @@ import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
 import styles from './studio.module.css';
 import { useCanRun } from '../../ledger/api';
+import { ArrowRightLeft, PenLine, RefreshCw, Sparkles } from 'lucide-react';
 
 type Kind = 'human' | 'original' | 'syosetu';
 
@@ -52,15 +53,15 @@ export function NewPublication() {
         <section className={styles.page}>
             <h1 className={styles.title}>Нова публікація</h1>
             <div role="group" aria-label="Що публікуєте" style={{ margin: '14px 0' }}>
-                <Choice on={kind === 'human'} onPick={() => setKind('human')} icon="✎" title="Свій переклад"
+                <Choice on={kind === 'human'} onPick={() => setKind('human')} icon={<PenLine size={22} />} title="Свій переклад"
                     text="Ви перекладаєте самі. Далі — глави в редакторі або з файлів .txt і .md." />
-                <Choice on={kind === 'original'} onPick={() => setKind('original')} icon="✦" title="Свій твір"
+                <Choice on={kind === 'original'} onPick={() => setKind('original')} icon={<Sparkles size={22} />} title="Свій твір"
                     text="Ваша власна історія українською. Ви — автор." />
-                <Choice on={kind === 'syosetu'} onPick={() => setKind('syosetu')} disabled={!canRun} icon="↻"
+                <Choice on={kind === 'syosetu'} onPick={() => setKind('syosetu')} disabled={!canRun} icon={<RefreshCw size={22} />}
                     title="Автопереклад із Syosetu"
                     text={canRun ? 'Вставте посилання — назву й опис перекладемо одразу, далі глави «до N».'
                         : 'Запускається за шаги. Їх нараховує власник сайту.'} />
-                <Choice on={false} disabled icon="⇢" title="Продовжити покинутий"
+                <Choice on={false} disabled icon={<ArrowRightLeft size={22} />} title="Продовжити покинутий"
                     text="Відкрийте новелу — якщо переклад вільний, там буде кнопка «Продовжити переклад»." />
             </div>
             <form className={styles.form} onSubmit={submit}>
@@ -104,11 +105,11 @@ export function NewPublication() {
 }
 
 function Choice({ on, onPick, icon, title, text, disabled = false }: {
-    on: boolean; onPick?: () => void; icon: string; title: string; text: string; disabled?: boolean;
+    on: boolean; onPick?: () => void; icon: React.ReactNode; title: string; text: string; disabled?: boolean;
 }) {
     return (
         <button type="button" className={styles.choice} aria-pressed={on} disabled={disabled} onClick={onPick}>
-            <span aria-hidden style={{ fontSize: 22, width: 28, textAlign: 'center' }}>{icon}</span>
+            <span aria-hidden style={{ flex: 'none', display: 'inline-flex', justifyContent: 'center', width: 28, paddingTop: 2 }}>{icon}</span>
             <span>
                 <b style={{ display: 'block', marginBottom: 2 }}>{title}</b>
                 <span className={styles.muted}>{text}</span>

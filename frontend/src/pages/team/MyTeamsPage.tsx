@@ -19,7 +19,7 @@ export function MyTeamsPage() {
 
     return (
         <section className={styles.page}>
-            <p><Link to="/studio">← До Студії</Link></p>
+            <Link to="/studio" className={styles.muted}>‹ До Студії</Link>
             <h1 className={styles.title}>Мої команди</h1>
             {teams.data?.map((team) => (
                 <Link key={team.handle} to="/team/$handle" params={{ handle: team.handle }} className={styles.row}>
