@@ -56,6 +56,16 @@ class ApplicationTests {
     }
 
     @Test
+    void builtFilesAreCachedForAYearAndPagesNever() {
+        ResponseEntity<String> asset = http.getForEntity("/assets/app-abc123.js", String.class);
+        assertThat(asset.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(asset.getHeaders().getCacheControl()).contains("max-age=31536000").contains("immutable");
+
+        ResponseEntity<String> page = http.getForEntity("/n/mag-vody/12", String.class);
+        assertThat(page.getHeaders().getCacheControl()).contains("no-cache");
+    }
+
+    @Test
     void responsesCarrySecurityHeaders() {
         ResponseEntity<String> response = http.getForEntity("/", String.class);
 

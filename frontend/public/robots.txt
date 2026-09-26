@@ -1,0 +1,11 @@
+# Новелка: novels and chapters are for everyone; the rest is personal or for the teams.
+User-agent: *
+Disallow: /api/
+Disallow: /studio
+Disallow: /admin
+Disallow: /me
+Disallow: /inbox
+Disallow: /library
+Disallow: /login
+Disallow: /register
+Disallow: /reset
