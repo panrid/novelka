@@ -51,9 +51,17 @@ class Inbox {
         db.execute("""
                 INSERT INTO notification (recipient_id, kind, group_key, payload) VALUES (?, ?, ?, ?::jsonb)
                 ON CONFLICT (recipient_id, group_key) WHERE read_at IS NULL AND group_key IS NOT NULL
-                DO UPDATE SET payload = notification.payload || jsonb_build_object(
+                DO UPDATE SET payload = (notification.payload || jsonb_build_object(
                         'first', LEAST((notification.payload ->> 'first')::int, (EXCLUDED.payload ->> 'first')::int),
-                        'last', GREATEST((notification.payload ->> 'last')::int, (EXCLUDED.payload ->> 'last')::int)),
+                        'last', GREATEST((notification.payload ->> 'last')::int, (EXCLUDED.payload ->> 'last')::int),
+                        'firstLabel', CASE WHEN (EXCLUDED.payload ->> 'first')::int < (notification.payload ->> 'first')::int
+                            THEN EXCLUDED.payload -> 'firstLabel' ELSE notification.payload -> 'firstLabel' END,
+                        'lastLabel', CASE WHEN (EXCLUDED.payload ->> 'last')::int > (notification.payload ->> 'last')::int
+                            THEN EXCLUDED.payload -> 'lastLabel' ELSE notification.payload -> 'lastLabel' END))
+                        -- a chapter's name only while the row is about one chapter
+                        - CASE WHEN LEAST((notification.payload ->> 'first')::int, (EXCLUDED.payload ->> 'first')::int)
+                                  = GREATEST((notification.payload ->> 'last')::int, (EXCLUDED.payload ->> 'last')::int)
+                            THEN '' ELSE 'chapterTitle' END,
                     created_at = now()
                 """, recipientId, kind, groupKey, json.writeValueAsString(fresh));
         nudge(recipientId);

@@ -74,12 +74,13 @@ class CommunityFlowTests {
     @Test
     void readersTalkAboutAChapterAndHearRepliesAndMentions() {
         long question = read(reader.browser().post(comments(), json("chapter", 1,
-                "body", "@" + translator.nick() + " а **чому** тут так? ||спойлер||"))).path("id").asLong();
+                "body", "@" + translator.nick() + " а **чому** тут так? ||вбивця — дворецький||\n>#b1 Рьо зліз з ліжка"))).path("id").asLong();
         JsonNode mention = inbox(translator, 1).path("items").path(0);
         assertThat(mention.path("kind").asString()).isEqualTo("mention");
         assertThat(mention.path("payload").path("actorNick").asString()).isEqualTo(reader.nick());
         assertThat(mention.path("payload").path("chapterNumber").asInt()).isEqualTo(1);
-        assertThat(mention.path("payload").path("excerpt").asString()).isEqualTo("@" + translator.nick() + " а чому тут так? спойлер");
+        assertThat(mention.path("payload").path("excerpt").asString()).as("neither a spoiler nor a quote shows in a notification")
+                .isEqualTo("@" + translator.nick() + " а чому тут так? (спойлер) (цитата)");
 
         read(translator.browser().post(comments(), json("chapter", 1, "body", "Бо так в оригіналі.", "replyTo", question)));
         JsonNode reply = inbox(reader, 1).path("items").path(0);
@@ -90,7 +91,7 @@ class CommunityFlowTests {
         assertThat(thread.path("total").asInt()).isEqualTo(2);
         JsonNode root = thread.path("items").path(0);
         assertThat(root.path("body").asString()).as("mentions shown with today's nick")
-                .isEqualTo("@" + translator.nick() + " а **чому** тут так? ||спойлер||");
+                .isEqualTo("@" + translator.nick() + " а **чому** тут так? ||вбивця — дворецький||\n>#b1 Рьо зліз з ліжка");
         assertThat(root.path("mine").asBoolean()).isTrue();
         assertThat(root.path("replies")).singleElement()
                 .satisfies(answer -> assertThat(answer.path("authorNick").asString()).isEqualTo(translator.nick()));
@@ -202,10 +203,15 @@ class CommunityFlowTests {
             assertThat(item.path("payload").path("first").asInt()).isEqualTo(2);
             assertThat(item.path("payload").path("last").asInt()).isEqualTo(3);
             assertThat(item.path("payload").path("slug").asString()).isEqualTo(slug);
+            assertThat(item.path("payload").path("firstLabel").asString()).as("the numbers readers see").isEqualTo("2");
+            assertThat(item.path("payload").path("lastLabel").asString()).isEqualTo("3");
+            assertThat(item.path("payload").has("chapterTitle")).as("no one chapter's name for a run").isFalse();
         });
         read(reader.browser().post("/api/notifications/read", json("upTo", items.path(0).path("id").asLong())));
         publish(4);
-        assertThat(inbox(reader, 2).path("items")).hasSize(2);
+        JsonNode single = inbox(reader, 2).path("items");
+        assertThat(single).hasSize(2);
+        assertThat(single.path(0).path("payload").path("chapterTitle").asString()).as("a single chapter is named").isNotBlank();
         assertThat(inbox(translator).path("items")).as("the translator is not told about their own chapters").isEmpty();
     }
 

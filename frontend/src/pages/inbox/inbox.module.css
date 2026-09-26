@@ -262,3 +262,7 @@
         height: calc(100dvh - var(--topbar-height) - 8px - 48px);
     }
 }
+
+.strong {
+    font-weight: 600;
+}

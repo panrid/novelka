@@ -146,7 +146,7 @@ public class Browser {
             out.append('"').append(keyValues[i]).append("\":");
             Object value = keyValues[i + 1];
             if (value instanceof String text) {
-                out.append('"').append(text.replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
+                out.append('"').append(text.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")).append('"');
             } else if (value instanceof java.util.List<?> list) {
                 out.append('[');
                 for (int j = 0; j < list.size(); j++) {

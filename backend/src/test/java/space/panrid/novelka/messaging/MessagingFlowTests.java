@@ -68,7 +68,7 @@ class MessagingFlowTests {
         JsonNode row = list.path("items").path(0);
         assertThat(row.path("kind").asString()).isEqualTo("direct");
         assertThat(row.path("title").asString()).isEqualTo(anna.nick());
-        assertThat(row.path("lastText").asString()).isEqualTo("Привіт, @" + bohdan.nick() + "! спойлер");
+        assertThat(row.path("lastText").asString()).as("a spoiler stays hidden in the list").isEqualTo("Привіт, @" + bohdan.nick() + "! (спойлер)");
 
         JsonNode opened = read(bohdan.browser().get("/api/conversations/" + chat));
         JsonNode line = opened.path("lines").path(0);

@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { parse, type Inline } from './parseMarkup';
 import styles from './community.module.css';
 
@@ -11,6 +11,7 @@ export function Markup({ text }: { text: string }) {
                 const lines = paragraph.lines.map((line, at) => (
                     <span key={at}>{at > 0 && <br />}{line.map((node, i) => <Node key={i} node={node} />)}</span>
                 ));
+                if (paragraph.source) return <TextQuote key={index} source={paragraph.source}>{lines}</TextQuote>;
                 return paragraph.quote ? <blockquote key={index}>{lines}</blockquote> : <p key={index}>{lines}</p>;
             })}
         </div>
@@ -48,5 +49,31 @@ function Spoiler({ children }: { children: ReactNode }) {
             onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setOpen(true); }}>
             {children}
         </span>
+    );
+}
+
+/** Where «До місця в главі» leads; only the reader knows, elsewhere the quote just opens. */
+export const QuoteTarget = createContext<((source: string) => void) | null>(null);
+
+/** A quote from the chapter: folded like a spoiler, it may give away what happens. */
+function TextQuote({ source, children }: { source: string; children: ReactNode }) {
+    const [open, setOpen] = useState(false);
+    const goTo = useContext(QuoteTarget);
+    if (!open) {
+        return (
+            <button type="button" className={styles.textQuoteClosed} onClick={(event) => { event.stopPropagation(); setOpen(true); }}>
+                ❝ Цитата з глави · показати
+            </button>
+        );
+    }
+    return (
+        <blockquote className={styles.textQuote}>
+            {children}
+            {goTo && (
+                <button type="button" className={styles.textQuoteLink} onClick={(event) => { event.stopPropagation(); goTo(source); }}>
+                    До місця в главі ›
+                </button>
+            )}
+        </blockquote>
     );
 }

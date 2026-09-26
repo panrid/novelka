@@ -2,6 +2,7 @@ import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { chaptersWord } from '../../reading/api';
+import { Cover } from '../../reading/Cover';
 import { notificationApi, type Notification } from '../../inbox/api';
 import { relativeTime } from '../../lib/dates';
 import { plural } from '../../lib/plural';
@@ -49,6 +50,7 @@ function Row({ item }: { item: Notification }) {
     const where = p.novelTitle ? `${p.novelTitle}${p.chapterLabel !== undefined ? ` · глава ${p.chapterLabel || p.chapterNumber}` : ''}` : '';
     let title: string;
     let excerpt: string | undefined = p.excerpt;
+    let chapters: string | undefined;
     switch (item.kind) {
         case 'reply':
             title = `${p.actorNick} відповідає на ваш коментар`;
@@ -61,8 +63,13 @@ function Row({ item }: { item: Notification }) {
             break;
         case 'new_chapters': {
             const count = (p.last ?? 0) - (p.first ?? 0) + 1;
-            title = count > 1 ? `${p.novelTitle}: ${count} ${chaptersWord(count)} нових` : `${p.novelTitle}: нова глава`;
+            const first = p.firstLabel ?? String(p.first ?? '');
+            const last = p.lastLabel ?? String(p.last ?? '');
+            title = p.novelTitle ?? 'Нові глави';
             excerpt = undefined;
+            chapters = count > 1
+                ? `Нові глави ${first}–${last} · ${count} ${chaptersWord(count)}`
+                : `Нова глава ${first}${p.chapterTitle ? `. ${p.chapterTitle}` : ''}`;
             break;
         }
         case 'suggestions_submitted':
@@ -81,7 +88,8 @@ function Row({ item }: { item: Notification }) {
     }
     const body = (
         <div className={styles.grow}>
-            <div>{title}</div>
+            <div className={item.kind === 'new_chapters' ? styles.strong : undefined}>{title}</div>
+            {chapters && <div className={styles.line}>{chapters}</div>}
             {excerpt && <div className={`${styles.line} ${styles.muted}`}>«{excerpt}»</div>}
             <div className={styles.muted}>{item.kind === 'new_chapters' ? '' : where && `${where} · `}{relativeTime(new Date(item.createdAt))}</div>
         </div>
@@ -97,7 +105,12 @@ function Row({ item }: { item: Notification }) {
         return <Link to="/inbox/chat" className={className}>{body}</Link>;
     }
     if (p.slug && item.kind === 'new_chapters' && p.first) {
-        return <Link to="/n/$slug/$number" params={{ slug: p.slug, number: String(p.first) }} search={{ t: p.teamHandle }} className={className}>{body}</Link>;
+        return (
+            <Link to="/n/$slug/$number" params={{ slug: p.slug, number: String(p.first) }} search={{ t: p.teamHandle }} className={className}>
+                <Cover url={p.coverUrl ?? null} title={p.novelTitle ?? ''} seed={p.slug} width={40} />
+                {body}
+            </Link>
+        );
     }
     if (p.slug && p.chapterNumber) {
         return (

@@ -10,6 +10,8 @@ export type NotificationPayload = {
     editionId?: number; slug?: string; novelTitle?: string; teamHandle?: string;
     chapterNumber?: number; chapterLabel?: string; actorNick?: string; excerpt?: string; where?: 'comment' | 'chat';
     commentId?: number; first?: number; last?: number; accepted?: number; rejected?: number; count?: number; shah?: number; note?: string;
+    /** New chapters: the numbers readers see, a lone chapter's name and the cover. */
+    firstLabel?: string; lastLabel?: string; chapterTitle?: string; coverUrl?: string;
 };
 
 export type Notification = { id: number; kind: NotificationKind; payload: NotificationPayload; createdAt: string; read: boolean };

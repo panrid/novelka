@@ -5,6 +5,7 @@ import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.LIBRARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
+import static space.panrid.novelka.jooq.Tables.REVISION;
 import static space.panrid.novelka.jooq.Tables.TEAM;
 import static space.panrid.novelka.jooq.Tables.TEAM_MEMBER;
 
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Component;
 import space.panrid.novelka.community.ChatMentioned;
 import space.panrid.novelka.community.CommentPosted;
 import space.panrid.novelka.ledger.ShahsGranted;
+import space.panrid.novelka.media.Images;
 import space.panrid.novelka.suggestion.SuggestionsReviewed;
 import space.panrid.novelka.suggestion.SuggestionsSubmitted;
 import space.panrid.novelka.text.ChaptersPublished;
@@ -36,10 +38,12 @@ class NotificationListeners {
 
     private final DSLContext db;
     private final Inbox inbox;
+    private final Images images;
 
-    NotificationListeners(DSLContext db, Inbox inbox) {
+    NotificationListeners(DSLContext db, Inbox inbox, Images images) {
         this.db = db;
         this.inbox = inbox;
+        this.images = images;
     }
 
     @ApplicationModuleListener
@@ -73,6 +77,18 @@ class NotificationListeners {
     @ApplicationModuleListener
     void on(ChaptersPublished published) {
         Map<String, Object> base = place(published.editionId(), null);
+        // What the row shows: the numbers readers see, the chapter's name when it is one, the cover.
+        Record first = chapter(published.editionId(), published.first());
+        Record last = chapter(published.editionId(), published.last());
+        base.put("firstLabel", label(first, published.first()));
+        base.put("lastLabel", label(last, published.last()));
+        if (published.first() == published.last() && first != null) {
+            base.put("chapterTitle", first.get(REVISION.TITLE));
+        }
+        Long cover = db.select(EDITION.COVER_IMAGE_ID).from(EDITION).where(EDITION.ID.eq(published.editionId())).fetchOne(EDITION.COVER_IMAGE_ID);
+        if (cover != null) {
+            images.find(cover).ifPresent(image -> base.put("coverUrl", image.url(160)));
+        }
         List<Long> readers = db.select(LIBRARY_ENTRY.ACCOUNT_ID).from(LIBRARY_ENTRY)
                 .where(LIBRARY_ENTRY.EDITION_ID.eq(published.editionId()), LIBRARY_ENTRY.LIST.in("reading", "planned"))
                 .fetch(LIBRARY_ENTRY.ACCOUNT_ID);
@@ -137,6 +153,16 @@ class NotificationListeners {
                 }
             }
         }
+    }
+
+    private Record chapter(long editionId, int number) {
+        return db.select(CHAPTER.LABEL, REVISION.TITLE).from(CHAPTER)
+                .leftJoin(REVISION).on(REVISION.ID.eq(CHAPTER.PUBLISHED_REVISION_ID))
+                .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(number)).fetchOne();
+    }
+
+    private static String label(Record chapter, int number) {
+        return chapter == null || chapter.get(CHAPTER.LABEL) == null ? String.valueOf(number) : chapter.get(CHAPTER.LABEL);
     }
 
     private Map<String, Object> place(long editionId, Integer chapter) {

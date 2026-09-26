@@ -2,6 +2,8 @@
  * The markup of comments, chat and messages (architecture.md): **bold** or __bold__,
  * *italic* or _italic_, ++underline++, ~~strike~~, ||spoiler||, lines starting with «>»
  * as quotes, and @nick, $team and links. An unmatched marker stays plain text.
+ * «>#s12 text» quotes paragraph s12 of the chapter the comment is about: it is shown
+ * folded like a spoiler and leads to that place in the text.
  */
 
 export type Inline =
@@ -11,7 +13,8 @@ export type Inline =
     | { kind: 'team'; handle: string }
     | { kind: 'link'; url: string };
 
-export type Paragraph = { quote: boolean; lines: Inline[][] };
+/** {@code source}: the chapter paragraph a quote was taken from. */
+export type Paragraph = { quote: boolean; source?: string; lines: Inline[][] };
 
 const PAIRS: readonly [string, 'bold' | 'italic' | 'underline' | 'strike' | 'spoiler'][] = [
     ['**', 'bold'], ['__', 'bold'], ['++', 'underline'], ['~~', 'strike'], ['||', 'spoiler'], ['*', 'italic'], ['_', 'italic'],
@@ -22,10 +25,18 @@ const TOKENS = /(https?:\/\/[^\s<>"]+[^\s<>".,;:!?)»])|(?<![\p{L}\p{N}_@$-])([@
 export function parse(text: string): Paragraph[] {
     const out: Paragraph[] = [];
     for (const line of text.replace(/\r/g, '').split('\n')) {
+        const fromText = /^>#([\w-]{1,40})(?:\s(.*))?$/.exec(line);
+        if (fromText) {
+            const [, source, content = ''] = fromText;
+            const last = out[out.length - 1];
+            if (last?.source === source) last.lines.push(inline(content));
+            else out.push({ quote: true, source: source!, lines: [inline(content)] });
+            continue;
+        }
         const quote = /^>\s?/.test(line);
         const content = quote ? line.replace(/^>\s?/, '') : line;
         const last = out[out.length - 1];
-        if (last && last.quote === quote && (quote || content !== '')) {
+        if (last && !last.source && last.quote === quote && (quote || content !== '')) {
             last.lines.push(inline(content));
         } else if (content !== '' || quote) {
             out.push({ quote, lines: [inline(content)] });

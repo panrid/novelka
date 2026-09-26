@@ -35,7 +35,9 @@ export function useMySuggestions(chapter: ReaderChapter, signedIn: boolean) {
 }
 
 /** Appears while text in one paragraph is selected: fix the paragraph or replace the fragment in the chapter. */
-export function SelectionBar({ onEdit, onReplace }: { onEdit: (blockId: string) => void; onReplace: (find: string) => void }) {
+export function SelectionBar({ onEdit, onReplace, onQuote }: {
+    onEdit: (blockId: string) => void; onReplace: (find: string) => void; onQuote?: (blockId: string, text: string) => void;
+}) {
     const [selection, setSelection] = useState<{ blockId: string; text: string } | null>(null);
     useEffect(() => {
         const update = () => {
@@ -45,7 +47,7 @@ export function SelectionBar({ onEdit, onReplace }: { onEdit: (blockId: string) 
             const focus = current?.focusNode instanceof Element ? current.focusNode : current?.focusNode?.parentElement;
             const block = anchor?.closest('[data-block-id]');
             if (chosen && block && block === focus?.closest('[data-block-id]') && block.closest('article')) {
-                setSelection({ blockId: block.getAttribute('data-block-id')!, text: chosen.slice(0, 200) });
+                setSelection({ blockId: block.getAttribute('data-block-id')!, text: chosen.slice(0, 500) });
             } else {
                 setSelection(null);
             }
@@ -57,7 +59,11 @@ export function SelectionBar({ onEdit, onReplace }: { onEdit: (blockId: string) 
     return (
         <div className={styles.selectionBar} role="toolbar" aria-label="Правка виділеного">
             <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onEdit(selection.blockId)}>✎ Виправити абзац</button>
-            <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onReplace(selection.text)}>⇄ Замінити в главі</button>
+            <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onReplace(selection.text.slice(0, 200))}>⇄ Замінити в главі</button>
+            {onQuote && (
+                <button type="button" onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => { onQuote(selection.blockId, selection.text); window.getSelection()?.removeAllRanges(); }}>❝ Цитувати</button>
+            )}
         </div>
     );
 }

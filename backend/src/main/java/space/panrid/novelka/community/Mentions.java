@@ -98,7 +98,11 @@ public class Mentions {
 
     /** A short plain excerpt for a notification: names shown, markers dropped. */
     public String excerpt(String body, int length) {
-        String plain = render(body).replaceAll("\\|\\||\\*\\*|__|\\+\\+|~~|(?m)^> ?", "").replaceAll("\\s+", " ").strip();
+        // A spoiler or a quote from the chapter may give away the story: an excerpt only says it is there.
+        String plain = render(body)
+                .replaceAll("(?m)^>#[\\w-]{1,40}(?:\\s.*)?$", "(цитата)")
+                .replaceAll("(?s)\\|\\|.+?\\|\\|", "(спойлер)")
+                .replaceAll("\\|\\||\\*\\*|__|\\+\\+|~~|(?m)^> ?", "").replaceAll("\\s+", " ").strip();
         return plain.length() <= length ? plain : plain.substring(0, length - 1) + "…";
     }
 }

@@ -173,6 +173,7 @@ function Reader({ chapter, team, find }: { chapter: ReaderChapter; team: string 
     const hash = useRouterState({ select: (state) => state.location.hash });
     const focus = /^c(\d+)$/.exec(hash)?.[1];
     const [talking, setTalking] = useState(Boolean(focus));
+    const [quote, setQuote] = useState<{ blockId: string; text: string } | null>(null);
     const comments = useCommentCount(chapter.edition.editionId, chapter.number);
 
     /** A tap on the text toggles the controls; in «режим правок» it opens the paragraph instead. */
@@ -266,13 +267,17 @@ function Reader({ chapter, team, find }: { chapter: ReaderChapter; team: string 
                 </nav>
             </article>
 
-            {me && !reviewing && <SelectionBar onEdit={setEditing} onReplace={setReplacing} />}
+            {me && !reviewing && (
+                <SelectionBar onEdit={setEditing} onReplace={setReplacing}
+                    onQuote={(blockId, text) => { setQuote({ blockId, text }); setTalking(true); }} />
+            )}
             {editingBlock && (
                 <EditSheet chapter={chapter} block={editingBlock} onClose={() => setEditing(null)} onSaved={mine.refresh}
                     existing={mine.items.find((item) => item.kind === 'block' && item.blockId === editingBlock.id && item.state === 'draft')} />
             )}
             <Sheet open={talking} onClose={() => setTalking(false)} title="Обговорення глави" tall>
-                <Discussion editionId={chapter.edition.editionId} chapter={chapter.number} focus={focus ? Number(focus) : undefined} />
+                <Discussion editionId={chapter.edition.editionId} chapter={chapter.number} focus={focus ? Number(focus) : undefined}
+                    quote={quote} onDropQuote={() => setQuote(null)} goTo={(blockId) => { setTalking(false); showBlock(blockId); }} />
             </Sheet>
             {replacing !== null && <ReplaceSheet chapter={chapter} find={replacing} onClose={() => setReplacing(null)} onSaved={mine.refresh} />}
 
@@ -341,4 +346,15 @@ function scrollable() {
 
 function currentPosition() {
     return Math.min(1, Math.max(0, window.scrollY / scrollable()));
+}
+
+/** Scrolls to a paragraph and lights it up for a moment (a quote's «До місця в главі»). */
+function showBlock(blockId: string) {
+    const block = document.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`);
+    if (!block) return;
+    requestAnimationFrame(() => {
+        block.scrollIntoView({ block: 'center' });
+        block.classList.add(styles.flash!);
+        window.setTimeout(() => block.classList.remove(styles.flash!), 2200);
+    });
 }

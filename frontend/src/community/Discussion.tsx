@@ -9,7 +9,7 @@ import { Avatar } from '../ui/Avatar';
 import { Segmented } from '../ui/Segmented';
 import { commentApi, type Comment } from './api';
 import { Composer, type ReplyTarget } from './Composer';
-import { Markup } from './Markup';
+import { Markup, QuoteTarget } from './Markup';
 import styles from './discussion.module.css';
 import { askText } from '../ui/ask';
 
@@ -32,7 +32,14 @@ export function useCommentCount(editionId: number, chapter?: number) {
  * Talk about a translation or one of its chapters: newest or best first, one level of
  * replies, votes. {@code focus} scrolls to one comment (a link from the inbox).
  */
-export function Discussion({ editionId, chapter, focus }: { editionId: number; chapter?: number; focus?: number | undefined }) {
+/**
+ * @param quote a passage the reader chose to quote: the new comment starts with it
+ * @param goTo  takes the reader to a quoted paragraph (only the reader has the text at hand)
+ */
+export function Discussion({ editionId, chapter, focus, quote, onDropQuote, goTo }: {
+    editionId: number; chapter?: number; focus?: number | undefined;
+    quote?: { blockId: string; text: string } | null; onDropQuote?: () => void; goTo?: ((blockId: string) => void) | undefined;
+}) {
     const me = useMe();
     const client = useQueryClient();
     const [sort, setSort] = useState<'new' | 'top'>('new');
@@ -51,16 +58,28 @@ export function Discussion({ editionId, chapter, focus }: { editionId: number; c
     }, [focus, items.length]);
 
     return (
+        <QuoteTarget.Provider value={goTo ?? null}>
         <div className={styles.discussion}>
             <Segmented label="Порядок" value={sort} onChange={setSort}
                 options={[{ value: 'new', label: 'Нові' }, { value: 'top', label: 'Кращі' }]} />
             {me ? (
-                <Composer label={chapter ? 'Коментар до глави' : 'Коментар до перекладу'} reply={reply} onCancelReply={() => setReply(null)}
-                    onSend={async (text) => {
-                        await commentApi.post(editionId, chapter, reply ? `@${reply.who} ${text}` : text, reply?.root ?? null);
-                        setReply(null);
-                        await refresh();
-                    }} />
+                <>
+                    {quote && (
+                        <div className={styles.quoteChip}>
+                            <span>❝ {quote.text}</span>
+                            <button type="button" aria-label="Прибрати цитату" onClick={onDropQuote}>✕</button>
+                        </div>
+                    )}
+                    <Composer label={chapter ? 'Коментар до глави' : 'Коментар до перекладу'} reply={reply} onCancelReply={() => setReply(null)}
+                        onSend={async (text) => {
+                            // The quote goes first, folded under a spoiler for readers who have not got there yet.
+                            const quoted = quote ? `>#${quote.blockId} ${quote.text.replace(/\s+/g, ' ')}\n${text}` : text;
+                            await commentApi.post(editionId, chapter, reply ? `@${reply.who} ${quoted}` : quoted, reply?.root ?? null);
+                            setReply(null);
+                            onDropQuote?.();
+                            await refresh();
+                        }} />
+                </>
             ) : (
                 <p className={styles.muted}>
                     <Link to="/login" search={{ next: typeof window === 'undefined' ? '/' : window.location.pathname }}>Увійдіть</Link>, щоб коментувати.
@@ -83,6 +102,7 @@ export function Discussion({ editionId, chapter, focus }: { editionId: number; c
                 <button type="button" className={styles.more} onClick={() => void thread.fetchNextPage()}>Показати ще</button>
             )}
         </div>
+        </QuoteTarget.Provider>
     );
 }
 

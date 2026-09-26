@@ -11,7 +11,7 @@ const NOTIFICATIONS = {
     unread: 2, hasMore: false,
     items: [
         { id: 7, kind: 'new_chapters', read: false, createdAt: new Date().toISOString(),
-            payload: { slug: 'mah-vody', novelTitle: 'Маг води', teamHandle: 'panrid', first: 12, last: 14 } },
+            payload: { slug: 'mah-vody', novelTitle: 'Маг води', teamHandle: 'panrid', first: 12, last: 14, firstLabel: '11', lastLabel: '13' } },
         { id: 6, kind: 'reply', read: false, createdAt: new Date().toISOString(),
             payload: { slug: 'mah-vody', novelTitle: 'Маг води', teamHandle: 'panrid', chapterNumber: 3, chapterLabel: '2.5',
                 actorNick: 'lysytsia', excerpt: 'Бо так в оригіналі', commentId: 40, where: 'comment' } },
@@ -38,7 +38,8 @@ describe('inbox', () => {
             'GET /api/conversations': { body: { items: [], unread: 0 } },
             'POST /api/notifications/read': { body: { unread: 0 } },
         });
-        expect(await screen.findByText('Маг води: 3 глави нових')).toBeInTheDocument();
+        expect(await screen.findByText('Нові глави 11–13 · 3 глави')).toBeInTheDocument();
+        expect(screen.getByText('Маг води')).toBeInTheDocument();
         const reply = screen.getByText('lysytsia відповідає на ваш коментар').closest('a')!;
         expect(reply).toHaveAttribute('href', '/n/mah-vody/3?t=panrid#c40');
         expect(within(reply).getByText(/глава 2\.5/)).toBeInTheDocument();

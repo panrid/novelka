@@ -59,4 +59,27 @@ describe('discussion', () => {
         expect(await within(sheet).findByText(/згодна/)).toBeInTheDocument();
         expect(within(sheet).getByRole('button', { name: 'Змінити' })).toBeInTheDocument();
     });
+
+    it('quotes a chosen passage folded under a spoiler', async () => {
+        const { calls } = await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'GET /api/editions/4/comments': { body: { ...THREAD, total: 0, items: [] } },
+            'POST /api/editions/4/comments': { status: 201, body: { id: 43 } },
+        });
+        const text = (await screen.findByText('Текст.')).firstChild!;
+        const range = document.createRange();
+        range.setStart(text, 0);
+        range.setEnd(text, 5);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(range);
+        document.dispatchEvent(new Event('selectionchange'));
+        await userEvent.click(await screen.findByRole('button', { name: '❝ Цитувати' }));
+        const sheet = await screen.findByRole('dialog', { name: 'Обговорення глави' });
+        expect(within(sheet).getByText('❝ Текст')).toBeInTheDocument();
+        await userEvent.type(within(sheet).getByRole('textbox'), 'Гарно сказано');
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Надіслати' }));
+        await vi.waitFor(() => expect(calls.find((call) => call.method === 'POST')?.body)
+            .toMatchObject({ body: '>#b1 Текст\nГарно сказано' }));
+    });
 });

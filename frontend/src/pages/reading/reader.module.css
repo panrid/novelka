@@ -204,3 +204,10 @@
 .sizeButton[data-disabled] {
     opacity: 0.4;
 }
+
+/* The paragraph a quote leads to, lit up for a moment. */
+.flash {
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--accent) 25%, transparent);
+    transition: background 1.2s ease-out;
+}
