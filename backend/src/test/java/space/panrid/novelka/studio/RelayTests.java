@@ -96,6 +96,10 @@ class RelayTests {
                 json("message", "Хочемо продовжити машинним перекладом.")).status()).isEqualTo(201);
         assertThat(mailbox.to(owner.email())).anySatisfy(mail ->
                 assertThat(mail.subject()).isEqualTo("Хочуть продовжити ваш переклад на Новелці"));
+        assertThat(read(successor.browser().get("/api/novels/" + slug)).path("viewer").path("relayAsked").asBoolean())
+                .as("the page remembers the request instead of offering it again").isTrue();
+        assertThat(successor.browser().post("/api/editions/" + edition + "/takeover-requests", json("message", "Ще раз")).status())
+                .isEqualTo(409);
 
         JsonNode requests = read(owner.browser().get("/api/studio/editions/" + edition + "/takeover-requests"));
         assertThat(requests).singleElement().satisfies(request -> {

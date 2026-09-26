@@ -11,6 +11,7 @@ import static space.panrid.novelka.jooq.Tables.READING_PROGRESS;
 import static space.panrid.novelka.jooq.Tables.REVISION;
 import static space.panrid.novelka.jooq.Tables.SUGGESTION;
 import static space.panrid.novelka.jooq.Tables.TAG;
+import static space.panrid.novelka.jooq.Tables.TAKEOVER_REQUEST;
 import static space.panrid.novelka.jooq.Tables.TEAM;
 import static space.panrid.novelka.jooq.Tables.TEAM_MEMBER;
 
@@ -382,7 +383,10 @@ class ReadingQueries {
                 rating == null ? null : rating.intValue(),
                 progress == null ? null : db.select(CHAPTER.LABEL).from(CHAPTER)
                         .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(progress.get(READING_PROGRESS.CHAPTER_NUMBER)))
-                        .fetchOne(CHAPTER.LABEL));
+                        .fetchOne(CHAPTER.LABEL),
+                db.fetchExists(TAKEOVER_REQUEST, TAKEOVER_REQUEST.EDITION_ID.eq(editionId), TAKEOVER_REQUEST.STATE.eq("open"),
+                        TAKEOVER_REQUEST.TEAM_ID.in(DSL.select(TEAM.ID).from(TEAM).where(TEAM.OWNER_ID.eq(accountId))
+                                .union(DSL.select(TEAM_MEMBER.TEAM_ID).from(TEAM_MEMBER).where(TEAM_MEMBER.ACCOUNT_ID.eq(accountId))))));
     }
 
     // ---- library --------------------------------------------------------------------------

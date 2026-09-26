@@ -186,7 +186,7 @@ function RelayOffer({ novel }: { novel: Novel }) {
     if (novel.edition.status === 'completed') return null;
     return (
         <div className={styles.relay}>
-            {asked ? <p className={styles.muted}>Запит надіслано. Власник отримав лист.</p> : (
+            {asked || novel.viewer?.relayAsked ? <p className={styles.muted}>Запит надіслано, чекаємо відповіді власника.</p> : (
                 <>
                     {ask.isError && <Notice tone="error">{ask.error.message}</Notice>}
                     <button type="button" className={styles.more} onClick={() => void askText({

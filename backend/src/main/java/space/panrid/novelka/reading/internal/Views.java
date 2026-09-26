@@ -41,7 +41,9 @@ final class Views {
 
     /** {@code teamRole}: owner, translator or editor when the viewer works on this edition. */
     /** @param chapterLabel the number readers see for {@code chapterNumber} (null: the position itself) */
-    record ViewerState(String list, Integer chapterNumber, Float position, String teamRole, Integer myRating, String chapterLabel) {
+    /** {@code relayAsked}: a team of the viewer's already asked to continue this translation and waits. */
+    record ViewerState(String list, Integer chapterNumber, Float position, String teamRole, Integer myRating, String chapterLabel,
+            boolean relayAsked) {
     }
 
     record NovelPage(String slug, String title, String author, String origin, List<ReaderBlock> description,
