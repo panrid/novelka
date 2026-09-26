@@ -157,7 +157,12 @@ class PersonalRunsTests {
         assertThat(short_.status()).as("nothing left to hold").isEqualTo(400);
         assertThat(short_.body()).contains("Не вистачає шагів");
 
-        assertThat(reader.browser().post(base + "/jobs/" + jobId + "/cancel", "{}").status()).isEqualTo(200);
+        // Out of the team (here: the personal team handed to someone else is simulated by losing the role).
+        db.execute("UPDATE team SET owner_id = ? WHERE id = (SELECT team_id FROM edition WHERE id = ?)",
+                db.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.NICK.eq(owner.nick())).fetchSingle().value1(), edition);
+        db.execute("DELETE FROM team_member WHERE team_id = (SELECT team_id FROM edition WHERE id = ?)", edition);
+        assertThat(reader.browser().post(base + "/jobs/" + jobId + "/cancel", "{}").status())
+                .as("who started a run may always cancel it").isEqualTo(200);
         JsonNode mine = mine();
         assertThat(mine.path("available").asInt()).as("nothing was spent, nothing is charged").isEqualTo(Math.max(1, reserve));
         assertThat(mine.path("reserved").asInt()).isZero();

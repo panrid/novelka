@@ -139,9 +139,17 @@ class AutotranslateController {
         return jobs.view(jobs.job(editionId, jobId).orElseThrow());
     }
 
+    /**
+     * The team cancels its runs; whoever started a run may cancel it even after leaving the team,
+     * so шаги it holds are never stuck; the site owner may cancel any run.
+     */
     @PostMapping("/editions/{editionId}/autotranslate/jobs/{jobId}/cancel")
     void cancel(@PathVariable long editionId, @PathVariable long jobId) {
-        ownerTranslating(editionId);
+        Viewer viewer = access.requireSignedIn();
+        boolean started = jobs.job(editionId, jobId).map(job -> job.getRequestedBy() == viewer.accountId()).orElse(false);
+        if (!started && viewer.role() != SiteRole.OWNER) {
+            access.requireTranslator(editionId);
+        }
         jobs.cancel(editionId, jobId);
     }
 
