@@ -1,11 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearch } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { chapterQuery } from '../../reading/queries';
 import { suggestionApi } from '../../reading/suggestions';
 import type { StudioBlock } from '../../studio/api';
-import { TextEditor } from '../../studio/TextEditor';
+import { TextEditor, type EditorHandle } from '../../studio/TextEditor';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
@@ -32,7 +32,8 @@ function Propose({ slug, team, editionId, number, title: startTitle, blocks: sta
     const [title, setTitle] = useState(startTitle);
     const [blocks, setBlocks] = useState(startBlocks);
     const [note, setNote] = useState('');
-    const save = useMutation({ mutationFn: () => suggestionApi.chapter(editionId, number, title, blocks, note) });
+    const editor = useRef<EditorHandle>(null);
+    const save = useMutation({ mutationFn: () => suggestionApi.chapter(editionId, number, title, editor.current?.read() ?? blocks, note) });
     return (
         <div className={styles.page}>
             <header className={styles.top}>
@@ -50,7 +51,7 @@ function Propose({ slug, team, editionId, number, title: startTitle, blocks: sta
                 {save.isError && <Notice tone="error">{save.error.message}</Notice>}
                 <input className={styles.titleInput} aria-label="Назва глави" value={title} onChange={(event) => setTitle(event.target.value)} />
                 <TextInput label="Пояснення для команди (необовʼязково)" value={note} onChange={setNote} />
-                <TextEditor mode="chapter" blocks={blocks} onChange={setBlocks} label="Текст глави" />
+                <TextEditor handle={editor} mode="chapter" blocks={blocks} onChange={setBlocks} label="Текст глави" />
             </div>
         </div>
     );

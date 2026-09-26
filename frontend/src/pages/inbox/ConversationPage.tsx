@@ -10,6 +10,7 @@ import { Notice } from '../../ui/Notice';
 import { members } from '../../lib/plural';
 import styles from './inbox.module.css';
 import { askText } from '../../ui/ask';
+import { messageTime } from '../../lib/dates';
 
 export function ConversationPage() {
     const { id } = useParams({ strict: false }) as { id: string };
@@ -87,7 +88,7 @@ export function ConversationPage() {
 function Bubble({ line, showAuthor, onReply, onChanged }: { line: MessageLine; showAuthor: boolean; onReply: () => void; onChanged: () => void }) {
     const [error, setError] = useState<string | null>(null);
     if (line.kind === 'system') return <div className={styles.system}>{line.body}</div>;
-    const time = new Date(line.createdAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+    const time = messageTime(new Date(line.createdAt));
     return (
         <div className={`${styles.bubbleRow} ${line.mine ? styles.mineRow : ''}`}>
             {showAuthor && !line.mine && line.authorNick && <Avatar nick={line.authorNick} url={line.authorAvatarUrl} size={28} />}

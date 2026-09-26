@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/client';
 import { IllustrateSheet } from './IllustrateSheet';
 import { studioApi, type EditorView, type StudioBlock } from '../../studio/api';
-import { TextEditor } from '../../studio/TextEditor';
+import { TextEditor, type EditorHandle } from '../../studio/TextEditor';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { relativeTime } from '../../lib/dates';
@@ -44,6 +44,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
     });
     // Drawing is for the site owner at launch (рішення 21).
     const [drawing, setDrawing] = useState<{ fragment: string; insert: (picture: { id: number; url: string }) => void } | null>(null);
+    const editor = useRef<EditorHandle>(null);
     const [blocks, setBlocks] = useState<StudioBlock[]>(view.draft?.blocks ?? view.blocks);
     const [base, setBase] = useState<number | null>(view.draft?.baseRevisionId ?? view.revisionId);
     const [save, setSave] = useState<Save>(view.draft ? 'saved' : 'idle');
@@ -78,7 +79,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
     }, [dirty]);
 
     const publish = useMutation({
-        mutationFn: () => studioApi.publish(editionId, view.number, { title, blocks, baseRevisionId: base }),
+        mutationFn: () => studioApi.publish(editionId, view.number, { title, blocks: editor.current?.read() ?? blocks, baseRevisionId: base }),
         onSuccess: ({ revisionId }) => {
             clearTimeout(timer.current);
             setBase(revisionId);
@@ -156,7 +157,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                     <IllustrateSheet editionId={editionId} chapter={view.number} fragment={drawing.fragment}
                         onInsert={drawing.insert} onClose={() => setDrawing(null)} />
                 )}
-                <TextEditor mode="chapter" blocks={blocks} onChange={(next) => changed(() => setBlocks(next))}
+                <TextEditor handle={editor} mode="chapter" blocks={blocks} onChange={(next) => changed(() => setBlocks(next))}
                     onIllustrate={canDraw ? (fragment, insert) => setDrawing({ fragment, insert }) : undefined}
                     mayAddPictures={view.mayAddPictures} label="Текст глави" placeholder="Почніть писати або вставте текст…" />
             </div>

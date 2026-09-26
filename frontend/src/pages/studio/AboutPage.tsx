@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Cover } from '../../reading/Cover';
 import { studioApi, type Overview, type StudioBlock } from '../../studio/api';
-import { TextEditor } from '../../studio/TextEditor';
+import { TextEditor, type EditorHandle } from '../../studio/TextEditor';
 import { ImagePicker } from '../../ui/AvatarPicker';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
@@ -31,9 +31,10 @@ function AboutForm({ edition }: { edition: Overview }) {
     const [adult, setAdult] = useState(edition.adult);
     const refresh = (updated: Overview) => client.setQueryData(['studio-edition', edition.editionId], updated);
 
+    const editor = useRef<EditorHandle>(null);
     const save = useMutation({
         mutationFn: () => studioApi.update(edition.editionId, {
-            title, author, description, status, adult, tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+            title, author, description: editor.current?.read() ?? description, status, adult, tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
         }),
         onSuccess: refresh,
     });
@@ -66,7 +67,7 @@ function AboutForm({ edition }: { edition: Overview }) {
                 {edition.kind !== 'original' && edition.ownNovel && <TextInput label="Автор оригіналу" value={author} onChange={setAuthor} />}
                 <div>
                     <div className={styles.label}>Опис</div>
-                    <TextEditor mode="description" blocks={description} onChange={setDescription} label="Опис" />
+                    <TextEditor handle={editor} mode="description" blocks={description} onChange={setDescription} label="Опис" />
                 </div>
                 {edition.ownNovel && <TextInput label="Теги" value={tags} onChange={setTags} hint="Через кому, до 12." />}
                 <Segmented label="Стан" value={status} onChange={setStatus}

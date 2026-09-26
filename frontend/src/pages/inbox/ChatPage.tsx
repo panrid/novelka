@@ -10,6 +10,7 @@ import { Notice } from '../../ui/Notice';
 import { InboxNav } from './InboxNav';
 import styles from './inbox.module.css';
 import { askText } from '../../ui/ask';
+import { messageTime } from '../../lib/dates';
 
 const MODERATORS = new Set(['moderator', 'admin', 'owner']);
 
@@ -51,7 +52,7 @@ export function ChatPage() {
                             {!line.mine && <Link to="/u/$nick" params={{ nick: line.authorNick }} className={styles.author}>{line.authorNick}</Link>}
                             {line.replyExcerpt && <div className={styles.quoted}>{line.replyExcerpt}</div>}
                             <Markup text={line.body} />
-                            <div className={styles.meta}>{new Date(line.createdAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}</div>
+                            <div className={styles.meta}>{messageTime(new Date(line.createdAt))}</div>
                             {me && (
                                 <div className={styles.actions}>
                                     <button type="button" onClick={() => setReply({ id: line.id, who: line.authorNick, excerpt: line.body.slice(0, 80) })}>Відповісти</button>

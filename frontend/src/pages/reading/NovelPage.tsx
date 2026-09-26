@@ -314,7 +314,7 @@ function Stars({ novel }: { novel: Novel }) {
                             onClick={() => rate.mutate(mine === score ? null : score)}>★</button>
                     ))}
                 </span>
-            ) : null}
+            ) : edition.rating != null && <span className={styles.starOn} aria-hidden>★</span>}
             <span className={styles.muted}>
                 {edition.rating != null ? `${edition.rating.toFixed(1).replace('.', ',')} · оцінок: ${edition.ratings ?? 0}` : 'ще без оцінок'}
             </span>

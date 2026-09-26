@@ -215,7 +215,7 @@ export function AutotranslatePage() {
                     <h2 className={styles.sectionTitle}>Раніше</h2>
                     {data.jobs.slice(1).map((old) => (
                         <div key={old.id} className={styles.row}>
-                            <div className={styles.grow}>{old.kind === 'analyze' ? 'Аналіз' : 'Переклад'} {old.from}–{old.to} · {JOB_LABELS[old.state]}</div>
+                            <div className={styles.grow}>{old.kind === 'analyze' ? 'Аналіз' : 'Переклад'} {range(old)} · {JOB_LABELS[old.state]}</div>
                             <span className={styles.muted}>
                                 {old.personal ? `${old.chargedShah} ${shahWord(old.chargedShah)}` : money(old.spentShah, old.spentUsd, show)} · {relativeTime(new Date(old.createdAt))}
                             </span>
@@ -227,6 +227,9 @@ export function AutotranslatePage() {
     );
 }
 
+/** «глава 3» or «глави 3–5». */
+const range = (job: Pick<Job, 'from' | 'to'>) => (job.from === job.to ? `глава ${job.from}` : `глави ${job.from}–${job.to}`);
+
 export function JobCard({ job, showShah, usdPerShah, onCancel, onResume, pending, title }: {
     job: Job; showShah: boolean; usdPerShah: number; onCancel: () => void; onResume: () => void; pending: boolean; title?: React.ReactNode;
 }) {
@@ -236,7 +239,7 @@ export function JobCard({ job, showShah, usdPerShah, onCancel, onResume, pending
         <div className={styles.jobCard} aria-live="polite">
             {title}
             <div className={styles.jobHead}>
-                <b>{job.kind === 'analyze' ? 'Аналіз' : 'Переклад'}: глави {job.from}–{job.to}</b>
+                <b>{job.kind === 'analyze' ? 'Аналіз' : 'Переклад'}: {range(job)}</b>
                 <span className={styles.badge}>{JOB_LABELS[job.state]}</span>
             </div>
             <div className={styles.progress} role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={job.done}

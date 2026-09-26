@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { diffWords } from 'diff';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReaderChapter, Span, TextBlock } from '../../reading/api';
 import { suggestionApi, type MineItem, type ReviewItem } from '../../reading/suggestions';
-import { TextEditor } from '../../studio/TextEditor';
+import { TextEditor, type EditorHandle } from '../../studio/TextEditor';
 import type { StudioBlock } from '../../studio/api';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
@@ -69,15 +69,17 @@ export function EditSheet({ chapter, block, existing, onClose, onSaved }: {
     const start: StudioBlock[] = [{ id: block.id, type: 'paragraph', content: existing?.proposed ?? block.content }];
     const [blocks, setBlocks] = useState<StudioBlock[]>(start);
     const [note, setNote] = useState(existing?.note ?? '');
-    const proposed = blocks.flatMap((b, index) => (index > 0 ? [{ text: ' ', marks: [] }, ...b.content] : b.content));
+    const joined = (list: StudioBlock[]) => list.flatMap((b, index) => (index > 0 ? [{ text: ' ', marks: [] }, ...b.content] : b.content));
+    const proposed = joined(blocks);
+    const editor = useRef<EditorHandle>(null);
     const save = useMutation({
-        mutationFn: () => suggestionApi.block(chapter.edition.editionId, chapter.number, block.id, proposed, note),
+        mutationFn: () => suggestionApi.block(chapter.edition.editionId, chapter.number, block.id, joined(editor.current?.read() ?? blocks), note),
         onSuccess: () => { onSaved(); onClose(); },
     });
     const withdraw = useMutation({ mutationFn: () => suggestionApi.withdraw(existing!.id), onSuccess: () => { onSaved(); onClose(); } });
     return (
         <Sheet open onClose={onClose} title="Правка абзацу">
-            <TextEditor mode="description" blocks={blocks} onChange={setBlocks} label="Текст абзацу" />
+            <TextEditor handle={editor} mode="description" blocks={blocks} onChange={setBlocks} label="Текст абзацу" />
             {text(proposed) !== text(block.content) && (
                 <p className={styles.was}>
                     {diffWords(text(block.content), text(proposed)).map((part, index) =>

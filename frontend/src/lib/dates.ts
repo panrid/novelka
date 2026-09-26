@@ -25,3 +25,16 @@ export function relativeTime(date: Date, now: Date = new Date()): string {
     if (Math.abs(days) < 30) return RELATIVE.format(days, 'day');
     return new Intl.DateTimeFormat('uk', { day: 'numeric', month: 'long' }).format(date);
 }
+
+const CLOCK = new Intl.DateTimeFormat('uk', { hour: '2-digit', minute: '2-digit' });
+const DAY = new Intl.DateTimeFormat('uk', { day: 'numeric', month: 'long' });
+const DAY_YEAR = new Intl.DateTimeFormat('uk', { day: 'numeric', month: 'long', year: 'numeric' });
+
+/** When a message was written: «13:48» today, «учора, 13:48», «25 вересня, 13:48», with the year if not this one. */
+export function messageTime(date: Date, now: Date = new Date()): string {
+    const clock = CLOCK.format(date);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    if (date.getTime() >= startOfToday) return clock;
+    if (date.getTime() >= startOfToday - 86_400_000) return `учора, ${clock}`;
+    return `${(date.getFullYear() === now.getFullYear() ? DAY : DAY_YEAR).format(date)}, ${clock}`;
+}

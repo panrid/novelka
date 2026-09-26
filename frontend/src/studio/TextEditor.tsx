@@ -12,7 +12,7 @@ import Underline from '@tiptap/extension-underline';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import { ImagePlus, Link2, Minus, Redo2, Sparkles, Undo2 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useImperativeHandle, useRef, useState } from 'react';
 import { Dialog, Heading as DialogHeading, Modal, ModalOverlay } from 'react-aria-components';
 import { Button } from '../ui/Button';
 import { Notice } from '../ui/Notice';
@@ -41,7 +41,15 @@ const Picture = Image.extend({
     },
 });
 
+/**
+ * What the editor holds right now. A phone keyboard (IME) hands the last word over only when
+ * the field loses focus, so a button pressed right after typing must read the text here,
+ * not from state that may not have caught up yet.
+ */
+export type EditorHandle = { read: () => StudioBlock[] };
+
 type Props = {
+    handle?: React.Ref<EditorHandle>;
     blocks: StudioBlock[];
     onChange: (blocks: StudioBlock[]) => void;
     /** A chapter gets separators, headings and (for translators) pictures; a description only marks. */
@@ -56,7 +64,7 @@ type Props = {
     onIllustrate?: ((fragment: string, insert: (picture: { id: number; url: string }) => void) => void) | undefined;
 };
 
-export function TextEditor({ blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate }: Props) {
+export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate }: Props) {
     const chapter = mode === 'chapter';
     const editor = useEditor({
         extensions: [
@@ -72,6 +80,15 @@ export function TextEditor({ blocks, onChange, mode, mayAddPictures = false, lab
         },
         onUpdate: ({ editor: changed }) => onChange(toBlocks(changed.getJSON())),
     });
+
+    useImperativeHandle(handle, () => ({
+        read: () => {
+            if (!editor) return blocks;
+            // Take in what the keyboard typed but the editor has not read from the page yet.
+            (editor.view as unknown as { domObserver?: { flush: () => void } }).domObserver?.flush();
+            return toBlocks(editor.getJSON());
+        },
+    }), [editor, blocks]);
 
     if (!editor) {
         return null;

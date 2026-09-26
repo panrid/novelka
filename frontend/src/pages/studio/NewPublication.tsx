@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useMe } from '../../auth/me';
 import { studioApi, teamApi, type StudioBlock } from '../../studio/api';
 import { autotranslateApi } from '../../studio/autotranslate';
-import { TextEditor } from '../../studio/TextEditor';
+import { TextEditor, type EditorHandle } from '../../studio/TextEditor';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
@@ -35,9 +35,11 @@ export function NewPublication() {
         mutationFn: () => autotranslateApi.prepare(link.trim(), chosenTeam),
         onSuccess: ({ editionId }) => void navigate({ to: '/studio/$editionId/translate', params: { editionId: String(editionId) } }),
     });
+    const editor = useRef<EditorHandle>(null);
     const create = useMutation({
         mutationFn: () => studioApi.create({
-            kind: kind === 'original' ? 'original' : 'human', title: title.trim(), author: author.trim(), description,
+            kind: kind === 'original' ? 'original' : 'human', title: title.trim(), author: author.trim(),
+            description: editor.current?.read() ?? description,
             tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean), adult, team: chosenTeam,
         }),
         onSuccess: ({ editionId }) => void navigate({ to: '/studio/$editionId', params: { editionId: String(editionId) } }),
@@ -75,7 +77,7 @@ export function NewPublication() {
                     : <p className={styles.muted}>Автор: {me?.nick}</p>}
                 <div>
                     <div className={styles.label}>Опис</div>
-                    <TextEditor mode="description" blocks={description} onChange={setDescription} label="Опис" placeholder="Про що історія?" />
+                    <TextEditor handle={editor} mode="description" blocks={description} onChange={setDescription} label="Опис" placeholder="Про що історія?" />
                 </div>
                 <TextInput label="Теги" value={tags} onChange={setTags} hint="Через кому: фентезі, перевтілення, затишне" />
                 </>}
