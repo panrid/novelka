@@ -37,3 +37,11 @@
     color: var(--muted);
     font: 12px var(--font-ui);
 }
+
+/* A word shown from the glossary («У тексті»). */
+mark[data-found] {
+    padding: 0 2px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--accent) 35%, transparent);
+    color: inherit;
+}

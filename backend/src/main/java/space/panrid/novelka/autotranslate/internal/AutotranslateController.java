@@ -262,7 +262,7 @@ class AutotranslateController {
         analyses.edit(editionId, number, body.title(), body.label());
     }
 
-    // ---- glossary: the team reviews it; the Japanese side stays on the server (рішення 8) ------
+    // ---- glossary: the team reviews it; the original only behind «Оригінал» (рішення 30) --------
 
     record GlossaryItem(long id, String ukrainian, String kind, String gender, String note, Integer chapter, boolean manual,
             String status) {
@@ -301,6 +301,13 @@ class AutotranslateController {
     void updateEntry(@PathVariable long editionId, @PathVariable long entryId, @RequestBody GlossaryChange body) {
         access.requireTranslator(editionId);
         glossary.update(editionId, entryId, body.ukrainian(), body.kind(), body.gender(), body.note());
+    }
+
+    /** The original behind an entry, for the team only (рішення 30). */
+    @GetMapping("/editions/{editionId}/glossary/{entryId}/original")
+    Glossary.Original original(@PathVariable long editionId, @PathVariable long entryId) {
+        access.requireTextEditor(editionId);
+        return glossary.original(editionId, entryId);
     }
 
     @DeleteMapping("/editions/{editionId}/glossary/{entryId}")

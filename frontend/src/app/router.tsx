@@ -69,6 +69,10 @@ const tokenSearch = (search: Record<string, unknown>): { token?: string } =>
     typeof search.token === 'string' ? { token: search.token } : {};
 const teamSearch = (search: Record<string, unknown>): { t?: string } =>
     typeof search.t === 'string' && search.t ? { t: search.t } : {};
+/** ?find= highlights a word in the chapter (the glossary's «У тексті»). */
+const readerSearch = (search: Record<string, unknown>): { t?: string; find?: string } => ({
+    ...teamSearch(search), ...(typeof search.find === 'string' && search.find.trim() ? { find: search.find } : {}),
+});
 const LIST_NAMES = ['reading', 'planned', 'done', 'paused', 'dropped'] as const;
 const listSearch = (search: Record<string, unknown>): { list?: (typeof LIST_NAMES)[number] } =>
     LIST_NAMES.includes(search.list as (typeof LIST_NAMES)[number]) ? { list: search.list as (typeof LIST_NAMES)[number] } : {};
@@ -97,7 +101,7 @@ const routeTree = rootRoute.addChildren([
         head: ({ loaderData }) => ({ meta: [{ title: loaderData?.title ? `${loaderData.title} — Новелка` : 'Новелка' }] }),
     }),
     createRoute({
-        getParentRoute: () => rootRoute, path: '/n/$slug/$number', component: ReaderPage, validateSearch: teamSearch,
+        getParentRoute: () => rootRoute, path: '/n/$slug/$number', component: ReaderPage, validateSearch: readerSearch,
         beforeLoad: ({ params }) => {
             if (!/^[1-9]\d{0,5}$/.test(params.number)) throw notFound();
         },

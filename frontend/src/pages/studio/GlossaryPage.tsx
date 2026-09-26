@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Check, X } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useDebounced } from '../../lib/useDebounced';
@@ -51,6 +52,12 @@ export function GlossaryPage() {
         onSuccess: () => { setSelected(new Set()); refresh(); },
     });
     const reset = (apply: () => void) => { apply(); setPage(1); setSelected(new Set()); };
+    // ✓ and ✕ on a row: one entry at a time, without the selection mode.
+    const quick = useMutation({
+        meta: { errorToast: true },
+        mutationFn: ({ entryId, next }: { entryId: number; next: GlossaryStatus }) => autotranslateApi.setStatus(id, [entryId], next),
+        onSuccess: refresh,
+    });
     const chapters = data?.chapters ?? [];
     const chapterAt = chapter ? chapters.indexOf(chapter) : -1;
     // Readers' numbers, not positions: a prologue is «0» or goes by its title.
@@ -124,6 +131,14 @@ export function GlossaryPage() {
                                 {entry.note ? ` · ${entry.note}` : ''}
                             </div>
                         </button>
+                        {!selecting && entry.status !== 'approved' && (
+                            <button type="button" className={styles.iconButton} aria-label={`Затвердити ${entry.ukrainian}`}
+                                onClick={() => quick.mutate({ entryId: entry.id, next: 'approved' })}><Check size={18} aria-hidden /></button>
+                        )}
+                        {!selecting && entry.status !== 'rejected' && (
+                            <button type="button" className={styles.iconButton} aria-label={`Відхилити ${entry.ukrainian}`}
+                                onClick={() => quick.mutate({ entryId: entry.id, next: 'rejected' })}><X size={18} aria-hidden /></button>
+                        )}
                         <span className={`${styles.badge} ${entry.status === 'new' ? styles.badgeOn : ''}`}>{STATUS_BADGE[entry.status]}</span>
                         {entry.chapter ? <span className={styles.badge}>{shown(entry.chapter).badge}</span> : null}
                     </div>
@@ -151,6 +166,7 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
     const [gender, setGender] = useState<Gender>(entry.gender ?? 'unknown');
     const [note, setNote] = useState(entry.note ?? '');
     const save = useMutation({ mutationFn: () => autotranslateApi.updateEntry(editionId, entry.id, { ukrainian, kind, gender, note }), onSuccess: onDone });
+    const reject = useMutation({ mutationFn: () => autotranslateApi.setStatus(editionId, [entry.id], 'rejected'), onSuccess: onDone });
     return (
         <form className={`${styles.form} ${styles.entry}`} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
             <TextInput label="Українською" value={ukrainian} onChange={setUkrainian} isRequired />
@@ -169,12 +185,55 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
                 </label>
             </div>
             <TextInput label="Примітка" value={note} onChange={setNote} hint="Хто це або що це — підказка для перекладу." />
+            <OriginalBox editionId={editionId} entry={entry} />
             <p className={styles.muted}>Збережений запис стає затвердженим.</p>
-            {save.isError && <Notice tone="error">{save.error.message}</Notice>}
+            {(save.error ?? reject.error) && <Notice tone="error">{(save.error ?? reject.error)!.message}</Notice>}
             <div className={styles.actions}>
                 <Button type="submit" pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти</Button>
+                {entry.status !== 'rejected' && (
+                    <Button variant="danger" onPress={() => reject.mutate()} pending={reject.isPending}>Відхилити</Button>
+                )}
                 <Button variant="secondary" onPress={onDone}>Скасувати</Button>
             </div>
         </form>
+    );
+}
+
+/** «Оригінал»: the form in the original, the sentence it came from and the place in the translation (team only). */
+function OriginalBox({ editionId, entry }: { editionId: number; entry: GlossaryItem }) {
+    const [open, setOpen] = useState(false);
+    const original = useQuery({
+        queryKey: ['glossary-original', editionId, entry.id],
+        queryFn: () => autotranslateApi.original(editionId, entry.id),
+        enabled: open,
+    });
+    const data = original.data;
+    return (
+        <div>
+            <button type="button" className={styles.disclosure} aria-expanded={open} onClick={() => setOpen(!open)}>
+                {open ? '▾' : '▸'} Оригінал
+            </button>
+            {open && (
+                <div className={styles.originalBox}>
+                    {original.isError && <Notice tone="error">{original.error.message}</Notice>}
+                    {!data && !original.isError && <span className={styles.muted}>Завантажуємо…</span>}
+                    {data && (
+                        <>
+                            <div lang="und"><b>{data.original}</b>{data.reading ? <span className={styles.muted}> · {data.reading}</span> : null}</div>
+                            {data.aliases.length > 0 && <div className={styles.muted}>Ще пишеться: {data.aliases.join(', ')}</div>}
+                            {data.snippet && <p className={styles.snippet} lang="und">{data.snippet}</p>}
+                            {data.chapter ? (
+                                <Link to="/n/$slug/$number" params={{ slug: data.chapter.slug, number: String(data.chapter.number) }}
+                                    search={{ t: data.chapter.team, find: entry.ukrainian }}>
+                                    У тексті: глава {data.chapter.label} ›
+                                </Link>
+                            ) : data.sourceChapter ? (
+                                <span className={styles.muted}>Глава {data.sourceChapter} оригіналу ще не перекладена.</span>
+                            ) : null}
+                        </>
+                    )}
+                </div>
+            )}
+        </div>
     );
 }

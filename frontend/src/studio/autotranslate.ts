@@ -40,6 +40,11 @@ export type GlossaryItem = {
     id: number; ukrainian: string; kind: GlossaryKind; gender: Gender | null; note: string | null; chapter: number | null; manual: boolean;
     status: GlossaryStatus;
 };
+/** What «Оригінал» shows the team (рішення 30); the original's language is not assumed. */
+export type GlossaryOriginal = {
+    original: string; reading: string | null; aliases: string[]; sourceChapter: number | null; snippet: string | null;
+    chapter: { slug: string; team: string; number: number; label: string } | null;
+};
 export type GlossaryPage = {
     items: GlossaryItem[]; total: number; page: number; hasMore: boolean; chapters: number[]; labels: Record<number, string>; counts: Record<GlossaryStatus, number>;
 };
@@ -85,6 +90,7 @@ export const autotranslateApi = {
         api<{ changed: number }>(`${base(id)}/glossary/status`, json('POST', { ids, status })),
     updateEntry: (id: number, entryId: number, body: { ukrainian: string; kind: GlossaryKind; gender: Gender | null; note: string }) =>
         api<void>(`${base(id)}/glossary/${entryId}`, json('PUT', body)),
+    original: (id: number, entryId: number) => api<GlossaryOriginal>(`${base(id)}/glossary/${entryId}/original`),
     deleteEntry: (id: number, entryId: number) => api<void>(`${base(id)}/glossary/${entryId}`, { method: 'DELETE' }),
     wallet: (days = 30) => api<Wallet>(`/api/studio/autotranslate/wallet?days=${days}`),
     saveSettings: (settings: Settings) => api<void>('/api/studio/autotranslate/settings', json('PUT', settings)),

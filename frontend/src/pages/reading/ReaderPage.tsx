@@ -22,7 +22,7 @@ const SAVE_EVERY_MS = 15_000;
 
 export function ReaderPage() {
     const { slug, number } = useParams({ strict: false }) as { slug: string; number: string };
-    const { t }: { t?: string } = useSearch({ strict: false });
+    const { t, find }: { t?: string; find?: string } = useSearch({ strict: false });
     const chapterNumber = Number(number);
     const client = useQueryClient();
     const chapter = useQuery(chapterQuery(slug, chapterNumber, t));
@@ -46,10 +46,10 @@ export function ReaderPage() {
             </div>
         );
     }
-    return <Reader key={`${slug}:${chapterNumber}`} chapter={chapter.data} team={t} />;
+    return <Reader key={`${slug}:${chapterNumber}`} chapter={chapter.data} team={t} find={find} />;
 }
 
-function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | undefined }) {
+function Reader({ chapter, team, find }: { chapter: ReaderChapter; team: string | undefined; find?: string | undefined }) {
     const me = useMe();
     const client = useQueryClient();
     const navigate = useNavigate();
@@ -71,6 +71,12 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
 
     // Start where the reader stopped: from the server (any device), else from this browser.
     useEffect(() => {
+        // Opened to show a word (from the glossary): go to where it first appears.
+        const mark = find ? document.querySelector('mark[data-found]') : null;
+        if (mark) {
+            requestAnimationFrame(() => mark.scrollIntoView({ block: 'center' }));
+            return;
+        }
         const local = localProgress(opened.novelSlug, opened.edition.teamHandle);
         const position = opened.savedPosition ?? (local?.number === opened.number ? local.position : 0);
         place.current = position;
@@ -79,7 +85,7 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
         } else {
             window.scrollTo(0, 0);
         }
-    }, [opened]);
+    }, [opened, find]);
 
     const save = useCallback((force: boolean) => {
         const position = Math.round(place.current * 1000) / 1000;
@@ -216,7 +222,7 @@ function Reader({ chapter, team }: { chapter: ReaderChapter; team: string | unde
                         onDecide={(verdict) => review.decide(item.id, verdict)} />
                 ))}
                 {editMode && <p className={suggestionStyles.banner}>Режим правок: торкніться абзацу, щоб його виправити.</p>}
-                <Blocks blocks={chapter.blocks} overlay={mine.overlay}
+                <Blocks blocks={chapter.blocks} highlight={find} overlay={mine.overlay}
                     after={reviewing ? (blockId) => review.items.filter((item) => item.kind === 'block' && item.blockId === blockId).map((item) => (
                         <ReviewCard key={item.id} item={item} verdict={review.verdicts[item.id]} onDecide={(verdict) => review.decide(item.id, verdict)} />
                     )) : undefined} />

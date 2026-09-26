@@ -1,7 +1,12 @@
 package space.panrid.novelka.autotranslate.internal;
 
+import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.CHAPTER_ANALYSIS;
+import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_ENTRY;
+import static space.panrid.novelka.jooq.Tables.NOVEL;
+import static space.panrid.novelka.jooq.Tables.SOURCE_CHAPTER;
+import static space.panrid.novelka.jooq.Tables.TEAM;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -180,6 +185,70 @@ class Glossary {
         if (changed == 0) {
             throw UserFacingException.notFound("Такого запису в словнику немає.");
         }
+    }
+
+    /**
+     * What the team sees behind «Оригінал» (рішення 30): the form in the original, where the
+     * analysis met it, and the translated chapter to see it in context.
+     *
+     * @param snippet  the sentence around the first place it occurs in that chapter, or null
+     * @param chapter  the edition's published chapter made from that original chapter, or null
+     */
+    record Original(String original, String reading, List<String> aliases, Integer sourceChapter, String snippet,
+            TextLink chapter) {
+    }
+
+    record TextLink(String slug, String team, int number, String label) {
+    }
+
+    private static final TypeReference<List<space.panrid.novelka.platform.text.Block>> BLOCKS = new TypeReference<>() { };
+    private static final int AROUND = 70;
+
+    Original original(long editionId, long entryId) {
+        GlossaryEntryRecord entry = db.selectFrom(GLOSSARY_ENTRY)
+                .where(GLOSSARY_ENTRY.ID.eq(entryId), GLOSSARY_ENTRY.EDITION_ID.eq(editionId)).fetchOptional()
+                .orElseThrow(() -> UserFacingException.notFound("Такого запису немає."));
+        List<String> aliases = json.readValue(entry.getAliases().data(), STRINGS);
+        Integer number = entry.getSourceChapter();
+        String snippet = null;
+        TextLink link = null;
+        if (number != null && number > 0) {
+            var place = db.select(EDITION.NOVEL_ID, NOVEL.SLUG, TEAM.HANDLE).from(EDITION)
+                    .join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
+                    .where(EDITION.ID.eq(editionId)).fetchSingle();
+            var source = db.select(SOURCE_CHAPTER.ID, SOURCE_CHAPTER.BLOCKS).from(SOURCE_CHAPTER)
+                    .where(SOURCE_CHAPTER.NOVEL_ID.eq(place.value1()), SOURCE_CHAPTER.NUMBER.eq(number)).fetchOne();
+            if (source != null) {
+                List<String> forms = new ArrayList<>(List.of(entry.getJapanese()));
+                forms.addAll(aliases);
+                snippet = snippet(json.readValue(source.value2().data(), BLOCKS), forms);
+                var chapter = db.select(CHAPTER.NUMBER, CHAPTER.LABEL).from(CHAPTER)
+                        .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.SOURCE_CHAPTER_ID.eq(source.value1()),
+                                CHAPTER.PUBLISHED_REVISION_ID.isNotNull())
+                        .fetchOne();
+                if (chapter != null) {
+                    link = new TextLink(place.value2(), place.value3(), chapter.value1(),
+                            chapter.value2() == null ? String.valueOf(chapter.value1()) : chapter.value2());
+                }
+            }
+        }
+        return new Original(entry.getJapanese(), entry.getReading(), aliases, number, snippet, link);
+    }
+
+    /** The text around the first form found, cut at about a sentence either side. */
+    static String snippet(List<space.panrid.novelka.platform.text.Block> blocks, List<String> forms) {
+        for (var block : blocks) {
+            String text = block.text();
+            for (String form : forms) {
+                int at = form == null || form.isBlank() ? -1 : text.indexOf(form);
+                if (at >= 0) {
+                    int from = Math.max(0, at - AROUND);
+                    int to = Math.min(text.length(), at + form.length() + AROUND);
+                    return (from > 0 ? "…" : "") + text.substring(from, to).strip() + (to < text.length() ? "…" : "");
+                }
+            }
+        }
+        return null;
     }
 
     void delete(long editionId, long entryId) {

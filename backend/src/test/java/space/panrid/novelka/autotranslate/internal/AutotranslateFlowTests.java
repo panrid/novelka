@@ -323,6 +323,12 @@ class AutotranslateFlowTests {
         assertThat(page.path("chapters")).extracting(JsonNode::asInt).containsExactly(1);
         assertThat(page.path("labels").path("1").asString()).as("the number readers will see").isEqualTo("1");
         long yuki = page.path("items").path(1).path("id").asLong();
+        JsonNode original = read(owner.browser().get(base + "/glossary/" + yuki + "/original"));
+        assertThat(original.path("original").asString()).as("the team sees the original behind a button").isEqualTo("ユキ");
+        assertThat(original.path("snippet").asString()).contains("ユキ");
+        assertThat(original.path("chapter").isNull()).as("not translated yet: nothing to link to").isTrue();
+        assertThat(Accounts.signedIn(port, mailbox).browser().get(base + "/glossary/" + yuki + "/original").status())
+                .as("readers never see the original").isEqualTo(403);
         assertThat(read(owner.browser().get(base + "/glossary?chapter=1")).path("items")).singleElement()
                 .satisfies(item -> assertThat(item.path("ukrainian").asString()).isEqualTo("Юкі"));
 
@@ -334,6 +340,9 @@ class AutotranslateFlowTests {
         String slug = read(owner.browser().get(base)).path("novelSlug").asString();
         assertThat(read(new Browser(port).get("/api/novels/" + slug + "/chapters/1")).path("blocks").toString())
                 .as("a rejected name is not in the prompt").doesNotContain("Юкі:");
+        JsonNode linked = read(owner.browser().get(base + "/glossary/" + yuki + "/original")).path("chapter");
+        assertThat(linked.path("number").asInt()).as("the translated chapter to see it in").isEqualTo(1);
+        assertThat(linked.path("slug").asString()).isEqualTo(slug);
         assertThat(owner.browser().post(base + "/glossary/status", json("ids", java.util.List.of(yuki), "status", "maybe")).status())
                 .isEqualTo(400);
     }

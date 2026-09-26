@@ -157,4 +157,24 @@ describe('glossary', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Скасувати' }));
         expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
+
+    it('rejects one entry right on its row and shows the original behind a button', async () => {
+        const { calls } = await renderAt('/studio/4/glossary', {
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/4/glossary': { body: page([entry(2, 'Рьо')]) },
+            'POST /api/studio/editions/4/glossary/status': { body: { changed: 1 } },
+            'GET /api/studio/editions/4/glossary/2/original': { body: {
+                original: 'リョウ', reading: 'りょう', aliases: [], sourceChapter: 1, snippet: '…リョウは目を開けた…',
+                chapter: { slug: 'mah-vody', team: 'panrid', number: 1, label: '0' },
+            } },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Відхилити Рьо' }));
+        await vi.waitFor(() => expect(calls.find((call) => call.path.endsWith('/glossary/status'))?.body).toEqual({ ids: [2], status: 'rejected' }));
+
+        await userEvent.click(screen.getByRole('button', { name: /^Рьо/ }));
+        await userEvent.click(screen.getByRole('button', { name: /Оригінал/ }));
+        expect(await screen.findByText('リョウ')).toBeInTheDocument();
+        expect(screen.getByText('…リョウは目を開けた…')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'У тексті: глава 0 ›' }).getAttribute('href')).toContain('find=');
+    });
 });
