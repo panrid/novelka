@@ -164,7 +164,8 @@ describe('glossary', () => {
             'GET /api/studio/editions/4/glossary': { body: page([entry(2, 'Рьо')]) },
             'POST /api/studio/editions/4/glossary/status': { body: { changed: 1 } },
             'GET /api/studio/editions/4/glossary/2/original': { body: {
-                original: 'リョウ', reading: 'りょう', aliases: [], sourceChapter: 1, snippet: '…リョウは目を開けた…',
+                language: 'ja', original: 'リョウ', reading: 'りょう', aliases: [], others: [{ language: 'en', original: 'Ryo' }],
+                sourceChapter: 1, snippet: '…リョウは目を開けた…',
                 chapter: { slug: 'mah-vody', team: 'panrid', number: 1, label: '0' },
             } },
         });
@@ -175,6 +176,7 @@ describe('glossary', () => {
         await userEvent.click(screen.getByRole('button', { name: /Оригінал/ }));
         expect(await screen.findByText('リョウ')).toBeInTheDocument();
         expect(screen.getByText('…リョウは目を開けた…')).toBeInTheDocument();
+        expect(screen.getByText('Ryo').parentElement).toHaveTextContent('Англійською: Ryo');
         expect(screen.getByRole('link', { name: 'У тексті: глава 0 ›' }).getAttribute('href')).toContain('find=');
     });
 });

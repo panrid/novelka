@@ -42,9 +42,23 @@ export type GlossaryItem = {
 };
 /** What «Оригінал» shows the team (рішення 30); the original's language is not assumed. */
 export type GlossaryOriginal = {
-    original: string; reading: string | null; aliases: string[]; sourceChapter: number | null; snippet: string | null;
+    /** The form in the original the novel is taken from now; null until its analysis names the entry. */
+    language: string; original: string | null; reading: string | null; aliases: string[];
+    /** Forms in the languages the novel was taken from before. */
+    others: { language: string; original: string }[];
+    sourceChapter: number | null; snippet: string | null;
     chapter: { slug: string; team: string; number: number; label: string } | null;
 };
+const LANGUAGES: Record<string, string> = {
+    ja: 'японською', en: 'англійською', ko: 'корейською', zh: 'китайською', fr: 'французькою', de: 'німецькою',
+    es: 'іспанською', pl: 'польською', uk: 'українською',
+};
+
+/** «японською», or the code itself for a language the site has no name for yet. */
+export function inLanguage(code: string): string {
+    return LANGUAGES[code] ?? code;
+}
+
 export type GlossaryPage = {
     items: GlossaryItem[]; total: number; page: number; hasMore: boolean; chapters: number[]; labels: Record<number, string>; counts: Record<GlossaryStatus, number>;
 };

@@ -111,13 +111,21 @@ public class FakeModel implements AiTransport {
                     + (user.contains("light novel") ? "light novel style" : "no style"));
             case "novel" -> Map.of("title", "Ліхтарник із туману", "author", "Сакура Юкі",
                     "description", "Перший абзац опису.\n\nДругий абзац опису.");
-            case "glossary" -> Map.of(
-                    // Like a real model, it sometimes keeps the number the site must strip.
-                    "title", user.contains("Chapter title: (none)") ? "" : user.contains("閑話") ? "Інтерлюдія" : "Глава 9. Світло",
-                    "entries", user.contains("ユキ") && !user.contains("→ Юкі")
-                            ? List.of(Map.of("japanese", "ユキ", "reading", "ゆき", "ukrainian", "Юкі", "kind", "character",
-                                    "gender", "female", "note", "Головна героїня."))
-                            : List.of());
+            case "glossary" -> {
+                // An entry known in another language is linked by its number when this text names it.
+                java.util.regex.Matcher unlinked = java.util.regex.Pattern.compile("#(\\d+) → Юкі").matcher(user);
+                boolean english = user.contains("Yuki");
+                yield Map.of(
+                        // Like a real model, it sometimes keeps the number the site must strip.
+                        "title", user.contains("Chapter title: (none)") ? "" : user.contains("閑話") ? "Інтерлюдія" : "Глава 9. Світло",
+                        "entries", user.contains("ユキ") && !user.contains("→ Юкі")
+                                ? List.of(Map.of("original", "ユキ", "reading", "ゆき", "ukrainian", "Юкі", "kind", "character",
+                                        "gender", "female", "note", "Головна героїня."))
+                                : List.of(),
+                        "known", english && unlinked.find()
+                                ? List.of(Map.of("id", Long.parseLong(unlinked.group(1)), "original", "Yuki"))
+                                : List.of());
+            }
             case "translation" -> {
                 List<Map<String, String>> blocks = new ArrayList<>();
                 boolean known = user.contains("→ Юкі");

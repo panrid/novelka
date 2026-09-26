@@ -29,7 +29,7 @@ final class Prompts {
             You prepare the glossary for translating a Japanese web novel into Ukrainian.
             From the given text list proper names (characters, places, organizations) and recurring special terms
             (skills, titles, magic, races, items) that are NOT in the given glossary yet.
-            For each: the Japanese form exactly as written in the text, its reading in hiragana if known (else ""),
+            For each: the original form exactly as written in the text, its reading in hiragana if known (else ""),
             the Ukrainian form, the kind, the gender for characters if the text shows it (else "unknown"),
             and a short Ukrainian note (who or what it is, at most one sentence). Never guess a reading or gender.
             The Ukrainian form is exactly what the translation will write: ONE form, no parentheses, no
@@ -43,6 +43,9 @@ final class Prompts {
             the name, such as Пролог, Епілог, Інтерлюдія, Побічна історія. If the title is only a number or none
             is given, return "".
             Readings may appear in the text as 漢字《かんじ》; they are hints, not part of the name.
+            Entries listed as «#number → Ukrainian» are already in the glossary but have no form in this text's
+            language yet. When the text names one of them, return it in «known» with its number and the form
+            exactly as written here, and do not list it again among the new entries.
             """ + NAMES;
 
     static final String TRANSLATE = """
@@ -91,11 +94,13 @@ final class Prompts {
 
     static Map<String, Object> analyzeSchema() {
         Map<String, Object> entry = object(Map.of(
-                "japanese", string(), "reading", string(), "ukrainian", string(),
+                "original", string(), "reading", string(), "ukrainian", string(),
                 "kind", Map.of("type", "string", "enum", List.of("character", "place", "organization", "term", "other")),
                 "gender", Map.of("type", "string", "enum", List.of("male", "female", "unknown")),
                 "note", string()));
-        return object(Map.of("title", string(), "entries", Map.of("type", "array", "items", entry)));
+        Map<String, Object> known = object(Map.of("id", Map.of("type", "integer"), "original", string()));
+        return object(Map.of("title", string(), "entries", Map.of("type", "array", "items", entry),
+                "known", Map.of("type", "array", "items", known)));
     }
 
     static Map<String, Object> blocksSchema(boolean withSummary) {

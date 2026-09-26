@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useDebounced } from '../../lib/useDebounced';
 import {
-    KIND_LABELS, autotranslateApi, type Gender, type GlossaryItem, type GlossaryKind, type GlossaryStatus,
+    KIND_LABELS, autotranslateApi, inLanguage, type Gender, type GlossaryItem, type GlossaryKind, type GlossaryStatus,
 } from '../../studio/autotranslate';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
@@ -76,8 +76,8 @@ export function GlossaryPage() {
             <Link to="/studio/$editionId/translate" params={{ editionId: String(id) }} className={styles.muted}>‹ Автопереклад</Link>
             <h1 className={styles.title}>Словник</h1>
             <p className={styles.muted} style={{ marginBottom: 12 }}>
-                Імена й терміни, які автопереклад пише однаково в усіх главах. Відхилені до перекладу не потрапляють; виправлення
-                діє з наступної перекладеної глави.
+                Імена й терміни, які автопереклад пише однаково в усіх главах. Словник спільний для всіх перекладів цієї новели.
+                Відхилені до перекладу не потрапляють; виправлення діє з наступної перекладеної глави.
             </p>
 
             <div className={styles.filters} role="group" aria-label="Стан">
@@ -219,8 +219,17 @@ function OriginalBox({ editionId, entry }: { editionId: number; entry: GlossaryI
                     {!data && !original.isError && <span className={styles.muted}>Завантажуємо…</span>}
                     {data && (
                         <>
-                            <div lang="und"><b>{data.original}</b>{data.reading ? <span className={styles.muted}> · {data.reading}</span> : null}</div>
+                            {data.original ? (
+                                <div lang={data.language}><b>{data.original}</b>{data.reading ? <span className={styles.muted}> · {data.reading}</span> : null}</div>
+                            ) : (
+                                <div className={styles.muted}>Як це пишеться {inLanguage(data.language)}, аналіз ще не знайшов.</div>
+                            )}
                             {data.aliases.length > 0 && <div className={styles.muted}>Ще пишеться: {data.aliases.join(', ')}</div>}
+                            {data.others.map((form) => (
+                                <div key={form.language} className={styles.muted}>
+                                    {inLanguage(form.language)[0].toUpperCase() + inLanguage(form.language).slice(1)}: <span lang={form.language}>{form.original}</span>
+                                </div>
+                            ))}
                             {data.snippet && <p className={styles.snippet} lang="und">{data.snippet}</p>}
                             {data.chapter ? (
                                 <Link to="/n/$slug/$number" params={{ slug: data.chapter.slug, number: String(data.chapter.number) }}

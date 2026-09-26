@@ -5,10 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.AI_CALL;
 import static space.panrid.novelka.jooq.Tables.EDITION;
+import static space.panrid.novelka.jooq.Tables.GLOSSARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.JOB;
 import static space.panrid.novelka.jooq.Tables.JOB_STEP;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
+import static space.panrid.novelka.jooq.Tables.SOURCE_CHAPTER;
 import static space.panrid.novelka.jooq.Tables.SOURCE_TOC;
+import static space.panrid.novelka.jooq.Tables.TEAM;
 import static space.panrid.novelka.support.Browser.json;
 
 import java.util.Random;
@@ -59,6 +62,9 @@ class AutotranslateFlowTests {
     @Autowired
     Sources sources;
 
+    @Autowired
+    Glossary glossary;
+
     Person owner;
     String code;
 
@@ -101,6 +107,52 @@ class AutotranslateFlowTests {
         Response foreign = owner.browser().post("/api/studio/autotranslate/prepare", json("url", "https://example.com/novel/1"));
         assertThat(foreign.status()).isEqualTo(400);
         assertThat(foreign.body()).contains("Syosetu");
+    }
+
+    @Test
+    void theGlossaryIsTheNovelsAndLearnsHowAnotherLanguageWritesItsNames() {
+        long edition = prepare();
+        String base = "/api/studio/editions/" + edition;
+        assertThat(owner.browser().post(base + "/autotranslate/jobs", json("to", 1, "kind", "analyze")).status()).isEqualTo(201);
+        worker.drain();
+        long yuki = read(owner.browser().get(base + "/glossary?q=Юкі")).path("items").path(0).path("id").asLong();
+        assertThat(read(owner.browser().get(base + "/glossary/" + yuki + "/original")).path("original").asString()).isEqualTo("ユキ");
+
+        // Another team's translation of the same novel works with the same glossary.
+        long novel = db.select(EDITION.NOVEL_ID).from(EDITION).where(EDITION.ID.eq(edition)).fetchSingle(EDITION.NOVEL_ID);
+        long team = db.insertInto(TEAM).set(TEAM.HANDLE, "t" + code).set(TEAM.HANDLE_KEY, "t" + code)
+                .set(TEAM.OWNER_ID, db.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.NICK.eq(owner.nick())).fetchSingle(ACCOUNT.ID))
+                .returning(TEAM.ID).fetchOne(TEAM.ID);
+        long other = db.insertInto(EDITION).set(EDITION.NOVEL_ID, novel).set(EDITION.TEAM_ID, team).set(EDITION.KIND, "machine")
+                .returning(EDITION.ID).fetchOne(EDITION.ID);
+        assertThat(glossary.page(other, null, null, "Юкі", "alpha", 1).items()).extracting(Glossary.Entry::id).containsExactly(yuki);
+
+        // The novel moves to an English source: chapter 2 comes in English.
+        db.update(NOVEL).set(NOVEL.SOURCE_LANGUAGE, "en").where(NOVEL.ID.eq(novel)).execute();
+        String blocks = "[{\"id\":\"s1\",\"type\":\"paragraph\",\"content\":[{\"text\":\"Yuki looked at the Harbor.\",\"marks\":[]}]}]";
+        db.insertInto(SOURCE_CHAPTER).set(SOURCE_CHAPTER.NOVEL_ID, novel).set(SOURCE_CHAPTER.NUMBER, 2)
+                .set(SOURCE_CHAPTER.TITLE, "Chapter 2").set(SOURCE_CHAPTER.BLOCKS, org.jooq.JSONB.valueOf(blocks))
+                .set(SOURCE_CHAPTER.CHARS, 22).set(SOURCE_CHAPTER.SOURCE_HASH, "en2").execute();
+        assertThat(glossary.unlinked(edition)).extracting(Glossary.Entry::id).contains(yuki);
+        model.reset();
+        assertThat(owner.browser().post(base + "/autotranslate/jobs", json("from", 2, "to", 2, "kind", "analyze")).status()).isEqualTo(201);
+        worker.drain();
+
+        JsonNode original = read(owner.browser().get(base + "/glossary/" + yuki + "/original"));
+        assertThat(original.path("language").asString()).isEqualTo("en");
+        assertThat(original.path("original").asString()).as("linked by its number, not added twice").isEqualTo("Yuki");
+        assertThat(original.path("others").path(0).path("original").asString()).isEqualTo("ユキ");
+        assertThat(read(owner.browser().get(base + "/glossary?q=Юкі")).path("total").asInt()).isEqualTo(1);
+        assertThat(glossary.mentionedIn(other, "Yuki smiled.")).extracting(Glossary.Entry::ukrainian).containsExactly("Юкі");
+        assertThat(glossary.unlinked(edition)).extracting(Glossary.Entry::id).doesNotContain(yuki);
+
+        // A new English name whose Ukrainian form a Japanese-only entry has joins that entry.
+        long harbor = db.insertInto(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.NOVEL_ID, novel).set(GLOSSARY_ENTRY.UKRAINIAN, "гавань")
+                .set(GLOSSARY_ENTRY.KIND, "place").returning(GLOSSARY_ENTRY.ID).fetchOne(GLOSSARY_ENTRY.ID);
+        assertThat(glossary.addFromAnalysis(edition, 3, java.util.List.of(
+                new Glossary.Proposed("Harbor", "", "Гавань", "place", "unknown", ""),
+                new Glossary.Proposed("Yuki", "", "Юкі", "character", "female", "")))).as("nothing new").isZero();
+        assertThat(glossary.original(edition, harbor).original()).isEqualTo("Harbor");
     }
 
     @Test
