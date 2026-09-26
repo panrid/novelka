@@ -2,7 +2,7 @@ import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Blocks } from './Blocks';
 
-const paragraph = (id: string, text: string) => ({ id, type: 'paragraph' as const, content: [{ text, marks: [] }] });
+const paragraph = (id: string, text: string) => ({ id, type: 'paragraph' as const, content: [{ text, marks: [] }], imageUrl: null });
 
 describe('a word shown from the glossary', () => {
     it('is marked in its other forms and as a phrase', () => {
