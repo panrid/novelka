@@ -35,6 +35,9 @@ export function IllustrateSheet({ editionId, chapter, fragment: initial, onInser
                     {prompt ? 'Описати ще раз' : 'Скласти опис для художника'}
                 </Button>
             </div>
+            {!prompt && price.data && (
+                <p className={styles.muted}>Картинка коштуватиме ≈ {cost}. Опис для художника — безкоштовно.</p>
+            )}
             {describe.isError && <Notice tone="error">{describe.error.message}</Notice>}
             {prompt && (
                 <>

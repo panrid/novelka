@@ -75,6 +75,9 @@ export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = fa
         content: toDocument(blocks) as JSONContent,
         editorProps: {
             attributes: { class: chapter ? styles.chapter : styles.description, 'aria-label': label, 'aria-multiline': 'true', role: 'textbox' },
+            // The line being typed stays above the bottom tab bar or the formatting bar, not under them.
+            scrollThreshold: { top: 16, right: 0, bottom: 110, left: 0 },
+            scrollMargin: { top: 16, right: 0, bottom: 110, left: 0 },
             // Pasted Word or web text keeps only what the site supports: the schema drops the rest.
             transformPastedHTML: (html) => html.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ''),
         },

@@ -97,9 +97,12 @@ function OwnerTools({ team }: { team: Team }) {
             <form className={styles.form} style={{ marginTop: 14 }} onSubmit={(event: FormEvent) => { event.preventDefault(); add.mutate(); }}>
                 <TextInput label="Додати людину за ніком" value={nick} onChange={setNick} placeholder="@нік" />
                 <select className={styles.select} aria-label="Роль" value={role} onChange={(event) => setRole(event.target.value as TeamRole)}>
-                    <option value="translator">Перекладач — додає глави, картинки, запускає автопереклад</option>
-                    <option value="editor">Редактор — править текст і погоджує правки</option>
+                    <option value="translator">Перекладач</option>
+                    <option value="editor">Редактор</option>
                 </select>
+                <p className={styles.muted} style={{ margin: '-8px 0 0' }}>
+                    {role === 'translator' ? 'Додає глави й картинки, запускає автопереклад, погоджує правки.' : 'Править текст і погоджує правки читачів.'}
+                </p>
                 {add.isError && <Notice tone="error">{add.error.message}</Notice>}
                 <Button type="submit" variant="secondary" pending={add.isPending} isDisabled={!nick.trim()}>Додати</Button>
             </form>
