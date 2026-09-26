@@ -6,13 +6,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import space.panrid.novelka.platform.web.UserFacingException;
-import space.panrid.novelka.source.SyosetuHttp;
+import space.panrid.novelka.source.SourceHttp;
 
 /**
  * Syosetu without the network. Pages are made up here (no real novel text in the repo) but
  * follow the site's markup: title, preface, lines with ruby and empty lines, afterword.
  */
-public class FakeSyosetu implements SyosetuHttp {
+public class FakeSyosetu implements SourceHttp {
 
     /** @param titles original chapter titles by position; others are «第N話　灯り» */
     public record Novel(String title, String author, String story, int chapters, Map<Integer, String> titles) {

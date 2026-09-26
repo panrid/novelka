@@ -1,10 +1,14 @@
 package space.panrid.novelka.autotranslate.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.AI_CALL;
+import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.JOB;
 import static space.panrid.novelka.jooq.Tables.JOB_STEP;
+import static space.panrid.novelka.jooq.Tables.NOVEL;
+import static space.panrid.novelka.jooq.Tables.SOURCE_TOC;
 import static space.panrid.novelka.support.Browser.json;
 
 import java.util.Random;
@@ -16,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
+import space.panrid.novelka.source.Sources;
 import space.panrid.novelka.support.Accounts;
 import space.panrid.novelka.support.Accounts.Person;
 import space.panrid.novelka.support.Browser;
@@ -51,6 +56,9 @@ class AutotranslateFlowTests {
     @Autowired
     Worker worker;
 
+    @Autowired
+    Sources sources;
+
     Person owner;
     String code;
 
@@ -71,6 +79,28 @@ class AutotranslateFlowTests {
     private long prepare() {
         return read(owner.browser().post("/api/studio/autotranslate/prepare",
                 json("url", "https://ncode.syosetu.com/" + code + "/"))).path("editionId").asLong();
+    }
+
+    @Test
+    void theSiteTableOfContentsIsKeptAndLockedChaptersAreNeverTaken() {
+        long edition = prepare();
+        long novel = db.select(EDITION.NOVEL_ID).from(EDITION).where(EDITION.ID.eq(edition)).fetchSingle(EDITION.NOVEL_ID);
+        assertThat(db.select(NOVEL.SOURCE, NOVEL.SOURCE_LANGUAGE).from(NOVEL).where(NOVEL.ID.eq(novel)).fetchSingle().intoList())
+                .containsExactly("syosetu", "ja");
+        assertThat(db.select(SOURCE_TOC.REF).from(SOURCE_TOC).where(SOURCE_TOC.NOVEL_ID.eq(novel)).orderBy(SOURCE_TOC.NUMBER)
+                .fetch(SOURCE_TOC.REF)).containsExactly("1", "2", "3", "4", "5");
+
+        db.update(SOURCE_TOC).set(SOURCE_TOC.AVAILABLE, false)
+                .where(SOURCE_TOC.NOVEL_ID.eq(novel), SOURCE_TOC.NUMBER.eq(4)).execute();
+        syosetu.requested.clear();
+        assertThatThrownBy(() -> sources.chapter(novel, 4)).hasMessageContaining("закрита на сайті-джерелі");
+        assertThatThrownBy(() -> sources.chapter(novel, 6)).hasMessageContaining("немає глави 6");
+        assertThat(syosetu.requested).as("a locked chapter is not even asked for").isEmpty();
+        assertThat(sources.chapter(novel, 3).title()).isEqualTo("第3話　灯り");
+
+        Response foreign = owner.browser().post("/api/studio/autotranslate/prepare", json("url", "https://example.com/novel/1"));
+        assertThat(foreign.status()).isEqualTo(400);
+        assertThat(foreign.body()).contains("Syosetu");
     }
 
     @Test

@@ -24,16 +24,13 @@ final class SyosetuPages {
     /** A line of only such symbols is a scene break. */
     private static final Pattern SEPARATOR = Pattern.compile("[\\s\\u3000◇◆□■○●☆★＊*※―－ー─━~〜・…]{3,}");
 
-    record Page(String title, List<Block> blocks) {
-    }
-
     private SyosetuPages() {
     }
 
-    static Page chapter(String html, String fallbackTitle) {
+    static SourceProvider.Page chapter(String html) {
         Document page = Jsoup.parse(html, "https://ncode.syosetu.com/");
         Element heading = page.selectFirst(".p-novel__title");
-        String title = heading == null || heading.text().isBlank() ? fallbackTitle : heading.text().strip();
+        String title = heading == null ? "" : heading.text().strip();
         List<Block> blocks = new ArrayList<>();
         for (Element part : page.select(".js-novel-text")) {
             String type = part.hasClass("p-novel__text--preface") ? "preface"
@@ -60,7 +57,7 @@ final class SyosetuPages {
         if (blocks.stream().noneMatch(block -> !block.text().isEmpty())) {
             throw UserFacingException.badGateway("На сторінці глави Syosetu не знайшлося тексту. Можливо, сайт змінив розмітку.");
         }
-        return new Page(title, blocks);
+        return new SourceProvider.Page(title, blocks);
     }
 
     private static String text(Node node) {
@@ -97,21 +94,5 @@ final class SyosetuPages {
         String baseText = base.toString().strip();
         String readingText = reading.toString().strip();
         return readingText.isEmpty() || readingText.equals(baseText) ? baseText : baseText + "《" + readingText + "》";
-    }
-
-    /** Characters without whitespace: what a шаг is measured in. */
-    static int chars(List<Block> blocks) {
-        int count = 0;
-        for (Block block : blocks) {
-            String text = block.text();
-            for (int i = 0; i < text.length(); ) {
-                int point = text.codePointAt(i);
-                if (!Character.isWhitespace(point) && point != '　') {
-                    count++;
-                }
-                i += Character.charCount(point);
-            }
-        }
-        return count;
     }
 }

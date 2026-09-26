@@ -109,8 +109,8 @@ class Jobs {
                 .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
                 .where(EDITION.ID.eq(editionId)).fetchOptional()
                 .orElseThrow(() -> UserFacingException.notFound("Такої новели немає."));
-        if (!"syosetu".equals(row.get(NOVEL.SOURCE))) {
-            throw UserFacingException.badRequest("Автопереклад доступний лише для новел із Syosetu.");
+        if ("manual".equals(row.get(NOVEL.SOURCE)) || "original".equals(row.get(NOVEL.SOURCE))) {
+            throw UserFacingException.badRequest("Автопереклад доступний лише для новел, узятих із сайту-джерела.");
         }
         int last = db.select(DSL.coalesce(DSL.max(CHAPTER.NUMBER), 0)).from(CHAPTER)
                 .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull()).fetchOne(0, Integer.class);

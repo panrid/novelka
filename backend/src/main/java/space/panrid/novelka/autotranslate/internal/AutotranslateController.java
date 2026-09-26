@@ -25,7 +25,8 @@ import space.panrid.novelka.ai.Ai;
 import space.panrid.novelka.catalog.EditionRef;
 import space.panrid.novelka.ledger.Ledger;
 import space.panrid.novelka.platform.web.UserFacingException;
-import space.panrid.novelka.source.SyosetuLink;
+import space.panrid.novelka.source.SourceLink;
+import space.panrid.novelka.source.Sources;
 import space.panrid.novelka.team.Teams;
 
 /**
@@ -46,9 +47,11 @@ class AutotranslateController {
     private final Teams teams;
     private final Analyses analyses;
     private final Ledger ledger;
+    private final Sources sources;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
-            Teams teams, Analyses analyses, Ledger ledger) {
+            Teams teams, Analyses analyses, Ledger ledger, Sources sources) {
+        this.sources = sources;
         this.ledger = ledger;
         this.teams = teams;
         this.analyses = analyses;
@@ -89,7 +92,7 @@ class AutotranslateController {
         if (personal(viewer) && ledger.balance(viewer.accountId()).available() < 1) {
             throw UserFacingException.badRequest("Автопереклад запускається за шаги, а у вас їх поки немає. Шаги нараховує власник сайту.");
         }
-        SyosetuLink link = SyosetuLink.parse(body.url());
+        SourceLink link = sources.link(body.url());
         long teamId = body.team() == null || body.team().isBlank()
                 ? teams.personalTeam(viewer.accountId())
                 : teams.findByHandle(body.team()).orElseThrow(() -> UserFacingException.notFound("Такої команди немає.")).id();

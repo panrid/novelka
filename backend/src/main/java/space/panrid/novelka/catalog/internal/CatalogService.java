@@ -89,7 +89,8 @@ class CatalogService implements Catalog {
             String title = title(novel.title());
             slug = freeSlug(Slugs.slug(title, 60));
             novelId = db.insertInto(NOVEL)
-                    .set(NOVEL.SOURCE, "syosetu")
+                    .set(NOVEL.SOURCE, novel.source())
+                    .set(NOVEL.SOURCE_LANGUAGE, novel.sourceLanguage())
                     .set(NOVEL.SOURCE_KEY, novel.sourceKey())
                     .set(NOVEL.SOURCE_URL, novel.sourceUrl())
                     .set(NOVEL.TITLE_ORIGINAL, novel.titleOriginal())
@@ -102,7 +103,8 @@ class CatalogService implements Catalog {
                     .returning(NOVEL.ID)
                     .fetchOne(NOVEL.ID);
         } else {
-            db.update(NOVEL).set(NOVEL.SOURCE_CHAPTER_COUNT, novel.sourceChapterCount()).where(NOVEL.ID.eq(novelId)).execute();
+            db.update(NOVEL).set(NOVEL.SOURCE_CHAPTER_COUNT, novel.sourceChapterCount())
+                    .set(NOVEL.SOURCE_LANGUAGE, novel.sourceLanguage()).where(NOVEL.ID.eq(novelId)).execute();
             slug = db.select(NOVEL.SLUG).from(NOVEL).where(NOVEL.ID.eq(novelId)).fetchOne(NOVEL.SLUG);
         }
         Long editionId = db.select(EDITION.ID).from(EDITION)
@@ -209,7 +211,7 @@ class CatalogService implements Catalog {
 
     /** Entered on the site (not imported) and with only this one edition. */
     private boolean ownNovel(long novelId, String source) {
-        return !source.equals("syosetu") && db.fetchCount(EDITION, EDITION.NOVEL_ID.eq(novelId)) == 1;
+        return (source.equals("manual") || source.equals("original")) && db.fetchCount(EDITION, EDITION.NOVEL_ID.eq(novelId)) == 1;
     }
 
     private static String title(String raw) {

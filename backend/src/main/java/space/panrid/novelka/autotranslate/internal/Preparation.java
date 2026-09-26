@@ -16,14 +16,14 @@ import space.panrid.novelka.catalog.ImportedNovel;
 import space.panrid.novelka.platform.text.Block;
 import space.panrid.novelka.platform.text.Span;
 import space.panrid.novelka.platform.web.UserFacingException;
+import space.panrid.novelka.source.SourceLink;
 import space.panrid.novelka.source.SourceNovel;
 import space.panrid.novelka.source.Sources;
-import space.panrid.novelka.source.SyosetuLink;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * «Підготувати»: the novel's page from Syosetu, its title, author and description
+ * «Підготувати»: the novel's page from its source site, its title, author and description
  * translated at once (рішення 8: no Japanese on the site), and the team's edition.
  */
 @Component
@@ -45,15 +45,17 @@ class Preparation {
         this.json = json;
     }
 
-    EditionRef prepare(SyosetuLink link, long teamId) {
+    EditionRef prepare(SourceLink link, long teamId) {
         boolean known = catalog.novelBySource(link.key()).isPresent();
         if (!known && !ai.configured()) {
             throw UserFacingException.badRequest("Ключ OpenRouter не налаштовано на сервері: назву й опис нема чим перекласти.");
         }
         SourceNovel novel = sources.novel(link);
         if (known) {
-            return catalog.importNovel(new ImportedNovel(link.key(), link.url(), novel.title(), novel.author(),
-                    novel.title(), novel.author(), List.of(), novel.chapters(), link.adult(), teamId));
+            EditionRef ref = catalog.importNovel(new ImportedNovel(link.provider(), novel.language(), link.key(), link.url(),
+                    novel.title(), novel.author(), novel.title(), novel.author(), List.of(), novel.lastAvailable(), link.adult(), teamId));
+            sources.keep(ref.novelId(), novel);
+            return ref;
         }
         Settings.Stage model = jobs.settings().analyze();
         String user = "Title: " + novel.title() + "\nAuthor: " + novel.author() + "\nDescription:\n" + novel.story();
@@ -79,9 +81,10 @@ class Preparation {
             throw UserFacingException.badGateway("Модель не змогла перекласти назву новели. Спробуйте ще раз.");
         }
         String title = answer.path("title").asString().strip();
-        EditionRef ref = catalog.importNovel(new ImportedNovel(link.key(), link.url(), novel.title(), novel.author(),
-                title, answer.path("author").asString("").strip(),
-                paragraphs(answer.path("description").asString("")), novel.chapters(), link.adult(), teamId));
+        EditionRef ref = catalog.importNovel(new ImportedNovel(link.provider(), novel.language(), link.key(), link.url(),
+                novel.title(), novel.author(), title, answer.path("author").asString("").strip(),
+                paragraphs(answer.path("description").asString("")), novel.lastAvailable(), link.adult(), teamId));
+        sources.keep(ref.novelId(), novel);
         // Authors mention their own book in notes; the translation must call it by the site's title.
         glossary.addFromAnalysis(ref.editionId(), 0, List.of(
                 new Glossary.Proposed(novel.title(), "", title, "other", "unknown", "Назва цієї новели.")));
