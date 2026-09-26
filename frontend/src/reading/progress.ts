@@ -23,12 +23,3 @@ export function saveLocalProgress(slug: string, team: string, saved: Saved) {
         // Private mode or full storage: reading still works, the place is just not remembered.
     }
 }
-
-/** On signing out: the next person at this browser must not be offered the previous one's place. */
-export function forgetLocalProgress() {
-    try {
-        Object.keys(localStorage).filter((name) => name.startsWith('novelka:progress:')).forEach((name) => localStorage.removeItem(name));
-    } catch {
-        // Nothing stored, or storage blocked: nothing to forget.
-    }
-}

@@ -80,20 +80,3 @@ describe('шаги without payments', () => {
         expect(await screen.findByText('Запускається за шаги. Їх нараховує власник сайту.')).toBeInTheDocument();
     });
 });
-
-describe('signing out', () => {
-    it('forgets where this browser was reading, so the next guest is not offered it', async () => {
-        localStorage.setItem('novelka:progress:mah-vody:panrid', JSON.stringify({ number: 5, position: 0.4, label: '4' }));
-        localStorage.setItem('novelka:theme', 'dark');
-        const { calls } = await renderAt('/me', {
-            'GET /api/me': { body: person('reader') },
-            'GET /api/me/shahs': { body: { ...MINE, available: 0, reserved: 0, running: [], history: [] } },
-            'POST /api/auth/logout': { status: 204 },
-        });
-        await userEvent.click(await screen.findByRole('button', { name: 'Вийти' }));
-
-        await waitFor(() => expect(calls.some((call) => call.path === '/api/auth/logout')).toBe(true));
-        await waitFor(() => expect(localStorage.getItem('novelka:progress:mah-vody:panrid')).toBeNull());
-        expect(localStorage.getItem('novelka:theme')).toBe('dark');
-    });
-});
