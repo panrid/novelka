@@ -132,7 +132,10 @@ class Pipeline {
             return;
         }
 
-        List<List<Block>> parts = parts(text, settings.segmentChars());
+        if (checkpoint.linesPerPart == null) {
+            checkpoint.linesPerPart = checkpoint.draft.isEmpty() ? LINES_PER_PART : Integer.MAX_VALUE;
+        }
+        List<List<Block>> parts = parts(text, settings.segmentChars(), checkpoint.linesPerPart);
         String previousSummary = previousChapterSummary(editionId, number);
         for (int part = 0; part < parts.size(); part++) {
             String key = String.valueOf(part);
@@ -207,8 +210,23 @@ class Pipeline {
      * part again.
      */
     private Translated translate(Calls calls, long editionId, int part, List<Block> blocks, String context, List<Line> before) {
-        JsonNode answer = calls.ask("translate", part, Prompts.TRANSLATE, translateRequest(editionId, blocks, context, before),
-                "translation", Prompts.blocksSchema(true), maxTokens(joined(blocks)), reply -> usable(reply, blocks));
+        JsonNode answer;
+        try {
+            answer = calls.ask("translate", part, Prompts.TRANSLATE, translateRequest(editionId, blocks, context, before),
+                    "translation", Prompts.blocksSchema(true), maxTokens(joined(blocks)), reply -> usable(reply, blocks));
+        } catch (BadOutput unusable) {
+            if (blocks.size() < MIN_SPLIT) {
+                throw unusable;
+            }
+            // A long run of short lines is where a model loses its place: halves keep it in step.
+            log.info("Chapter {} part {}: {}; translating it in halves", calls.number, part, unusable.getMessage());
+            int half = blocks.size() / 2;
+            Translated first = translate(calls, editionId, part, blocks.subList(0, half), context, before);
+            Translated second = translate(calls, editionId, part, blocks.subList(half, blocks.size()), first.summary(), first.lines());
+            List<Line> all = new ArrayList<>(first.lines());
+            all.addAll(second.lines());
+            return new Translated(all, (first.summary() + " " + second.summary()).strip());
+        }
         List<Line> lines = lines(answer);
         List<Block> missing = missing(blocks, lines);
         if (!missing.isEmpty()) {
@@ -250,8 +268,15 @@ class Pipeline {
             pairs.add(pair);
         }
         String user = "Glossary:\n" + glossaryLines(editionId, text) + "\n\nBlocks (JSON):\n" + json.writeValueAsString(pairs);
-        JsonNode answer = calls.ask("proofread", part, Prompts.PROOFREAD, user, "proofread", Prompts.blocksSchema(false),
-                maxTokens(text), reply -> usable(reply, blocks));
+        JsonNode answer;
+        try {
+            answer = calls.ask("proofread", part, Prompts.PROOFREAD, user, "proofread", Prompts.blocksSchema(false),
+                    maxTokens(text), reply -> usable(reply, blocks));
+        } catch (BadOutput unusable) {
+            // Better the draft than an edit that lost its place.
+            log.warn("Chapter {} part {}: proofreading unusable ({}), the draft stays", calls.number, part, unusable.getMessage());
+            return draft;
+        }
         return merged(blocks, lines(answer), draft);
     }
 
@@ -273,12 +298,37 @@ class Pipeline {
             if (line.path("text").asString("").isBlank()) {
                 return "абзац " + id + " порожній";
             }
+            if (!sameStart(blocks.get(at).text(), line.path("start").asString(null))) {
+                return "переклад абзацу %s не від його оригіналу: переклади зсунулися".formatted(id);
+            }
             at++;
         }
         if (lines.size() * 2 < blocks.size()) {
             return "абзаців %d замість %d".formatted(lines.size(), blocks.size());
         }
         return null;
+    }
+
+    /**
+     * Whether «start», as the model copied it, is the beginning of this line's original. Spaces,
+     * punctuation and brackets are ignored and two letters are enough: a model that lost its
+     * place quotes another line. No «start» at all (an older answer) is not held against it.
+     */
+    static boolean sameStart(String original, String start) {
+        if (start == null) {
+            return true;
+        }
+        String source = letters(original);
+        String quoted = letters(start);
+        if (source.isEmpty()) {
+            return true;
+        }
+        int length = Math.min(2, Math.min(source.length(), quoted.length()));
+        return length > 0 && source.substring(0, length).equalsIgnoreCase(quoted.substring(0, length));
+    }
+
+    private static String letters(String text) {
+        return text.replaceAll("[\\p{P}\\p{S}\\p{Z}\\s]", "");
     }
 
     private static List<Block> missing(List<Block> blocks, List<Line> lines) {
@@ -313,6 +363,9 @@ class Pipeline {
             JsonNode line = lines.get(i);
             if (!blocks.get(i).id().equals(line.path("id").asString("")) || line.path("text").asString("").isBlank()) {
                 return "абзац " + blocks.get(i).id() + " пропущено або переставлено";
+            }
+            if (!sameStart(blocks.get(i).text(), line.path("start").asString(null))) {
+                return "переклад абзацу %s не від його оригіналу: переклади зсунулися".formatted(blocks.get(i).id());
             }
         }
         return null;
@@ -400,13 +453,22 @@ class Pipeline {
     // ---- helpers ----------------------------------------------------------------------------
 
     /** Whole blocks grouped up to {@code limit} characters; a longer block goes alone. */
+    /** Lines in one translation request: longer runs of short lines is where models lose their place. */
+    static final int LINES_PER_PART = 40;
+    /** A part this short that still comes back out of step is not split further. */
+    private static final int MIN_SPLIT = 8;
+
     static List<List<Block>> parts(List<Block> blocks, int limit) {
+        return parts(blocks, limit, Integer.MAX_VALUE);
+    }
+
+    static List<List<Block>> parts(List<Block> blocks, int limit, int maxLines) {
         List<List<Block>> parts = new ArrayList<>();
         List<Block> current = new ArrayList<>();
         int size = 0;
         for (Block block : blocks) {
             int length = block.text().length();
-            if (!current.isEmpty() && size + length > limit) {
+            if (!current.isEmpty() && (size + length > limit || current.size() >= maxLines)) {
                 parts.add(current);
                 current = new ArrayList<>();
                 size = 0;

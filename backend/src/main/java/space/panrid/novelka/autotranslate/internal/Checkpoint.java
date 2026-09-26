@@ -21,6 +21,11 @@ class Checkpoint {
     public Map<String, List<Line>> draft = new HashMap<>();
     public Map<String, String> summaries = new HashMap<>();
     public Map<String, List<Line>> revised = new HashMap<>();
+    /**
+     * Most lines in one request when the chapter's parts were cut. Parts saved before the
+     * limit existed were cut by size alone (null there): a resumed step keeps its own cuts.
+     */
+    public Integer linesPerPart;
     /** Chapter summary for the next chapter's context. */
     public String summary;
     public Long revisionId;

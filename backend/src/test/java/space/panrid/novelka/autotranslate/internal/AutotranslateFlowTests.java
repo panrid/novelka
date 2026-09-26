@@ -185,6 +185,23 @@ class AutotranslateFlowTests {
     }
 
     @Test
+    void aTranslationThatLostItsPlaceIsNotPublished() {
+        long edition = prepare();
+        owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/jobs", json("to", 1));
+        // Analysis answers fine, the first translation comes back shifted by a line, the next one is right.
+        model.troubleNext(Trouble.NONE, Trouble.SHIFT);
+        worker.drain();
+        assertThat(model.calls).as("the shifted answer was asked again").containsSubsequence("translation", "translation");
+        String slug = read(owner.browser().get("/api/studio/editions/" + edition)).path("novelSlug").asString();
+        JsonNode blocks = read(new Browser(port).get("/api/novels/" + slug + "/chapters/1")).path("blocks");
+        assertThat(blocks).as("every line under its own original").allSatisfy(block -> {
+            if (!block.path("type").asString().equals("separator")) {
+                assertThat(block.path("content").toString()).contains("переклад " + block.path("id").asString());
+            }
+        });
+    }
+
+    @Test
     void analysisRunsFirstSoTheGlossaryAndTitlesAreCheckedBeforeTranslating() {
         syosetu.add(code, new FakeSyosetu.Novel("灯台守の夜", "桜ゆき", "あらすじ。", 6, java.util.Map.of(
                 1, "第0話　プロローグ", 2, "第1話　灯り", 3, "第1.1話　続き", 4, "閑話　ある夜")));

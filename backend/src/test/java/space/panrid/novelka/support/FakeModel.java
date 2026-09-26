@@ -17,7 +17,8 @@ import tools.jackson.databind.json.JsonMapper;
  */
 public class FakeModel implements AiTransport {
 
-    public enum Trouble { NONE, RATE_LIMIT, LOST, DROP_BLOCK, GARBLE, CUT, NO_CREDITS }
+    /** SHIFT: every line comes back under the next line's id, as a model that lost its place does. */
+    public enum Trouble { NONE, RATE_LIMIT, LOST, DROP_BLOCK, GARBLE, CUT, NO_CREDITS, SHIFT }
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -72,6 +73,10 @@ public class FakeModel implements AiTransport {
                   "supported_parameters":["max_tokens","response_format","structured_outputs","temperature"]}%s]}""".formatted(EXTRA));
     }
 
+    private static String start(String original) {
+        return original.substring(0, Math.min(4, original.length()));
+    }
+
     @Override
     public Reply credits() {
         return new Reply(200, "{\"data\":{\"total_credits\":10,\"total_usage\":2.5}}");
@@ -116,9 +121,13 @@ public class FakeModel implements AiTransport {
             case "translation" -> {
                 List<Map<String, String>> blocks = new ArrayList<>();
                 boolean known = user.contains("→ Юкі");
-                for (JsonNode block : JSON.readTree(user.substring(user.indexOf("Blocks to translate (JSON):\n") + 28))) {
-                    blocks.add(Map.of("id", block.path("id").asString(),
-                            "text", (known ? "Юкі: " : "") + "переклад " + block.path("id").asString()));
+                JsonNode input = JSON.readTree(user.substring(user.indexOf("Blocks to translate (JSON):\n") + 28));
+                for (int i = 0; i < input.size(); i++) {
+                    JsonNode block = input.get(i);
+                    // Shifted: the line under this id is the next one's translation and quotes the next one's start.
+                    JsonNode from = trouble == Trouble.SHIFT && i + 1 < input.size() ? input.get(i + 1) : block;
+                    blocks.add(Map.of("id", block.path("id").asString(), "start", start(from.path("text").asString()),
+                            "text", (known ? "Юкі: " : "") + "переклад " + from.path("id").asString()));
                 }
                 translatedBlocks.add(blocks.size());
                 if (trouble == Trouble.DROP_BLOCK) {
@@ -132,7 +141,8 @@ public class FakeModel implements AiTransport {
             case "proofread" -> {
                 List<Map<String, String>> blocks = new ArrayList<>();
                 for (JsonNode block : JSON.readTree(user.substring(user.indexOf("Blocks (JSON):\n") + 15))) {
-                    blocks.add(Map.of("id", block.path("id").asString(), "text", block.path("draft").asString() + " ✓"));
+                    blocks.add(Map.of("id", block.path("id").asString(), "start", start(block.path("original").asString()),
+                            "text", block.path("draft").asString() + " ✓"));
                 }
                 if (trouble == Trouble.DROP_BLOCK) {
                     blocks.removeLast();

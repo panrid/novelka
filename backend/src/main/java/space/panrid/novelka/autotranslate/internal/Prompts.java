@@ -52,6 +52,10 @@ final class Prompts {
             Rules:
             - Return every block id exactly once, in the same order, each with its full translation. Never merge,
               split, skip or add blocks.
+            - Each block is translated only from its own original text: never move words or sentences into
+              another block, even when a sentence goes on in the next block.
+            - For each block also return «start»: the first 4 characters of that block's original text, copied
+              exactly. It shows the translation stayed with its own line.
             - Use the glossary forms for names and terms, declined by Ukrainian grammar. Keep gender agreement.
             - Readings written as 漢字《かんじ》 are hints; do not put them in the translation.
             - Dialogue in 「」 becomes Ukrainian dialogue with a dash (— Так, — сказав він.) or «» for quotes inside text.
@@ -66,7 +70,8 @@ final class Prompts {
             You are a Ukrainian literary editor. You get the Japanese original and its Ukrainian draft translation,
             block by block. Fix mistranslations, omissions, unnatural phrasing, wrong names (use the glossary),
             gender agreement, punctuation and typos. Keep what is already good; do not rewrite for taste.
-            Return every block id exactly once, in the same order, with the final Ukrainian text.
+            Return every block id exactly once, in the same order, with the final Ukrainian text, and «start»:
+            the first 4 characters of that block's original, copied exactly. Never move text between blocks.
             Readings written as 漢字《かんじ》 are hints; they never appear in the translation.""";
 
     // ---- schemas ----------------------------------------------------------------------------
@@ -94,7 +99,7 @@ final class Prompts {
     }
 
     static Map<String, Object> blocksSchema(boolean withSummary) {
-        Map<String, Object> block = object(Map.of("id", string(), "text", string()));
+        Map<String, Object> block = object(Map.of("id", string(), "start", string(), "text", string()));
         Map<String, Object> blocks = Map.of("type", "array", "items", block);
         return withSummary ? object(Map.of("blocks", blocks, "summary", string())) : object(Map.of("blocks", blocks));
     }
