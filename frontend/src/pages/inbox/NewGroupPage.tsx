@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { messagingApi } from '../../inbox/api';
 import { Button } from '../../ui/Button';
@@ -17,6 +17,7 @@ export function NewGroupPage() {
     });
     return (
         <section className={styles.page}>
+            <Link to="/inbox/messages" className={styles.muted}>‹ До розмов</Link>
             <h1 className={styles.title} style={{ margin: '10px 0 16px' }}>Нова група</h1>
             <form className={styles.form} onSubmit={(event) => { event.preventDefault(); create.mutate(); }}>
                 <TextInput label="Назва" value={title} onChange={setTitle} isRequired />

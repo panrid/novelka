@@ -14,7 +14,7 @@ export function RegisterPage() {
     const [password, setPassword] = useState('');
 
     const register = useMutation({ mutationFn: () => authApi.register(nick.trim(), email.trim(), password) });
-    const resend = useMutation({ mutationFn: () => authApi.resendVerification(email.trim()) });
+    const resend = useMutation({ meta: { errorToast: true }, mutationFn: () => authApi.resendVerification(email.trim()) });
 
     function submit(event: FormEvent) {
         event.preventDefault();

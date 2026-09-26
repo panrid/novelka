@@ -24,7 +24,7 @@ export function useMySuggestions(chapter: ReaderChapter, signedIn: boolean) {
         enabled: signedIn,
     });
     const refresh = () => void client.invalidateQueries({ queryKey: ['suggestions-mine', chapter.edition.editionId] });
-    const submit = useMutation({ mutationFn: () => suggestionApi.submit(chapter.edition.editionId), onSuccess: refresh });
+    const submit = useMutation({ meta: { errorToast: true }, mutationFn: () => suggestionApi.submit(chapter.edition.editionId), onSuccess: refresh });
     const overlay: Record<string, { spans: Span[]; label: string }> = {};
     for (const item of mine.data?.items ?? []) {
         if (item.kind === 'block' && item.blockId && item.proposed) {
@@ -76,7 +76,7 @@ export function EditSheet({ chapter, block, existing, onClose, onSaved }: {
         mutationFn: () => suggestionApi.block(chapter.edition.editionId, chapter.number, block.id, joined(editor.current?.read() ?? blocks), note),
         onSuccess: () => { onSaved(); onClose(); },
     });
-    const withdraw = useMutation({ mutationFn: () => suggestionApi.withdraw(existing!.id), onSuccess: () => { onSaved(); onClose(); } });
+    const withdraw = useMutation({ meta: { errorToast: true }, mutationFn: () => suggestionApi.withdraw(existing!.id), onSuccess: () => { onSaved(); onClose(); } });
     return (
         <Sheet open onClose={onClose} title="Правка абзацу">
             <TextEditor handle={editor} mode="description" blocks={blocks} onChange={setBlocks} label="Текст абзацу" />

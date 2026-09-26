@@ -10,7 +10,7 @@ import styles from '../studio/studio.module.css';
 export function MySuggestionsPage() {
     const client = useQueryClient();
     const history = useQuery({ queryKey: ['my-suggestions'], queryFn: suggestionApi.history });
-    const withdraw = useMutation({
+    const withdraw = useMutation({ meta: { errorToast: true },
         mutationFn: suggestionApi.withdraw,
         onSuccess: () => void client.invalidateQueries({ queryKey: ['my-suggestions'] }),
     });

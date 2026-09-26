@@ -24,7 +24,7 @@ export function LoginPage() {
             void navigate({ to: safeNext(search.next), replace: true });
         },
     });
-    const resend = useMutation({ mutationFn: () => authApi.resendVerification(resendEmail.trim()) });
+    const resend = useMutation({ meta: { errorToast: true }, mutationFn: () => authApi.resendVerification(resendEmail.trim()) });
 
     const error = signIn.error instanceof ApiError ? signIn.error : null;
     const notVerified = error?.reason === 'email-not-verified';

@@ -49,7 +49,7 @@ export function PrivacyPage() {
 function BlockedPeople() {
     const client = useQueryClient();
     const blocked = useQuery({ queryKey: ['blocked'], queryFn: messagingApi.blocked });
-    const unblock = useMutation({
+    const unblock = useMutation({ meta: { errorToast: true },
         mutationFn: (nick: string) => messagingApi.unblock(nick),
         onSuccess: () => void client.invalidateQueries({ queryKey: ['blocked'] }),
     });

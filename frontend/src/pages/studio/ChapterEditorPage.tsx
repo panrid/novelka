@@ -92,7 +92,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
             void client.invalidateQueries({ queryKey: ['studio-edition', editionId] });
         },
     });
-    const discard = useMutation({
+    const discard = useMutation({ meta: { errorToast: true },
         mutationFn: () => studioApi.discardDraft(editionId, view.number),
         onSuccess: () => void client.invalidateQueries({ queryKey: ['studio-editor', editionId, view.number] }),
     });

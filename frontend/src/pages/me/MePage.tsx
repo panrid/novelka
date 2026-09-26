@@ -17,7 +17,7 @@ export function MePage() {
     const hasShahs = Boolean(shahs.data && (shahs.data.available > 0 || shahs.data.reserved > 0 || shahs.data.history.length > 0));
     const client = useQueryClient();
     const navigate = useNavigate();
-    const logout = useMutation({
+    const logout = useMutation({ meta: { errorToast: true },
         mutationFn: authApi.logout,
         onSuccess: () => {
             client.setQueryData(meQuery.queryKey, null);

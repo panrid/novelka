@@ -204,7 +204,7 @@ function LibraryButton({ novel }: { novel: Novel }) {
     const navigate = useNavigate();
     const client = useQueryClient();
     const current = novel.viewer?.list ?? null;
-    const set = useMutation({
+    const set = useMutation({ meta: { errorToast: true },
         mutationFn: (list: ListName | null) => readingApi.setList(novel.edition.editionId, list),
         onSuccess: () => void client.invalidateQueries({ queryKey: ['novel', novel.slug] }),
     });
@@ -300,7 +300,7 @@ function Stars({ novel }: { novel: Novel }) {
     const client = useQueryClient();
     const edition = novel.edition;
     const mine = novel.viewer?.myRating ?? null;
-    const rate = useMutation({
+    const rate = useMutation({ meta: { errorToast: true },
         mutationFn: (score: number | null) => commentApi.rate(edition.editionId, score),
         onSuccess: () => void client.invalidateQueries({ queryKey: ['novel', novel.slug] }),
     });

@@ -61,8 +61,8 @@ function useRefresh(handle: string) {
 
 function MemberControls({ team, nick, role }: { team: string; nick: string; role: TeamRole }) {
     const refresh = useRefresh(team);
-    const change = useMutation({ mutationFn: (next: TeamRole) => teamApi.setRole(team, nick, next), onSuccess: refresh });
-    const remove = useMutation({ mutationFn: () => teamApi.remove(team, nick), onSuccess: refresh });
+    const change = useMutation({ meta: { errorToast: true }, mutationFn: (next: TeamRole) => teamApi.setRole(team, nick, next), onSuccess: refresh });
+    const remove = useMutation({ meta: { errorToast: true }, mutationFn: () => teamApi.remove(team, nick), onSuccess: refresh });
     return (
         <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <select className={styles.select} style={{ minHeight: 36, width: 'auto', fontSize: 14 }} aria-label={`Роль ${nick}`}
@@ -120,7 +120,7 @@ function OwnerTools({ team }: { team: Team }) {
 function LeaveTeam({ team }: { team: Team }) {
     const me = useMe();
     const refresh = useRefresh(team.handle);
-    const leave = useMutation({ mutationFn: () => teamApi.remove(team.handle, me!.nick), onSuccess: refresh });
+    const leave = useMutation({ meta: { errorToast: true }, mutationFn: () => teamApi.remove(team.handle, me!.nick), onSuccess: refresh });
     return (
         <div className={styles.actions}>
             <Button variant="danger" onPress={() => void askConfirm({ title: 'Вийти з команди?', confirmLabel: 'Вийти', danger: true })
