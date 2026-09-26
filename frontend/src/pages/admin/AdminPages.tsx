@@ -10,7 +10,7 @@ import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
 import { Sheet } from '../../ui/Sheet';
 import { shahApi } from '../../ledger/api';
-import { shahWord } from '../../studio/autotranslate';
+import { dollars, shahWord } from '../../studio/autotranslate';
 import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
 import styles from './admin.module.css';
@@ -256,9 +256,34 @@ function describe(entry: AuditEntry): string {
         return `змінює роль ${details.nick}: ${details.from ? ROLE_LABELS[details.from] : ''} → ${details.to ? ROLE_LABELS[details.to] : ''}`;
     }
     if (entry.action === 'settings') return ACTIONS.settings!;
+    if (entry.action === 'shahs_granted') {
+        const details = entry.details as { shah?: number; nick?: string; note?: string };
+        return `нараховує ${details.shah ?? 0} ${shahWord(details.shah ?? 0)} ${details.nick ?? ''}${details.note ? ` · «${details.note}»` : ''}`;
+    }
+    if (entry.action === 'shah_price') {
+        const micro = (entry.details as { microUsdPerShah?: number }).microUsdPerShah ?? 0;
+        return `змінює ціну шагу для людей: ${dollars(micro / 1_000_000)}`;
+    }
+    if (entry.action === 'autotranslate_settings' || entry.action === 'illustration_settings') {
+        return `${entry.action === 'autotranslate_settings' ? 'змінює моделі й ціни автоперекладу' : 'змінює налаштування ілюстрацій'}${modelChanges(entry.details)}`;
+    }
     const what = TARGET_LABELS[entry.targetType as Target]?.toLowerCase() ?? entry.targetType;
     const reason = typeof entry.details.reason === 'string' ? ` · «${entry.details.reason}»` : '';
     return `${ACTIONS[entry.action] ?? entry.action} ${what}${reason}`;
+}
+
+/** «переклад: a → b» for every model the change replaced. */
+function modelChanges(details: Record<string, unknown>): string {
+    const before = (details.before ?? {}) as Record<string, unknown>;
+    const after = (details.after ?? {}) as Record<string, unknown>;
+    const names: Record<string, string> = { analyze: 'аналіз', translate: 'переклад', proofread: 'вичитка', model: 'малює', promptModel: 'опис' };
+    const modelOf = (value: unknown) => (typeof value === 'string' ? value : (value as { model?: string } | undefined)?.model);
+    const changed = Object.keys(names).flatMap((key) => {
+        const from = modelOf(before[key]);
+        const to = modelOf(after[key]);
+        return from && to && from !== to ? [`${names[key]}: ${from} → ${to}`] : [];
+    });
+    return changed.length ? ` · ${changed.join(', ')}` : '';
 }
 
 export function AuditPage() {

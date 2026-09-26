@@ -87,6 +87,11 @@ class PersonalRunsTests {
         assertThat(owner.browser().post("/api/admin/users/" + reader.nick() + "/shahs", json("shah", 10, "note", "на пробу")).status())
                 .isEqualTo(201);
 
+        JsonNode logged = read(owner.browser().get("/api/admin/audit")).path(0);
+        assertThat(logged.path("action").asString()).isEqualTo("shahs_granted");
+        assertThat(logged.path("details").path("nick").asString()).isEqualTo(reader.nick());
+        assertThat(logged.path("details").path("shah").asInt()).isEqualTo(10);
+
         JsonNode mine = mine();
         assertThat(mine.path("available").asInt()).isEqualTo(10);
         assertThat(mine.path("usdPerShah").decimalValue()).isEqualByComparingTo("0.070");
@@ -128,6 +133,11 @@ class PersonalRunsTests {
         assertThat(mine.path("history").path(0).path("kind").asString()).isEqualTo("charge");
         assertThat(mine.path("history").path(0).path("amount").asInt()).isEqualTo(charged);
         assertThat(read(reader.browser().get("/api/studio/autotranslate/processes"))).hasSize(1);
+
+        JsonNode wallet = read(owner.browser().get("/api/studio/autotranslate/wallet"));
+        assertThat(owner.browser().put("/api/studio/autotranslate/settings", wallet.path("settings").toString()).status()).isBetween(200, 204);
+        assertThat(read(owner.browser().get("/api/admin/audit")).path(0).path("action").asString())
+                .as("the owner's models and prices are in the journal").isEqualTo("autotranslate_settings");
     }
 
     @Test

@@ -31,6 +31,7 @@ import space.panrid.novelka.ai.AiModel;
 import space.panrid.novelka.jooq.tables.records.JobRecord;
 import space.panrid.novelka.ledger.Ledger;
 import space.panrid.novelka.platform.SiteSettings;
+import space.panrid.novelka.platform.audit.AuditLog;
 import space.panrid.novelka.platform.web.UserFacingException;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -47,10 +48,12 @@ class Jobs {
     private final SiteSettings siteSettings;
     private final JsonMapper json;
     private final Ledger ledger;
+    private final AuditLog audit;
     /** A person's run holds this much more than the quote: chapters vary and answers get asked again. */
     static final double RESERVE_MARGIN = 1.5;
 
-    Jobs(DSLContext db, Ai ai, SiteSettings siteSettings, JsonMapper json, Ledger ledger) {
+    Jobs(DSLContext db, Ai ai, SiteSettings siteSettings, JsonMapper json, Ledger ledger, AuditLog audit) {
+        this.audit = audit;
         this.ledger = ledger;
         this.db = db;
         this.ai = ai;
@@ -84,6 +87,7 @@ class Jobs {
         Settings fixed = new Settings(new Settings.Stage(analyze.model(), analyze.inputPerMillion(), analyze.outputPerMillion(), true),
                 new Settings.Stage(translate.model(), translate.inputPerMillion(), translate.outputPerMillion(), true),
                 settings.proofread(), settings.segmentChars(), settings.microUsdPerShah(), settings.capFactor(), null);
+        audit.record(ownerId, "autotranslate_settings", "site", null, Map.of("before", settings(), "after", fixed));
         siteSettings.put(SETTINGS_KEY, json.writeValueAsString(fixed), ownerId);
     }
 

@@ -22,6 +22,7 @@ import space.panrid.novelka.ai.AiPrice;
 import space.panrid.novelka.ai.AiRequest;
 import space.panrid.novelka.ai.AiTag;
 import space.panrid.novelka.ledger.Ledger;
+import space.panrid.novelka.platform.audit.AuditLog;
 import space.panrid.novelka.media.Images;
 import space.panrid.novelka.media.StoredImage;
 import space.panrid.novelka.platform.SiteSettings;
@@ -51,8 +52,10 @@ class Illustrations {
     private final DSLContext db;
 
     private final Ledger ledger;
+    private final AuditLog audit;
 
-    Illustrations(Ai ai, Images images, SiteSettings siteSettings, JsonMapper json, DSLContext db, Ledger ledger) {
+    Illustrations(Ai ai, Images images, SiteSettings siteSettings, JsonMapper json, DSLContext db, Ledger ledger, AuditLog audit) {
+        this.audit = audit;
         this.ledger = ledger;
         this.ai = ai;
         this.images = images;
@@ -88,6 +91,7 @@ class Illustrations {
         if (settings.style() == null || settings.style().length() > 500) {
             throw UserFacingException.badRequest("Стиль — до 500 знаків.");
         }
+        audit.record(ownerId, "illustration_settings", "site", null, Map.of("before", settings(), "after", settings));
         siteSettings.put(SETTINGS_KEY, json.writeValueAsString(settings), ownerId);
     }
 

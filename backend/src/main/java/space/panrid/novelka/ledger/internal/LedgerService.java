@@ -1,5 +1,6 @@
 package space.panrid.novelka.ledger.internal;
 
+import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.SHAH_BALANCE;
 import static space.panrid.novelka.jooq.Tables.SHAH_ENTRY;
 import static space.panrid.novelka.jooq.Tables.SHAH_HOLD;
@@ -147,7 +148,9 @@ class LedgerService implements Ledger {
                 .where(SHAH_BALANCE.ACCOUNT_ID.eq(accountId))
                 .execute();
         entry(accountId, "grant", shah, null, text, ownerId);
-        audit.record(ownerId, "shahs_granted", "account", accountId, text == null ? Map.of("shah", shah) : Map.of("shah", shah, "note", text));
+        String nick = db.select(ACCOUNT.NICK).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).fetchSingle(ACCOUNT.NICK);
+        audit.record(ownerId, "shahs_granted", "account", accountId,
+                text == null ? Map.of("shah", shah, "nick", nick) : Map.of("shah", shah, "nick", nick, "note", text));
         events.publishEvent(new ShahsGranted(accountId, shah, text, ownerId));
     }
 

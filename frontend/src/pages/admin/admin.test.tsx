@@ -63,4 +63,20 @@ describe('administration', () => {
             .toEqual({ relayInactiveMonths: 3, registrationOpen: false, adultEnabled: true }));
         expect(await screen.findByText('Збережено.')).toBeInTheDocument();
     });
+
+    it('the journal says in words what was done', async () => {
+        const at = new Date().toISOString();
+        await renderAt('/admin/audit', {
+            'GET /api/me': { body: person('owner') },
+            'GET /api/admin/audit': { body: [
+                { id: 3, actor: 'panrid', action: 'shahs_granted', targetType: 'account', targetId: 7, details: { shah: 10, nick: 'lysytsia', note: 'на пробу' }, createdAt: at },
+                { id: 2, actor: 'panrid', action: 'autotranslate_settings', targetType: 'site', targetId: null, createdAt: at,
+                    details: { before: { translate: { model: 'openai/gpt-4.1-mini' } }, after: { translate: { model: 'anthropic/claude-sonnet-5' } } } },
+                { id: 1, actor: 'panrid', action: 'shah_price', targetType: 'site', targetId: null, details: { microUsdPerShah: 70000 }, createdAt: at },
+            ] },
+        });
+        expect(await screen.findByText(/нараховує 10 шагів lysytsia · «на пробу»/)).toBeInTheDocument();
+        expect(screen.getByText(/змінює моделі й ціни автоперекладу · переклад: openai\/gpt-4.1-mini → anthropic\/claude-sonnet-5/)).toBeInTheDocument();
+        expect(screen.getByText(/змінює ціну шагу для людей: \$0,07/)).toBeInTheDocument();
+    });
 });
