@@ -73,8 +73,8 @@ function PreviewBox({ target, preview }: { target: Target; preview: Preview }) {
 export function ModerationPage() {
     const client = useQueryClient();
     const [view, setView] = useState<'reports' | 'hidden'>('reports');
-    const reports = useQuery({ queryKey: ['admin-reports'], queryFn: adminApi.reports, enabled: view === 'reports' });
-    const hidden = useQuery({ queryKey: ['admin-hidden'], queryFn: adminApi.hidden, enabled: view === 'hidden' });
+    const reports = useQuery({ meta: { errorToast: true }, queryKey: ['admin-reports'], queryFn: adminApi.reports, enabled: view === 'reports' });
+    const hidden = useQuery({ meta: { errorToast: true }, queryKey: ['admin-hidden'], queryFn: adminApi.hidden, enabled: view === 'hidden' });
     const refresh = () => ['admin-reports', 'admin-hidden', 'admin-overview'].forEach((key) => void client.invalidateQueries({ queryKey: [key] }));
     const act = useMutation({ mutationFn: (action: () => Promise<unknown>) => action(), onSuccess: refresh });
 
@@ -129,7 +129,7 @@ export function UsersPage() {
     const me = useMe();
     const client = useQueryClient();
     const [q, setQ] = useState('');
-    const people = useQuery({ queryKey: ['admin-users', q], queryFn: () => adminApi.users(q), placeholderData: (previous) => previous });
+    const people = useQuery({ meta: { errorToast: true }, queryKey: ['admin-users', q], queryFn: () => adminApi.users(q), placeholderData: (previous) => previous });
     const setRole = useMutation({
         mutationFn: ({ nick, role }: { nick: string; role: Person['role'] }) => adminApi.setRole(nick, role),
         onSuccess: () => void client.invalidateQueries({ queryKey: ['admin-users'] }),

@@ -4,7 +4,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ApiError } from './api/client';
 import { createAppRouter } from './app/router';
-import { mutationCache } from './app/mutationErrors';
+import { mutationCache, queryCache } from './app/mutationErrors';
 import { applyStoredTheme } from './reading/theme';
 import './styles/global.css';
 
@@ -12,6 +12,7 @@ applyStoredTheme();
 
 const queryClient = new QueryClient({
     mutationCache: mutationCache(),
+    queryCache: queryCache(),
     defaultOptions: {
         queries: {
             staleTime: 30_000,

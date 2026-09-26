@@ -3,7 +3,7 @@ import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
 import { render } from '@testing-library/react';
 import { vi } from 'vitest';
 import { createAppRouter } from '../app/router';
-import { mutationCache } from '../app/mutationErrors';
+import { mutationCache, queryCache } from '../app/mutationErrors';
 
 type Route = { status?: number; body?: unknown };
 
@@ -30,7 +30,7 @@ export async function renderAt(path: string, api: Record<string, Route | ((body:
         return new Response(status === 204 ? null : JSON.stringify(reply.body ?? {}), { status });
     }));
 
-    const queryClient = new QueryClient({ mutationCache: mutationCache(), defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const queryClient = new QueryClient({ mutationCache: mutationCache(), queryCache: queryCache(), defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     const router = createAppRouter(queryClient, createMemoryHistory({ initialEntries: [path] }));
     await router.load();
     render(

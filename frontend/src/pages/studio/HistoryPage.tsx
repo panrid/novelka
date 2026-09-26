@@ -47,7 +47,8 @@ export function HistoryPage() {
 
 /** What this version changed compared with the one before: by paragraph, then by word. */
 function RevisionDiff({ editionId, chapter, revisionId }: { editionId: number; chapter: number; revisionId: number }) {
-    const revision = useQuery({ queryKey: ['studio-revision', revisionId], queryFn: () => studioApi.revision(editionId, chapter, revisionId) });
+    const revision = useQuery({ meta: { errorToast: true }, queryKey: ['studio-revision', revisionId], queryFn: () => studioApi.revision(editionId, chapter, revisionId) });
+    if (revision.isError) return <p className={styles.muted}>Не вдалося показати зміни.</p>;
     if (!revision.data) return <p className={styles.muted}>Завантажуємо…</p>;
     const before = new Map(revision.data.parentBlocks.map((block) => [block.id, block]));
     const after = new Set(revision.data.blocks.map((block) => block.id));

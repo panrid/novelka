@@ -27,7 +27,7 @@ export function EditionPage() {
     const client = useQueryClient();
     const overview = useQuery({ queryKey: ['studio-edition', id], queryFn: () => studioApi.overview(id) });
     const [page, setPage] = useState(1);
-    const chapters = useQuery({ queryKey: ['studio-chapters', id, page], queryFn: () => studioApi.chapters(id, page), placeholderData: (p) => p });
+    const chapters = useQuery({ meta: { errorToast: true }, queryKey: ['studio-chapters', id, page], queryFn: () => studioApi.chapters(id, page), placeholderData: (p) => p });
     const remove = useMutation({
         mutationFn: (number: number) => studioApi.deleteChapter(id, number),
         onSuccess: () => {

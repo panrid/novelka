@@ -9,7 +9,7 @@ import styles from '../studio/studio.module.css';
 
 export function MyTeamsPage() {
     const navigate = useNavigate();
-    const teams = useQuery({ queryKey: ['my-teams'], queryFn: teamApi.mine });
+    const teams = useQuery({ meta: { errorToast: true }, queryKey: ['my-teams'], queryFn: teamApi.mine });
     const [name, setName] = useState('');
     const [handle, setHandle] = useState('');
     const create = useMutation({

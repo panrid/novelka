@@ -1,9 +1,10 @@
-import { MutationCache } from '@tanstack/react-query';
+import { MutationCache, QueryCache } from '@tanstack/react-query';
 import { showError } from '../ui/toast';
 
 declare module '@tanstack/react-query' {
     interface Register {
         mutationMeta: { errorToast?: boolean };
+        queryMeta: { errorToast?: boolean };
     }
 }
 
@@ -12,6 +13,15 @@ export function mutationCache() {
     return new MutationCache({
         onError: (error, _variables, _context, mutation) => {
             if (mutation.meta?.errorToast) showError(error.message);
+        },
+    });
+}
+
+/** Queries marked the same way: the main content of a page that would otherwise stay blank. */
+export function queryCache() {
+    return new QueryCache({
+        onError: (error, query) => {
+            if (query.meta?.errorToast) showError(error.message);
         },
     });
 }
