@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { useMe } from '../../auth/me';
 import { Cover } from '../../reading/Cover';
 import { STATUS_LABELS, chapterHeading, chaptersWord, type Status } from '../../reading/api';
 import { ROLE_LABELS, studioApi } from '../../studio/api';
@@ -23,7 +22,6 @@ export function useEditionId() {
 export function EditionPage() {
     const id = useEditionId();
     const navigate = useNavigate();
-    const me = useMe();
     const client = useQueryClient();
     const overview = useQuery({ queryKey: ['studio-edition', id], queryFn: () => studioApi.overview(id) });
     const [page, setPage] = useState(1);
@@ -50,7 +48,6 @@ export function EditionPage() {
     const edition = overview.data;
     const translator = edition.role !== 'editor';
     const owner = edition.role === 'owner';
-    const siteOwner = me?.role === 'owner';
     const params = { editionId: String(id) };
 
     return (
@@ -76,7 +73,7 @@ export function EditionPage() {
             <nav className={styles.menu} aria-label="Керування">
                 {owner && <Link to="/studio/$editionId/about" params={params} className={styles.menuItem}>Дані й обкладинка</Link>}
                 <Link to="/team/$handle" params={{ handle: edition.teamHandle }} className={styles.menuItem}>Команда ${edition.teamHandle}</Link>
-                {siteOwner && translator && edition.kind === 'machine' && <Link to="/studio/$editionId/translate" params={params} className={styles.menuItem}>Автопереклад</Link>}
+                {translator && edition.kind === 'machine' && <Link to="/studio/$editionId/translate" params={params} className={styles.menuItem}>Автопереклад</Link>}
                 {edition.kind === 'machine' && <Link to="/studio/$editionId/glossary" params={params} className={styles.menuItem}>Словник</Link>}
                 {edition.kind === 'machine' && <Link to="/studio/$editionId/titles" params={params} className={styles.menuItem}>Назви глав</Link>}
                 {owner && edition.kind !== 'original' && <Link to="/studio/$editionId/relay" params={params} className={styles.menuItem}>Естафета</Link>}

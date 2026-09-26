@@ -82,6 +82,20 @@ describe('new publication', () => {
     });
 });
 
+describe('machine translation', () => {
+    it('leads any translator of it to the autotranslation, not only the site owner', async () => {
+        await renderAt('/studio/12', {
+            'GET /api/me': { body: ME },
+            'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner' } },
+            'GET /api/studio/editions/12/chapters': { body: [] },
+            'GET /api/studio/editions/12/contributions': { body: [] },
+        });
+
+        expect(await screen.findByRole('link', { name: 'Автопереклад' })).toHaveAttribute('href', '/studio/12/translate');
+        expect(screen.getByRole('link', { name: 'Словник' })).toBeInTheDocument();
+    });
+});
+
 describe('team page', () => {
     const TEAM = {
         handle: 'kitsune', name: 'Кіцуне', personal: false,
