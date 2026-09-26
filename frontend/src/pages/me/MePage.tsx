@@ -7,6 +7,7 @@ import { Button } from '../../ui/Button';
 import { LinkButton } from '../../ui/LinkButton';
 import styles from '../pages.module.css';
 import { useMyShahs } from '../../ledger/api';
+import { forgetLocalProgress } from '../../reading/progress';
 import { shahWord } from '../../studio/autotranslate';
 
 /** The «Я» tab: for a guest — sign in; for a member — profile and everything personal. */
@@ -21,6 +22,7 @@ export function MePage() {
         mutationFn: authApi.logout,
         onSuccess: () => {
             client.setQueryData(meQuery.queryKey, null);
+            forgetLocalProgress();
             client.removeQueries({ predicate: (query) => query.queryKey[0] !== 'me' });
             void navigate({ to: '/' });
         },
