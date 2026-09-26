@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { readingApi, chaptersWord, type Card } from '../../reading/api';
+import { readingApi, chaptersWord, type Card, resumeLine } from '../../reading/api';
 import { Cover } from '../../reading/Cover';
 import { Notice } from '../../ui/Notice';
 import { relativeTime } from '../../lib/dates';
@@ -33,7 +33,7 @@ export function HomePage() {
                     <div className={styles.grow}>
                         <div className={styles.small}>Продовжити</div>
                         <div className={styles.ellipsis} style={{ fontWeight: 500 }}>{card.title}</div>
-                        <div className={styles.small}>Глава {chapterLabel || chapterNumber} · {chapterNumber} з {card.chapterCount}</div>
+                        <div className={styles.small}>{resumeLine(chapterNumber, chapterLabel, card.chapterCount)}</div>
                         <div className={styles.bar}><span style={{ width: `${Math.round(position * 100)}%` }} /></div>
                     </div>
                 </Link>

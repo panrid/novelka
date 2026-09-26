@@ -153,3 +153,12 @@ export function chaptersWord(count: number): string {
     if (ones >= 2 && ones <= 4) return 'глави';
     return 'глав';
 }
+
+/**
+ * «Глава 12 з 44» where the reader's number is the chapter's place; «Глава 0» or «Глава 31.1»
+ * where it is not, since «з 44» would then count something else.
+ */
+export function resumeLine(number: number, label: string | null | undefined, count: number): string {
+    const shown = label || String(number);
+    return shown === String(number) ? `Глава ${shown} з ${count}` : `Глава ${shown}`;
+}

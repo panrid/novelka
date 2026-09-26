@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useMe } from '../../auth/me';
 import { Cover } from '../../reading/Cover';
-import { LIST_LABELS, chaptersWord, readingApi, type ListName } from '../../reading/api';
+import { LIST_LABELS, chaptersWord, readingApi, type ListName, resumeLine } from '../../reading/api';
 import { LinkButton } from '../../ui/LinkButton';
 import { Notice } from '../../ui/Notice';
 import { teamSearch } from './HomePage';
@@ -54,7 +54,7 @@ export function LibraryPage() {
                     <div className={styles.grow}>
                         <div className={styles.ellipsis} style={{ fontWeight: 500 }}>{card.title}</div>
                         <div className={styles.small}>
-                            {chapterNumber ? `Глава ${chapterLabel || chapterNumber} · ${chapterNumber} з ${card.chapterCount}` : `${card.chapterCount} ${chaptersWord(card.chapterCount)}`}
+                            {chapterNumber ? resumeLine(chapterNumber, chapterLabel, card.chapterCount) : `${card.chapterCount} ${chaptersWord(card.chapterCount)}`}
                         </div>
                         {chapterNumber ? <div className={styles.bar}><span style={{ width: `${Math.round((chapterNumber / Math.max(1, card.chapterCount)) * 100)}%` }} /></div> : null}
                     </div>

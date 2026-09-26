@@ -44,7 +44,7 @@ describe('home', () => {
         });
 
         expect(await screen.findByText('Продовжити')).toBeInTheDocument();
-        expect(screen.getByText('Глава 11 · 12 з 44')).toBeInTheDocument();
+        expect(screen.getByText('Глава 11')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Популярне/ })).toBeInTheDocument();
         expect(screen.getByText(/Глави 41–44 · 5 годин тому/)).toBeInTheDocument();
     });
