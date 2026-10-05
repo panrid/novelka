@@ -28,7 +28,7 @@ export function LibraryPage() {
     return (
         <section className={styles.page}>
             <h1 className="visually-hidden">Бібліотека</h1>
-            <div className={styles.shelf} role="tablist" aria-label="Списки" style={{ marginTop: 8 }}>
+            <div className={`${styles.shelf} ${styles.lists}`} role="tablist" aria-label="Списки" style={{ marginTop: 8 }}>
                 {LISTS.map((name) => (
                     <button key={name} type="button" role="tab" aria-selected={name === list}
                         className={`${styles.chip} ${name === list ? styles.chipOn : styles.chipGhost}`}
@@ -46,6 +46,7 @@ export function LibraryPage() {
                         : `У списку «${LIST_LABELS[list]}» поки порожньо. Додати можна на сторінці новели.`}
                 </p>
             )}
+            <div className={styles.cards}>
             {library.data?.items.map(({ card, chapterNumber, chapterLabel }) => (
                 <Link key={card.editionId} className={styles.row}
                     to={chapterNumber ? '/n/$slug/$number' : '/n/$slug'}
@@ -60,6 +61,7 @@ export function LibraryPage() {
                     </div>
                 </Link>
             ))}
+            </div>
         </section>
     );
 }

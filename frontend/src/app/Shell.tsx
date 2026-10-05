@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { HeadContent, Link, Outlet, useRouterState } from '@tanstack/react-router';
+import { HeadContent, Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
+import { useState } from 'react';
 import { BookOpen, Home, Inbox, PenLine, Search, User, type LucideIcon } from 'lucide-react';
 import { useMe } from '../auth/me';
 import { useInboxCounts, useLiveEvents } from '../inbox/live';
@@ -42,6 +43,7 @@ export function Shell() {
                         новелка<span className={styles.dot}>.</span>
                     </Link>
                     <Tabs className={styles.topTabs} />
+                    <HeaderSearch />
                 </header>
             )}
             <main className={reading ? undefined : styles.main}>
@@ -51,6 +53,22 @@ export function Shell() {
             <AskHost />
             <ToastHost />
         </div>
+    );
+}
+
+/** On a wide screen the search box is always at hand; it opens the catalog with the words typed. */
+function HeaderSearch() {
+    const navigate = useNavigate();
+    const [text, setText] = useState('');
+    return (
+        <form role="search" className={styles.search} onSubmit={(event) => {
+            event.preventDefault();
+            void navigate({ to: '/catalog', search: text.trim() ? { q: text.trim() } : {} });
+            setText('');
+        }}>
+            <Search size={16} aria-hidden />
+            <input type="search" aria-label="Пошук новел" placeholder="Назва або автор…" value={text} onChange={(event) => setText(event.target.value)} />
+        </form>
     );
 }
 

@@ -119,3 +119,38 @@
     clip-path: inset(50%);
     white-space: nowrap;
 }
+
+/* The search box in the header: only where there is room for it. */
+.search {
+    display: none;
+}
+
+@media (min-width: 1024px) {
+    .search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 240px;
+        height: 36px;
+        margin-left: auto;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface);
+        color: var(--faint);
+    }
+
+    .search:focus-within {
+        border-color: var(--accent);
+    }
+
+    .search input {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        outline: 0;
+        background: none;
+        color: var(--text);
+        font: 14px var(--font-ui);
+    }
+}

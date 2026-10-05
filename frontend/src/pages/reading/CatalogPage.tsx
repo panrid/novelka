@@ -22,6 +22,12 @@ export function CatalogPage() {
     const search: CatalogSearch = useSearch({ strict: false });
     const navigate = useNavigate();
     const [text, setText] = useState(search.q ?? '');
+    // Words arriving from outside (the header's search box) replace what the field holds.
+    const [seen, setSeen] = useState(search.q ?? '');
+    if ((search.q ?? '') !== seen) {
+        setSeen(search.q ?? '');
+        if ((search.q ?? '') !== text.trim()) setText(search.q ?? '');
+    }
     const [showAllTags, setShowAllTags] = useState(false);
     const tags = search.tags ?? [];
     const kind = search.kind ?? 'all';
@@ -52,7 +58,7 @@ export function CatalogPage() {
     const items = results.data?.pages.flatMap((page) => page.items) ?? [];
 
     return (
-        <section className={styles.page}>
+        <section className={`${styles.page} ${styles.catalog}`}>
             <h1 className="visually-hidden">Пошук</h1>
             <div className={styles.search}>
                 <TextInput label="Назва або автор" type="search" value={text} onChange={setText} placeholder="Наприклад, маг води" />
@@ -89,6 +95,7 @@ export function CatalogPage() {
                 </label>
             </div>
 
+            <div className={styles.results}>
             {results.isError && <Notice tone="error">{results.error.message}</Notice>}
             {results.isPending && <p className={styles.empty}>Шукаємо…</p>}
             {results.isSuccess && items.length === 0 && (
@@ -96,7 +103,7 @@ export function CatalogPage() {
                     Нічого не знайшли. Спробуйте іншу назву або приберіть теги — чи <Link to="/proposals">запропонуйте новелу перекласти</Link>.
                 </p>
             )}
-            {items.map((card) => <CardRow key={card.editionId} card={card} />)}
+            <div className={styles.cards}>{items.map((card) => <CardRow key={card.editionId} card={card} />)}</div>
             {results.hasNextPage && (
                 <div className={styles.more}>
                     <Button variant="secondary" onPress={() => void results.fetchNextPage()} pending={results.isFetchingNextPage} pendingLabel="Завантажуємо…">
@@ -104,6 +111,7 @@ export function CatalogPage() {
                     </Button>
                 </div>
             )}
+            </div>
         </section>
     );
 }

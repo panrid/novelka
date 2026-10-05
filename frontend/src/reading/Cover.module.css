@@ -36,3 +36,9 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
+
+@media (min-width: 1024px) {
+    .fluid {
+        width: 100% !important;
+    }
+}

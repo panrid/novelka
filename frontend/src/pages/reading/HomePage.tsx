@@ -25,8 +25,10 @@ export function HomePage() {
         );
     }
     return (
-        <section className={styles.page}>
+        <section className={`${styles.page} ${styles.home}`}>
             <h1 className="visually-hidden">Що почитати</h1>
+            <div className={styles.homeMain}>
+            <div className={styles.continues}>
             {continueReading.map(({ card, chapterNumber, position, chapterLabel }) => (
                 <Link key={card.editionId} className={styles.continue} to="/n/$slug/$number"
                     params={{ slug: card.novelSlug, number: String(chapterNumber) }} search={teamSearch(card)}>
@@ -39,6 +41,7 @@ export function HomePage() {
                     </div>
                 </Link>
             ))}
+            </div>
 
             {popular.length > 0 && (
                 <>
@@ -47,7 +50,7 @@ export function HomePage() {
                         {popular.map((card) => (
                             <Link key={card.editionId} className={styles.shelfItem} to="/n/$slug"
                                 params={{ slug: card.novelSlug }} search={teamSearch(card)}>
-                                <Cover url={card.coverUrl} title={card.title} seed={card.novelSlug} width={104} />
+                                <Cover url={card.coverUrl} title={card.title} seed={card.novelSlug} width={104} fluid />
                                 <div className={styles.shelfTitle}>{card.title}</div>
                             </Link>
                         ))}
@@ -55,6 +58,8 @@ export function HomePage() {
                 </>
             )}
 
+            </div>
+            <aside className={styles.homeSide}>
             {newChapters.length > 0 && (
                 <>
                     <h2 className={styles.sectionTitle}>Нові глави <Link to="/catalog" search={{ sort: 'updated' }}>усе →</Link></h2>
@@ -79,6 +84,7 @@ export function HomePage() {
                 Запропонуйте новелу посиланням або проголосуйте за ті, які хочете читати.
             </p>
             <LinkButton to="/proposals" variant="secondary">Що перекласти</LinkButton>
+            </aside>
         </section>
     );
 }

@@ -28,8 +28,9 @@
     text-decoration: none;
 }
 
-.continue + .continue {
-    margin-top: 8px;
+.continues {
+    display: grid;
+    gap: 8px;
 }
 
 .grow {
@@ -69,6 +70,8 @@
     padding: 0 var(--gutter) 4px;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
+    /* Snapping keeps the first cover off the screen's edge, as the padding does. */
+    scroll-padding-inline: var(--gutter);
     scrollbar-width: none;
 }
 
@@ -171,4 +174,91 @@
     display: flex;
     justify-content: center;
     padding: 16px 0;
+}
+
+/* ---- wide screens (етап 15): two columns, covers in a grid instead of a swipe shelf ---- */
+@media (min-width: 1024px) {
+    .home {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 40px;
+        align-items: start;
+        padding-top: 20px;
+    }
+
+    .homeSide {
+        position: sticky;
+        top: 16px;
+    }
+
+    .homeSide > .sectionTitle:first-child,
+    .homeMain > .sectionTitle:first-child {
+        margin-top: 0;
+    }
+
+    .home .continues {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 12px;
+    }
+
+    .home .continue {
+        padding: 14px;
+        gap: 16px;
+    }
+
+    .home .shelf {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+        gap: 22px 18px;
+        margin: 0;
+        padding: 0;
+        overflow: visible;
+    }
+
+    .home .shelfItem {
+        width: auto;
+    }
+
+    .home .shelfTitle {
+        font-size: 14px;
+    }
+
+    /* Search: filters in a column on the left, results in two columns. */
+    .catalog {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 1fr);
+        grid-template-areas: 'side search' 'side results';
+        gap: 0 40px;
+        align-items: start;
+        padding-top: 20px;
+    }
+
+    .catalog > .search {
+        grid-area: search;
+        position: static;
+        padding-top: 0;
+    }
+
+    .catalog > .filters {
+        grid-area: side;
+        position: sticky;
+        top: 16px;
+        gap: 18px;
+    }
+
+    .catalog > .results {
+        grid-area: results;
+    }
+
+    .lists {
+        flex-wrap: wrap;
+        margin: 12px 0 8px;
+        overflow: visible;
+    }
+
+    .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        column-gap: 28px;
+    }
 }
