@@ -127,6 +127,49 @@ describe('machine translation', () => {
     });
 });
 
+describe('new chapter', () => {
+    const EDITION = (kind: string) => ({ editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind, status: 'ongoing', adult: false, coverUrl: null, chapterCount: 2, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner' });
+    const base = (kind: string) => ({
+        'GET /api/me': { body: ME },
+        'GET /api/studio/editions/12': { body: EDITION(kind) },
+        'GET /api/studio/editions/12/chapters': { body: [] },
+        'GET /api/studio/editions/12/contributions': { body: [] },
+    });
+
+    it('offers the autotranslation of the next chapters first, with their price', async () => {
+        const { calls, router } = await renderAt('/studio/12', {
+            ...base('machine'),
+            'GET /api/studio/editions/12/autotranslate': { body: {
+                configured: true, showShah: true, sourceChapters: 10, nextNumber: 3, publishedChapters: 2, lastAnalyzed: 2, nextToAnalyze: 3,
+                averageChars: 5000, balance: null, usdPerShah: 0.07, settings: {}, jobs: [], personal: true, reserved: 0,
+            } },
+            'POST /api/studio/editions/12/autotranslate/quote': { body: {
+                kind: 'translate', from: 3, to: 5, chapters: 3, skipped: 0, shah: 3, usd: 0.2, expectedUsd: 0.1, estimated: true, unanalyzed: 3,
+            } },
+            'POST /api/studio/editions/12/autotranslate/jobs': { status: 201, body: {} },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Нова глава' }));
+        expect(screen.getByRole('radio', { name: /Автопереклад/ })).toHaveAttribute('aria-checked', 'true');
+        await userEvent.type(await screen.findByLabelText('Перекласти з глави 3 до глави…'), '5');
+        await userEvent.click(await screen.findByRole('button', { name: 'Перекласти глави 3–5' }));
+        await waitFor(() => expect(router.state.location.pathname).toBe('/studio/12/translate'));
+        expect(calls.find((call) => call.path.endsWith('/autotranslate/jobs'))?.body).toEqual({ kind: 'translate', to: 5 });
+    });
+
+    it('opens the editor when the chapter is written by hand', async () => {
+        const { router } = await renderAt('/studio/12', {
+            ...base('human'),
+            'POST /api/studio/editions/12/chapters': { status: 201, body: { number: 3 } },
+            'GET /api/studio/editions/12/chapters/3': { body: { ...EDITOR, number: 3 } },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Нова глава' }));
+        expect(screen.queryByRole('radio', { name: /Автопереклад/ })).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /з файлу/ })).toHaveAttribute('href', '/studio/12/import');
+        await userEvent.click(screen.getByRole('button', { name: 'Відкрити редактор' }));
+        await waitFor(() => expect(router.state.location.pathname).toBe('/studio/12/chapters/3'));
+    });
+});
+
 describe('team page', () => {
     const TEAM = {
         handle: 'kitsune', name: 'Кіцуне', personal: false,

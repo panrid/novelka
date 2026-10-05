@@ -1,5 +1,6 @@
+import { NewChapterSheet } from './NewChapterSheet';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from '@tanstack/react-router';
+import { Link, useParams } from '@tanstack/react-router';
 import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Cover } from '../../reading/Cover';
@@ -21,10 +22,10 @@ export function useEditionId() {
 
 export function EditionPage() {
     const id = useEditionId();
-    const navigate = useNavigate();
     const client = useQueryClient();
     const overview = useQuery({ queryKey: ['studio-edition', id], queryFn: () => studioApi.overview(id) });
     const [page, setPage] = useState(1);
+    const [adding, setAdding] = useState(false);
     const chapters = useQuery({ meta: { errorToast: true }, queryKey: ['studio-chapters', id, page], queryFn: () => studioApi.chapters(id, page), placeholderData: (p) => p });
     const remove = useMutation({
         mutationFn: (number: number) => studioApi.deleteChapter(id, number),
@@ -35,13 +36,6 @@ export function EditionPage() {
     });
     const contributions = useQuery({ queryKey: ['studio-contributions', id], queryFn: () => studioApi.contributions(id) });
     const queue = useQuery({ queryKey: ['suggestion-queue', id], queryFn: () => suggestionApi.queue(id) });
-    const add = useMutation({
-        mutationFn: () => studioApi.newChapter(id),
-        onSuccess: ({ number }) => {
-            void client.invalidateQueries({ queryKey: ['studio-chapters', id] });
-            void navigate({ to: '/studio/$editionId/chapters/$number', params: { editionId: String(id), number: String(number) } });
-        },
-    });
 
     if (overview.isError) return <Notice tone="error">{overview.error.message}</Notice>;
     if (!overview.data) return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
@@ -64,11 +58,10 @@ export function EditionPage() {
             </div>
 
             <div className={styles.actions}>
-                {translator && <Button onPress={() => add.mutate()} pending={add.isPending} pendingLabel="Створюємо…">Нова глава</Button>}
-                {translator && <LinkButton to="/studio/$editionId/import" params={params} variant="secondary">З файлу</LinkButton>}
+                {translator && <Button onPress={() => setAdding(true)}>Нова глава</Button>}
                 {edition.chapterCount > 0 && <LinkButton to="/n/$slug" params={{ slug: edition.novelSlug }} search={{ t: edition.teamHandle }} variant="secondary">Як бачать читачі</LinkButton>}
             </div>
-            {add.isError && <Notice tone="error">{add.error.message}</Notice>}
+            {adding && <NewChapterSheet editionId={id} machine={edition.kind === 'machine' || edition.kind === 'mixed'} onClose={() => setAdding(false)} />}
 
             <nav className={styles.menu} aria-label="Керування">
                 {owner && <Link to="/studio/$editionId/about" params={params} className={styles.menuItem}>Дані й обкладинка</Link>}
