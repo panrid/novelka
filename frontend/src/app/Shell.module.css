@@ -154,3 +154,17 @@
         font: 14px var(--font-ui);
     }
 }
+
+.slot {
+    min-width: 0;
+}
+
+/* The Studio on a wide screen: its side menu beside the page. */
+@media (min-width: 1024px) {
+    .studio {
+        display: grid;
+        grid-template-columns: 230px minmax(0, 1fr);
+        gap: 32px;
+        align-items: start;
+    }
+}

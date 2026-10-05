@@ -63,7 +63,7 @@ export function EditionPage() {
             </div>
             {adding && <NewChapterSheet editionId={id} machine={edition.kind === 'machine' || edition.kind === 'mixed'} onClose={() => setAdding(false)} />}
 
-            <nav className={styles.menu} aria-label="Керування">
+            <nav className={`${styles.menu} ${styles.editionMenu}`} aria-label="Керування">
                 {owner && <Link to="/studio/$editionId/about" params={params} className={styles.menuItem}>Дані й обкладинка</Link>}
                 <Link to="/team/$handle" params={{ handle: edition.teamHandle }} className={styles.menuItem}>Команда ${edition.teamHandle}</Link>
                 {translator && edition.kind === 'machine' && <Link to="/studio/$editionId/translate" params={params} className={styles.menuItem}>Автопереклад</Link>}

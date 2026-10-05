@@ -373,3 +373,35 @@
     font-family: var(--font-reading);
     line-height: 1.6;
 }
+
+/* Wide screens: the Studio's side menu holds the sections, so the page drops its own list. */
+@media (min-width: 1024px) {
+    .page {
+        max-width: 900px;
+        padding-top: 20px;
+    }
+
+    .editionMenu {
+        display: none;
+    }
+
+    .rowLink {
+        display: flex;
+        align-items: baseline;
+        gap: 16px;
+    }
+
+    .rowLink > :first-child {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .row {
+        padding: 10px 8px;
+        border-radius: 8px;
+    }
+
+    .row:hover {
+        background: var(--surface);
+    }
+}

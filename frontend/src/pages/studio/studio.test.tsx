@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderAt } from '../../test/render';
@@ -124,6 +124,28 @@ describe('machine translation', () => {
 
         expect(await screen.findByRole('link', { name: 'Автопереклад' })).toHaveAttribute('href', '/studio/12/translate');
         expect(screen.getByRole('link', { name: 'Словник' })).toBeInTheDocument();
+    });
+});
+
+describe('studio side menu', () => {
+    it('lists the translations and the open one\'s sections', async () => {
+        await renderAt('/studio/12', {
+            'GET /api/me': { body: ME },
+            'GET /api/studio': { body: [
+                { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', coverUrl: null, kind: 'machine', status: 'ongoing', chapterCount: 2,
+                    teamHandle: 'mika', teamName: 'mika', role: 'owner', drafts: 0, pendingSuggestions: 3 },
+                { editionId: 14, novelSlug: 'sto-nochei', title: 'Сто ночей', coverUrl: null, kind: 'human', status: 'ongoing', chapterCount: 1,
+                    teamHandle: 'mika', teamName: 'mika', role: 'owner', drafts: 0, pendingSuggestions: 0 },
+            ] },
+            'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 2, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner' } },
+            'GET /api/studio/editions/12/chapters': { body: [] },
+            'GET /api/studio/editions/12/contributions': { body: [] },
+        });
+        const rail = await screen.findByRole('navigation', { name: 'Студія' });
+        expect(await within(rail).findByRole('link', { name: /Сто ночей/ })).toHaveAttribute('href', '/studio/14');
+        expect(within(rail).getByRole('link', { name: /Лиходійка/ })).toHaveTextContent('3');
+        expect(within(rail).getByRole('link', { name: 'Словник' })).toHaveAttribute('href', '/studio/12/glossary');
+        expect(within(rail).getByRole('link', { name: 'Глави' })).toHaveAttribute('href', '/studio/12');
     });
 });
 

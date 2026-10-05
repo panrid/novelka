@@ -7,6 +7,7 @@ import { useInboxCounts, useLiveEvents } from '../inbox/live';
 import { Avatar } from '../ui/Avatar';
 import styles from './Shell.module.css';
 import { AskHost } from '../ui/ask';
+import { StudioRail } from './StudioRail';
 import { ToastHost } from '../ui/toast';
 import { useKeyboardInset } from '../ui/keyboard';
 import { studioApi } from '../studio/api';
@@ -34,6 +35,7 @@ export function Shell() {
     const reading = useRouterState({
         select: (state) => /^\/n\/[^/]+\/\d+(\/propose)?\/?$|^\/studio\/\d+\/chapters\/\d+\/?$/.test(state.location.pathname),
     });
+    const studio = useRouterState({ select: (state) => /^\/studio(\/|$)/.test(state.location.pathname) }) && !reading;
     return (
         <div className={reading ? undefined : styles.shell}>
             <HeadContent />
@@ -47,7 +49,12 @@ export function Shell() {
                 </header>
             )}
             <main className={reading ? undefined : styles.main}>
-                <Outlet />
+                <div className={studio ? styles.studio : undefined}>
+                    {studio && <StudioRail />}
+                    <div className={styles.slot}>
+                        <Outlet />
+                    </div>
+                </div>
             </main>
             {!reading && <Tabs className={styles.bottomTabs} />}
             <AskHost />
