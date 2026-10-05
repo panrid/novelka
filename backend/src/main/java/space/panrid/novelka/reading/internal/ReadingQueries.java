@@ -336,8 +336,10 @@ class ReadingQueries {
     }
 
     List<Views.VolumeRef> volumes(long editionId) {
+        int[] ordinary = {0};
         return db.select(VOLUME.FIRST_NUMBER, VOLUME.TITLE, VOLUME.KIND).from(VOLUME).where(VOLUME.EDITION_ID.eq(editionId))
-                .orderBy(VOLUME.FIRST_NUMBER).fetch(r -> new Views.VolumeRef(r.value1(), r.value2(), r.value3()));
+                .orderBy(VOLUME.FIRST_NUMBER).fetch(r -> new Views.VolumeRef(r.value1(), r.value2(), r.value3(),
+                        "volume".equals(r.value3()) ? ++ordinary[0] : null));
     }
 
     /** The last volume starting at or before the chapter. */

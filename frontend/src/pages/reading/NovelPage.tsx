@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
 import { ArrowDownUp, BookmarkPlus, Check, MessageCircle } from 'lucide-react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import { Button as AriaButton, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 import { ApiError } from '../../api/client';
 import { useMe } from '../../auth/me';
@@ -12,7 +12,7 @@ import { adminApi } from '../../admin/api';
 import { Sheet } from '../../ui/Sheet';
 import { Blocks } from '../../reading/Blocks';
 import { Cover } from '../../reading/Cover';
-import { LIST_LABELS, STATUS_LABELS, chapterHeading, chaptersWord, readingApi, type ListName, type NovelPage as Novel } from '../../reading/api';
+import { LIST_LABELS, STATUS_LABELS, chapterHeading, chaptersWord, readingApi, volumeTitle, type ListName, type NovelPage as Novel } from '../../reading/api';
 import { relayApi } from '../../studio/api';
 import { localProgress } from '../../reading/progress';
 import { novelQuery } from '../../reading/queries';
@@ -258,14 +258,19 @@ function ChapterList({ slug, team, current }: { slug: string; team: string | und
             </div>
             {chapters.isError && <Notice tone="error">{chapters.error.message}</Notice>}
             <ol className={styles.list}>
-                {rows.map((row) => (
-                    <li key={row.number}>
+                {rows.map((row, index) => (
+                    <Fragment key={row.number}>
+                    {row.volume && row.volume.firstNumber !== rows[index - 1]?.volume?.firstNumber && (
+                        <li className={styles.volumeHead}>{volumeTitle(row.volume)}</li>
+                    )}
+                    <li>
                         <Link to="/n/$slug/$number" params={{ slug, number: String(row.number) }} search={team ? { t: team } : {}}
                             className={`${styles.chapter} ${row.number === current ? styles.here : ''}`}>
                             <span>{chapterHeading(row)}</span>
                             {row.number === current && <span className={styles.muted}>тут зупинились</span>}
                         </Link>
                     </li>
+                    </Fragment>
                 ))}
             </ol>
             {chapters.hasNextPage && (

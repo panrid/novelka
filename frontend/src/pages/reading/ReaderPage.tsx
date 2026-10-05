@@ -6,7 +6,7 @@ import { Dialog, DialogTrigger, Button as AriaButton, Popover } from 'react-aria
 import { useMe } from '../../auth/me';
 import { Discussion, useCommentCount } from '../../community/Discussion';
 import { Blocks } from '../../reading/Blocks';
-import { chapterHeading, readingApi, type NovelPage, type ReaderChapter } from '../../reading/api';
+import { chapterHeading, volumeTitle, readingApi, type NovelPage, type ReaderChapter } from '../../reading/api';
 import { localProgress, saveLocalProgress } from '../../reading/progress';
 import { chapterQuery } from '../../reading/queries';
 import { useReaderSize, useTheme, type Theme } from '../../reading/theme';
@@ -211,6 +211,7 @@ function Reader({ chapter, team, find }: { chapter: ReaderChapter; team: string 
             </header>
 
             <article className={styles.text} style={{ fontSize: size }} onClick={toggleBars}>
+                {chapter.volume && volumeTitle(chapter.volume) !== chapterHeading(chapter) && <p className={styles.volumeLine}>{volumeTitle(chapter.volume)}</p>}
                 <h1 className={styles.chapterTitle}>{chapterHeading(chapter)}</h1>
                 {review.items.length > 0 && !reviewing && (
                     <div className={suggestionStyles.banner}>

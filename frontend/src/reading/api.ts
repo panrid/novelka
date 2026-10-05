@@ -67,7 +67,17 @@ export type NovelPage = {
 export type Continuation = { teamHandle: string; teamName: string; firstNumber: number };
 
 /** `label`: the number readers see («0», «31.1»); null means the position, '' means no number. */
-export type ChapterRow = { number: number; title: string; publishedAt: string; label: string | null };
+/** A volume as readers see it (етап 15); {@code index} is «Том 2», null for a prologue or side stories. */
+export type VolumeRef = { firstNumber: number; title: string; kind: 'volume' | 'prologue' | 'side' | 'extra'; index: number | null };
+
+export type ChapterRow = { number: number; title: string; publishedAt: string; label: string | null; volume?: VolumeRef | null };
+
+/** «Том 2. Подорож удвох», «Пролог», «Побічні історії». */
+export function volumeTitle(volume: VolumeRef): string {
+    if (volume.kind !== 'volume') return volume.title || { prologue: 'Пролог', side: 'Побічні історії', extra: 'Екстра' }[volume.kind];
+    const prefix = volume.index ? `Том ${volume.index}` : 'Том';
+    return volume.title ? `${prefix}. ${volume.title}` : prefix;
+}
 
 /** «31.1. Ніч», «Пролог» (no number), «Глава 12» (a number without a title). */
 export function chapterHeading(chapter: { number: number; label?: string | null; title: string }): string {
@@ -89,6 +99,8 @@ export type ReaderChapter = {
     continuation: Continuation | null;
     teamRole: 'owner' | 'translator' | 'editor' | null;
     label: string | null;
+    /** The volume the chapter is in, if the translation has volumes. */
+    volume?: VolumeRef | null;
 };
 
 export type CatalogQuery = { q?: string; tags?: string[]; kind?: string; machine?: string; sort?: string; page?: number };

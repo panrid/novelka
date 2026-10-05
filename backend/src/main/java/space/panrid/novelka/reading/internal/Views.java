@@ -63,8 +63,12 @@ final class Views {
     record ChapterRow(int number, String title, OffsetDateTime publishedAt, String label, VolumeRef volume) {
     }
 
-    /** A volume as readers see it; kind is volume, prologue, side or extra. */
-    record VolumeRef(int firstNumber, String title, String kind) {
+    /**
+     * A volume as readers see it; kind is volume, prologue, side or extra.
+     *
+     * @param index «Том 2»: ordinary volumes counted from 1; null for the others
+     */
+    record VolumeRef(int firstNumber, String title, String kind, Integer index) {
     }
 
     record ReaderBlock(String id, String type, List<Span> content, String imageUrl) {
