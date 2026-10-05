@@ -15,6 +15,7 @@ import { WelcomePage } from '../pages/me/WelcomePage';
 import { UserPage } from '../pages/people/UserPage';
 import { CatalogPage, validateCatalogSearch } from '../pages/reading/CatalogPage';
 import { HomePage } from '../pages/reading/HomePage';
+import { ProposalsPage } from '../pages/proposals/ProposalsPage';
 import { LibraryPage } from '../pages/reading/LibraryPage';
 import { NovelPage } from '../pages/reading/NovelPage';
 import { ProposeChapterPage } from '../pages/reading/ProposeChapterPage';
@@ -84,6 +85,7 @@ const studio = <TPath extends string>(path: TPath, component: () => React.ReactN
 const routeTree = rootRoute.addChildren([
     createRoute({ getParentRoute: () => rootRoute, path: '/', component: HomePage, head: () => ({ meta: [{ title: 'Новелка' }] }) }),
     createRoute({ getParentRoute: () => rootRoute, path: '/catalog', component: CatalogPage, validateSearch: validateCatalogSearch, head: title('Пошук') }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/proposals', component: ProposalsPage, head: title('Що перекласти') }),
     createRoute({ getParentRoute: () => rootRoute, path: '/library', component: LibraryPage, validateSearch: listSearch, head: title('Бібліотека') }),
     createRoute({
         getParentRoute: () => rootRoute, path: '/n/$slug', component: NovelPage, validateSearch: teamSearch,

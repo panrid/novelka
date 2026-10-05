@@ -57,6 +57,18 @@ class Preparation {
             sources.keep(ref.novelId(), novel);
             return ref;
         }
+        return importWith(novel, metadata(novel, "metadata"), teamId);
+    }
+
+    /** The title, the author and the description in Ukrainian, as the site shows them. */
+    record Metadata(String title, String author, List<Block> description) {
+    }
+
+    /** The novel's page translated at once (рішення 8: no original text on the site). */
+    Metadata metadata(SourceNovel novel, String purpose) {
+        if (!ai.configured()) {
+            throw UserFacingException.badRequest("Ключ OpenRouter не налаштовано на сервері: назву й опис нема чим перекласти.");
+        }
         Settings.Stage model = jobs.settings().analyze();
         String user = "Title: " + novel.title() + "\nAuthor: " + novel.author() + "\nDescription:\n" + novel.story();
         JsonNode answer = null;
@@ -64,7 +76,7 @@ class Preparation {
             AiAnswer reply;
             try {
                 reply = ai.ask(new AiRequest(model.model(), Prompts.METADATA, user, "novel", Prompts.metadataSchema(), 4_000,
-                        model.price(), new AiTag(null, null, "metadata", null), attempt));
+                        model.price(), new AiTag(null, null, purpose, null), attempt));
             } catch (AiException error) {
                 throw UserFacingException.badGateway(error.getMessage());
             }
@@ -80,14 +92,20 @@ class Preparation {
         if (answer == null) {
             throw UserFacingException.badGateway("Модель не змогла перекласти назву новели. Спробуйте ще раз.");
         }
-        String title = answer.path("title").asString().strip();
+        return new Metadata(answer.path("title").asString().strip(), answer.path("author").asString("").strip(),
+                paragraphs(answer.path("description").asString("")));
+    }
+
+    /** The novel with its Ukrainian page and the team's edition; an already known novel keeps its page. */
+    EditionRef importWith(SourceNovel novel, Metadata metadata, long teamId) {
+        SourceLink link = novel.link();
         EditionRef ref = catalog.importNovel(new ImportedNovel(link.provider(), novel.language(), link.key(), link.url(),
-                novel.title(), novel.author(), title, answer.path("author").asString("").strip(),
-                paragraphs(answer.path("description").asString("")), novel.lastAvailable(), link.adult(), teamId));
+                novel.title(), novel.author(), metadata.title(), metadata.author(), metadata.description(),
+                novel.lastAvailable(), link.adult(), teamId));
         sources.keep(ref.novelId(), novel);
         // Authors mention their own book in notes; the translation must call it by the site's title.
         glossary.addFromAnalysis(ref.editionId(), 0, List.of(
-                new Glossary.Proposed(novel.title(), "", title, "other", "unknown", "Назва цієї новели.")));
+                new Glossary.Proposed(novel.title(), "", metadata.title(), "other", "unknown", "Назва цієї новели.")));
         return ref;
     }
 

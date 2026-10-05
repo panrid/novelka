@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { readingApi } from '../../reading/api';
 import { Button } from '../../ui/Button';
@@ -92,7 +92,9 @@ export function CatalogPage() {
             {results.isError && <Notice tone="error">{results.error.message}</Notice>}
             {results.isPending && <p className={styles.empty}>Шукаємо…</p>}
             {results.isSuccess && items.length === 0 && (
-                <p className={styles.empty}>Нічого не знайшли. Спробуйте іншу назву або приберіть теги.</p>
+                <p className={styles.empty}>
+                    Нічого не знайшли. Спробуйте іншу назву або приберіть теги — чи <Link to="/proposals">запропонуйте новелу перекласти</Link>.
+                </p>
             )}
             {items.map((card) => <CardRow key={card.editionId} card={card} />)}
             {results.hasNextPage && (

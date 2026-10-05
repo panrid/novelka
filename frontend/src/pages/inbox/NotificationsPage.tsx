@@ -80,6 +80,10 @@ function Row({ item }: { item: Notification }) {
             title = `Вам нараховано ${p.shah ?? 0} ${shahWord(p.shah ?? 0)}`;
             excerpt = p.note;
             break;
+        case 'proposal_taken':
+            title = `«${p.title ?? ''}» взяли перекладати`;
+            excerpt = `Новела, за яку ви голосували. Перекладає $${p.teamHandle ?? ''}.`;
+            break;
         case 'suggestions_reviewed':
             title = `Ваші правки перевірено: прийнято ${p.accepted}, відхилено ${p.rejected}`;
             break;

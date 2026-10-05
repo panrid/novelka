@@ -1,3 +1,4 @@
+import { LinkButton } from '../../ui/LinkButton';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { readingApi, chaptersWord, type Card, resumeLine } from '../../reading/api';
@@ -73,6 +74,11 @@ export function HomePage() {
                     ))}
                 </>
             )}
+            <h2 className={styles.sectionTitle}>Що перекласти далі</h2>
+            <p className={styles.small} style={{ marginBottom: 10 }}>
+                Запропонуйте новелу посиланням або проголосуйте за ті, які хочете читати.
+            </p>
+            <LinkButton to="/proposals" variant="secondary">Що перекласти</LinkButton>
         </section>
     );
 }

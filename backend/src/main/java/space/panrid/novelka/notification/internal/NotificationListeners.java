@@ -21,6 +21,7 @@ import org.jooq.impl.DSL;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
+import space.panrid.novelka.autotranslate.ProposalTaken;
 import space.panrid.novelka.community.ChatMentioned;
 import space.panrid.novelka.community.CommentPosted;
 import space.panrid.novelka.ledger.ShahsGranted;
@@ -117,6 +118,15 @@ class NotificationListeners {
         people.remove(submitted.authorId());
         for (long person : people) {
             inbox.addCounted(person, "suggestions_submitted", "suggestions:" + submitted.editionId(), base, submitted.count());
+        }
+    }
+
+    /** A novel people voted for is being translated now. */
+    @ApplicationModuleListener
+    void on(ProposalTaken taken) {
+        Map<String, Object> payload = Map.of("title", taken.title(), "slug", taken.novelSlug(), "teamHandle", taken.teamHandle());
+        for (long voter : taken.voters()) {
+            inbox.add(voter, "proposal_taken", payload);
         }
     }
 
