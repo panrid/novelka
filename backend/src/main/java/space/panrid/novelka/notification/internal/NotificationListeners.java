@@ -21,6 +21,7 @@ import org.jooq.impl.DSL;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
+import space.panrid.novelka.achievement.AchievementEarned;
 import space.panrid.novelka.autotranslate.ProposalTaken;
 import space.panrid.novelka.community.ChatMentioned;
 import space.panrid.novelka.community.CommentPosted;
@@ -119,6 +120,11 @@ class NotificationListeners {
         for (long person : people) {
             inbox.addCounted(person, "suggestions_submitted", "suggestions:" + submitted.editionId(), base, submitted.count());
         }
+    }
+
+    @ApplicationModuleListener
+    void on(AchievementEarned earned) {
+        inbox.add(earned.accountId(), "achievement", Map.of("code", earned.code(), "title", earned.title(), "nick", earned.nick()));
     }
 
     /** A novel people voted for is being translated now. */

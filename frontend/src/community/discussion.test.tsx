@@ -16,9 +16,9 @@ const CHAPTER = {
 const THREAD = {
     total: 2, page: 1, hasMore: false,
     items: [{
-        id: 40, authorNick: 'lysytsia', authorAvatarUrl: null, body: 'Чудова глава, **дякую**!', createdAt: new Date().toISOString(),
+        id: 40, authorNick: 'lysytsia', authorAvatarUrl: null, authorLevel: 4, body: 'Чудова глава, **дякую**!', createdAt: new Date().toISOString(),
         editedAt: null, removed: null, score: 3, myVote: 0, mine: false, replyTo: null,
-        replies: [{ id: 41, authorNick: 'mavka', authorAvatarUrl: null, body: '@lysytsia згодна', createdAt: new Date().toISOString(),
+        replies: [{ id: 41, authorNick: 'mavka', authorAvatarUrl: null, authorLevel: 1, body: '@lysytsia згодна', createdAt: new Date().toISOString(),
             editedAt: null, removed: null, score: 0, myVote: 0, mine: true, replyTo: 40, replies: [] }],
     }],
 };
@@ -37,6 +37,8 @@ describe('discussion', () => {
         await userEvent.click(await screen.findByRole('button', { name: 'Обговорення глави, коментарів: 2' }));
         const sheet = await screen.findByRole('dialog', { name: 'Обговорення глави' });
         expect(within(sheet).getByText('дякую').tagName).toBe('STRONG');
+        expect(within(sheet).getByText(/рів\. 4/)).toBeInTheDocument();
+        expect(within(sheet).getAllByText(/рів\./)).toHaveLength(1);
 
         const first = within(sheet).getAllByRole('article')[0]!;
         await userEvent.click(within(first).getByRole('button', { name: 'Подобається' }));

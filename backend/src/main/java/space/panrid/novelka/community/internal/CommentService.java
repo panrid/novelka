@@ -60,7 +60,7 @@ class CommentService {
         this.posting = new RateLimiter(8, Duration.ofMinutes(1), clock);
     }
 
-    record Item(long id, String authorNick, String authorAvatarUrl, String body, OffsetDateTime createdAt,
+    record Item(long id, String authorNick, String authorAvatarUrl, Integer authorLevel, String body, OffsetDateTime createdAt,
             OffsetDateTime editedAt, String removed, int score, int myVote, boolean mine, Long replyTo, List<Item> replies) {
     }
 
@@ -121,7 +121,7 @@ class CommentService {
         String removed = c.getHiddenAt() != null ? "hidden" : c.getDeletedAt() != null ? "deleted" : null;
         People.Person author = names.get(c.getAuthorId());
         return new Item(c.getId(), removed == null ? author.nick() : null, removed == null ? author.avatarUrl() : null,
-                removed == null ? bodies.get(c.getId()) : "", c.getCreatedAt(), c.getEditedAt(), removed, c.getScore(),
+                removed == null ? author.level() : null, removed == null ? bodies.get(c.getId()) : "", c.getCreatedAt(), c.getEditedAt(), removed, c.getScore(),
                 votes.getOrDefault(c.getId(), 0), viewerId != null && viewerId == c.getAuthorId(), c.getReplyTo(), replies);
     }
 

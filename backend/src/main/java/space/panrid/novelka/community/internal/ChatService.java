@@ -54,7 +54,7 @@ class ChatService {
         this.writing = new RateLimiter(15, Duration.ofMinutes(1), clock);
     }
 
-    record Line(long id, String authorNick, String authorAvatarUrl, String body, OffsetDateTime createdAt, Long replyTo,
+    record Line(long id, String authorNick, String authorAvatarUrl, int authorLevel, String body, OffsetDateTime createdAt, Long replyTo,
             String replyExcerpt, boolean mine) {
     }
 
@@ -78,7 +78,7 @@ class ChatService {
             ChatMessageRecord r = ordered.get(i);
             People.Person author = names.get(r.getAuthorId());
             String answered = r.getReplyTo() == null ? null : replied.get(r.getReplyTo());
-            return new Line(r.getId(), author.nick(), author.avatarUrl(), bodies.get(i), r.getCreatedAt(), r.getReplyTo(),
+            return new Line(r.getId(), author.nick(), author.avatarUrl(), author.level(), bodies.get(i), r.getCreatedAt(), r.getReplyTo(),
                     answered == null ? null : mentions.excerpt(answered, 80), viewerId != null && viewerId == r.getAuthorId());
         }).toList();
     }

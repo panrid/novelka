@@ -80,6 +80,9 @@ function Row({ item }: { item: Notification }) {
             title = `Вам нараховано ${p.shah ?? 0} ${shahWord(p.shah ?? 0)}`;
             excerpt = p.note;
             break;
+        case 'achievement':
+            title = `Нове досягнення: «${p.title ?? ''}»`;
+            break;
         case 'proposal_taken':
             title = `«${p.title ?? ''}» взяли перекладати`;
             excerpt = `Новела, за яку ви голосували. Перекладає $${p.teamHandle ?? ''}.`;
@@ -99,6 +102,9 @@ function Row({ item }: { item: Notification }) {
         </div>
     );
     const className = `${styles.item} ${item.read ? '' : styles.unread}`;
+    if (item.kind === 'achievement' && p.nick) {
+        return <Link to="/u/$nick" params={{ nick: p.nick }} hash="achievements" className={className}>{body}</Link>;
+    }
     if (item.kind === 'shahs_granted') {
         return <Link to="/me/shahs" className={className}>{body}</Link>;
     }

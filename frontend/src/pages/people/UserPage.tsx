@@ -1,3 +1,4 @@
+import { Achievements } from './Achievements';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate, useParams } from '@tanstack/react-router';
 import { peopleApi } from '../../auth/api';
@@ -51,6 +52,7 @@ export function UserPage() {
             {me && me.nick !== person.nick && <WriteButton nick={person.nick} />}
             <Works nick={person.nick} />
             <Activity nick={person.nick} />
+            <Achievements nick={person.nick} />
         </section>
     );
 }

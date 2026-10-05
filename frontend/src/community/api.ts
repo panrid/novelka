@@ -1,7 +1,7 @@
 import { api } from '../api/client';
 
 export type Comment = {
-    id: number; authorNick: string | null; authorAvatarUrl: string | null; body: string; createdAt: string;
+    id: number; authorNick: string | null; authorAvatarUrl: string | null; authorLevel: number | null; body: string; createdAt: string;
     editedAt: string | null; removed: 'deleted' | 'hidden' | null; score: number; myVote: number; mine: boolean;
     replyTo: number | null; replies: Comment[];
 };

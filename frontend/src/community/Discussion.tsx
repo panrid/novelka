@@ -121,6 +121,7 @@ function Item({ comment, onReply, onChanged, focus: focused, me }: {
             <div className={styles.body}>
                 <div className={styles.meta}>
                     <Link to="/u/$nick" params={{ nick: comment.authorNick! }} className={styles.author}>{comment.authorNick}</Link>
+                    {(comment.authorLevel ?? 1) > 1 && <span className={styles.level} title="Рівень на Новелці"> · рів. {comment.authorLevel}</span>}
                     {' · '}{relativeTime(new Date(comment.createdAt))}{comment.editedAt ? ' · змінено' : ''}
                 </div>
                 {editing ? (
