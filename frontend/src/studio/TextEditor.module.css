@@ -172,3 +172,26 @@
         border-radius: var(--radius-lg);
     }
 }
+
+/* Wide screens: the formatting bar sits on top under the header, like in a desktop editor. */
+@media (min-width: 1024px) {
+    .wrap {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .toolbarFixed {
+        position: sticky;
+        top: 57px;
+        bottom: auto;
+        order: -1;
+        margin-bottom: 12px;
+        padding-bottom: 6px;
+        border-top: 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .chapter {
+        padding-bottom: 48px;
+    }
+}

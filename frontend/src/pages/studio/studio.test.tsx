@@ -41,6 +41,7 @@ describe('chapter editor', () => {
     });
 
     it('shows the team the original of the paragraph next to its translation', async () => {
+        localStorage.removeItem('novelka:editor-original');
         await renderAt('/studio/7/chapters/3', {
             'GET /api/me': { body: ME },
             'GET /api/studio/editions/7/chapters/3': { body: { ...EDITOR, hasOriginal: true } },
@@ -60,6 +61,21 @@ describe('chapter editor', () => {
         document.dispatchEvent(new Event('selectionchange'));
         expect(await screen.findByText('灯りがともった。')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Оригінал' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('puts the whole original beside the text on a wide screen and lights the paragraph', async () => {
+        localStorage.removeItem('novelka:editor-original');
+        vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('1024'), addEventListener: () => {}, removeEventListener: () => {} }));
+        await renderAt('/studio/7/chapters/3', {
+            'GET /api/me': { body: ME },
+            'GET /api/studio/editions/7/chapters/3': { body: { ...EDITOR, hasOriginal: true } },
+            'GET /api/studio/editions/7/chapters/3/original': { body: { title: '第3話', blocks: [{ id: 'b1', type: 'paragraph', text: '灯りがともった。' }] } },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Оригінал' }));
+        const column = await screen.findByRole('complementary', { name: 'Оригінал глави' });
+        expect(await within(column).findByText('灯りがともった。')).toBeInTheDocument();
+        expect(within(column).getByText('第3話')).toBeInTheDocument();
+        expect(screen.queryByRole('complementary', { name: 'Оригінал абзацу' })).not.toBeInTheDocument();
     });
 
     it('has no original to show for a chapter written by hand', async () => {

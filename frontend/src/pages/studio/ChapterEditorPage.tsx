@@ -12,6 +12,7 @@ import { relativeTime } from '../../lib/dates';
 import styles from './editor.module.css';
 import { askConfirm } from '../../ui/ask';
 import { useCanRun } from '../../ledger/api';
+import { useWide } from '../../lib/useWide';
 
 const AUTOSAVE_MS = 1500;
 
@@ -105,6 +106,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
     };
     const [showOriginal, setShowOriginal] = useState(() => view.hasOriginal && rememberedOriginal());
     const [cursor, setCursor] = useState<string | null>(null);
+    const wide = useWide();
     const toggleOriginal = () => {
         setShowOriginal(!showOriginal);
         try {
@@ -117,7 +119,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
     const params = { editionId: String(editionId) };
 
     return (
-        <div className={styles.page}>
+        <div className={`${styles.page} ${showOriginal && wide ? styles.pageWide : ''}`}>
             <header className={styles.top}>
                 <Link to="/studio/$editionId" params={params} className={styles.icon} aria-label="До публікації"><ArrowLeft size={22} aria-hidden /></Link>
                 <div className={styles.where}>
@@ -147,7 +149,9 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                 </Button>
             </header>
 
-            <div className={`${styles.body} ${showOriginal ? styles.bodyWithOriginal : ''}`}>
+            <div className={showOriginal && wide ? styles.split : undefined}>
+            {showOriginal && wide && <OriginalColumn editionId={editionId} number={view.number} blockId={cursor} />}
+            <div className={`${styles.body} ${showOriginal && !wide ? styles.bodyWithOriginal : ''}`}>
                 {view.draft && !published && (
                     <Notice tone="info">
                         Відкрито вашу чернетку від {relativeTime(new Date(view.draft.updatedAt))}.
@@ -176,12 +180,47 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                     onCursorBlock={setCursor}
                     mayAddPictures={view.mayAddPictures} label="Текст глави" placeholder="Почніть писати або вставте текст…" />
             </div>
-            {showOriginal && <OriginalPanel editionId={editionId} number={view.number} blockId={cursor} />}
+            </div>
+            {showOriginal && !wide && <OriginalPanel editionId={editionId} number={view.number} blockId={cursor} />}
         </div>
     );
 }
 
 const ORIGINAL_KEY = 'novelka:editor-original';
+
+/**
+ * On a wide screen the whole original sits in a column beside the text; the paragraph the
+ * cursor is in is lit and kept in view, so the two read side by side.
+ */
+function OriginalColumn({ editionId, number, blockId }: { editionId: number; number: number; blockId: string | null }) {
+    const original = useQuery({
+        queryKey: ['studio-original', editionId, number],
+        queryFn: () => studioApi.original(editionId, number),
+        staleTime: Infinity,
+    });
+    const column = useRef<HTMLElement>(null);
+    useEffect(() => {
+        const lit = blockId ? column.current?.querySelector<HTMLElement>(`[data-block="${CSS.escape(blockId)}"]`) : null;
+        lit?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    }, [blockId, original.data]);
+    return (
+        <aside ref={column} className={styles.originalColumn} aria-label="Оригінал глави">
+            {original.isError ? <p className={styles.originalHint}>{original.error.message}</p>
+                : !original.data ? <p className={styles.originalHint}>Завантажуємо оригінал…</p>
+                : (
+                    <>
+                        <p className={styles.originalTitle} lang="und">{original.data.title}</p>
+                        {original.data.blocks.map((block) => (
+                            <p key={block.id} data-block={block.id} lang="und"
+                                className={`${styles.originalLine} ${block.id === blockId ? styles.lit : ''}`}>
+                                {block.type === 'separator' ? '◇' : block.text}
+                            </p>
+                        ))}
+                    </>
+                )}
+        </aside>
+    );
+}
 
 function rememberedOriginal(): boolean {
     try {
