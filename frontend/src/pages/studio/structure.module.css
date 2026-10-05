@@ -1,0 +1,167 @@
+.page {
+    padding-top: 12px;
+}
+
+.title {
+    font: 600 24px/1.2 var(--font-reading);
+    margin: 8px 0 6px;
+}
+
+.muted {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.empty {
+    padding: 24px 14px;
+    color: var(--muted);
+}
+
+.layout {
+    display: grid;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.list {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.group + .group {
+    border-top: 1px solid var(--line);
+}
+
+.volume {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    padding: 10px 14px;
+    background: var(--surface);
+}
+
+.volume b {
+    font: 600 15px/1.3 var(--font-reading);
+}
+
+.grow {
+    flex: 1;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 40px;
+    padding: 6px 14px;
+    border-top: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.row input {
+    accent-color: var(--accent);
+    width: 18px;
+    height: 18px;
+}
+
+.selected {
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.number {
+    flex: none;
+    min-width: 40px;
+    color: var(--faint);
+}
+
+.next {
+    flex: none;
+    min-width: 32px;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.chip,
+.chipOn {
+    padding: 2px 8px;
+    border-radius: 99px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.chipOn {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--accent);
+}
+
+.link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* Phone: the actions stay at hand above the tab bar while chapters scroll. */
+.panel {
+    position: sticky;
+    bottom: calc(var(--tabbar-height) + var(--safe-bottom) + 8px);
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border-radius: var(--radius);
+    background: var(--bg);
+    box-shadow: var(--shadow);
+    order: 1;
+}
+
+.card {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+}
+
+.sheetForm {
+    display: grid;
+    gap: 14px;
+}
+
+@media (min-width: 1024px) {
+    .layout {
+        grid-template-columns: minmax(0, 1fr) 320px;
+        align-items: start;
+    }
+
+    .panel {
+        position: sticky;
+        top: 16px;
+        bottom: auto;
+        order: 0;
+        padding: 0;
+        background: none;
+        box-shadow: none;
+    }
+}

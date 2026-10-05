@@ -38,6 +38,7 @@ export function StudioRail() {
                     <div className={styles.label}>{open.title}</div>
                     <Link to="/studio/$editionId" params={params} className={`${styles.item} ${at(base) ?? ''}`}>Глави</Link>
                     {machine && translator && <Link to="/studio/$editionId/translate" params={params} className={`${styles.item} ${at(`${base}/translate`) ?? ''}`}>Автопереклад</Link>}
+                    {translator && <Link to="/studio/$editionId/structure" params={params} className={`${styles.item} ${at(`${base}/structure`) ?? ''}`}>Структура й томи</Link>}
                     {machine && <Link to="/studio/$editionId/glossary" params={params} className={`${styles.item} ${at(`${base}/glossary`) ?? ''}`}>Словник</Link>}
                     {machine && <Link to="/studio/$editionId/titles" params={params} className={`${styles.item} ${at(`${base}/titles`) ?? ''}`}>Назви глав</Link>}
                     {translator && <Link to="/studio/$editionId/import" params={params} className={`${styles.item} ${at(`${base}/import`) ?? ''}`}>Глави з файлу</Link>}

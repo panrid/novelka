@@ -55,8 +55,11 @@ class ChapterService implements Chapters {
     private final Catalog catalog;
     private final Clock clock;
     private final ApplicationEventPublisher events;
+    private final VolumeService volumes;
 
-    ChapterService(DSLContext db, JsonMapper json, Catalog catalog, Clock clock, ApplicationEventPublisher events) {
+    ChapterService(DSLContext db, JsonMapper json, Catalog catalog, Clock clock, ApplicationEventPublisher events,
+            VolumeService volumes) {
+        this.volumes = volumes;
         this.events = events;
         this.db = db;
         this.json = json;
@@ -78,6 +81,7 @@ class ChapterService implements Chapters {
                     .set(CHAPTER.EDITION_ID, editionId)
                     .set(CHAPTER.NUMBER, next)
                     .set(CHAPTER.LABEL, split == null ? null : split[0])
+                    .set(CHAPTER.LABEL_MANUAL, split != null)
                     .set(CHAPTER.FIRST_PUBLISHED_AT, now)
                     .set(CHAPTER.UPDATED_AT, now)
                     .returning(CHAPTER.ID)
@@ -90,6 +94,7 @@ class ChapterService implements Chapters {
             db.update(CHAPTER).set(CHAPTER.PUBLISHED_REVISION_ID, revisionId).where(CHAPTER.ID.eq(chapterId)).execute();
             numbers.add(next++);
         }
+        volumes.renumber(editionId);
         refreshCounters(editionId, now);
         if (!numbers.isEmpty()) {
             events.publishEvent(new ChaptersPublished(editionId, numbers.getFirst(), numbers.getLast()));
@@ -127,9 +132,11 @@ class ChapterService implements Chapters {
                 .set(CHAPTER.SOURCE_CHAPTER_ID, sourceChapterId)
                 .set(CHAPTER.SOURCE_CHARS, sourceChars)
                 .set(CHAPTER.LABEL, label)
+                .set(CHAPTER.LABEL_MANUAL, label != null)
                 .set(CHAPTER.FIRST_PUBLISHED_AT, DSL.coalesce(CHAPTER.FIRST_PUBLISHED_AT, DSL.val(now)))
                 .set(CHAPTER.UPDATED_AT, now)
                 .where(CHAPTER.ID.eq(chapterId)).execute();
+        volumes.renumber(editionId);
         refreshCounters(editionId, firstTime ? now : null);
         if (firstTime) {
             events.publishEvent(new ChaptersPublished(editionId, number, number));
@@ -158,6 +165,7 @@ class ChapterService implements Chapters {
         db.update(REVISION).setNull(REVISION.PARENT_ID).where(REVISION.CHAPTER_ID.eq(id)).execute();
         db.deleteFrom(REVISION).where(REVISION.CHAPTER_ID.eq(id)).execute();
         db.deleteFrom(CHAPTER).where(CHAPTER.ID.eq(id)).execute();
+        volumes.renumber(editionId);
         refreshCounters(editionId, null);
     }
 
@@ -169,8 +177,10 @@ class ChapterService implements Chapters {
             throw UserFacingException.badRequest("Номер — число, можна з крапкою: 0, 12, 31.1. Порожньо — без номера.");
         }
         chapter(editionId, number);
-        db.update(CHAPTER).set(CHAPTER.LABEL, value).set(CHAPTER.UPDATED_AT, now())
+        // No number given: the chapter goes back to the automatic one.
+        db.update(CHAPTER).set(CHAPTER.LABEL, value).set(CHAPTER.LABEL_MANUAL, value != null).set(CHAPTER.UPDATED_AT, now())
                 .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(number)).execute();
+        volumes.renumber(editionId);
     }
 
     @Override
@@ -179,6 +189,7 @@ class ChapterService implements Chapters {
         int number = nextNumber(editionId);
         db.insertInto(CHAPTER).set(CHAPTER.EDITION_ID, editionId).set(CHAPTER.NUMBER, number)
                 .set(CHAPTER.UPDATED_AT, now()).execute();
+        volumes.renumber(editionId);
         return number;
     }
 

@@ -41,6 +41,7 @@ import { NewGroupPage } from '../pages/inbox/NewGroupPage';
 import { NotificationsPage } from '../pages/inbox/NotificationsPage';
 import { RelayPage } from '../pages/studio/RelayPage';
 import { StudioHome } from '../pages/studio/StudioHome';
+import { StructurePage } from '../pages/studio/StructurePage';
 import { MyTeamsPage } from '../pages/team/MyTeamsPage';
 import { TeamPage } from '../pages/team/TeamPage';
 import { Shell } from './Shell';
@@ -148,6 +149,7 @@ const routeTree = rootRoute.addChildren([
     studio('/studio/$editionId/about', AboutPage, 'Дані й обкладинка'),
     studio('/studio/$editionId/import', ImportPage, 'Глави з файлу'),
     studio('/studio/$editionId/relay', RelayPage, 'Естафета'),
+    studio('/studio/$editionId/structure', StructurePage, 'Структура й томи'),
     studio('/studio/$editionId/translate', AutotranslatePage, 'Автопереклад'),
     studio('/studio/$editionId/glossary', GlossaryPage, 'Словник'),
     studio('/studio/$editionId/titles', TitlesPage, 'Назви глав'),

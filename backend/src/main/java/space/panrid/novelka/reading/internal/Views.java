@@ -59,7 +59,12 @@ final class Views {
     }
 
     /** @param label number readers see; null means {@code number}, empty means none */
-    record ChapterRow(int number, String title, OffsetDateTime publishedAt, String label) {
+    /** @param volume the volume the chapter is in, or null before the first one */
+    record ChapterRow(int number, String title, OffsetDateTime publishedAt, String label, VolumeRef volume) {
+    }
+
+    /** A volume as readers see it; kind is volume, prologue, side or extra. */
+    record VolumeRef(int firstNumber, String title, String kind) {
     }
 
     record ReaderBlock(String id, String type, List<Span> content, String imageUrl) {
@@ -68,7 +73,7 @@ final class Views {
     /** {@code savedPosition}: where the signed-in reader stopped in this very chapter, 0..1. */
     record ReaderChapter(String novelSlug, String novelTitle, EditionSummary edition, int number, String title,
             List<ReaderBlock> blocks, Integer previous, Integer next, Float savedPosition, Continuation continuation,
-            String teamRole, String label) {
+            String teamRole, String label, VolumeRef volume) {
     }
 
     record Activity(List<Card> reading, int acceptedSuggestions) {

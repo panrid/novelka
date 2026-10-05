@@ -67,6 +67,7 @@ export function EditionPage() {
                 {owner && <Link to="/studio/$editionId/about" params={params} className={styles.menuItem}>Дані й обкладинка</Link>}
                 <Link to="/team/$handle" params={{ handle: edition.teamHandle }} className={styles.menuItem}>Команда ${edition.teamHandle}</Link>
                 {translator && edition.kind === 'machine' && <Link to="/studio/$editionId/translate" params={params} className={styles.menuItem}>Автопереклад</Link>}
+                {translator && <Link to="/studio/$editionId/structure" params={params} className={styles.menuItem}>Структура й томи</Link>}
                 {edition.kind === 'machine' && <Link to="/studio/$editionId/glossary" params={params} className={styles.menuItem}>Словник</Link>}
                 {edition.kind === 'machine' && <Link to="/studio/$editionId/titles" params={params} className={styles.menuItem}>Назви глав</Link>}
                 {owner && edition.kind !== 'original' && <Link to="/studio/$editionId/relay" params={params} className={styles.menuItem}>Естафета</Link>}

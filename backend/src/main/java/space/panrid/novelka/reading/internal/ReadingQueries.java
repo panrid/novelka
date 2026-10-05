@@ -14,6 +14,7 @@ import static space.panrid.novelka.jooq.Tables.TAG;
 import static space.panrid.novelka.jooq.Tables.TAKEOVER_REQUEST;
 import static space.panrid.novelka.jooq.Tables.TEAM;
 import static space.panrid.novelka.jooq.Tables.TEAM_MEMBER;
+import static space.panrid.novelka.jooq.Tables.VOLUME;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -323,12 +324,31 @@ class ReadingQueries {
                 .where(CHAPTER.EDITION_ID.eq(editionId))
                 .orderBy(newestFirst ? CHAPTER.NUMBER.desc() : CHAPTER.NUMBER.asc())
                 .limit(size + 1).offset((page - 1) * size)
-                .fetch(r -> new ChapterRow(r.value1(), r.value2(), r.value3(), r.value4()));
+                .fetch(r -> new ChapterRow(r.value1(), r.value2(), r.value3(), r.value4(), null));
+        List<Views.VolumeRef> volumes = volumes(editionId);
+        rows = rows.stream().map(row -> new ChapterRow(row.number(), row.title(), row.publishedAt(), row.label(),
+                volumeOf(volumes, row.number()))).toList();
         boolean more = rows.size() > size;
         return new Views.Page<>(more ? rows.subList(0, size) : rows, page, more);
     }
 
     record ChapterText(int number, String title, JSONB blocks, String label) {
+    }
+
+    List<Views.VolumeRef> volumes(long editionId) {
+        return db.select(VOLUME.FIRST_NUMBER, VOLUME.TITLE, VOLUME.KIND).from(VOLUME).where(VOLUME.EDITION_ID.eq(editionId))
+                .orderBy(VOLUME.FIRST_NUMBER).fetch(r -> new Views.VolumeRef(r.value1(), r.value2(), r.value3()));
+    }
+
+    /** The last volume starting at or before the chapter. */
+    static Views.VolumeRef volumeOf(List<Views.VolumeRef> volumes, int number) {
+        Views.VolumeRef found = null;
+        for (Views.VolumeRef volume : volumes) {
+            if (volume.firstNumber() <= number) {
+                found = volume;
+            }
+        }
+        return found;
     }
 
     Optional<ChapterText> chapter(long editionId, int number) {

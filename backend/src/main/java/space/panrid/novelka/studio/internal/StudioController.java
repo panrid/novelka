@@ -57,6 +57,7 @@ import space.panrid.novelka.team.Teams;
 import space.panrid.novelka.text.ChapterFiles;
 import space.panrid.novelka.text.Chapters;
 import space.panrid.novelka.text.EditorModels;
+import space.panrid.novelka.text.Volumes;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -138,9 +139,11 @@ class StudioController {
     private final Images images;
     private final DSLContext db;
     private final JsonMapper json;
+    private final Volumes volumes;
 
     StudioController(AccessPolicy access, Teams teams, Catalog catalog, Chapters chapters, Images images, DSLContext db,
-            JsonMapper json) {
+            JsonMapper json, Volumes volumes) {
+        this.volumes = volumes;
         this.json = json;
         this.access = access;
         this.teams = teams;
@@ -274,6 +277,27 @@ class StudioController {
         return new OriginalView(source.value1(), blocks.stream()
                 .filter(block -> !block.text().isBlank() || "separator".equals(block.type()))
                 .map(block -> new OriginalBlock(block.id(), block.type(), block.text())).toList());
+    }
+
+    // ---- structure: volumes and numbering (етап 15) ---------------------------------------------
+
+    @GetMapping("/editions/{editionId}/structure")
+    Volumes.Structure structure(@PathVariable long editionId) {
+        access.requireTranslator(editionId);
+        return volumes.structure(editionId);
+    }
+
+    /** The numbers every chapter would show after the change; nothing is saved. */
+    @PostMapping("/editions/{editionId}/structure/preview")
+    Map<Integer, String> previewStructure(@PathVariable long editionId, @RequestBody Volumes.Change body) {
+        access.requireTranslator(editionId);
+        return volumes.preview(editionId, body);
+    }
+
+    @PutMapping("/editions/{editionId}/structure")
+    Volumes.Structure saveStructure(@PathVariable long editionId, @RequestBody Volumes.Change body) {
+        access.requireTranslator(editionId);
+        return volumes.save(editionId, body);
     }
 
     private Long sourceChapterId(long editionId, int number) {

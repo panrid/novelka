@@ -117,7 +117,7 @@ class ReadingController {
                 queries.readerBlocks(text.blocks()),
                 queries.neighbour(edition.id(), number, false), next, saved,
                 next == null ? relay(edition.id()).continuations().stream().findFirst().orElse(null) : null, teamRole,
-                text.label());
+                text.label(), ReadingQueries.volumeOf(queries.volumes(edition.id()), text.number()));
     }
 
     @PutMapping("/progress/{editionId}")
