@@ -68,9 +68,40 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
     const machine = edition.kind === 'machine' || edition.kind === 'mixed';
 
     return (
-        <section className={styles.page}>
-            <div className={styles.head}>
-                <Cover url={edition.coverUrl} title={novel.title} seed={novel.slug} width={112} />
+        <section className={`${styles.page} ${styles.novel}`}>
+            <div className={styles.side}>
+                <div className={styles.coverBox}>
+                    <Cover url={edition.coverUrl} title={novel.title} seed={novel.slug} width={112} fluid />
+                </div>
+                <div className={styles.actions}>
+                    <LinkButton to="/n/$slug/$number" params={{ slug: novel.slug, number: String(resume ?? 1) }}
+                        search={team ? { t: team } : {}} wide>
+                        {resume ? resumeLabel : 'Почати читати'}
+                    </LinkButton>
+                    <LibraryButton novel={novel} />
+                </div>
+
+                {novel.editions.length > 1 && (
+                    <div className={styles.editions} role="group" aria-label="Переклади">
+                        {novel.editions.map((other) => (
+                            <Link key={other.editionId} to="/n/$slug" params={{ slug: novel.slug }} search={{ t: other.teamHandle }}
+                                className={`${styles.chip} ${other.editionId === edition.editionId ? styles.on : styles.ghost}`}
+                                aria-current={other.editionId === edition.editionId ? 'true' : undefined}>
+                                {other.teamName} · {other.chapterCount}
+                            </Link>
+                        ))}
+                    </div>
+                )}
+
+                {novel.viewer?.teamRole && (
+                    <div className={styles.actions}>
+                        <LinkButton to="/studio/$editionId" params={{ editionId: String(edition.editionId) }} variant="secondary" wide>
+                            Керувати
+                        </LinkButton>
+                    </div>
+                )}
+            </div>
+            <div className={styles.content}>
                 <div className={styles.headText}>
                     <h1 className={styles.title}>{novel.title}</h1>
                     <p className={styles.muted}>{novel.origin === 'original' ? 'оригінальний твір' : 'переклад з японської'}</p>
@@ -85,70 +116,41 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                     </p>
                     <Stars novel={novel} />
                 </div>
-            </div>
-
-            <div className={styles.actions}>
-                <LinkButton to="/n/$slug/$number" params={{ slug: novel.slug, number: String(resume ?? 1) }}
-                    search={team ? { t: team } : {}} wide>
-                    {resume ? resumeLabel : 'Почати читати'}
-                </LinkButton>
-                <LibraryButton novel={novel} />
-            </div>
-
-            {novel.editions.length > 1 && (
-                <div className={styles.editions} role="group" aria-label="Переклади">
-                    {novel.editions.map((other) => (
-                        <Link key={other.editionId} to="/n/$slug" params={{ slug: novel.slug }} search={{ t: other.teamHandle }}
-                            className={`${styles.chip} ${other.editionId === edition.editionId ? styles.on : styles.ghost}`}
-                            aria-current={other.editionId === edition.editionId ? 'true' : undefined}>
-                            {other.teamName} · {other.chapterCount}
-                        </Link>
-                    ))}
-                </div>
-            )}
-
-            {novel.tags.length > 0 && (
-                <div className={styles.chips} style={{ margin: '14px 0 10px' }}>
-                    {novel.tags.map((tag) => (
-                        <Link key={tag} to="/catalog" search={{ tags: [tag.toLowerCase()] }} className={`${styles.chip} ${styles.ghost}`}>
-                            {tag}
-                        </Link>
-                    ))}
-                </div>
-            )}
-
-            {novel.description.length > 0 && (
-                <div className={styles.description}>
-                    <div ref={description} className={expanded ? undefined : styles.clamped}>
-                        <Blocks blocks={novel.description} />
+                {novel.tags.length > 0 && (
+                    <div className={styles.chips} style={{ margin: '14px 0 10px' }}>
+                        {novel.tags.map((tag) => (
+                            <Link key={tag} to="/catalog" search={{ tags: [tag.toLowerCase()] }} className={`${styles.chip} ${styles.ghost}`}>
+                                {tag}
+                            </Link>
+                        ))}
                     </div>
-                    {(overflows || expanded) && (
-                        <button type="button" className={styles.more} onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
-                            {expanded ? 'згорнути' : 'читати опис повністю'}
-                        </button>
-                    )}
-                </div>
-            )}
+                )}
 
-            {novel.viewer?.teamRole && (
-                <div className={styles.actions}>
-                    <LinkButton to="/studio/$editionId" params={{ editionId: String(edition.editionId) }} variant="secondary" wide>
-                        Керувати
-                    </LinkButton>
-                </div>
-            )}
+                {novel.description.length > 0 && (
+                    <div className={styles.description}>
+                        <div ref={description} className={expanded ? undefined : styles.clamped}>
+                            <Blocks blocks={novel.description} />
+                        </div>
+                        {(overflows || expanded) && (
+                            <button type="button" className={styles.more} onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
+                                {expanded ? 'згорнути' : 'читати опис повністю'}
+                            </button>
+                        )}
+                    </div>
+                )}
 
-            <ChapterList slug={novel.slug} team={team} current={resume} />
+                <ChapterList slug={novel.slug} team={team} current={resume} />
 
-            {novel.relay.continuations.map((next) => (
-                <Link key={next.teamHandle} to="/n/$slug/$number" params={{ slug: novel.slug, number: String(next.firstNumber) }}
-                    search={{ t: next.teamHandle }} className={styles.continuation}>
-                    Продовження від ${next.teamHandle} — з глави {next.firstNumber} →
-                </Link>
-            ))}
-            {novel.origin === 'translation' && !novel.viewer?.teamRole && <RelayOffer novel={novel} />}
-            <HideEdition editionId={edition.editionId} />
-            <DiscussionButton editionId={edition.editionId} />
+                {novel.relay.continuations.map((next) => (
+                    <Link key={next.teamHandle} to="/n/$slug/$number" params={{ slug: novel.slug, number: String(next.firstNumber) }}
+                        search={{ t: next.teamHandle }} className={styles.continuation}>
+                        Продовження від ${next.teamHandle} — з глави {next.firstNumber} →
+                    </Link>
+                ))}
+                {novel.origin === 'translation' && !novel.viewer?.teamRole && <RelayOffer novel={novel} />}
+                <HideEdition editionId={edition.editionId} />
+                <DiscussionButton editionId={edition.editionId} />
+            </div>
         </section>
     );
 }

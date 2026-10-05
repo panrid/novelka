@@ -3,6 +3,85 @@
     max-width: 720px;
 }
 
+/*
+ * Phone: the cover sits beside the title, everything else below in one column, as before.
+ * The two wrappers only group things for wide screens.
+ */
+.novel {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: start;
+}
+
+.side,
+.content {
+    display: contents;
+}
+
+.coverBox {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.headText {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.side > :not(.coverBox),
+.content > :not(.headText) {
+    grid-column: 1 / -1;
+}
+
+/* Wide screens (етап 15): cover and buttons in a column that stays put, the rest beside it. */
+@media (min-width: 1024px) {
+    .novel {
+        max-width: none;
+        grid-template-columns: 260px minmax(0, 1fr);
+        column-gap: 48px;
+        padding-top: 28px;
+    }
+
+    .side {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        position: sticky;
+        top: 16px;
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .side .actions {
+        margin-top: 0;
+    }
+
+    .content {
+        display: block;
+        grid-column: 2;
+        grid-row: 1;
+        max-width: 860px;
+    }
+
+    .content .title {
+        font-size: 32px;
+    }
+
+    .content .headText {
+        gap: 8px;
+    }
+
+    .content .list {
+        columns: 2;
+        column-gap: 36px;
+    }
+
+    .content .list li {
+        break-inside: avoid;
+    }
+}
+
 .head {
     display: flex;
     gap: 14px;
