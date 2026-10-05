@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Новелка — ноутбук і томи</title>
+<style>
+:root {
+  --bg: #121412; --surface: #1b1e1b; --surface-2: #242824; --line: #2f342f;
+  --text: #e9e7df; --muted: #9a9d94; --faint: #6d7069;
+  --accent: #8fb07f; --accent-ink: #10150e; --warn: #d9a45b; --danger: #d9776b;
+  --page: #0b0c0b; --page-text: #c9c8c0;
+  --serif: "Literata", Georgia, "Times New Roman", serif;
+  --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--page); color: var(--page-text); font: 15px/1.5 var(--sans); padding: 32px 16px 64px; }
+.intro { max-width: 1100px; margin: 0 auto 28px; }
+.intro h1 { font: 600 28px/1.2 var(--serif); color: var(--text); margin-bottom: 8px; }
+.intro p { color: var(--muted); max-width: 760px; margin-bottom: 6px; }
+figure { max-width: 1100px; margin: 0 auto 48px; }
+figcaption { margin-top: 12px; font-size: 14px; color: var(--muted); max-width: 820px; }
+figcaption b { display: block; color: var(--text); font-size: 16px; margin-bottom: 4px; }
+figcaption ul { padding-left: 18px; margin-top: 4px; }
+
+/* laptop frame: drawn at 1100px, stands for a 1366–1440 px screen */
+.laptop { border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--text); overflow: hidden; }
+.bar { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 12px; background: #0f110f; border-bottom: 1px solid var(--line); }
+.bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--surface-2); }
+.bar span { margin-left: 12px; font-size: 12px; color: var(--faint); }
+.nav { height: 56px; display: flex; align-items: center; gap: 28px; padding: 0 32px; border-bottom: 1px solid var(--line); }
+.logo { font: 700 20px/1 var(--serif); }
+.logo i { color: var(--accent); font-style: normal; }
+.nav a { color: var(--muted); font-size: 14px; text-decoration: none; }
+.nav a.on { color: var(--text); font-weight: 600; }
+.nav .grow { flex: 1; }
+.search { width: 260px; height: 34px; border-radius: 9px; background: var(--surface); color: var(--faint); font-size: 13px; display: flex; align-items: center; padding: 0 12px; }
+.ava { width: 30px; height: 30px; border-radius: 50%; background: #3c5a73; display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.body { padding: 28px 32px 36px; }
+
+h2 { font: 600 30px/1.2 var(--serif); }
+h3 { font: 600 15px/1.2 var(--sans); margin: 22px 0 10px; display: flex; justify-content: space-between; align-items: baseline; }
+h3 small { font-weight: 400; font-size: 13px; color: var(--muted); }
+.muted { color: var(--muted); } .faint { color: var(--faint); } .sm { font-size: 13px; } .xs { font-size: 12px; }
+.row { display: flex; gap: 12px; align-items: center; }
+.between { justify-content: space-between; }
+.cover { flex: none; border-radius: 8px; aspect-ratio: 2/3; position: relative; overflow: hidden; display: flex; align-items: flex-end;
+  padding: 8px; font: 600 12px/1.15 var(--serif); color: #fff; background: linear-gradient(160deg, var(--c1, #3c5a73), var(--c2, #1d2b38)); }
+.cover::after { content: ""; position: absolute; right: -20%; top: 12%; width: 55%; aspect-ratio: 1; border-radius: 50%; background: rgba(255,255,255,.18); }
+.c2 { --c1: #7a4b5c; --c2: #2d1a22; } .c3 { --c1: #5c6e3c; --c2: #1f2915; } .c4 { --c1: #8a6a3a; --c2: #2e2213; } .c5 { --c1: #4b4d7a; --c2: #1a1b2f; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 16px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; background: var(--accent); color: var(--accent-ink); white-space: nowrap; }
+.btn.sec { background: var(--surface-2); color: var(--text); }
+.btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); font-weight: 500; }
+.chip { display: inline-block; padding: 2px 9px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 12px; }
+.chip.ok { background: rgba(143,176,127,.18); color: var(--accent); }
+.chip.warn { background: rgba(217,164,91,.16); color: var(--warn); }
+.card { background: var(--surface); border-radius: 12px; padding: 16px; }
+.stars { color: var(--warn); letter-spacing: 1px; }
+
+/* novel page */
+.novel { display: grid; grid-template-columns: 260px 1fr; gap: 40px; }
+.novel .cover { width: 260px; font-size: 18px; }
+.side { position: sticky; top: 0; display: grid; gap: 10px; align-content: start; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; margin-top: 6px; }
+.facts dt { color: var(--faint); }
+.tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin: 22px 0 6px; font-size: 14px; }
+.tabs span { padding: 10px 0; color: var(--muted); }
+.tabs span.on { color: var(--text); border-bottom: 2px solid var(--accent); font-weight: 600; }
+.vol { border-bottom: 1px solid var(--line); }
+.vol summary { list-style: none; display: flex; align-items: baseline; gap: 10px; padding: 12px 4px; cursor: default; }
+.vol summary b { font: 600 16px/1.3 var(--serif); }
+.vol summary .grow { flex: 1; }
+.chs { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; padding: 0 4px 12px; }
+.ch { display: flex; gap: 10px; padding: 7px 0; font-size: 14px; border-bottom: 1px dashed rgba(255,255,255,.04); }
+.ch .n { width: 44px; color: var(--faint); text-align: right; flex: none; }
+.ch .t { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch.read .t { color: var(--faint); }
+.ch.here .t { color: var(--accent); font-weight: 600; }
+
+/* studio */
+.studio { display: grid; grid-template-columns: 230px 1fr; min-height: 640px; }
+.rail { border-right: 1px solid var(--line); padding: 20px 14px; display: grid; gap: 4px; align-content: start; font-size: 14px; }
+.rail .label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin: 14px 8px 6px; }
+.rail a { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; color: var(--muted); text-decoration: none; }
+.rail a.on { background: var(--surface); color: var(--text); }
+.rail .cover { width: 26px; padding: 0; border-radius: 4px; }
+.rail .cover::after { display: none; }
+.rail .badge { margin-left: auto; background: var(--warn); color: #1d1406; border-radius: 999px; font-size: 11px; font-weight: 700; padding: 0 6px; }
+.main { padding: 22px 28px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 18px 0 8px; }
+.stat b { display: block; font-size: 22px; font-weight: 600; }
+.stat span { font-size: 12.5px; color: var(--muted); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-weight: 500; font-size: 12px; color: var(--faint); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.05); }
+tr.volrow td { background: var(--surface); font-weight: 600; border-bottom: 0; }
+tr.volrow td .muted { font-weight: 400; }
+td.num { color: var(--faint); width: 64px; }
+td.act { text-align: right; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.drop { position: relative; display: inline-block; }
+.menu { position: absolute; right: 0; top: 44px; width: 330px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 6px; box-shadow: 0 12px 32px rgba(0,0,0,.5); z-index: 2; }
+.menu div { padding: 10px 12px; border-radius: 8px; }
+.menu div:first-child { background: rgba(143,176,127,.12); }
+.menu b { display: block; font-size: 14px; color: var(--text); }
+.menu span { font-size: 12.5px; color: var(--muted); }
+
+/* new chapter choice */
+.dialog-wrap { background: rgba(0,0,0,.55); padding: 60px 0; display: grid; place-items: center; }
+.dialog { width: 640px; background: var(--surface); border-radius: 16px; padding: 24px; }
+.dialog h4 { font: 600 20px/1.3 var(--serif); margin-bottom: 4px; }
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 18px 0 6px; }
+.choice { border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 6px; align-content: start; }
+.choice.on { border-color: var(--accent); background: rgba(143,176,127,.07); }
+.choice .ic { font-size: 22px; }
+.choice b { font-size: 16px; }
+
+/* structure */
+.struct { display: grid; grid-template-columns: 1fr 340px; gap: 28px; }
+.list { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.vhead { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--surface); }
+.vhead b { font: 600 15px/1.2 var(--serif); }
+.vhead .grow { flex: 1; }
+.item { display: flex; align-items: center; gap: 12px; padding: 7px 14px; font-size: 14px; border-top: 1px solid rgba(255,255,255,.04); }
+.item input { accent-color: var(--accent); }
+.item .n { width: 40px; color: var(--faint); }
+.item .old { color: var(--faint); text-decoration: line-through; font-size: 12px; }
+.item .new { color: var(--accent); font-size: 12px; font-weight: 600; }
+.item.sel { background: rgba(143,176,127,.08); }
+.break { margin: 0 14px; padding: 6px 0; border-top: 2px dashed var(--accent); color: var(--accent); font-size: 12.5px; }
+.panel { display: grid; gap: 12px; align-content: start; }
+.field label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+.input { height: 38px; border-radius: 9px; background: var(--bg); border: 1px solid var(--line); padding: 0 12px; display: flex; align-items: center; font-size: 14px; }
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--bg); border-radius: 10px; padding: 3px; font-size: 13px; text-align: center; }
+.seg span { padding: 6px 0; border-radius: 8px; color: var(--muted); }
+.seg span.on { background: var(--surface-2); color: var(--text); }
+.toggle { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+.toggle i { width: 38px; height: 22px; border-radius: 11px; background: var(--accent); position: relative; }
+.toggle i::after { content: ""; position: absolute; right: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--accent-ink); }
+.toggle i.off { background: var(--surface-2); }
+.toggle i.off::after { left: 3px; right: auto; background: var(--muted); }
+
+/* editor */
+.editor { display: grid; grid-template-rows: auto auto 1fr; }
+.ehead { display: flex; align-items: center; gap: 14px; padding: 10px 28px; border-bottom: 1px solid var(--line); }
+.ehead .grow { flex: 1; }
+.tools { display: flex; gap: 4px; padding: 6px 28px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+.tools span { width: 32px; height: 30px; display: grid; place-items: center; border-radius: 6px; }
+.tools span.on { background: var(--surface-2); color: var(--text); }
+.split { display: grid; grid-template-columns: 1fr 1fr; }
+.split > div { padding: 22px 28px; font: 16px/1.75 var(--serif); }
+.split .orig { border-right: 1px solid var(--line); color: var(--muted); font-size: 15px; }
+.split p { margin-bottom: 12px; padding: 2px 6px; border-radius: 6px; }
+.split p.cur { background: rgba(143,176,127,.1); }
+.split .orig p.cur { color: var(--text); }
+.etitle { font: 600 22px/1.3 var(--serif); margin-bottom: 14px; }
+
+/* home */
+.home { display: grid; grid-template-columns: 1fr 340px; gap: 36px; }
+.cont { display: flex; gap: 18px; }
+.cont .cover { width: 120px; }
+.grid6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; }
+.grid6 p { font-size: 13px; margin-top: 6px; line-height: 1.3; }
+.upd { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.upd .cover { width: 34px; padding: 0; border-radius: 4px; }
+.upd .cover::after { display: none; }
+.rules { max-width: 1100px; margin: 0 auto 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.rules .card { font-size: 14px; }
+.rules h4 { font: 600 16px/1.3 var(--serif); color: var(--text); margin-bottom: 8px; }
+.rules ol, .rules ul { padding-left: 18px; color: var(--muted); }
+.rules li { margin-bottom: 4px; }
+.rules li b { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>Ноутбук, «Нова глава» і томи</h1>
+  <p>Телефонна версія лишається як є. На ширшому екрані вміст розтягується на всю ширину сторінки, а не тулиться
+    вузькою колонкою зліва, як зараз. Сторінки отримують дві колонки, Студія — бічне меню, таблиці й редактор
+    з оригіналом поруч.</p>
+  <p>Нижче — правила нумерації і п'ять екранів. Розмір рамки — ноутбук 1366–1440 px.</p>
+</div>
+
+<div class="rules">
+  <div class="card">
+    <h4>Як рахуються глави</h4>
+    <ol>
+      <li><b>Адреса глави не змінюється.</b> /n/mah-vody/32 веде туди ж, хоч би як главу переставили по томах.
+        Закладки, «Продовжити» й коментарі не ламаються.</li>
+      <li><b>Том — це відрізок глав.</b> Він починається з якоїсь глави й триває до початку наступного тому.
+        Томи необов'язкові: без них усе виглядає як зараз.</li>
+      <li><b>Вид тому:</b> «Том», «Пролог», «Побічні історії», «Екстра». Звичайний том рахується в нумерації,
+        інші — ні.</li>
+      <li><b>Номер за замовчуванням ставиться сам.</b> Наскрізно по всіх томах (1, 2, … 733) або з 1 у кожному томі —
+        це вибирає команда. Глави з нерахованих томів номера не мають, читач бачить «Пролог · Назва».</li>
+      <li><b>Свій номер можна вписати руками</b> (437.2, 0) — він має перевагу над автоматичним. Кнопка
+        «Повернути автоматичну нумерацію» його прибирає.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h4>Маг води як приклад</h4>
+    <ul>
+      <li>Зараз: глава 0 «Пролог», далі глави 1, 2, 3…</li>
+      <li>Виділяєте главу 0 → «Виокремити в пролог». Створюється том «Пролог», глава в ньому без номера.</li>
+      <li>Глави 1–55 → «Почати новий том тут» біля глави 1 → «Том 1. Повільне життя». Номери лишаються 1–55.</li>
+      <li>Інтерлюдія між томами (глави 56–58) → том виду «Побічні історії»: без номерів, наступна глава тому 2
+        й далі має номер 56.</li>
+      <li>Якщо в оригіналі є томи, їх можна взяти звідти: «Взяти томи з оригіналу» пропонує розбивку, яку
+        команда перевіряє перед збереженням.</li>
+    </ul>
+  </div>
+</div>
+
+<figure>
+  <div class="laptop">
+    <div class="bar"><i></i><i></i><i></i><span>novelka.panrid.space/n/mah-vody</span></div>
+    <div class="nav"><span class="logo">новелка<i>.</i></span><a>Головна</a><a class="on">Пошук</a><a>Бібліотека</a><a>Студія</a><a>Вхідні</a>
+      <span class="grow"></span><span class="search">Назва або автор…</span><span class="ava">Л</span></div>
+    <div class="body">
+      <div class="novel">
+        <div class="side">
+          <div class="cover c3">Маг води</div>
+          <span class="btn">Продовжити · гл. 14</span>
+          <span class="btn sec">☆ У бібліотеку</span>
+          <dl class="facts">
+            <dt>Автор</dt><dd>Кюхо Тадаші</dd>
+            <dt>Переклад</dt><dd>$panrid · ШІ</dd>
+            <dt>Глав</dt><dd>733 · 4 томи</dd>
+            <dt>Оцінка</dt><dd><span class="stars">★★★★☆</span> 4,2</dd>
+          </dl>
+        </div>
+        <div>
+          <h2>Маг води</h2>
+          <p class="muted sm" style="margin:4px 0 12px">Фентезі · Пригоди · Магія · <span class="chip">виходить</span></p>
+          <p style="max-width:720px">Це історія Рьо, який переродився у світі мечів і магії. Королівська дорога виживання за допомогою
+            магії водної стихії. Що таке магія? Що таке фехтування? Як це пов'язано з відомими нам законами фізики?
+            <span class="muted">читати повністю</span></p>
+          <div class="tabs"><span class="on">Глави</span><span>Обговорення · 48</span><span>Інші переклади</span></div>
+          <details class="vol" open>
+            <summary><b>Пролог</b><span class="muted sm">1 глава</span><span class="grow"></span><span class="faint sm">прочитано</span></summary>
+            <div class="chs"><div class="ch read"><span class="n"></span><span class="t">Пролог</span></div></div>
+          </details>
+          <details class="vol" open>
+            <summary><b>Том 1. Повільне життя</b><span class="muted sm">глави 1–55</span><span class="grow"></span><span class="faint sm">13 з 55</span></summary>
+            <div class="chs">
+              <div class="ch read"><span class="n">1</span><span class="t">Повільне життя</span></div>
+              <div class="ch read"><span class="n">2</span><span class="t">Поруч із лісом</span></div>
+              <div class="ch read"><span class="n">3</span><span class="t">Перше полювання</span></div>
+              <div class="ch read"><span class="n">4</span><span class="t">Водяна стріла</span></div>
+              <div class="ch here"><span class="n">14</span><span class="t">Місто Руне ← ви тут</span></div>
+              <div class="ch"><span class="n">15</span><span class="t">Гільдія шукачів пригод</span></div>
+              <div class="ch"><span class="n">16</span><span class="t">Абель</span></div>
+              <div class="ch"><span class="n">17</span><span class="t">Перше завдання</span></div>
+            </div>
+          </details>
+          <details class="vol"><summary><b>Побічні історії</b><span class="muted sm">3 глави · без номерів</span></summary></details>
+          <details class="vol"><summary><b>Том 2. Подорож удвох</b><span class="muted sm">глави 56–120</span></summary></details>
+        </div>
+      </div>
+    </div>
+  </div>
+  <figcaption><b>1. Сторінка новели на ноутбуці</b>
+    <ul><li>Ліворуч обкладинка й кнопки, вони лишаються на місці під час прокрутки. Праворуч опис і вкладки.</li>
+      <li>Глави згруповані за томами й ідуть у дві колонки. Відкрито той том, де читач зупинився.</li>
+      <li>На телефоні — те саме, лише в одну колонку, томи згорнуті.</li></ul></figcaption>
+</figure>
+
+<figure>
+  <div class="laptop">
+    <div class="bar"><i></i><i></i><i></i><span>novelka.panrid.space/studio/1</span></div>
+    <div class="nav"><span class="logo">новелка<i>.</i></span><a>Головна</a><a>Пошук</a><a>Бібліотека</a><a class="on">Студія</a><a>Вхідні</a>
+      <span class="grow"></span><span class="ava">Л</span></div>
+    <div class="studio">
+      <div class="rail">
+        <div class="label">Мої переклади</div>
+        <a class="on"><span class="cover c3"></span>Маг води<span class="badge">4</span></a>
+        <a><span class="cover c2"></span>Лиходійка з отоме</a>
+        <a><span class="cover c5"></span>Меджик-мейкер</a>
+        <a>＋ Нова публікація</a>
+        <div class="label">Цей переклад</div>
+        <a class="on">Глави</a><a>Автопереклад</a><a>Структура й томи</a><a>Словник</a><a>Назви глав</a>
+        <a>Правки на перевірку <span class="badge">4</span></a><a>Дані й обкладинка</a><a>Команда</a>
+      </div>
+      <div class="main">
+        <div class="row between">
+          <div class="row" style="gap:16px"><div class="cover c3" style="width:56px"></div>
+            <div><h2 style="font-size:24px">Маг води</h2><div class="muted sm">$panrid · машинний переклад · виходить</div></div></div>
+          <div class="row">
+            <span class="btn ghost">Як бачать читачі</span>
+            <span class="drop"><span class="btn">＋ Нова глава ▾</span>
+              <span class="menu">
+                <div><b>Автопереклад</b><span>Наступні з оригіналу: глави 21–25 · ≈ 5 шагів</span></div>
+                <div><b>Написати або вставити</b><span>Порожня глава в редакторі</span></div>
+                <div><b>З файлу</b><span>.docx, .txt, .md — одна чи кілька глав</span></div>
+              </span></span>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="card stat"><b>20</b><span>глав опубліковано · з 935 в оригіналі</span></div>
+          <div class="card stat"><b>4</b><span>правки чекають перевірки</span></div>
+          <div class="card stat"><b>132</b><span>читачі в бібліотеці</span></div>
+          <div class="card stat"><b>48</b><span>коментарів за тиждень</span></div>
+        </div>
+        <table>
+          <tr><th>№</th><th>Назва</th><th>Стан</th><th>Оновлено</th><th></th></tr>
+          <tr class="volrow"><td colspan="5">Пролог <span class="muted sm">· без номерів</span></td></tr>
+          <tr><td class="num">—</td><td>Пролог</td><td><span class="chip ok">опубліковано</span></td><td class="muted sm">25 вер.</td><td class="act">історія · ⋯</td></tr>
+          <tr class="volrow"><td colspan="5">Том 1. Повільне життя <span class="muted sm">· глави 1–19</span></td></tr>
+          <tr><td class="num">1</td><td>Повільне життя</td><td><span class="chip ok">опубліковано</span></td><td class="muted sm">25 вер.</td><td class="act">історія · ⋯</td></tr>
+          <tr><td class="num">2</td><td>Поруч із лісом</td><td><span class="chip warn">2 правки</span></td><td class="muted sm">26 вер.</td><td class="act">перевірити · ⋯</td></tr>
+          <tr><td class="num">3</td><td>Перше полювання</td><td><span class="chip">моя чернетка</span></td><td class="muted sm">сьогодні</td><td class="act">продовжити · ⋯</td></tr>
+          <tr><td class="num">4</td><td>Водяна стріла</td><td><span class="chip ok">опубліковано</span></td><td class="muted sm">26 вер.</td><td class="act">історія · ⋯</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <figcaption><b>2. Студія на ноутбуці й чесна «Нова глава»</b>
+    <ul><li>Бічне меню: усі ваші переклади й розділи поточного. Не треба повертатися назад, щоб перейти до словника.</li>
+      <li>Глави — таблицею за томами, зі станом (правки, чернетка) і дією просто в рядку.</li>
+      <li>«Нова глава» спершу питає, як її додати. У перекладу з оригіналом першим іде автопереклад із номерами
+        наступних глав і ціною. У власного твору автоперекладу в списку немає.</li></ul></figcaption>
+</figure>
+
+<figure>
+  <div class="laptop">
+    <div class="bar"><i></i><i></i><i></i><span>novelka.panrid.space/studio/1</span></div>
+    <div class="dialog-wrap">
+      <div class="dialog">
+        <h4>Нова глава</h4>
+        <p class="muted sm">Маг води · далі в оригіналі глава 21 «Повернення до Руне»</p>
+        <div class="choices">
+          <div class="choice on"><span class="ic">✦</span><b>Автопереклад</b>
+            <span class="muted sm">Перекласти з оригіналу. Можна одразу кілька: до глави <span class="chip">25</span></span>
+            <span class="sm">≈ 5 шагів · аналіз, переклад і вичитка</span></div>
+          <div class="choice"><span class="ic">✎</span><b>Вручну</b>
+            <span class="muted sm">Написати або вставити текст у редактор, чи завантажити файл</span>
+            <span class="sm">Оригінал глави буде поруч у редакторі</span></div>
+        </div>
+        <p class="muted xs" style="margin:8px 0 14px">Нова глава піде в кінець, у «Том 1. Повільне життя». Перенести в інший том можна в «Структурі».</p>
+        <div class="row" style="justify-content:flex-end"><span class="btn sec">Скасувати</span><span class="btn">Перекласти глави 21–25</span></div>
+      </div>
+    </div>
+  </div>
+  <figcaption><b>3. Вибір «Нова глава» (на телефоні — та сама панель знизу)</b>
+    <ul><li>Автопереклад одразу показує номери й ціну; кнопка запускає його без переходу на іншу сторінку.</li>
+      <li>«Вручну» відкриває редактор; якщо у новели є оригінал, у ньому вже є кнопка «Оригінал».</li></ul></figcaption>
+</figure>
+
+<figure>
+  <div class="laptop">
+    <div class="bar"><i></i><i></i><i></i><span>novelka.panrid.space/studio/1/structure</span></div>
+    <div class="studio">
+      <div class="rail">
+        <div class="label">Цей переклад</div>
+        <a>Глави</a><a>Автопереклад</a><a class="on">Структура й томи</a><a>Словник</a><a>Назви глав</a>
+      </div>
+      <div class="main">
+        <div class="row between"><h2 style="font-size:24px">Структура й томи</h2>
+          <div class="row"><span class="btn ghost">Взяти томи з оригіналу</span><span class="btn">Зберегти</span></div></div>
+        <p class="muted sm" style="margin:4px 0 16px">Позначте глави й виберіть дію. Адреси глав не змінюються; нові номери видно праворуч від старих, доки ви не збережете.</p>
+        <div class="struct">
+          <div class="list">
+            <div class="vhead"><b>Пролог</b><span class="chip">без номерів</span><span class="grow"></span><span class="muted sm">змінити · прибрати</span></div>
+            <div class="item"><input type="checkbox"><span class="n"></span><span>Пролог</span><span class="grow"></span><span class="old">0</span><span class="new">—</span></div>
+            <div class="vhead"><b>Том 1. Повільне життя</b><span class="chip ok">рахується</span><span class="grow"></span><span class="muted sm">змінити · прибрати</span></div>
+            <div class="item"><input type="checkbox"><span class="n">1</span><span>Повільне життя</span></div>
+            <div class="item"><input type="checkbox"><span class="n">2</span><span>Поруч із лісом</span></div>
+            <div class="item sel"><input type="checkbox" checked><span class="n">18</span><span>Інтерлюдія: Абель</span><span class="grow"></span><span class="old">18</span><span class="new">—</span></div>
+            <div class="item sel"><input type="checkbox" checked><span class="n">19</span><span>Інтерлюдія: Рьо і кіт</span><span class="grow"></span><span class="old">19</span><span class="new">—</span></div>
+            <div class="break">тут почнеться новий том «Побічні історії» — 2 глави</div>
+            <div class="item"><input type="checkbox"><span class="n">20</span><span>Місто Руне</span><span class="grow"></span><span class="old">20</span><span class="new">18</span></div>
+          </div>
+          <div class="panel">
+            <div class="card">
+              <b>Обрано 2 глави</b>
+              <div style="display:grid;gap:8px;margin-top:12px">
+                <span class="btn">Почати новий том тут</span>
+                <span class="btn sec">Виокремити в пролог</span>
+                <span class="btn sec">Зробити побічними історіями</span>
+              </div>
+            </div>
+            <div class="card panel">
+              <b>Новий том</b>
+              <div class="field"><label>Назва</label><div class="input">Побічні історії</div></div>
+              <div class="field"><label>Вид</label><div class="seg"><span>Том</span><span>Пролог</span><span class="on">Побічні</span><span>Екстра</span></div></div>
+              <div class="toggle"><span>Рахувати в нумерації</span><i class="off"></i></div>
+            </div>
+            <div class="card panel">
+              <b>Нумерація</b>
+              <div class="seg" style="grid-template-columns:1fr 1fr"><span class="on">Наскрізна</span><span>З 1 у кожному томі</span></div>
+              <span class="muted xs">Номери, вписані вручну (437.2), лишаються як є.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <figcaption><b>4. «Структура й томи»: розподілити вже перекладене</b>
+    <ul><li>Список усіх глав з межами томів. Позначили кілька глав — праворуч дії: новий том, пролог, побічні історії.</li>
+      <li>До збереження видно старий і новий номер кожної глави, тож нічого не зсувається непомітно.</li>
+      <li>Томи можна перейменувати, змінити вид або прибрати — тоді глави повертаються в попередній том.</li></ul></figcaption>
+</figure>
+
+<figure>
+  <div class="laptop">
+    <div class="bar"><i></i><i></i><i></i><span>novelka.panrid.space/studio/1/chapters/15</span></div>
+    <div class="editor">
+      <div class="ehead"><span class="muted">←</span><div class="grow"><b>Том 1 · Гл. 14</b> <span class="muted sm">· чернетку збережено</span></div>
+        <span class="btn ghost">文 Оригінал</span><span class="btn ghost">Історія</span><span class="btn">Опублікувати</span></div>
+      <div class="tools"><span class="on"><b>Ж</b></span><span><i>К</i></span><span><u>П</u></span><span><s>З</s></span><span>—</span><span>▣</span><span>⟲</span><span>⟳</span></div>
+      <div class="split">
+        <div class="orig">
+          <div class="etitle" style="font-size:18px">第14話　ルンの街</div>
+          <p>ようやく、街が見えてきた。</p>
+          <p class="cur">城壁に囲まれた、それなりに大きな街だ。</p>
+          <p>門の前には、入街を待つ人々の列ができている。</p>
+        </div>
+        <div>
+          <div class="etitle">Місто Руне</div>
+          <p>Нарешті показалося місто.</p>
+          <p class="cur">Чимале місто, оточене мурами.</p>
+          <p>Перед брамою вишикувалася черга охочих увійти.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <figcaption><b>5. Редактор на ноутбуці</b>
+    <ul><li>Панель форматування вгорі, а не внизу екрана.</li>
+      <li>«Оригінал» на широкому екрані відкриває його колонкою ліворуч, абзац навпроти абзацу. Рядок під курсором
+        підсвічено з обох боків. На телефоні лишається панель над клавіатурою, як зараз.</li></ul></figcaption>
+</figure>
+
+<figure>
+  <div class="laptop">
+    <div class="bar"><i></i><i></i><i></i><span>novelka.panrid.space</span></div>
+    <div class="nav"><span class="logo">новелка<i>.</i></span><a class="on">Головна</a><a>Пошук</a><a>Бібліотека</a><a>Студія</a><a>Вхідні</a>
+      <span class="grow"></span><span class="search">Назва або автор…</span><span class="ava">Л</span></div>
+    <div class="body">
+      <div class="home">
+        <div>
+          <h3>Продовжити читати</h3>
+          <div class="card cont"><div class="cover c3">Маг води</div>
+            <div><h2 style="font-size:22px">Маг води</h2><p class="muted sm">Том 1 · Гл. 14 «Місто Руне» · 40% прочитано</p>
+              <p class="sm" style="margin:10px 0 14px">Ще 6 нових глав після вашої.</p><span class="btn">Продовжити</span></div></div>
+          <h3>Популярне <small>усе →</small></h3>
+          <div class="grid6">
+            <div><div class="cover c3">Маг води</div><p>Маг води</p></div>
+            <div><div class="cover c2">Лиходійка</div><p>Я перевтілилась у лиходійку</p></div>
+            <div><div class="cover c5">Меджик</div><p>Меджик-мейкер</p></div>
+            <div><div class="cover c4">Сто ночей</div><p>Сто ночей у крамниці ліхтарів</p></div>
+            <div><div class="cover">Ліхтарник</div><p>Останній ліхтарник міста</p></div>
+            <div><div class="cover c2">Морський</div><p>Морський ліхтар</p></div>
+          </div>
+        </div>
+        <div>
+          <h3>Нові глави <small>усе →</small></h3>
+          <div class="upd"><span class="cover c3"></span><div><b>Маг води</b><div class="muted xs">Том 1 · глави 19–20 · 2 год тому</div></div></div>
+          <div class="upd"><span class="cover c2"></span><div><b>Лиходійка з отоме</b><div class="muted xs">глава 3 · вчора</div></div></div>
+          <div class="upd"><span class="cover c5"></span><div><b>Меджик-мейкер</b><div class="muted xs">Пролог · 2 дні тому</div></div></div>
+          <h3>Що перекласти далі</h3>
+          <div class="card sm"><b>Безробітне перевтілення</b><div class="muted xs">▲ 12 голосів · Syosetu · 286 глав</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <figcaption><b>6. Головна на ноутбуці</b>
+    <ul><li>Велика картка «Продовжити», під нею сітка обкладинок у 6 колонок, праворуч стрічка нових глав
+      і найбажаніше з «Що перекласти».</li>
+      <li>Пошук стоїть у верхній панелі на кожній сторінці. Пошук і бібліотека отримують таку саму сітку,
+        а фільтри переходять у бічну колонку.</li></ul></figcaption>
+</figure>
+
+</body>
+</html>
