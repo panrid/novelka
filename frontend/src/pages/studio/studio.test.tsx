@@ -40,6 +40,37 @@ describe('chapter editor', () => {
         });
     });
 
+    it('shows the team the original of the paragraph next to its translation', async () => {
+        await renderAt('/studio/7/chapters/3', {
+            'GET /api/me': { body: ME },
+            'GET /api/studio/editions/7/chapters/3': { body: { ...EDITOR, hasOriginal: true } },
+            'GET /api/studio/editions/7/chapters/3/original': { body: { title: '第3話', blocks: [{ id: 'b1', type: 'paragraph', text: '灯りがともった。' }] } },
+        });
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Оригінал' }));
+        expect(await screen.findByText(/Поставте курсор в абзац/)).toBeInTheDocument();
+        // jsdom does not place a caret on click: put it into the paragraph as the browser would.
+        const paragraph = screen.getByText('Ліхтарі спалахнули.');
+        screen.getByRole('textbox', { name: 'Текст глави' }).focus();
+        const caret = document.createRange();
+        caret.setStart(paragraph.firstChild!, 3);
+        caret.collapse(true);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(caret);
+        document.dispatchEvent(new Event('selectionchange'));
+        expect(await screen.findByText('灯りがともった。')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Оригінал' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('has no original to show for a chapter written by hand', async () => {
+        await renderAt('/studio/7/chapters/3', {
+            'GET /api/me': { body: ME },
+            'GET /api/studio/editions/7/chapters/3': { body: { ...EDITOR, hasOriginal: false } },
+        });
+        await screen.findByLabelText('Назва глави');
+        expect(screen.queryByRole('button', { name: 'Оригінал' })).not.toBeInTheDocument();
+    });
+
     it('explains when a colleague published first and keeps the text', async () => {
         await renderAt('/studio/7/chapters/3', {
             'GET /api/me': { body: ME },

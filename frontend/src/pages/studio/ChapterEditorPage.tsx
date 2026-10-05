@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
-import { ArrowLeft, History, Trash2 } from 'lucide-react';
+import { ArrowLeft, History, Languages, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/client';
 import { IllustrateSheet } from './IllustrateSheet';
@@ -103,6 +103,16 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
         setPublished(false);
         setUnpublished(true);
     };
+    const [showOriginal, setShowOriginal] = useState(() => view.hasOriginal && rememberedOriginal());
+    const [cursor, setCursor] = useState<string | null>(null);
+    const toggleOriginal = () => {
+        setShowOriginal(!showOriginal);
+        try {
+            localStorage.setItem(ORIGINAL_KEY, showOriginal ? '0' : '1');
+        } catch {
+            // Storage blocked: the choice just is not remembered.
+        }
+    };
     const conflict = publish.error instanceof ApiError && publish.error.reason === 'chapter-changed';
     const params = { editionId: String(editionId) };
 
@@ -117,6 +127,10 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                         {save === 'saving' ? 'зберігаємо…' : save === 'saved' ? 'чернетку збережено' : save === 'error' ? 'не вдалося зберегти, спробуємо ще' : live ? 'опубліковано' : 'ще не опубліковано'}
                     </div>
                 </div>
+                {view.hasOriginal && (
+                    <button type="button" className={`${styles.icon} ${showOriginal ? styles.iconOn : ''}`} aria-label="Оригінал"
+                        aria-pressed={showOriginal} onClick={toggleOriginal}><Languages size={20} aria-hidden /></button>
+                )}
                 {live && (
                     <Link to="/studio/$editionId/chapters/$number/history" params={{ ...params, number: String(view.number) }}
                         className={styles.icon} aria-label="Історія змін"><History size={20} aria-hidden /></Link>
@@ -133,7 +147,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                 </Button>
             </header>
 
-            <div className={styles.body}>
+            <div className={`${styles.body} ${showOriginal ? styles.bodyWithOriginal : ''}`}>
                 {view.draft && !published && (
                     <Notice tone="info">
                         Відкрито вашу чернетку від {relativeTime(new Date(view.draft.updatedAt))}.
@@ -159,9 +173,43 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                 )}
                 <TextEditor handle={editor} mode="chapter" blocks={blocks} onChange={(next) => changed(() => setBlocks(next))}
                     onIllustrate={canDraw ? (fragment, insert) => setDrawing({ fragment, insert }) : undefined}
+                    onCursorBlock={setCursor}
                     mayAddPictures={view.mayAddPictures} label="Текст глави" placeholder="Почніть писати або вставте текст…" />
             </div>
+            {showOriginal && <OriginalPanel editionId={editionId} number={view.number} blockId={cursor} />}
         </div>
+    );
+}
+
+const ORIGINAL_KEY = 'novelka:editor-original';
+
+function rememberedOriginal(): boolean {
+    try {
+        return localStorage.getItem(ORIGINAL_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * The original of the paragraph the cursor is in, above the formatting bar (team only,
+ * рішення 30). Paragraph ids are shared, so moving the cursor turns the original's page too.
+ */
+function OriginalPanel({ editionId, number, blockId }: { editionId: number; number: number; blockId: string | null }) {
+    const original = useQuery({
+        queryKey: ['studio-original', editionId, number],
+        queryFn: () => studioApi.original(editionId, number),
+        staleTime: Infinity,
+    });
+    const block = blockId ? original.data?.blocks.find((item) => item.id === blockId) : undefined;
+    return (
+        <aside className={styles.original} aria-label="Оригінал абзацу" aria-live="polite">
+            {original.isError ? <span className={styles.originalHint}>{original.error.message}</span>
+                : !original.data ? <span className={styles.originalHint}>Завантажуємо оригінал…</span>
+                : block ? (block.type === 'separator' ? <span className={styles.originalHint}>Розділювач сцен</span> : <p lang="und">{block.text}</p>)
+                : blockId ? <span className={styles.originalHint}>Цього абзацу в оригіналі немає: його додали під час перекладу.</span>
+                : <span className={styles.originalHint}>Поставте курсор в абзац — тут з'явиться його оригінал.</span>}
+        </aside>
     );
 }
 

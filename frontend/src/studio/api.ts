@@ -31,7 +31,12 @@ export type EditorView = {
     number: number; title: string; blocks: StudioBlock[]; revisionId: number | null; published: boolean;
     draft: { title: string; blocks: StudioBlock[]; baseRevisionId: number | null; updatedAt: string } | null;
     role: TeamRole; mayAddPictures: boolean; previous: number | null; next: number | null; label: string | null;
+    /** Translated from an original the team may look at next to the text. */
+    hasOriginal: boolean;
 };
+
+/** The original a chapter was translated from; paragraph ids match the translation's. */
+export type ChapterOriginal = { title: string; blocks: { id: string; type: string; text: string }[] };
 
 export type RevisionInfo = {
     id: number; authorNick: string | null; origin: string; createdAt: string; blocksChanged: number; charsChanged: number;
@@ -83,6 +88,7 @@ export const studioApi = {
     deleteChapter: (id: number, number: number) => api<void>(chapter(id, number), { method: 'DELETE' }),
     newChapter: (id: number) => api<{ number: number }>(`${edition(id)}/chapters`, json('POST', {})),
     editor: (id: number, number: number) => api<EditorView>(chapter(id, number)),
+    original: (id: number, number: number) => api<ChapterOriginal>(`${chapter(id, number)}/original`),
     saveDraft: (id: number, number: number, body: { title: string; blocks: StudioBlock[]; baseRevisionId: number | null }) =>
         api<void>(`${chapter(id, number)}/draft`, json('PUT', body)),
     discardDraft: (id: number, number: number) => api<void>(`${chapter(id, number)}/draft`, { method: 'DELETE' }),

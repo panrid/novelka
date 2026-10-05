@@ -190,6 +190,15 @@ class AutotranslateFlowTests {
         assertThat(chapter.path("title").asString()).as("the number is the site's, not the title's").isEqualTo("Світло");
         assertThat(chapter.path("label").asString()).isEqualTo("2");
         assertThat(chapter.path("blocks").toString()).doesNotContain("雪").contains("Юкі: переклад s2 ✓");
+
+        // The team sees the original next to the translation in the editor; nobody else does.
+        assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/chapters/2")).path("hasOriginal").asBoolean()).isTrue();
+        JsonNode original = read(owner.browser().get("/api/studio/editions/" + edition + "/chapters/2/original"));
+        assertThat(original.path("title").asString()).isEqualTo("第2話　灯り");
+        assertThat(original.path("blocks").findValuesAsString("id")).contains("s1", "s2", "s4");
+        assertThat(original.path("blocks").path(1).path("text").asString()).isEqualTo("雪《ユキ》は灯台を見た。");
+        assertThat(Accounts.signedIn(port, mailbox).browser().get("/api/studio/editions/" + edition + "/chapters/2/original").status())
+                .isEqualTo(403);
         assertThat(chapter.path("blocks")).extracting(block -> block.path("type").asString())
                 .containsExactly("preface", "paragraph", "paragraph", "separator", "paragraph", "afterword");
         JsonNode history = read(owner.browser().get("/api/studio/editions/" + edition + "/chapters/2/revisions")).path(0);

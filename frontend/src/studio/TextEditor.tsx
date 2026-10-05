@@ -62,9 +62,18 @@ type Props = {
      * function that puts the finished picture right after that paragraph.
      */
     onIllustrate?: ((fragment: string, insert: (picture: { id: number; url: string }) => void) => void) | undefined;
+    /** The id of the paragraph the cursor is in (null for one typed anew), as the cursor moves. */
+    onCursorBlock?: (blockId: string | null) => void;
 };
 
-export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate }: Props) {
+/** The top-level block holding the cursor keeps the paragraph's id from the original. */
+function cursorBlock(editor: Editor): string | null {
+    const { $from } = editor.state.selection;
+    const node = $from.depth >= 1 ? $from.node(1) : editor.state.doc.nodeAt($from.pos);
+    return (node?.attrs.blockId as string | null | undefined) ?? null;
+}
+
+export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate, onCursorBlock }: Props) {
     const chapter = mode === 'chapter';
     const editor = useEditor({
         extensions: [
@@ -82,6 +91,7 @@ export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = fa
             transformPastedHTML: (html) => html.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ''),
         },
         onUpdate: ({ editor: changed }) => onChange(toBlocks(changed.getJSON())),
+        onSelectionUpdate: ({ editor: moved }) => onCursorBlock?.(cursorBlock(moved)),
     });
 
     useImperativeHandle(handle, () => ({

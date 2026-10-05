@@ -5,6 +5,7 @@ import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITOR_DRAFT;
 import static space.panrid.novelka.jooq.Tables.IMAGE;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
+import static space.panrid.novelka.jooq.Tables.SOURCE_CHAPTER;
 import static space.panrid.novelka.jooq.Tables.SUGGESTION;
 import static space.panrid.novelka.jooq.Tables.TEAM;
 import static space.panrid.novelka.jooq.Tables.TEAM_MEMBER;
@@ -56,6 +57,8 @@ import space.panrid.novelka.team.Teams;
 import space.panrid.novelka.text.ChapterFiles;
 import space.panrid.novelka.text.Chapters;
 import space.panrid.novelka.text.EditorModels;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 @RestController
 @RequestMapping("/api/studio")
@@ -94,7 +97,15 @@ class StudioController {
     }
 
     record EditorView(int number, String title, List<StudioBlock> blocks, Long revisionId, boolean published,
-            EditorDraft draft, String role, boolean mayAddPictures, Integer previous, Integer next, String label) {
+            EditorDraft draft, String role, boolean mayAddPictures, Integer previous, Integer next, String label,
+            boolean hasOriginal) {
+    }
+
+    /** One paragraph of the original, under the id its translation keeps. */
+    record OriginalBlock(String id, String type, String text) {
+    }
+
+    record OriginalView(String title, List<OriginalBlock> blocks) {
     }
 
     record TextRequest(String title, List<Block> blocks, Long baseRevisionId) {
@@ -126,8 +137,11 @@ class StudioController {
     private final Chapters chapters;
     private final Images images;
     private final DSLContext db;
+    private final JsonMapper json;
 
-    StudioController(AccessPolicy access, Teams teams, Catalog catalog, Chapters chapters, Images images, DSLContext db) {
+    StudioController(AccessPolicy access, Teams teams, Catalog catalog, Chapters chapters, Images images, DSLContext db,
+            JsonMapper json) {
+        this.json = json;
         this.access = access;
         this.teams = teams;
         this.catalog = catalog;
@@ -240,7 +254,31 @@ class StudioController {
         return new EditorView(number, state.title(), studioBlocks(state.blocks()), state.revisionId(), state.published(),
                 draft == null ? null : new EditorDraft(draft.title(), studioBlocks(draft.blocks()), draft.baseRevisionId(), draft.updatedAt()),
                 who.role().code(), who.role().translates(), neighbour(editionId, number, false), neighbour(editionId, number, true),
-                state.label());
+                state.label(), sourceChapterId(editionId, number) != null);
+    }
+
+    /**
+     * The original the chapter was translated from, for the team only (рішення 30): the
+     * editor shows the paragraph the cursor is in next to its translation.
+     */
+    @GetMapping("/editions/{editionId}/chapters/{number}/original")
+    OriginalView original(@PathVariable long editionId, @PathVariable int number) {
+        access.requireTextEditor(editionId);
+        Long sourceId = sourceChapterId(editionId, number);
+        var source = sourceId == null ? null : db.select(SOURCE_CHAPTER.TITLE, SOURCE_CHAPTER.BLOCKS).from(SOURCE_CHAPTER)
+                .where(SOURCE_CHAPTER.ID.eq(sourceId)).fetchOne();
+        if (source == null) {
+            throw UserFacingException.notFound("Ця глава не перекладена з оригіналу.");
+        }
+        List<Block> blocks = json.readValue(source.value2().data(), new TypeReference<List<Block>>() { });
+        return new OriginalView(source.value1(), blocks.stream()
+                .filter(block -> !block.text().isBlank() || "separator".equals(block.type()))
+                .map(block -> new OriginalBlock(block.id(), block.type(), block.text())).toList());
+    }
+
+    private Long sourceChapterId(long editionId, int number) {
+        return db.select(CHAPTER.SOURCE_CHAPTER_ID).from(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(number)).fetchOne(CHAPTER.SOURCE_CHAPTER_ID);
     }
 
     @PutMapping("/editions/{editionId}/chapters/{number}/draft")
