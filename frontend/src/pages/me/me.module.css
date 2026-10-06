@@ -1,0 +1,132 @@
+/* «Я» on a wide screen: the menu on the left, the person's reading and work beside it. */
+.desk {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 40px;
+    align-items: start;
+    padding-top: 20px;
+}
+
+.side {
+    position: sticky;
+    top: 16px;
+    min-width: 0;
+}
+
+.main {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+}
+
+.panel {
+    padding: 18px 20px;
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.panel h2:first-child {
+    margin-top: 0;
+}
+
+.heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin: 0 0 12px;
+    font: 600 17px/1.3 var(--font-ui);
+}
+
+.heading a {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 400;
+    text-decoration: none;
+}
+
+.counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.count {
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    color: var(--muted);
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.count b {
+    color: var(--text);
+}
+
+.tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+}
+
+.tile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 10px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.tile:hover {
+    outline: 1px solid var(--line);
+}
+
+.grow {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.name {
+    overflow: hidden;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.small {
+    color: var(--muted);
+    font-size: 12.5px;
+}
+
+.bar {
+    display: block;
+    height: 3px;
+    margin-top: 4px;
+    border-radius: 2px;
+    background: var(--line);
+}
+
+.bar > span {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--accent);
+}
+
+.big {
+    margin: 0;
+    font: 600 26px/1.2 var(--font-ui);
+}
+
+.empty {
+    color: var(--muted);
+}
