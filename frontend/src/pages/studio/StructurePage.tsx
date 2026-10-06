@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { useDebounced } from '../../lib/useDebounced';
+import { useWide } from '../../lib/useWide';
 import {
     VOLUME_KINDS, structureApi, volumeIndexes, volumeName, volumeOf,
     type Numbering, type Structure, type StructureChange, type Volume, type VolumeKind,
@@ -97,6 +98,21 @@ function Editor({ id, saved }: { id: number; saved: Structure }) {
     });
     const toggle = (number: number) => setSelected(selected.includes(number) ? selected.filter((n) => n !== number) : [...selected, number]);
 
+    const wide = useWide();
+    const selectionActions = (
+        <div className={styles.card}>
+            <b>{selected.length === 1 ? `Обрано главу` : `Обрано глави`} {first === last ? '' : `з ${shownOf(chapters, first)} по ${shownOf(chapters, last)}`}</b>
+            <Button onPress={startVolume}>Почати новий том тут</Button>
+            <Button variant="secondary" onPress={() => wrap('prologue', 'Пролог')}>Виокремити в пролог</Button>
+            <Button variant="secondary" onPress={() => wrap('side', 'Побічні історії')}>Зробити побічними історіями</Button>
+            <Button variant="secondary" onPress={() => wrap('extra', 'Екстра')}>Зробити екстрою</Button>
+            <div className={styles.inline}>
+                <button type="button" className={styles.link} onClick={() => setNumbers('auto')}>автоматичний номер</button>
+                <button type="button" className={styles.link} onClick={() => setNumbers('none')}>без номера</button>
+                <button type="button" className={styles.link} onClick={() => setSelected([])}>зняти позначки</button>
+            </div>
+        </div>
+    );
     const indexes = volumeIndexes(volumes);
     const groups = useMemo(() => group(chapters, volumes), [chapters, volumes]);
     const shownNow = (chapter: Structure['chapters'][number]) => chapter.label ?? String(chapter.number);
@@ -150,21 +166,9 @@ function Editor({ id, saved }: { id: number; saved: Structure }) {
                     ))}
                 </div>
 
+                {selected.length > 0 && !wide && <div className={styles.selectionBar}>{selectionActions}</div>}
                 <aside className={styles.panel}>
-                    {selected.length > 0 ? (
-                        <div className={styles.card}>
-                            <b>{selected.length === 1 ? `Обрано главу` : `Обрано глави`} {first === last ? '' : `з ${shownOf(chapters, first)} по ${shownOf(chapters, last)}`}</b>
-                            <Button onPress={startVolume}>Почати новий том тут</Button>
-                            <Button variant="secondary" onPress={() => wrap('prologue', 'Пролог')}>Виокремити в пролог</Button>
-                            <Button variant="secondary" onPress={() => wrap('side', 'Побічні історії')}>Зробити побічними історіями</Button>
-                            <Button variant="secondary" onPress={() => wrap('extra', 'Екстра')}>Зробити екстрою</Button>
-                            <div className={styles.inline}>
-                                <button type="button" className={styles.link} onClick={() => setNumbers('auto')}>автоматичний номер</button>
-                                <button type="button" className={styles.link} onClick={() => setNumbers('none')}>без номера</button>
-                                <button type="button" className={styles.link} onClick={() => setSelected([])}>зняти позначки</button>
-                            </div>
-                        </div>
-                    ) : (
+                    {selected.length > 0 ? (wide ? selectionActions : null) : (
                         <p className={styles.muted}>Позначте одну чи кілька глав, щоб почати том, пролог чи побічні історії.</p>
                     )}
                     <div className={styles.card}>

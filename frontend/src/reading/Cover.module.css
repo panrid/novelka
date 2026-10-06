@@ -8,6 +8,11 @@
     object-fit: cover;
 }
 
+/* While a cover loads, its place shows as a calm block instead of a gap. */
+.cover {
+    background: var(--surface-2);
+}
+
 .placeholder {
     position: relative;
     display: flex;

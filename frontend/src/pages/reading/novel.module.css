@@ -34,6 +34,29 @@
     grid-column: 1 / -1;
 }
 
+/* The phone keeps its order: buttons, tags, description, «Керувати», chapters and the rest. */
+.side > * {
+    order: 1;
+}
+
+.content > .tags,
+.content > .description {
+    order: 2;
+}
+
+.side > .manage {
+    order: 3;
+}
+
+.content > :not(.headText, .tags, .description) {
+    order: 4;
+}
+
+.coverBox,
+.headText {
+    order: 0;
+}
+
 /* Wide screens (етап 15): cover and buttons in a column that stays put, the rest beside it. */
 @media (min-width: 1024px) {
     .novel {
@@ -55,6 +78,11 @@
 
     .side .actions {
         margin-top: 0;
+    }
+
+    .side > *,
+    .content > * {
+        order: 0;
     }
 
     .content {
@@ -205,6 +233,7 @@
 }
 
 .description {
+    margin-top: 14px;
     font-size: 14.5px;
     line-height: 1.6;
     color: var(--text-reading);

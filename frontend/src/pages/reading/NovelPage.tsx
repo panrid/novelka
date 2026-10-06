@@ -94,7 +94,7 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                 )}
 
                 {novel.viewer?.teamRole && (
-                    <div className={styles.actions}>
+                    <div className={`${styles.actions} ${styles.manage}`}>
                         <LinkButton to="/studio/$editionId" params={{ editionId: String(edition.editionId) }} variant="secondary" wide>
                             Керувати
                         </LinkButton>
@@ -117,7 +117,7 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                     <Stars novel={novel} />
                 </div>
                 {novel.tags.length > 0 && (
-                    <div className={styles.chips} style={{ margin: '14px 0 10px' }}>
+                    <div className={`${styles.chips} ${styles.tags}`} style={{ marginTop: 14 }}>
                         {novel.tags.map((tag) => (
                             <Link key={tag} to="/catalog" search={{ tags: [tag.toLowerCase()] }} className={`${styles.chip} ${styles.ghost}`}>
                                 {tag}

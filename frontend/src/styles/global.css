@@ -18,6 +18,8 @@ body {
     color: var(--text);
     font: 15px/1.5 var(--font-ui);
     -webkit-font-smoothing: antialiased;
+    /* A long link or word (in a description, a comment, a chapter) breaks instead of running off a phone's screen. */
+    overflow-wrap: break-word;
 }
 
 h1,

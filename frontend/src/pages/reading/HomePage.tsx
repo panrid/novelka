@@ -116,5 +116,9 @@ function chapterRange(first: number, last: number, firstLabel?: string | null, l
     const a = firstLabel || (firstLabel === '' ? null : String(first));
     const b = lastLabel || (lastLabel === '' ? null : String(last));
     if (first === last) return a ? `Глава ${a}` : 'Нова глава';
-    return a && b ? `Глави ${a}–${b}` : `Нових глав: ${last - first + 1}`;
+    // A prologue or side story has no number: name the range by the numbered end.
+    if (a && b) return `Глави ${a}–${b}`;
+    if (b) return `Глави до ${b}`;
+    if (a) return `Глави від ${a}`;
+    return `Нових глав: ${last - first + 1}`;
 }
