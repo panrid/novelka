@@ -28,7 +28,7 @@ export function ProcessesPage() {
             {act.isError && <Notice tone="error">{act.error.message}</Notice>}
             {processes.data?.length === 0 && <p className={styles.muted}>Ще нічого не запускали.</p>}
             {processes.data?.map((process) => (
-                <JobCard key={process.job.id} job={process.job} showShah={show} usdPerShah={usdPerShah} pending={act.isPending}
+                <JobCard key={process.job.id} job={process.job} editionId={process.editionId} showShah={show} usdPerShah={usdPerShah} pending={act.isPending}
                     title={<Link to="/studio/$editionId/translate" params={{ editionId: String(process.editionId) }} className={styles.processTitle}>
                         {process.title}
                     </Link>}

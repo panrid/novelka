@@ -28,6 +28,7 @@ import { HistoryPage } from '../pages/studio/HistoryPage';
 import { ImportPage } from '../pages/studio/ImportPage';
 import { NewPublication } from '../pages/studio/NewPublication';
 import { AutotranslatePage } from '../pages/studio/AutotranslatePage';
+import { JobLogPage } from '../pages/studio/JobLogPage';
 import { GlossaryPage } from '../pages/studio/GlossaryPage';
 import { ProcessesPage } from '../pages/studio/ProcessesPage';
 import { TitlesPage } from '../pages/studio/TitlesPage';
@@ -151,6 +152,7 @@ const routeTree = rootRoute.addChildren([
     studio('/studio/$editionId/relay', RelayPage, 'Естафета'),
     studio('/studio/$editionId/structure', StructurePage, 'Структура й томи'),
     studio('/studio/$editionId/translate', AutotranslatePage, 'Автопереклад'),
+    studio('/studio/$editionId/translate/jobs/$jobId', JobLogPage, 'Журнал запуску'),
     studio('/studio/$editionId/glossary', GlossaryPage, 'Словник'),
     studio('/studio/$editionId/titles', TitlesPage, 'Назви глав'),
     studio('/studio/processes', ProcessesPage, 'Процеси'),

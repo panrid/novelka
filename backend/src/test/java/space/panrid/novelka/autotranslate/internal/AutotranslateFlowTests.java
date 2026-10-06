@@ -185,6 +185,18 @@ class AutotranslateFlowTests {
         // metadata + 3 chapters × (analyze, translate, proofread)
         assertThat(model.calls).hasSize(10);
 
+        // The run's journal: each step of each chapter, with what analysis added and what the parts used.
+        JsonNode log = read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate/jobs/" + job.path("id").asLong() + "/log"));
+        assertThat(log.path("job").path("state").asString()).isEqualTo("done");
+        java.util.List<String> kinds = new java.util.ArrayList<>();
+        log.path("events").forEach(event -> kinds.add(event.path("chapter").asInt() + ":" + event.path("kind").asString()));
+        assertThat(kinds).containsSubsequence("1:start", "1:analysis", "1:translated", "1:proofread", "1:published", "2:start");
+        assertThat(log.path("events").findValues("added").toString()).contains("Юкі");
+        assertThat(log.path("events").findValues("glossary").toString()).contains("Юкі");
+        long last = log.path("events").get(log.path("events").size() - 1).path("id").asLong();
+        assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate/jobs/" + job.path("id").asLong()
+                + "/log?after=" + last)).path("events").size()).as("only what is new").isZero();
+
         String slug = read(owner.browser().get("/api/studio/editions/" + edition)).path("novelSlug").asString();
         JsonNode chapter = read(new Browser(port).get("/api/novels/" + slug + "/chapters/2"));
         assertThat(chapter.path("title").asString()).as("the number is the site's, not the title's").isEqualTo("Світло");

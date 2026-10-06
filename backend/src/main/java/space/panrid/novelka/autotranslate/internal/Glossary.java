@@ -190,6 +190,11 @@ class Glossary {
      * entry instead of making a twin.
      */
     int addFromAnalysis(long editionId, int chapter, List<Proposed> proposed) {
+        return addFromAnalysis(editionId, chapter, proposed, new ArrayList<>());
+    }
+
+    /** @param added filled with the Ukrainian forms of the entries that are new (for the run's journal) */
+    int addFromAnalysis(long editionId, int chapter, List<Proposed> proposed, List<String> newForms) {
         Scope scope = scope(editionId);
         int added = 0;
         for (Proposed entry : proposed) {
@@ -220,6 +225,9 @@ class Glossary {
                         .set(GLOSSARY_ENTRY.SOURCE_CHAPTER, chapter)
                         .returning(GLOSSARY_ENTRY.ID).fetchOne(GLOSSARY_ENTRY.ID);
                 addForm(tx, scope, id, original, blankToNull(entry.reading()));
+                if (twin == null) {
+                    newForms.add(ukrainian);
+                }
                 return twin == null ? 1 : 0;
             });
         }

@@ -29,4 +29,6 @@ class Checkpoint {
     /** Chapter summary for the next chapter's context. */
     public String summary;
     public Long revisionId;
+    /** The journal already says this chapter took an earlier analysis. */
+    public boolean reusedNoted;
 }

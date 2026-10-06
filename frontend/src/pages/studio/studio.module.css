@@ -405,3 +405,17 @@
         background: var(--surface);
     }
 }
+
+/* The run's card opens its journal. */
+.jobLink {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+.jobMore {
+    display: inline-block;
+    margin-top: 6px;
+    color: var(--accent);
+    font-size: 13px;
+}

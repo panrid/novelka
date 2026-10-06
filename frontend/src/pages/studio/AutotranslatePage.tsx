@@ -97,7 +97,7 @@ export function AutotranslatePage() {
             </p>
             {!data.configured && <Notice tone="error">Ключ OpenRouter не налаштовано на сервері.</Notice>}
 
-            {job && <JobCard job={job} showShah={show} usdPerShah={data.usdPerShah}
+            {job && <JobCard job={job} editionId={id} showShah={show} usdPerShah={data.usdPerShah}
                 onCancel={() => cancel.mutate(job.id)} onResume={() => resume.mutate(job.id)}
                 pending={cancel.isPending || resume.isPending} />}
             {(cancel.isError || resume.isError) && <Notice tone="error">{(cancel.error ?? resume.error)!.message}</Notice>}
@@ -230,14 +230,18 @@ export function AutotranslatePage() {
 /** «глава 3» or «глави 3–5». */
 const range = (job: Pick<Job, 'from' | 'to'>) => (job.from === job.to ? `глава ${job.from}` : `глави ${job.from}–${job.to}`);
 
-export function JobCard({ job, showShah, usdPerShah, onCancel, onResume, pending, title }: {
-    job: Job; showShah: boolean; usdPerShah: number; onCancel: () => void; onResume: () => void; pending: boolean; title?: React.ReactNode;
+export function JobCard({ job, editionId, showShah, usdPerShah, onCancel, onResume, pending, title }: {
+    job: Job; editionId: number; showShah: boolean; usdPerShah: number; onCancel: () => void; onResume: () => void; pending: boolean;
+    title?: React.ReactNode;
 }) {
     const total = Math.max(1, job.to - job.from + 1);
     const percent = Math.min(100, Math.round((job.done / total) * 100));
     return (
         <div className={styles.jobCard} aria-live="polite">
             {title}
+            {/* The progress opens the run's journal: what each step did (етап 17). */}
+            <Link to="/studio/$editionId/translate/jobs/$jobId" params={{ editionId: String(editionId), jobId: String(job.id) }}
+                className={styles.jobLink} aria-label={`Журнал запуску: ${job.kind === 'analyze' ? 'аналіз' : 'переклад'} ${range(job)}`}>
             <div className={styles.jobHead}>
                 <b>{job.kind === 'analyze' ? 'Аналіз' : 'Переклад'}: {range(job)}</b>
                 <span className={styles.badge}>{JOB_LABELS[job.state]}</span>
@@ -254,6 +258,8 @@ export function JobCard({ job, showShah, usdPerShah, onCancel, onResume, pending
                     : <>{' · '}витрачено {money(job.spentShah, job.spentUsd, showShah)} · {job.personal ? 'резерв' : 'кошторис'}{' '}
                         {money(job.quoteShah, job.quoteShah * usdPerShah, showShah)}</>}
             </div>
+            <span className={styles.jobMore}>Що відбувається ›</span>
+            </Link>
             {job.current?.error && active(job) && <p className={styles.muted}>{job.current.error}</p>}
             {job.state === 'failed' && job.error && <Notice tone="error">{job.error}</Notice>}
             {(active(job) || job.state === 'failed') && (

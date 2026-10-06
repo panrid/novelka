@@ -51,10 +51,12 @@ class AutotranslateController {
     private final Sources sources;
     private final space.panrid.novelka.suggestion.Suggestions suggestions;
     private final Agreement agreement;
+    private final JobLog journal;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
             Teams teams, Analyses analyses, Ledger ledger, Sources sources, space.panrid.novelka.suggestion.Suggestions suggestions,
-            Agreement agreement) {
+            Agreement agreement, JobLog journal) {
+        this.journal = journal;
         this.agreement = agreement;
         this.suggestions = suggestions;
         this.sources = sources;
@@ -146,6 +148,17 @@ class AutotranslateController {
         Viewer viewer = ownerTranslating(editionId);
         long jobId = jobs.start(editionId, plan, viewer.accountId(), personal(viewer));
         return jobs.view(jobs.job(editionId, jobId).orElseThrow());
+    }
+
+    record Journal(Jobs.JobView job, List<JobLog.Event> events) {
+    }
+
+    /** The run's journal (етап 17): {@code after} — the last event the page already shows. */
+    @GetMapping("/editions/{editionId}/autotranslate/jobs/{jobId}/log")
+    Journal journal(@PathVariable long editionId, @PathVariable long jobId, @RequestParam(defaultValue = "0") long after) {
+        ownerTranslating(editionId);
+        var job = jobs.job(editionId, jobId).orElseThrow(() -> UserFacingException.notFound("Такого запуску немає."));
+        return new Journal(jobs.view(job), journal.events(jobId, after));
     }
 
     /**

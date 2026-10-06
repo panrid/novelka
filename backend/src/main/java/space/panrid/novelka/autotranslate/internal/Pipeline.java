@@ -62,8 +62,11 @@ class Pipeline {
     private final Clock clock;
     private final Progress progress;
 
+    private final JobLog journal;
+
     Pipeline(DSLContext db, Ai ai, Sources sources, Chapters chapters, Images images, Glossary glossary, Analyses analyses,
-            JsonMapper json, Clock clock, Progress progress) {
+            JsonMapper json, Clock clock, Progress progress, JobLog journal) {
+        this.journal = journal;
         this.progress = progress;
         this.analyses = analyses;
         this.db = db;
@@ -90,6 +93,7 @@ class Pipeline {
             checkpoint.sourceId = source.id();
             checkpoint.chars = source.chars();
             save(step, "analyze", checkpoint);
+            journal.add(job.getId(), number, "start", Map.of("chars", source.chars(), "paragraphs", source.blocks().size()));
         }
         List<Block> text = source.blocks().stream().filter(block -> !block.text().isBlank()).toList();
         Calls calls = new Calls(job, settings, number);
@@ -118,12 +122,19 @@ class Pipeline {
             for (JsonNode item : answer.path("known")) {
                 known.add(new Glossary.Known(item.path("id").asLong(0), item.path("original").asString("")));
             }
-            glossary.link(editionId, known);
-            glossary.addFromAnalysis(editionId, number, proposed);
+            int linked = glossary.link(editionId, known);
+            List<String> added = new ArrayList<>();
+            glossary.addFromAnalysis(editionId, number, proposed, added);
+            journal.add(job.getId(), number, "analysis", Map.of("part", part, "added", added, "linked", linked,
+                    "title", part == 0 && checkpoint.title != null ? checkpoint.title : ""));
             checkpoint.analyzed.add(part);
             save(step, "analyze", checkpoint);
         }
 
+        if (analyzedBefore && checkpoint.analyzed.isEmpty() && !checkpoint.reusedNoted) {
+            journal.add(job.getId(), number, "analysis_reused", Map.of());
+            checkpoint.reusedNoted = true;
+        }
         if (!analyzedBefore) {
             String label = analyses.label(novelId, source.title());
             String title = checkpoint.title == null ? "" : checkpoint.title;
@@ -150,6 +161,8 @@ class Pipeline {
             String context = part == 0 ? previousSummary : checkpoint.summaries.get(String.valueOf(part - 1));
             List<Line> before = part == 0 ? List.of() : tail(checkpoint.draft.get(String.valueOf(part - 1)));
             Translated translated = translate(calls, editionId, part, parts.get(part), context, before);
+            journal.add(job.getId(), number, "translated", Map.of("part", part, "of", parts.size(), "lines", translated.lines().size(),
+                    "glossary", glossary.mentionedIn(editionId, joined(parts.get(part))).stream().map(Glossary.Entry::ukrainian).toList()));
             checkpoint.draft.put(key, translated.lines());
             checkpoint.summaries.put(key, translated.summary());
             save(step, "translate", checkpoint);
@@ -161,7 +174,10 @@ class Pipeline {
                 if (checkpoint.revised.containsKey(key)) {
                     continue;
                 }
-                checkpoint.revised.put(key, proofread(calls, editionId, part, parts.get(part), checkpoint.draft.get(key)));
+                List<Line> revised = proofread(calls, editionId, part, parts.get(part), checkpoint.draft.get(key));
+                journal.add(job.getId(), number, "proofread", Map.of("part", part, "of", parts.size(),
+                        "changes", changes(checkpoint.draft.get(key), revised)));
+                checkpoint.revised.put(key, revised);
                 save(step, "proofread", checkpoint);
             }
         }
@@ -191,6 +207,8 @@ class Pipeline {
             checkpoint.summary = summary(checkpoint, parts.size());
             checkpoint.revisionId = chapters.publishMachine(editionId, number, analysis.label(), analysis.title(), blocks,
                     source.id(), source.chars(), job.getId(), source.hash());
+            journal.add(job.getId(), number, "published", Map.of("title", analysis.title(),
+                    "label", analysis.label() == null ? String.valueOf(number) : analysis.label(), "paragraphs", blocks.size()));
         }
         save(step, "done", checkpoint);
     }
@@ -231,6 +249,7 @@ class Pipeline {
             }
             // A long run of short lines is where a model loses its place: halves keep it in step.
             log.info("Chapter {} part {}: {}; translating it in halves", calls.number, part, unusable.getMessage());
+            journal.add(calls.job.getId(), calls.number, "split", Map.of("part", part, "lines", blocks.size(), "reason", unusable.getMessage()));
             int half = blocks.size() / 2;
             Translated first = translate(calls, editionId, part, blocks.subList(0, half), context, before);
             Translated second = translate(calls, editionId, part, blocks.subList(half, blocks.size()), first.summary(), first.lines());
@@ -242,6 +261,7 @@ class Pipeline {
         List<Block> missing = missing(blocks, lines);
         if (!missing.isEmpty()) {
             log.info("Chapter {} part {}: {} lines left out, asking for them alone", calls.number, part, missing.size());
+            journal.add(calls.job.getId(), calls.number, "missing", Map.of("part", part, "lines", missing.size()));
             JsonNode extra = calls.ask("translate", part, Prompts.TRANSLATE, translateRequest(editionId, missing, context, lines),
                     "translation", Prompts.blocksSchema(true), maxTokens(joined(missing)), reply -> complete(reply, missing));
             lines = merged(blocks, lines, lines(extra));
@@ -286,6 +306,7 @@ class Pipeline {
         } catch (BadOutput unusable) {
             // Better the draft than an edit that lost its place.
             log.warn("Chapter {} part {}: proofreading unusable ({}), the draft stays", calls.number, part, unusable.getMessage());
+            journal.add(calls.job.getId(), calls.number, "proofread_skipped", Map.of("part", part, "reason", unusable.getMessage()));
             return draft;
         }
         return merged(blocks, lines(answer), draft);
@@ -418,6 +439,7 @@ class Pipeline {
                     parsed = lenient(json, answer.content());
                 } catch (RuntimeException notJson) {
                     last = "відповідь не у форматі JSON";
+                    journal.add(job.getId(), number, "retry", Map.of("stage", stage, "part", part, "reason", last));
                     continue;
                 }
                 String wrong = problem.apply(parsed);
@@ -426,6 +448,7 @@ class Pipeline {
                 }
                 last = wrong;
                 log.info("Job {} chapter {} {} part {}: unusable answer ({}), asking again", job.getId(), number, stage, part, wrong);
+                journal.add(job.getId(), number, "retry", Map.of("stage", stage, "part", part, "reason", wrong));
             }
             throw new BadOutput("Модель тричі повернула неповну відповідь (глава %d, %s): %s."
                     .formatted(number, stageName(stage), last));
@@ -569,6 +592,20 @@ class Pipeline {
                 .replaceFirst("^\\**\\s*(Короткий зміст|Summary)\\s*:?\\s*\\**\\s*:?", "").strip();
         wrapped.put("summary", after);
         return wrapped;
+    }
+
+    /** What proofreading changed in a part: each line's draft and final text, the first 40 of them. */
+    static List<Map<String, String>> changes(List<Line> draft, List<Line> revised) {
+        Map<String, String> before = new HashMap<>();
+        draft.forEach(line -> before.put(line.id(), line.text()));
+        List<Map<String, String>> out = new ArrayList<>();
+        for (Line line : revised) {
+            String was = before.get(line.id());
+            if (was != null && !was.equals(line.text()) && out.size() < 40) {
+                out.add(Map.of("id", line.id(), "before", was, "after", line.text()));
+            }
+        }
+        return out;
     }
 
     private static List<Line> lines(JsonNode answer) {

@@ -153,12 +153,13 @@ describe('autotranslate', () => {
             'GET /api/studio/editions/4/autotranslate': { body: { ...OVERVIEW, jobs: [FAILED_JOB] } },
             'POST /api/studio/editions/4/autotranslate/jobs/9/resume': { status: 204 },
         });
-        const card = (await screen.findByRole('progressbar')).parentElement!;
+        const card = (await screen.findByRole('progressbar')).closest<HTMLElement>('[aria-live]')!;
         expect(within(card).getByText('зупинено')).toBeInTheDocument();
         expect(within(card).getByRole('alert')).toHaveTextContent('загубилася');
         expect(screen.queryByRole('button', { name: 'Почати переклад' })).not.toBeInTheDocument();
         await userEvent.click(within(card).getByRole('button', { name: 'Продовжити' }));
         expect(calls.some((call) => call.method === 'POST' && call.path.endsWith('/jobs/9/resume'))).toBe(true);
+        expect(within(card).getByRole('link', { name: /Журнал запуску/ })).toHaveAttribute('href', '/studio/4/translate/jobs/9');
     });
 
     it('offers the Syosetu path in a new publication to the site owner', async () => {

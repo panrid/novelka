@@ -28,6 +28,9 @@ export type AutotranslateOverview = {
     /** Runs are paid from the viewer's шаги: balance is theirs, reserved is what their runs hold. */
     personal: boolean; reserved: number;
 };
+/** One step of a run as the journal tells it; the payload depends on the kind. */
+export type JobEvent = { id: number; chapter: number; kind: string; payload: Record<string, unknown>; at: string };
+
 export type Process = { editionId: number; title: string; slug: string; job: Job };
 export type ModelRating = 'recommended' | 'usual' | 'weak';
 /** Which models the pickers list: only recommended, also usual ones, or weak ones too. */
@@ -92,6 +95,9 @@ export const autotranslateApi = {
     start: (id: number, plan: Plan) => api<Job>(`${base(id)}/autotranslate/jobs`, json('POST', plan)),
     cancel: (id: number, jobId: number) => api<void>(`${base(id)}/autotranslate/jobs/${jobId}/cancel`, json('POST', {})),
     resume: (id: number, jobId: number) => api<void>(`${base(id)}/autotranslate/jobs/${jobId}/resume`, json('POST', {})),
+    /** A run's journal (етап 17); {@code after}: the last event already shown. */
+    journal: (id: number, jobId: number, after = 0) =>
+        api<{ job: Job; events: JobEvent[] }>(`${base(id)}/autotranslate/jobs/${jobId}/log?after=${after}`),
     processes: (page = 1) => api<Process[]>(`/api/studio/autotranslate/processes?page=${page}`),
     models: (q: string, chars: number, output: 'text' | 'image' = 'text', stage?: 'analyze' | 'translate' | 'proofread', show: ModelShow = 'usual') =>
         api<ModelChoice[]>(`/api/studio/autotranslate/models?q=${encodeURIComponent(q)}&chars=${chars}&output=${output}${stage ? `&stage=${stage}` : ''}&show=${show}`),
