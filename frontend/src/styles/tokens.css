@@ -19,6 +19,8 @@
     --danger: #d9776b;
     --focus: #b9d4aa;
     --shadow: 0 8px 24px rgb(0 0 0 / 45%);
+    --chart-blue: #7fa6d9;
+    --chart-violet: #b393d6;
 }
 
 :root[data-theme='light'] {
@@ -37,6 +39,8 @@
     --danger: #b04a3e;
     --focus: #4f7a40;
     --shadow: 0 8px 24px rgb(0 0 0 / 12%);
+    --chart-blue: #3c6aa8;
+    --chart-violet: #7a52a6;
 }
 
 :root[data-theme='black'] {
@@ -55,6 +59,8 @@
     --danger: #d9776b;
     --focus: #b9d4aa;
     --shadow: 0 8px 24px rgb(0 0 0 / 60%);
+    --chart-blue: #7fa6d9;
+    --chart-violet: #b393d6;
 }
 
 :root {

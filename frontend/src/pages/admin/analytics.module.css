@@ -1,0 +1,113 @@
+.page {
+    max-width: 1100px;
+    padding-top: 12px;
+    padding-bottom: 40px;
+}
+
+.title {
+    margin: 4px 0 12px;
+    font: 600 24px/1.2 var(--font-reading);
+}
+
+.muted {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.stale {
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.section {
+    margin: 28px 0 12px;
+    font: 600 19px/1.3 var(--font-ui);
+}
+
+.sub {
+    margin: 14px 0 6px;
+    color: var(--muted);
+    font: 500 13px/1.3 var(--font-ui);
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.card b {
+    font-size: 22px;
+    font-variant-numeric: tabular-nums;
+}
+
+.card span {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.card small {
+    color: var(--faint);
+    font-size: 11.5px;
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    margin-bottom: 14px;
+    padding: 16px;
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.panelTitle {
+    margin: 0;
+    font: 600 15px/1.3 var(--font-ui);
+}
+
+.scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.table th {
+    padding: 6px 10px 6px 0;
+    color: var(--muted);
+    font-weight: 500;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+}
+
+.table td {
+    padding: 7px 10px 7px 0;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+}
+
+.reason {
+    display: inline-block;
+    max-width: 420px;
+    white-space: normal;
+}

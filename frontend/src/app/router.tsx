@@ -34,6 +34,7 @@ import { ProcessesPage } from '../pages/studio/ProcessesPage';
 import { TitlesPage } from '../pages/studio/TitlesPage';
 import { WalletPage } from '../pages/me/WalletPage';
 import { AdminHome, AuditPage, ModerationPage, SiteSettingsPage, UsersPage } from '../pages/admin/AdminPages';
+import { AnalyticsPage } from '../pages/admin/AnalyticsPage';
 import { ChatPage } from '../pages/inbox/ChatPage';
 import { ConversationAboutPage } from '../pages/inbox/ConversationAboutPage';
 import { ConversationPage } from '../pages/inbox/ConversationPage';
@@ -138,6 +139,7 @@ const routeTree = rootRoute.addChildren([
     studio('/admin/users', UsersPage, 'Користувачі й ролі'),
     studio('/admin/settings', SiteSettingsPage, 'Налаштування сайту'),
     studio('/admin/audit', AuditPage, 'Журнал дій'),
+    studio('/admin/analytics', AnalyticsPage, 'Аналітика'),
     createRoute({ getParentRoute: () => rootRoute, path: '/inbox/chat', component: ChatPage, head: title('Чат') }),
     createRoute({ getParentRoute: () => rootRoute, path: '/me', component: MePage, head: title('Я') }),
     studio('/me/suggestions', MySuggestionsPage, 'Мої правки'),

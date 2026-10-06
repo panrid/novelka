@@ -44,6 +44,7 @@ export function AdminHome() {
                 <Link to="/admin/moderation" className={styles.menuItem}>Скарги й приховане</Link>
                 {rank >= RANK.admin && <Link to="/admin/users" className={styles.menuItem}>Користувачі й ролі</Link>}
                 {rank >= RANK.owner && <Link to="/admin/settings" className={styles.menuItem}>Налаштування сайту</Link>}
+                {rank >= RANK.owner && <Link to="/admin/analytics" className={styles.menuItem}>Аналітика: витрати й якість моделей</Link>}
                 {rank >= RANK.owner && <Link to="/me/wallet" className={styles.menuItem}>Моделі, ціни й собівартість</Link>}
                 {rank >= RANK.owner && <Link to="/admin/audit" className={styles.menuItem}>Журнал дій</Link>}
             </nav>

@@ -278,6 +278,33 @@ class AutotranslateFlowTests {
     }
 
     @Test
+    void theOwnerSeesWhatEachModelCostAndHowOftenPeopleCorrectIt() {
+        long edition = prepare();
+        owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/jobs", json("to", 2));
+        worker.drain();
+
+        for (int days : new int[] {7, 30, 90, 365, 0}) {
+            assertThat(owner.browser().get("/api/admin/analytics?days=" + days).status()).as("period %d", days).isEqualTo(200);
+        }
+        JsonNode report = read(owner.browser().get("/api/admin/analytics?days=30"));
+        assertThat(report.path("spend").path("calls").asInt()).isPositive();
+        assertThat(report.path("spend").path("chapters").asInt()).isGreaterThanOrEqualTo(2);
+        assertThat(report.path("stages")).extracting(row -> row.path("stage").asString()).contains("analyze", "translate", "proofread");
+        assertThat(report.path("models")).isNotEmpty();
+        assertThat(report.path("combos")).isNotEmpty();
+        assertThat(report.path("spendSeries")).isNotEmpty();
+        assertThat(report.path("translation")).anySatisfy(row -> {
+            assertThat(row.path("chapters").asInt()).isGreaterThanOrEqualTo(2);
+            assertThat(row.path("paragraphsChanged").asDouble()).isZero();
+        });
+        assertThat(report.path("analysis")).isNotEmpty();
+        assertThat(report.path("site").path("chaptersPublished").asInt()).isGreaterThanOrEqualTo(2);
+
+        assertThat(owner.browser().get("/api/admin/analytics?days=5").status()).isEqualTo(400);
+        assertThat(Accounts.signedIn(port, mailbox).browser().get("/api/admin/analytics").status()).as("only the owner").isEqualTo(403);
+    }
+
+    @Test
     void aLostAnswerStopsTheJobUntilTheOwnerAllowsANewAttempt() {
         long edition = prepare();
         owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/jobs", json("to", 2));
