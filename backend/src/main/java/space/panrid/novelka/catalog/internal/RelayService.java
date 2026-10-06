@@ -14,12 +14,15 @@ import java.util.List;
 
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import space.panrid.novelka.catalog.EditionRef;
 import space.panrid.novelka.catalog.Relay;
+import space.panrid.novelka.catalog.TakeoverAnswered;
+import space.panrid.novelka.catalog.TakeoverRequested;
 import space.panrid.novelka.catalog.RelayState;
 import space.panrid.novelka.platform.SiteSettings;
 import space.panrid.novelka.platform.web.UserFacingException;
@@ -37,8 +40,10 @@ class RelayService implements Relay {
     private final DSLContext db;
     private final SiteSettings settings;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
-    RelayService(DSLContext db, SiteSettings settings, Clock clock) {
+    RelayService(DSLContext db, SiteSettings settings, Clock clock, ApplicationEventPublisher events) {
+        this.events = events;
         this.db = db;
         this.settings = settings;
         this.clock = clock;
@@ -91,13 +96,22 @@ class RelayService implements Relay {
         if (text != null && text.length() > 1000) {
             throw UserFacingException.badRequest("Повідомлення — до 1000 символів.");
         }
-        return db.insertInto(TAKEOVER_REQUEST)
+        String saved = text == null || text.isEmpty() ? null : text;
+        long id = db.insertInto(TAKEOVER_REQUEST)
                 .set(TAKEOVER_REQUEST.EDITION_ID, editionId)
                 .set(TAKEOVER_REQUEST.TEAM_ID, teamId)
                 .set(TAKEOVER_REQUEST.REQUESTED_BY, requesterId)
-                .set(TAKEOVER_REQUEST.MESSAGE, text == null || text.isEmpty() ? null : text)
+                .set(TAKEOVER_REQUEST.MESSAGE, saved)
                 .returning(TAKEOVER_REQUEST.ID)
                 .fetchOne(TAKEOVER_REQUEST.ID);
+        var about = db.select(TEAM.OWNER_ID, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE)).from(EDITION)
+                .join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
+                .where(EDITION.ID.eq(editionId)).fetchSingle();
+        String teamName = db.select(DSL.coalesce(TEAM.NAME, ACCOUNT.NICK)).from(TEAM).join(ACCOUNT).on(ACCOUNT.ID.eq(TEAM.OWNER_ID))
+                .where(TEAM.ID.eq(teamId)).fetchSingle().value1();
+        String nick = db.select(ACCOUNT.NICK).from(ACCOUNT).where(ACCOUNT.ID.eq(requesterId)).fetchSingle(ACCOUNT.NICK);
+        events.publishEvent(new TakeoverRequested(editionId, about.value1(), about.value2(), teamName, nick, saved));
+        return id;
     }
 
     @Override
@@ -112,6 +126,10 @@ class RelayService implements Relay {
         if (changed == 0) {
             throw UserFacingException.notFound("Цього запиту вже немає.");
         }
+        var asked = db.select(TAKEOVER_REQUEST.REQUESTED_BY, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), NOVEL.SLUG).from(TAKEOVER_REQUEST)
+                .join(EDITION).on(EDITION.ID.eq(TAKEOVER_REQUEST.EDITION_ID)).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
+                .where(TAKEOVER_REQUEST.ID.eq(requestId)).fetchSingle();
+        events.publishEvent(new TakeoverAnswered(asked.value1(), asked.value2(), asked.value3(), grant));
     }
 
     /**

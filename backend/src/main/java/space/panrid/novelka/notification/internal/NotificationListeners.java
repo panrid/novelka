@@ -23,6 +23,8 @@ import org.springframework.stereotype.Component;
 
 import space.panrid.novelka.achievement.AchievementEarned;
 import space.panrid.novelka.autotranslate.ProposalTaken;
+import space.panrid.novelka.catalog.TakeoverAnswered;
+import space.panrid.novelka.catalog.TakeoverRequested;
 import space.panrid.novelka.community.ChatMentioned;
 import space.panrid.novelka.community.CommentPosted;
 import space.panrid.novelka.ledger.ShahsGranted;
@@ -125,6 +127,26 @@ class NotificationListeners {
     @ApplicationModuleListener
     void on(AchievementEarned earned) {
         inbox.add(earned.accountId(), "achievement", Map.of("code", earned.code(), "title", earned.title(), "nick", earned.nick()));
+    }
+
+    /** Someone wants to continue the owner's translation; the request is answered in the Studio. */
+    @ApplicationModuleListener
+    void on(TakeoverRequested requested) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("editionId", requested.editionId());
+        payload.put("title", requested.title());
+        payload.put("teamName", requested.teamName());
+        payload.put("actorNick", requested.requesterNick());
+        if (requested.message() != null) {
+            payload.put("excerpt", requested.message());
+        }
+        inbox.add(requested.ownerId(), "takeover_request", payload);
+    }
+
+    @ApplicationModuleListener
+    void on(TakeoverAnswered answered) {
+        inbox.add(answered.requesterId(), "takeover_answered",
+                Map.of("title", answered.title(), "slug", answered.novelSlug(), "granted", answered.granted()));
     }
 
     /** A novel people voted for is being translated now. */

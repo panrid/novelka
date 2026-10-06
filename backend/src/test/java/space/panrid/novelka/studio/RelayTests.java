@@ -119,8 +119,15 @@ class RelayTests {
     void theOwnerMayAllowARequestEarly() {
         assertThat(successor.browser().post("/api/editions/" + edition + "/takeover-requests",
                 json("message", "Хочемо продовжити машинним перекладом.")).status()).isEqualTo(201);
-        assertThat(mailbox.to(owner.email())).anySatisfy(mail ->
-                assertThat(mail.subject()).isEqualTo("Хочуть продовжити ваш переклад на Новелці"));
+        assertThat(mailbox.to(owner.email())).anySatisfy(mail -> {
+            assertThat(mail.subject()).isEqualTo("Хочуть продовжити ваш переклад на Новелці");
+            assertThat(mail.text()).as("the letter says what they wrote").contains("«Хочемо продовжити машинним перекладом.»");
+        });
+        JsonNode told = space.panrid.novelka.support.Eventually.eventually(() -> read(owner.browser().get("/api/notifications")),
+                page -> page.toString().contains("takeover_request")).path("items").path(0);
+        assertThat(told.path("kind").asString()).as("the owner hears on the site too").isEqualTo("takeover_request");
+        assertThat(told.path("payload").path("excerpt").asString()).isEqualTo("Хочемо продовжити машинним перекладом.");
+        assertThat(told.path("payload").path("actorNick").asString()).isEqualTo(successor.nick());
         assertThat(read(successor.browser().get("/api/novels/" + slug)).path("viewer").path("relayAsked").asBoolean())
                 .as("the page remembers the request instead of offering it again").isTrue();
         assertThat(successor.browser().post("/api/editions/" + edition + "/takeover-requests", json("message", "Ще раз")).status())
@@ -136,6 +143,9 @@ class RelayTests {
         owner.browser().post("/api/studio/editions/" + edition + "/takeover-requests/" + requests.get(0).path("id").asLong(),
                 json("grant", true));
         assertThat(successor.browser().post("/api/editions/" + edition + "/continue", json("kind", "human")).status()).isEqualTo(201);
+        assertThat(space.panrid.novelka.support.Eventually.eventually(() -> read(successor.browser().get("/api/notifications")),
+                page -> page.toString().contains("takeover_answered")).path("items").path(0).path("payload").path("granted").asBoolean())
+                .as("and the one who asked hears the answer").isTrue();
     }
 
     @Test

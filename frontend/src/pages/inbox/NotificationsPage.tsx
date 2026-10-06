@@ -80,6 +80,14 @@ function Row({ item }: { item: Notification }) {
             title = `Вам нараховано ${p.shah ?? 0} ${shahWord(p.shah ?? 0)}`;
             excerpt = p.note;
             break;
+        case 'takeover_request':
+            title = `${p.actorNick ?? ''} хоче продовжити ваш переклад «${p.title ?? ''}»`;
+            excerpt = p.excerpt ? `«${p.excerpt}»` : `Команда ${p.teamName ?? ''}. Відповісти можна в Студії.`;
+            break;
+        case 'takeover_answered':
+            title = p.granted ? `Вам дозволили продовжити «${p.title ?? ''}»` : `Власник поки не віддає «${p.title ?? ''}»`;
+            excerpt = p.granted ? 'На сторінці новели тепер є кнопка «Продовжити переклад».' : undefined;
+            break;
         case 'achievement':
             title = `Нове досягнення: «${p.title ?? ''}»`;
             break;
@@ -102,6 +110,9 @@ function Row({ item }: { item: Notification }) {
         </div>
     );
     const className = `${styles.item} ${item.read ? '' : styles.unread}`;
+    if (item.kind === 'takeover_request' && p.editionId) {
+        return <Link to="/studio/$editionId/relay" params={{ editionId: String(p.editionId) }} className={className}>{body}</Link>;
+    }
     if (item.kind === 'achievement' && p.nick) {
         return <Link to="/u/$nick" params={{ nick: p.nick }} hash="achievements" className={className}>{body}</Link>;
     }

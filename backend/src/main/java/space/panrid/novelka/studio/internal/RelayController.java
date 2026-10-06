@@ -87,11 +87,14 @@ class RelayController {
         AfterCommit.run(() -> mailer.send(new Mail(edition.value1(), "Хочуть продовжити ваш переклад на Новелці", """
                 Привіт, %s!
 
-                Команда «%s» хоче продовжити ваш переклад «%s». Відповісти можна тут:
+                Команда «%s» хоче продовжити ваш переклад «%s».%s
+                Відповісти можна тут:
                 %s
 
                 Якщо не відповісти за %d днів, а нових глав не було кілька місяців, переклад стане вільним для продовження.
-                """.formatted(edition.value2(), team.name(), edition.value3(), link, 14))));
+                """.formatted(edition.value2(), team.name(), edition.value3(),
+                body.message() == null || body.message().isBlank() ? "" : "\n\nВони пишуть:\n«" + body.message().strip() + "»\n",
+                link, 14))));
     }
 
     @GetMapping("/api/studio/editions/{editionId}/takeover-requests")

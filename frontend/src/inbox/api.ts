@@ -4,7 +4,8 @@ const json = (method: string, body: unknown): RequestInit => ({ method, body: JS
 
 // ---- notifications ------------------------------------------------------------------------------
 
-export type NotificationKind = 'reply' | 'mention' | 'team_mention' | 'new_chapters' | 'suggestions_reviewed' | 'suggestions_submitted' | 'shahs_granted' | 'proposal_taken' | 'achievement';
+export type NotificationKind = 'reply' | 'mention' | 'team_mention' | 'new_chapters' | 'suggestions_reviewed' | 'suggestions_submitted' | 'shahs_granted' | 'proposal_taken' | 'achievement'
+    | 'takeover_request' | 'takeover_answered';
 
 export type NotificationPayload = {
     editionId?: number; slug?: string; novelTitle?: string; teamHandle?: string;
@@ -14,6 +15,8 @@ export type NotificationPayload = {
     firstLabel?: string; lastLabel?: string; chapterTitle?: string; coverUrl?: string;
     /** A proposed novel someone took to translate, or a new badge: its title. */
     title?: string; nick?: string;
+    /** Естафета: the asking team, and whether the owner allowed it. */
+    teamName?: string; granted?: boolean;
 };
 
 export type Notification = { id: number; kind: NotificationKind; payload: NotificationPayload; createdAt: string; read: boolean };
