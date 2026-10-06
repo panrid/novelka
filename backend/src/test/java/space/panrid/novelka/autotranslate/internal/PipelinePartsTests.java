@@ -33,4 +33,26 @@ class PipelinePartsTests {
         assertThat(Pipeline.sameStart("……", "")).as("a line of dots has nothing to compare").isTrue();
         assertThat(Pipeline.sameStart("何か", null)).as("an answer without «start»").isTrue();
     }
+
+    @Test
+    void anAnswerThatIgnoredTheSchemaIsReadIfItsContentIsThere() {
+        tools.jackson.databind.json.JsonMapper json = tools.jackson.databind.json.JsonMapper.builder().build();
+        // What DeepSeek V3.2 via Venice returned on 2026-10-06 instead of {"blocks": […], "summary": "…"}.
+        String answer = """
+                ```json
+                [
+                  {"id": "s262", "start": "僕が何", "translation": "Ще я не встиг нічого сказати."},
+                  {"id": "s263", "start": "「交易", "translation": "— На біржі."}
+                ]
+                ```
+
+                **Короткий зміст:** Ґраст каже, що слюда дорога.""";
+        tools.jackson.databind.JsonNode read = Pipeline.lenient(json, answer);
+        org.assertj.core.api.Assertions.assertThat(read.path("blocks").path(1).path("text").asString()).isEqualTo("— На біржі.");
+        org.assertj.core.api.Assertions.assertThat(read.path("blocks").path(0).path("start").asString()).isEqualTo("僕が何");
+        org.assertj.core.api.Assertions.assertThat(read.path("summary").asString()).isEqualTo("Ґраст каже, що слюда дорога.");
+        org.assertj.core.api.Assertions.assertThat(Pipeline.lenient(json, "{\"blocks\":[],\"summary\":\"x\"}").path("summary").asString())
+                .as("a proper answer is read as it is").isEqualTo("x");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> Pipeline.lenient(json, "Вибачте, не можу.")).isInstanceOf(RuntimeException.class);
+    }
 }

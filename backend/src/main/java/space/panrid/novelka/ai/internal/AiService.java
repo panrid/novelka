@@ -295,7 +295,8 @@ class AiService implements Ai {
         if (request.schema() != null) {
             body.put("response_format", Map.of("type", "json_schema", "json_schema",
                     Map.of("name", request.schemaName(), "strict", true, "schema", request.schema())));
-            body.put("provider", Map.of("require_parameters", true));
+            // Venice serves some open models but ignores the schema (seen 2026-10-06 with DeepSeek V3.2).
+            body.put("provider", Map.of("require_parameters", true, "ignore", List.of("Venice")));
         }
         return body;
     }

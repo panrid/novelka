@@ -415,7 +415,7 @@ class Pipeline {
                 }
                 JsonNode parsed;
                 try {
-                    parsed = json.readTree(answer.content());
+                    parsed = lenient(json, answer.content());
                 } catch (RuntimeException notJson) {
                     last = "відповідь не у форматі JSON";
                     continue;
@@ -526,6 +526,49 @@ class Pipeline {
         StringBuilder out = new StringBuilder();
         entries.forEach(entry -> out.append(entry.line()).append('\n'));
         return out.toString();
+    }
+
+    /**
+     * The answer as the schema asked for it, even from a provider that ignores the schema
+     * (Venice gave DeepSeek's answers as a ```json block of [{id, start, translation}] with the
+     * summary in prose after it). Only the wrapping is forgiven: ids and starts are still checked.
+     */
+    static JsonNode lenient(JsonMapper json, String content) {
+        String text = content == null ? "" : content.strip();
+        try {
+            return json.readTree(text);
+        } catch (RuntimeException wrapped) {
+            // a fenced or prefixed answer: take the JSON between the first bracket and its last match
+        }
+        int object = text.indexOf('{');
+        int array = text.indexOf('[');
+        boolean isArray = array >= 0 && (object < 0 || array < object);
+        int from = isArray ? array : object;
+        int to = isArray ? text.lastIndexOf(']') : text.lastIndexOf('}');
+        if (from < 0 || to <= from) {
+            throw new IllegalArgumentException("no JSON in the answer");
+        }
+        JsonNode inner = json.readTree(text.substring(from, to + 1));
+        if (!inner.isArray()) {
+            return inner;
+        }
+        tools.jackson.databind.node.ObjectNode wrapped = json.createObjectNode();
+        tools.jackson.databind.node.ArrayNode blocks = wrapped.putArray("blocks");
+        for (JsonNode item : inner) {
+            tools.jackson.databind.node.ObjectNode block = item.isObject() ? ((tools.jackson.databind.node.ObjectNode) item).deepCopy()
+                    : json.createObjectNode();
+            if (!block.has("text")) {
+                JsonNode alias = block.has("translation") ? block.get("translation") : block.get("content");
+                if (alias != null) {
+                    block.set("text", alias);
+                }
+            }
+            blocks.add(block);
+        }
+        String after = text.substring(to + 1).replace("```", "").strip()
+                .replaceFirst("^\\**\\s*(Короткий зміст|Summary)\\s*:?\\s*\\**\\s*:?", "").strip();
+        wrapped.put("summary", after);
+        return wrapped;
     }
 
     private static List<Line> lines(JsonNode answer) {
