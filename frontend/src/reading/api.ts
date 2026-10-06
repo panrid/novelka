@@ -54,6 +54,8 @@ export type NovelPage = {
     title: string;
     author: string;
     origin: 'translation' | 'original';
+    /** The original's language (ja, en…), null when unknown. */
+    language?: string | null;
     description: TextBlock[];
     tags: string[];
     edition: EditionSummary;

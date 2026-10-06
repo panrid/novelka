@@ -1,6 +1,12 @@
 spring:
   application:
     name: novelka
+  task:
+    scheduling:
+      shutdown:
+        # A deploy waits for an autotranslation answer already on its way (see Shutdown).
+        await-termination: true
+        await-termination-period: 150s
   datasource:
     url: ${NOVELKA_DB_URL:jdbc:postgresql://127.0.0.1:5433/novelka}
     username: ${NOVELKA_DB_USER:novelka}

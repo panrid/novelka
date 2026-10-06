@@ -46,7 +46,8 @@ final class Views {
             boolean relayAsked) {
     }
 
-    record NovelPage(String slug, String title, String author, String origin, List<ReaderBlock> description,
+    /** @param language the original's language (ja, en…), or null when the site does not know it */
+    record NovelPage(String slug, String title, String author, String origin, String language, List<ReaderBlock> description,
             List<String> tags, EditionSummary edition, List<EditionSummary> editions, boolean adult,
             OffsetDateTime lastPublishedAt, ViewerState viewer, Relay relay) {
     }

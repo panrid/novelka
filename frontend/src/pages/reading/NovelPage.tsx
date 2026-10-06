@@ -111,7 +111,7 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
             <div className={styles.content}>
                 <div className={styles.headText}>
                     <h1 className={styles.title}>{novel.title}</h1>
-                    <p className={styles.muted}>{novel.origin === 'original' ? 'оригінальний твір' : 'переклад з японської'}</p>
+                    <p className={styles.muted}>{novel.origin === 'original' ? 'оригінальний твір' : translatedFrom(novel.language)}</p>
                     <div className={styles.chips}>
                         {novel.author && <span className={styles.chip}>✎ {novel.author}</span>}
                         <span className={`${styles.chip} ${styles.team}`} title={edition.teamName}>${edition.teamHandle}</span>
@@ -409,4 +409,13 @@ function HideEdition({ editionId }: { editionId: number }) {
             {hide.isError && <Notice tone="error">{hide.error.message}</Notice>}
         </div>
     );
+}
+
+const FROM: Record<string, string> = {
+    ja: 'японської', en: 'англійської', ko: 'корейської', zh: 'китайської', fr: 'французької', de: 'німецької', es: 'іспанської', pl: 'польської',
+};
+
+/** «переклад з японської», or just «переклад» when the site does not know the original's language. */
+function translatedFrom(language: string | null | undefined): string {
+    return language && FROM[language] ? `переклад з ${FROM[language]}` : 'переклад';
 }

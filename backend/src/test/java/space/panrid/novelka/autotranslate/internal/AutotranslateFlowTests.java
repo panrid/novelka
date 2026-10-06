@@ -65,6 +65,9 @@ class AutotranslateFlowTests {
     @Autowired
     Glossary glossary;
 
+    @Autowired
+    Shutdown shutdown;
+
     Person owner;
     String code;
 
@@ -182,8 +185,8 @@ class AutotranslateFlowTests {
         JsonNode job = read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate")).path("jobs").path(0);
         assertThat(job.path("state").asString()).isEqualTo("done");
         assertThat(job.path("done").asInt()).isEqualTo(3);
-        // metadata + 3 chapters × (analyze, translate, proofread)
-        assertThat(model.calls).hasSize(10);
+        // 3 chapters × (analyze, translate, proofread); the novel's details may be another test's saved answer
+        assertThat(model.calls.stream().filter(call -> !call.equals("novel"))).hasSize(9);
 
         // The run's journal: each step of each chapter, with what analysis added and what the parts used.
         JsonNode log = read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate/jobs/" + job.path("id").asLong() + "/log"));
@@ -250,6 +253,28 @@ class AutotranslateFlowTests {
         assertThat(model.translatedBlocks.getLast()).as("only the missing paragraph is asked again").isEqualTo(1);
         String slug = read(owner.browser().get("/api/studio/editions/" + edition)).path("novelSlug").asString();
         assertThat(read(new Browser(port).get("/api/novels/" + slug + "/chapters/1")).path("blocks")).hasSize(6);
+    }
+
+    @Test
+    void aDeployPutsTheStepBackAndTheRunGoesOnAfterTheRestart() {
+        long edition = prepare();
+        owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/jobs", json("to", 1));
+        model.calls.clear();
+        var step = worker.claim();
+        shutdown.set(true);
+        try {
+            worker.process(step);
+            assertThat(worker.drain()).as("no new step while the server is stopping").isZero();
+        } finally {
+            shutdown.set(false);
+        }
+        assertThat(model.calls).isEmpty();
+        assertThat(db.select(JOB_STEP.STATE, JOB_STEP.ATTEMPTS).from(JOB_STEP).where(JOB_STEP.JOB_ID.eq(jobId(edition))).fetchOne()
+                .into(Object[].class)).containsExactly("pending", 0);
+
+        worker.drain();
+        assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate")).path("jobs").path(0)
+                .path("state").asString()).isEqualTo("done");
     }
 
     @Test

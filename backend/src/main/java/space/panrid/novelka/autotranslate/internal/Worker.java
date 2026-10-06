@@ -43,8 +43,10 @@ class Worker {
     private final Clock clock;
     private final Progress progress;
     private final Jobs jobs;
+    private final Shutdown shutdown;
 
-    Worker(DSLContext db, Pipeline pipeline, Clock clock, Progress progress, Jobs jobs) {
+    Worker(DSLContext db, Pipeline pipeline, Clock clock, Progress progress, Jobs jobs, Shutdown shutdown) {
+        this.shutdown = shutdown;
         this.jobs = jobs;
         this.progress = progress;
         this.db = db;
@@ -57,7 +59,7 @@ class Worker {
         int ran = 0;
         releaseExpiredLeases();
         JobStepRecord step;
-        while ((step = claim()) != null) {
+        while (!shutdown.stopping() && (step = claim()) != null) {
             process(step);
             ran++;
         }
@@ -102,6 +104,12 @@ class Worker {
             finishJobIfComplete(job.getId());
         } catch (Cancelled cancelled) {
             finishStep(step, "cancelled", null, null);
+        } catch (Shutdown.Stopping stopping) {
+            // A deploy: the step waits in the queue with what it has, and the run goes on after the restart.
+            log.info("Job {} chapter {}: the server is stopping, the step goes back to the queue", job.getId(), step.getChapterNumber());
+            db.update(JOB_STEP).set(JOB_STEP.STATE, "pending").set(JOB_STEP.NOT_BEFORE, now())
+                    .set(JOB_STEP.ATTEMPTS, JOB_STEP.ATTEMPTS.minus(1)).set(JOB_STEP.UPDATED_AT, now())
+                    .where(JOB_STEP.ID.eq(step.getId())).execute();
         } catch (AiException error) {
             switch (error.kind()) {
                 case UNPAID -> retryLater(step, job, error.getMessage());

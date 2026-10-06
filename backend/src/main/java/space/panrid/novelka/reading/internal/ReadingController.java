@@ -84,7 +84,7 @@ class ReadingController {
         List<EditionSummary> summaries = queries.summaries(editions);
         EditionSummary chosen = summaries.get(editions.indexOf(edition));
         return new Views.NovelPage(novel.slug(), edition.title() != null ? edition.title() : novel.title(),
-                novel.author(), origin(novel.source()),
+                novel.author(), origin(novel.source()), novel.language(),
                 queries.readerBlocks(edition.description() != null ? edition.description() : novel.description()),
                 queries.allTags(novel.id()), chosen, summaries, edition.adult(), edition.lastPublishedAt(),
                 viewer.map(v -> queries.viewer(v.accountId(), edition.id())).orElse(null), relay(edition.id()));

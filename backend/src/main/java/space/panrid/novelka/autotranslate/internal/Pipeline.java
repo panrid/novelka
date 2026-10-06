@@ -63,9 +63,11 @@ class Pipeline {
     private final Progress progress;
 
     private final JobLog journal;
+    private final Shutdown shutdown;
 
     Pipeline(DSLContext db, Ai ai, Sources sources, Chapters chapters, Images images, Glossary glossary, Analyses analyses,
-            JsonMapper json, Clock clock, Progress progress, JobLog journal) {
+            JsonMapper json, Clock clock, Progress progress, JobLog journal, Shutdown shutdown) {
+        this.shutdown = shutdown;
         this.journal = journal;
         this.progress = progress;
         this.analyses = analyses;
@@ -455,6 +457,9 @@ class Pipeline {
         }
 
         private void guard() {
+            if (shutdown.stopping()) {
+                throw new Shutdown.Stopping();
+            }
             String state = db.select(JOB.STATE).from(JOB).where(JOB.ID.eq(job.getId())).fetchSingle().value1();
             if (state.equals("cancelled")) {
                 throw new Cancelled();
