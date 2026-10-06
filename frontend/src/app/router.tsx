@@ -73,8 +73,10 @@ const tokenSearch = (search: Record<string, unknown>): { token?: string } =>
 const teamSearch = (search: Record<string, unknown>): { t?: string } =>
     typeof search.t === 'string' && search.t ? { t: search.t } : {};
 /** ?find= highlights a word in the chapter (the glossary's «У тексті»). */
-const readerSearch = (search: Record<string, unknown>): { t?: string; find?: string } => ({
+/** {@code look}: opened to look at something (a suggestion, a comment), not to read — the place stays. */
+const readerSearch = (search: Record<string, unknown>): { t?: string; find?: string; look?: true } => ({
     ...teamSearch(search), ...(typeof search.find === 'string' && search.find.trim() ? { find: search.find } : {}),
+    ...(search.look === true || search.look === 'true' || search.look === 1 || search.look === '1' ? { look: true as const } : {}),
 });
 const LIST_NAMES = ['reading', 'planned', 'done', 'paused', 'dropped'] as const;
 const listSearch = (search: Record<string, unknown>): { list?: (typeof LIST_NAMES)[number] } =>

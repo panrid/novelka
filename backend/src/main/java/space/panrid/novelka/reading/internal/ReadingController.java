@@ -75,6 +75,12 @@ class ReadingController {
         return queries.tags(adult(currentUser.viewer()), 300);
     }
 
+    /** The tag list by groups: the catalog's filters and the Studio's choice of tags. */
+    @GetMapping("/tags/groups")
+    List<Views.TagGroup> tagGroups() {
+        return queries.tagGroups(adult(currentUser.viewer()));
+    }
+
     /** Hints for the search box: novels whose titles begin with the words come first, and tags. */
     @GetMapping("/search/hints")
     Views.Hints hints(@RequestParam String q) {

@@ -1,3 +1,4 @@
+import { TagPicker } from '../../studio/TagPicker';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
@@ -26,7 +27,7 @@ function AboutForm({ edition }: { edition: Overview }) {
     const [title, setTitle] = useState(edition.title);
     const [author, setAuthor] = useState(edition.author);
     const [description, setDescription] = useState<StudioBlock[]>(edition.description);
-    const [tags, setTags] = useState(edition.tags.join(', '));
+    const [tags, setTags] = useState<string[]>(edition.tags);
     const [status, setStatus] = useState(edition.status);
     const [adult, setAdult] = useState(edition.adult);
     const refresh = (updated: Overview) => client.setQueryData(['studio-edition', edition.editionId], updated);
@@ -34,7 +35,7 @@ function AboutForm({ edition }: { edition: Overview }) {
     const editor = useRef<EditorHandle>(null);
     const save = useMutation({
         mutationFn: () => studioApi.update(edition.editionId, {
-            title, author, description: editor.current?.read() ?? description, status, adult, tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+            title, author, description: editor.current?.read() ?? description, status, adult, tags,
         }),
         onSuccess: refresh,
     });
@@ -69,7 +70,7 @@ function AboutForm({ edition }: { edition: Overview }) {
                     <div className={styles.label}>Опис</div>
                     <TextEditor handle={editor} mode="description" blocks={description} onChange={setDescription} label="Опис" />
                 </div>
-                {edition.ownNovel && <TextInput label="Теги" value={tags} onChange={setTags} hint="Через кому, до 12." />}
+                <TagPicker value={tags} onChange={setTags} />
                 <Segmented label="Стан" value={status} onChange={setStatus}
                     options={[{ value: 'ongoing', label: 'Триває' }, { value: 'paused', label: 'Пауза' }, { value: 'completed', label: 'Завершено' }, { value: 'abandoned', label: 'Покинуто' }]} />
                 {status === 'abandoned' && edition.kind !== 'original' && (

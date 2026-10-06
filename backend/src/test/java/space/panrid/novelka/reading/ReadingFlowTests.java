@@ -70,7 +70,7 @@ class ReadingFlowTests {
         JsonNode page = read(guest.get("/api/novels/" + slug));
         assertThat(page.path("title").asString()).isEqualTo(title);
         assertThat(page.path("origin").asString()).isEqualTo("translation");
-        assertThat(page.path("tags")).extracting(JsonNode::asString).containsExactlyInAnyOrder("перевтілення", "Фентезі");
+        assertThat(page.path("tags")).extracting(JsonNode::asString).containsExactlyInAnyOrder("Перевтілення", "Фентезі");
         assertThat(page.path("edition").path("chapterCount").asInt()).isEqualTo(3);
         assertThat(page.path("edition").path("teamHandle").asString()).isEqualTo(admin.nick());
         assertThat(page.path("viewer").isNull()).isTrue();
@@ -115,6 +115,10 @@ class ReadingFlowTests {
         assertThat(read(guest.get("/api/catalog?q=" + word + "&kind=original")).path("items")).isEmpty();
         assertThat(read(guest.get("/api/tags"))).anySatisfy(tag -> assertThat(tag.path("slug").asString()).isEqualTo("фентезі"));
         assertThat(read(guest.get("/api/catalog?q=" + word)).path("total").asInt()).isEqualTo(1);
+        JsonNode groups = read(guest.get("/api/tags/groups"));
+        assertThat(groups.path(0).path("name").asString()).isEqualTo("Жанр");
+        assertThat(groups.path(0).path("tags").path(0).path("name").asString()).isEqualTo("Фентезі");
+        assertThat(groups.path(0).path("tags").path(0).path("novels").asInt()).isPositive();
 
         // A tag's name is searched for too, and the search box hints at novels and tags as one types.
         assertThat(read(guest.get("/api/catalog?q=Фентез&sort=updated")).path("items"))
@@ -146,6 +150,15 @@ class ReadingFlowTests {
             assertThat(item.path("chapterNumber").asInt()).isEqualTo(2);
             assertThat(item.path("position").asDouble()).isCloseTo(0.4, org.assertj.core.data.Offset.offset(0.001));
         });
+        assertThat(reader.browser().put("/api/progress/" + editionId, json("chapterNumber", 1, "position", 0.3)).status())
+                .isEqualTo(204);
+        assertThat(read(reader.browser().get("/api/home")).path("continueReading").path(0).path("chapterNumber").asInt())
+                .as("a look back at an earlier chapter keeps the place").isEqualTo(2);
+        reader.browser().put("/api/progress/" + editionId, json("chapterNumber", 1, "position", 0.95));
+        assertThat(read(reader.browser().get("/api/home")).path("continueReading").path(0).path("chapterNumber").asInt())
+                .as("read to its end, it is read again").isEqualTo(1);
+        reader.browser().put("/api/progress/" + editionId, json("chapterNumber", 2, "position", 0.4));
+
         JsonNode library = read(reader.browser().get("/api/library?list=reading"));
         assertThat(library.path("items")).singleElement()
                 .satisfies(item -> assertThat(item.path("chapterNumber").asInt()).isEqualTo(2));

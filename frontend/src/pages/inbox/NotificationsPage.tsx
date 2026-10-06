@@ -135,7 +135,7 @@ function Row({ item }: { item: Notification }) {
     }
     if (p.slug && p.chapterNumber) {
         return (
-            <Link to="/n/$slug/$number" params={{ slug: p.slug, number: String(p.chapterNumber) }} search={{ t: p.teamHandle }}
+            <Link to="/n/$slug/$number" params={{ slug: p.slug, number: String(p.chapterNumber) }} search={{ t: p.teamHandle, look: true }}
                 {...(p.commentId ? { hash: `c${p.commentId}` } : {})} className={className}>{body}</Link>
         );
     }

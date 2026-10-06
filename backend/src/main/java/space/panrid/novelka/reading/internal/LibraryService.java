@@ -54,9 +54,14 @@ class LibraryService {
                 .execute();
     }
 
+    /** Read this far, an earlier chapter counts as read again and becomes the place. */
+    static final float FINISHED = 0.9f;
+
     /**
      * Remembers where the reader is. Reading an edition that is not in the library yet
-     * puts it into «Читаю», so it shows up there without an extra tap.
+     * puts it into «Читаю», so it shows up there without an extra tap. An earlier chapter
+     * than the saved one only moves the place once read to its end: a look at chapter 17
+     * (a suggestion, a glossary word) must not lose chapter 20.
      */
     @Transactional
     void saveProgress(Viewer viewer, long editionId, int chapterNumber, float position) {
@@ -67,6 +72,12 @@ class LibraryService {
             throw UserFacingException.notFound("Такої глави немає.");
         }
         float clamped = Math.max(0f, Math.min(1f, position));
+        Integer saved = db.select(READING_PROGRESS.CHAPTER_NUMBER).from(READING_PROGRESS)
+                .where(READING_PROGRESS.ACCOUNT_ID.eq(viewer.accountId()), READING_PROGRESS.EDITION_ID.eq(editionId))
+                .fetchOne(READING_PROGRESS.CHAPTER_NUMBER);
+        if (saved != null && saved > chapterNumber && clamped < FINISHED) {
+            return;
+        }
         OffsetDateTime now = now();
         db.insertInto(READING_PROGRESS)
                 .set(READING_PROGRESS.ACCOUNT_ID, viewer.accountId())

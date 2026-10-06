@@ -7,7 +7,7 @@ import { useMe } from '../../auth/me';
 import { Discussion, useCommentCount } from '../../community/Discussion';
 import { Blocks } from '../../reading/Blocks';
 import { chapterHeading, volumeTitle, readingApi, type NovelPage, type ReaderChapter } from '../../reading/api';
-import { localProgress, saveLocalProgress } from '../../reading/progress';
+import { localProgress, movesPlace, saveLocalProgress } from '../../reading/progress';
 import { chapterQuery } from '../../reading/queries';
 import { useReaderSize, useTheme, type Theme } from '../../reading/theme';
 import { Button } from '../../ui/Button';
@@ -22,7 +22,7 @@ const SAVE_EVERY_MS = 15_000;
 
 export function ReaderPage() {
     const { slug, number } = useParams({ strict: false }) as { slug: string; number: string };
-    const { t, find }: { t?: string; find?: string } = useSearch({ strict: false });
+    const { t, find, look }: { t?: string; find?: string; look?: true } = useSearch({ strict: false });
     const chapterNumber = Number(number);
     const client = useQueryClient();
     const chapter = useQuery(chapterQuery(slug, chapterNumber, t));
@@ -48,12 +48,12 @@ export function ReaderPage() {
     }
     if (chapter.data.novelSlug !== slug) {
         // An address the novel had before: the same chapter under the one it has now.
-        return <Navigate to="/n/$slug/$number" params={{ slug: chapter.data.novelSlug, number }} search={{ ...(t ? { t } : {}), ...(find ? { find } : {}) }} replace />;
+        return <Navigate to="/n/$slug/$number" params={{ slug: chapter.data.novelSlug, number }} search={{ ...(t ? { t } : {}), ...(find ? { find } : {}), ...(look ? { look } : {}) }} replace />;
     }
-    return <Reader key={`${slug}:${chapterNumber}`} chapter={chapter.data} team={t} find={find} />;
+    return <Reader key={`${slug}:${chapterNumber}`} chapter={chapter.data} team={t} find={find} look={Boolean(look)} />;
 }
 
-function Reader({ chapter, team, find }: { chapter: ReaderChapter; team: string | undefined; find?: string | undefined }) {
+function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter; team: string | undefined; find?: string | undefined; look?: boolean }) {
     const me = useMe();
     const client = useQueryClient();
     const navigate = useNavigate();
@@ -72,6 +72,7 @@ function Reader({ chapter, team, find }: { chapter: ReaderChapter; team: string 
     // The component is keyed by chapter, so what it was opened with stays fixed for its life;
     // later cache updates (saved place) must not re-run the restore or re-subscribe listeners.
     const [opened] = useState(chapter);
+    const lookOnly = useRef(Boolean(find) || look);
 
     // Start where the reader stopped: from the server (any device), else from this browser.
     useEffect(() => {
@@ -92,8 +93,12 @@ function Reader({ chapter, team, find }: { chapter: ReaderChapter; team: string 
     }, [opened, find]);
 
     const save = useCallback((force: boolean) => {
+        // Opened to show a word or to review suggestions: a look, not reading — the place stays.
+        if (lookOnly.current) return;
         const position = Math.round(place.current * 1000) / 1000;
-        saveLocalProgress(opened.novelSlug, opened.edition.teamHandle, { number: opened.number, position, label: opened.label ?? null });
+        if (movesPlace(localProgress(opened.novelSlug, opened.edition.teamHandle), opened.number, position)) {
+            saveLocalProgress(opened.novelSlug, opened.edition.teamHandle, { number: opened.number, position, label: opened.label ?? null });
+        }
         const now = Date.now();
         const changed = Math.abs(position - lastSaved.current.position) > 0.01;
         // Only what really reached the server counts as saved; a guest (or an account still
@@ -106,6 +111,7 @@ function Reader({ chapter, team, find }: { chapter: ReaderChapter; team: string 
             // The novel page shows «Продовжити · гл. N» at once, even if its request beats this save.
             client.setQueriesData<NovelPage>({ queryKey: ['novel', opened.novelSlug] }, (cached) =>
                 cached?.viewer && cached.edition.editionId === opened.edition.editionId
+                    && movesPlace(cached.viewer.chapterNumber ? { number: cached.viewer.chapterNumber } : null, opened.number, position)
                     ? { ...cached, viewer: { ...cached.viewer, chapterNumber: opened.number, position, chapterLabel: opened.label ?? null } }
                     : cached);
             void readingApi.saveProgress(opened.edition.editionId, opened.number, position).then(() => {
@@ -172,6 +178,9 @@ function Reader({ chapter, team, find }: { chapter: ReaderChapter; team: string 
     const [editing, setEditing] = useState<string | null>(null);
     const [replacing, setReplacing] = useState<string | null>(null);
     const [reviewing, setReviewing] = useState(false);
+    useEffect(() => {
+        if (reviewing) lookOnly.current = true;
+    }, [reviewing]);
     const editingBlock = chapter.blocks.find((block) => block.id === editing);
     // A link to a comment (#c40 from the inbox) opens the discussion at it.
     const hash = useRouterState({ select: (state) => state.location.hash });

@@ -115,15 +115,22 @@ describe('new publication', () => {
             'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'sto-nochei', title: 'Сто ночей', author: '', description: [], tags: [], kind: 'human', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: true, teamHandle: 'mika', teamName: 'mika', role: 'owner' } },
             'GET /api/studio/editions/12/chapters': { body: [] },
             'GET /api/studio/editions/12/contributions': { body: [] },
+            'GET /api/tags/groups': { body: [
+                { name: 'Жанр', tags: [{ name: 'Фентезі', slug: 'фентезі', novels: 3 }, { name: 'Жахи', slug: 'жахи', novels: 0 }] },
+                { name: 'Настрій', tags: [{ name: 'Затишне', slug: 'затишне', novels: 1 }] },
+            ] },
         });
 
         await userEvent.type(await screen.findByLabelText('Назва'), 'Сто ночей');
-        await userEvent.type(screen.getByLabelText('Теги'), 'фентезі, затишне');
+        // Tags are picked from the list, never typed.
+        await userEvent.click(await screen.findByRole('button', { name: 'Фентезі' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Затишне' }));
+        expect(screen.getByRole('button', { name: 'Затишне' })).toHaveAttribute('aria-pressed', 'true');
         await userEvent.click(screen.getByRole('button', { name: 'Створити' }));
 
         await waitFor(() => expect(router.state.location.pathname).toBe('/studio/12'));
         expect(calls.find((call) => call.path === '/api/studio/editions')?.body).toMatchObject({
-            kind: 'human', title: 'Сто ночей', tags: ['фентезі', 'затишне'], team: 'mika',
+            kind: 'human', title: 'Сто ночей', tags: ['Фентезі', 'Затишне'], team: 'mika',
         });
         expect(await screen.findByRole('button', { name: 'Нова глава' })).toBeInTheDocument();
     });

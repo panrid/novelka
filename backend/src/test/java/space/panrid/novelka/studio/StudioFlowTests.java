@@ -221,6 +221,8 @@ class StudioFlowTests {
         assertThat(updated.path("title").asString()).isEqualTo("Нова назва");
         assertThat(updated.path("status").asString()).isEqualTo("completed");
         assertThat(updated.path("tags")).extracting(JsonNode::asString).containsExactly("Затишне");
+        assertThat(owner.browser().patch("/api/studio/editions/" + edition, json("tags", List.of("Вигаданий тег"))).status())
+                .as("tags come from the site's list").isEqualTo(400);
 
         long cover = read(owner.browser().upload("/api/media/images", Map.of("kind", "cover"), "file", "c.png", "image/png",
                 Pictures.png(600, 900, Color.ORANGE))).path("id").asLong();

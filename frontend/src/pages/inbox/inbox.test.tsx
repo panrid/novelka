@@ -41,7 +41,7 @@ describe('inbox', () => {
         expect(await screen.findByText('Нові глави 11–13 · 3 глави')).toBeInTheDocument();
         expect(screen.getByText('Маг води')).toBeInTheDocument();
         const reply = screen.getByText('lysytsia відповідає на ваш коментар').closest('a')!;
-        expect(reply).toHaveAttribute('href', '/n/mah-vody/3?t=panrid#c40');
+        expect(reply).toHaveAttribute('href', '/n/mah-vody/3?t=panrid&look=true#c40');
         expect(within(reply).getByText(/глава 2\.5/)).toBeInTheDocument();
         expect(screen.getByText('3 нові правки').closest('a')).toHaveAttribute('href', '/studio/9');
         await vi.waitFor(() => expect(calls.find((call) => call.path === '/api/notifications/read')?.body).toEqual({ upTo: 7 }));

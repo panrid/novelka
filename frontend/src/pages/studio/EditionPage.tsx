@@ -81,7 +81,7 @@ export function EditionPage() {
                     <h2 className={styles.sectionTitle}>Правки на перевірку</h2>
                     {queue.data!.map((row) => (
                         <Link key={row.number} className={styles.row} to="/n/$slug/$number"
-                            params={{ slug: edition.novelSlug, number: String(row.number) }} search={{ t: edition.teamHandle }}>
+                            params={{ slug: edition.novelSlug, number: String(row.number) }} search={{ t: edition.teamHandle, look: true }}>
                             <div className={styles.grow}>{chapterHeading(row)}</div>
                             <span className={`${styles.badge} ${styles.badgeOn}`}>{row.pending}</span>
                         </Link>

@@ -1,3 +1,4 @@
+import { TagPicker } from '../../studio/TagPicker';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useRef, useState, type FormEvent } from 'react';
@@ -24,7 +25,7 @@ export function NewPublication() {
     const [title, setTitle] = useState('');
     const [author, setAuthor] = useState('');
     const [description, setDescription] = useState<StudioBlock[]>([]);
-    const [tags, setTags] = useState('');
+    const [tags, setTags] = useState<string[]>([]);
     const [adult, setAdult] = useState(false);
     const [team, setTeam] = useState('');
     const publishing = (teams.data ?? []).filter((t) => t.role !== 'editor');
@@ -40,7 +41,7 @@ export function NewPublication() {
         mutationFn: () => studioApi.create({
             kind: kind === 'original' ? 'original' : 'human', title: title.trim(), author: author.trim(),
             description: editor.current?.read() ?? description,
-            tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean), adult, team: chosenTeam,
+            tags, adult, team: chosenTeam,
         }),
         onSuccess: ({ editionId }) => void navigate({ to: '/studio/$editionId', params: { editionId: String(editionId) } }),
     });
@@ -80,7 +81,7 @@ export function NewPublication() {
                     <div className={styles.label}>Опис</div>
                     <TextEditor handle={editor} mode="description" blocks={description} onChange={setDescription} label="Опис" placeholder="Про що історія?" />
                 </div>
-                <TextInput label="Теги" value={tags} onChange={setTags} hint="Через кому: фентезі, перевтілення, затишне" />
+                <TagPicker value={tags} onChange={setTags} />
                 </>}
                 {publishing.length > 1 && (
                     <label>

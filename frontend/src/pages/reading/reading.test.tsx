@@ -101,6 +101,26 @@ describe('reader', () => {
         expect(JSON.parse(localStorage.getItem('novelka:progress:mah-vody:panrid')!)).toMatchObject({ number: 12 });
     });
 
+    it('keeps the place after a look at an earlier chapter or one opened from the inbox', async () => {
+        localStorage.setItem('novelka:progress:mah-vody:panrid', JSON.stringify({ number: 20, position: 0.3 }));
+        await renderAt('/n/mah-vody/12', { 'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER } });
+        await screen.findByRole('heading', { name: '12. Спокійне життя' });
+        expect(JSON.parse(localStorage.getItem('novelka:progress:mah-vody:panrid')!)).toMatchObject({ number: 20 });
+        vi.unstubAllGlobals();
+
+        localStorage.clear();
+        const saves: unknown[] = [];
+        await renderAt('/n/mah-vody/12?look=true', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'PUT /api/progress/7': (body) => { saves.push(body); return { status: 204 }; },
+        });
+        expect((await screen.findAllByRole('heading', { name: '12. Спокійне життя' })).length).toBeGreaterThan(0);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(saves).toEqual([]);
+        expect(localStorage.getItem('novelka:progress:mah-vody:panrid')).toBeNull();
+    });
+
     it('keeps the place when leaving, even though the next page starts at the top', async () => {
         const saves: unknown[] = [];
         const { router } = await renderAt('/n/mah-vody/12', {
@@ -196,14 +216,22 @@ describe('catalog', () => {
     it('counts the novels, offers popular tags and hints at novels and tags while typing', async () => {
         const { router, calls } = await renderAt('/catalog', {
             'GET /api/catalog': { body: { items: [CARD], page: 1, hasMore: false, total: 1 } },
-            'GET /api/tags': { body: [{ name: 'Фентезі', slug: 'фентезі', novels: 1 }, { name: 'Магія', slug: 'магія', novels: 1 }] },
+            'GET /api/tags/groups': { body: [
+                { name: 'Жанр', tags: [{ name: 'Фентезі', slug: 'фентезі', novels: 1 }, { name: 'Жахи', slug: 'жахи', novels: 0 }] },
+                { name: 'Світ і сюжет', tags: [{ name: 'Магія', slug: 'магія', novels: 1 }] },
+            ] },
             'GET /api/search/hints': { body: { novels: [CARD], tags: [{ name: 'Магія', slug: 'магія', novels: 1 }] } },
         });
 
         await waitFor(() => expect(screen.getByRole('heading', { name: /Каталог/ })).toHaveTextContent('Каталог 1 новела'));
-        expect(screen.getByText('Популярні теги')).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('button', { name: /Магія/ }));
+        // Tags are a shop's filter: groups of checkboxes, behind «Фільтри» on a phone.
+        await userEvent.click(screen.getByRole('button', { name: 'Фільтри' }));
+        expect(screen.getByRole('group', { name: 'Жанр' })).toBeInTheDocument();
+        expect(screen.queryByRole('checkbox', { name: /Жахи/ })).toBeNull();
+        await userEvent.click(screen.getByRole('checkbox', { name: /Магія/ }));
         await waitFor(() => expect(router.state.location.search).toEqual({ tags: ['магія'] }));
+        expect(screen.getByRole('button', { name: 'Прибрати тег Магія' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Фільтри · 1' })).toBeInTheDocument();
 
         await userEvent.type(screen.getByRole('combobox', { name: 'Пошук новел' }), 'ма');
         const hints = await screen.findByRole('listbox', { name: 'Підказки' });

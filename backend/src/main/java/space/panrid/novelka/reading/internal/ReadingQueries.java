@@ -134,7 +134,7 @@ class ReadingQueries {
         Map<Long, List<String>> result = new LinkedHashMap<>();
         db.select(NOVEL_TAG.NOVEL_ID, TAG.NAME).from(NOVEL_TAG).join(TAG).on(TAG.ID.eq(NOVEL_TAG.TAG_ID))
                 .where(NOVEL_TAG.NOVEL_ID.in(novelIds))
-                .orderBy(NOVEL_TAG.NOVEL_ID, TAG.NAME)
+                .orderBy(NOVEL_TAG.NOVEL_ID, TAG.POSITION.asc().nullsLast(), TAG.NAME)
                 .forEach(r -> {
                     List<String> names = result.computeIfAbsent(r.value1(), id -> new ArrayList<>());
                     if (names.size() < limit) {
@@ -282,6 +282,23 @@ class ReadingQueries {
                 .orderBy(DSL.when(TAG.NAME.likeIgnoreCase(escaped + "%"), 0).otherwise(1), novels.desc(), TAG.NAME)
                 .limit(limit)
                 .fetch(r -> new Views.TagCount(r.value1(), r.value2(), r.value3()));
+    }
+
+    /** The site's tag list by groups, as filters in a shop, with how many novels have each. */
+    List<Views.TagGroup> tagGroups(boolean adult) {
+        var counted = DSL.select(NOVEL_TAG.TAG_ID, DSL.countDistinct(NOVEL_TAG.NOVEL_ID).as("novels")).from(NOVEL_TAG)
+                .join(EDITION).on(EDITION.NOVEL_ID.eq(NOVEL_TAG.NOVEL_ID))
+                .where(visible(adult).and(EDITION.CHAPTER_COUNT.gt(0)))
+                .groupBy(NOVEL_TAG.TAG_ID).asTable("counted");
+        Field<Integer> novels = DSL.coalesce(counted.field("novels", Integer.class), 0);
+        Map<String, List<Views.TagCount>> groups = new LinkedHashMap<>();
+        db.select(TAG.GRP, TAG.NAME, TAG.SLUG, novels).from(TAG)
+                .leftJoin(counted).on(counted.field(NOVEL_TAG.TAG_ID).eq(TAG.ID))
+                .where(TAG.GRP.isNotNull())
+                .orderBy(TAG.POSITION)
+                .forEach(r -> groups.computeIfAbsent(r.value1(), group -> new ArrayList<>())
+                        .add(new Views.TagCount(r.value2(), r.value3(), r.value4())));
+        return groups.entrySet().stream().map(e -> new Views.TagGroup(e.getKey(), e.getValue())).toList();
     }
 
     List<Views.TagCount> tags(boolean adult, int limit) {

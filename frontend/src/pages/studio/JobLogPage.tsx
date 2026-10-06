@@ -121,7 +121,7 @@ function Line({ event, slug, team }: { event: JobEvent; slug: string | undefined
             return (
                 <span>
                     Опубліковано: глава {String(p.label)}{p.title ? ` «${String(p.title)}»` : ''}.{' '}
-                    {slug && <Link to="/n/$slug/$number" params={{ slug, number: String(event.chapter) }} search={team ? { t: team } : {}}>Читати ›</Link>}
+                    {slug && <Link to="/n/$slug/$number" params={{ slug, number: String(event.chapter) }} search={team ? { t: team, look: true } : { look: true }}>Читати ›</Link>}
                 </span>
             );
         default:

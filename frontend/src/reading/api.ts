@@ -38,6 +38,8 @@ export type Page<T> = { items: T[]; page: number; hasMore: boolean };
 /** A catalog page with how many novels match in all. */
 export type Found<T> = Page<T> & { total: number };
 export type TagCount = { name: string; slug: string; novels: number };
+/** A group of the site's tag list: «Жанр», «Світ і сюжет», «Герой», «Настрій». */
+export type TagGroup = { name: string; tags: TagCount[] };
 /** What the search box offers while a person types. */
 export type Hints = { novels: Card[]; tags: TagCount[] };
 
@@ -134,6 +136,7 @@ export const readingApi = {
     catalog: ({ q, tags, kind, machine, sort, page }: CatalogQuery) =>
         api<Found<Card>>(`/api/catalog${query({ q, tag: tags, kind, machine, sort, page })}`),
     tags: () => api<TagCount[]>('/api/tags'),
+    tagGroups: () => api<TagGroup[]>('/api/tags/groups'),
     hints: (q: string) => api<Hints>(`/api/search/hints${query({ q })}`),
     novel: (slug: string, team?: string) => api<NovelPage>(`${novelPath(slug)}${query({ t: team })}`),
     chapters: (slug: string, team: string | undefined, order: 'asc' | 'desc', page: number) =>

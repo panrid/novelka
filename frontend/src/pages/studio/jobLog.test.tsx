@@ -34,6 +34,6 @@ describe('run journal', () => {
         expect(screen.getByText('Він пішла.').tagName).toBe('DEL');
         expect(screen.getByText('Він пішов.').tagName).toBe('INS');
         const published = screen.getByText(/Опубліковано: глава 21/);
-        expect(within(published).getByRole('link', { name: 'Читати ›' })).toHaveAttribute('href', '/n/medzhyk/21?t=panrid');
+        expect(within(published).getByRole('link', { name: 'Читати ›' })).toHaveAttribute('href', '/n/medzhyk/21?t=panrid&look=true');
     });
 });

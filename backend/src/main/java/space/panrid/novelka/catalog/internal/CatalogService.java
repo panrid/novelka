@@ -181,10 +181,11 @@ class CatalogService implements Catalog {
             if (!novel.isEmpty()) {
                 db.update(NOVEL).set(novel).where(NOVEL.ID.eq(current.novelId())).execute();
             }
-            if (changes.tags() != null) {
-                db.deleteFrom(NOVEL_TAG).where(NOVEL_TAG.NOVEL_ID.eq(current.novelId())).execute();
-                setTags(current.novelId(), changes.tags());
-            }
+        }
+        // Tags describe the work, so they are the novel's, whichever translation sets them.
+        if (changes.tags() != null) {
+            db.deleteFrom(NOVEL_TAG).where(NOVEL_TAG.NOVEL_ID.eq(current.novelId())).execute();
+            setTags(current.novelId(), changes.tags());
         }
         Map<Field<?>, Object> edition = new HashMap<>();
         if (!current.ownNovel() && title != null) {
@@ -239,9 +240,11 @@ class CatalogService implements Catalog {
             throw UserFacingException.badRequest("До %d тегів на новелу.".formatted(MAX_TAGS));
         }
         for (String name : unique) {
-            String key = tagKey(name);
-            db.insertInto(TAG).set(TAG.NAME, name).set(TAG.SLUG, key).onConflict(TAG.SLUG).doNothing().execute();
-            long tagId = db.select(TAG.ID).from(TAG).where(TAG.SLUG.eq(key)).fetchOne(TAG.ID);
+            // Tags come from the site's list (V22), as filters in a shop; a typed one is not made up.
+            Long tagId = db.select(TAG.ID).from(TAG).where(TAG.SLUG.eq(tagKey(name)).and(TAG.GRP.isNotNull())).fetchOne(TAG.ID);
+            if (tagId == null) {
+                throw UserFacingException.badRequest("Тегу «%s» немає в списку.".formatted(name));
+            }
             db.insertInto(NOVEL_TAG).set(NOVEL_TAG.NOVEL_ID, novelId).set(NOVEL_TAG.TAG_ID, tagId)
                     .onConflictDoNothing().execute();
         }

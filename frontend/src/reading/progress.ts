@@ -23,3 +23,14 @@ export function saveLocalProgress(slug: string, team: string, saved: Saved) {
         // Private mode or full storage: reading still works, the place is just not remembered.
     }
 }
+
+/** Read this far, an earlier chapter counts as read again (the server has the same rule). */
+const FINISHED = 0.9;
+
+/**
+ * Whether reading `number` at `position` becomes the place: a later chapter always does, an
+ * earlier one only once read to its end — a look at chapter 17 for a suggestion keeps chapter 20.
+ */
+export function movesPlace(saved: { number: number } | null | undefined, number: number, position: number): boolean {
+    return !saved || number >= saved.number || position >= FINISHED;
+}

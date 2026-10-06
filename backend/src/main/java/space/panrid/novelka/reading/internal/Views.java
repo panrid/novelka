@@ -34,6 +34,9 @@ final class Views {
     record TagCount(String name, String slug, int novels) {
     }
 
+    record TagGroup(String name, List<TagCount> tags) {
+    }
+
     /** A page of the catalog with how many there are in all. */
     record Found<T>(List<T> items, int page, boolean hasMore, int total) {
     }

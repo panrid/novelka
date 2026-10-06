@@ -22,7 +22,7 @@ export function MySuggestionsPage() {
             {history.data?.map((item) => (
                 <div key={item.id} className={styles.row} style={{ alignItems: 'flex-start' }}>
                     <div className={styles.grow}>
-                        <Link to="/n/$slug/$number" params={{ slug: item.novelSlug, number: String(item.chapter) }} search={{ t: item.teamHandle }}
+                        <Link to="/n/$slug/$number" params={{ slug: item.novelSlug, number: String(item.chapter) }} search={{ t: item.teamHandle, look: true }}
                             style={{ color: 'var(--text)', textDecoration: 'none' }}>
                             {item.novelTitle}{item.chapterLabel ? ` · глава ${item.chapterLabel}` : ''}
                         </Link>
