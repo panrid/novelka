@@ -1,3 +1,4 @@
+import { DiffModeSwitch } from '../../ui/WordDiff';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
 import { ArrowLeft, ChevronLeft, ChevronRight, List, MessageCircle, Type } from 'lucide-react';
@@ -232,6 +233,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                         <Button variant="secondary" onPress={() => setReviewing(true)}>Перевірити</Button>
                     </div>
                 )}
+                {reviewing && <div className={styles.diffMode}><DiffModeSwitch /></div>}
                 {reviewing && review.items.filter((item) => item.kind !== 'block').map((item) => (
                     <ReviewCard key={item.id} item={item} verdict={review.verdicts[item.id]} currentBlocks={chapter.blocks}
                         onDecide={(verdict) => review.decide(item.id, verdict)} />

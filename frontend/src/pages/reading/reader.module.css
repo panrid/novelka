@@ -239,3 +239,13 @@
     font-size: 20px;
     cursor: pointer;
 }
+
+/* The review's choice of how changes look, at the top of the chapter. */
+.diffMode {
+    position: sticky;
+    top: 8px;
+    z-index: 4;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}

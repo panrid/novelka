@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { diffWords } from 'diff';
+import { DiffModeSwitch, WordDiff } from '../../ui/WordDiff';
 import { useState } from 'react';
 import { ORIGIN_LABELS } from '../../studio/labels';
 import { chapterHeading } from '../../reading/api';
@@ -58,12 +58,7 @@ function RevisionDiff({ editionId, chapter, revisionId }: { editionId: number; c
         const newText = text(block);
         if (old && oldText === newText) return null;
         return (
-            <p key={block.id} className={`${editor.diffBlock} ${editor.changed}`}>
-                {diffWords(oldText, newText).map((part, index) =>
-                    part.added ? <ins key={index} className={editor.added}>{part.value}</ins>
-                        : part.removed ? <del key={index} className={editor.removed}>{part.value}</del>
-                            : <span key={index}>{part.value}</span>)}
-            </p>
+            <WordDiff key={block.id} className={`${editor.diffBlock} ${editor.changed}`} before={oldText} after={newText} />
         );
     });
     const removed = revision.data.parentBlocks.filter((block) => !after.has(block.id) && text(block)).map((block) => (
@@ -73,6 +68,7 @@ function RevisionDiff({ editionId, chapter, revisionId }: { editionId: number; c
     const all = [...rows.filter(Boolean), ...removed];
     return (
         <div style={{ padding: '12px 0 16px 14px' }}>
+            {all.length > 0 && revision.data.parentTitle !== null && <div style={{ marginBottom: 10 }}><DiffModeSwitch /></div>}
             {titleChanged && <p className={styles.muted}>Назва: «{revision.data.parentTitle}» → «{revision.data.title}»</p>}
             {all.length === 0 && !titleChanged && <p className={styles.muted}>{revision.data.parentTitle === null ? 'Перша версія глави.' : 'Текст не змінився.'}</p>}
             {revision.data.parentTitle === null ? null : all}

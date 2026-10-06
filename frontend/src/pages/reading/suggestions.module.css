@@ -79,15 +79,14 @@
     font: 15px/1.6 var(--font-reading);
 }
 
-.was ins,
-.diff ins {
+/* A replacement «old → new» outside a paragraph diff. */
+.diff > ins {
     background: color-mix(in srgb, var(--accent) 24%, transparent);
     text-decoration: none;
 }
 
-.was del,
-.diff del {
-    background: color-mix(in srgb, var(--danger) 24%, transparent);
+.diff > del {
+    background: color-mix(in srgb, var(--danger) 16%, transparent);
 }
 
 .card {

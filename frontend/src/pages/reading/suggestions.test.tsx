@@ -71,20 +71,28 @@ describe('suggestions in the reader', () => {
 
 describe('review by the team', () => {
     it('accepts a suggestion inside the text and applies the decisions at once', async () => {
-        const { calls, router } = await renderAt('/n/mah-vody/12', {
+        let reviewed = false;
+        const { calls, router, queryClient } = await renderAt('/n/mah-vody/12', {
             'GET /api/me': { body: ME },
             'GET /api/novels/mah-vody/chapters/12': { body: { ...CHAPTER, teamRole: 'editor' } },
             'GET /api/suggestions/mine': { body: { items: [], draftsInEdition: 0 } },
-            'GET /api/studio/editions/7/chapters/12/suggestions': { body: [{
+            'GET /api/studio/editions/7/chapters/12/suggestions': () => ({ body: reviewed ? [] : [{
                 id: 9, kind: 'block', authorNick: 'oleh', note: 'рід', blockId: 'b1',
                 current: [{ text: 'Але це не була розкішна ліжко.', marks: [] }],
                 proposed: [{ text: 'Але це не було розкішне ліжко.', marks: [] }],
                 proposedTitle: null, proposedBlocks: null, find: null, replacement: null, occurrences: 0, stale: false,
                 createdAt: '2026-09-25T10:00:00Z',
-            }] },
-            'POST /api/studio/editions/7/chapters/12/suggestions/review': { body: { revisionId: 50, accepted: 1, rejected: 0, stale: 0 } },
+            }] }),
+            'POST /api/studio/editions/7/chapters/12/suggestions/review': () => {
+                reviewed = true;
+                return { body: { revisionId: 50, accepted: 1, rejected: 0, stale: 0 } };
+            },
         });
 
+        // The Studio's queue and badge were seen before, as when the editor came from the Studio.
+        queryClient.setQueryData(['suggestion-queue', 7], [{ number: 12, pending: 1 }]);
+        queryClient.setQueryData(['studio'], [{ editionId: 7, novelSlug: 'mah-vody', title: 'Маг води', coverUrl: null, kind: 'machine',
+            status: 'ongoing', chapterCount: 44, teamHandle: 'panrid', teamName: 'panrid', role: 'editor', drafts: 0, pendingSuggestions: 1 }]);
         await userEvent.click(await screen.findByRole('button', { name: 'Перевірити' }));
         expect(screen.getByText('oleh · «рід»')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Наступна правка' })).toBeInTheDocument();
@@ -96,6 +104,10 @@ describe('review by the team', () => {
             .toEqual({ decisions: [{ id: 9, accept: true }] }));
         // Done reviewing: back to the translation in the Studio, not on with reading.
         await waitFor(() => expect(router.state.location.pathname).toBe('/studio/7'));
+        // No reload needed: what was decided is no longer offered anywhere.
+        expect(queryClient.getQueryData(['suggestions-review', 7, 12])).toEqual([]);
+        expect(queryClient.getQueryState(['suggestion-queue', 7])?.isInvalidated).toBe(true);
+        expect(queryClient.getQueryState(['studio'])?.isInvalidated).toBe(true);
     });
 });
 

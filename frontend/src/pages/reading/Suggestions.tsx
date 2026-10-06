@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { diffWords } from 'diff';
+import { DiffModeSwitch, WordDiff } from '../../ui/WordDiff';
 import { useEffect, useRef, useState } from 'react';
 import type { ReaderChapter, Span, TextBlock } from '../../reading/api';
 import { suggestionApi, type MineItem, type ReviewItem } from '../../reading/suggestions';
@@ -87,10 +87,10 @@ export function EditSheet({ chapter, block, existing, onClose, onSaved }: {
         <Sheet open onClose={onClose} title="Правка абзацу">
             <TextEditor handle={editor} mode="description" blocks={blocks} onChange={setBlocks} label="Текст абзацу" />
             {text(proposed) !== text(block.content) && (
-                <p className={styles.was}>
-                    {diffWords(text(block.content), text(proposed)).map((part, index) =>
-                        part.added ? <ins key={index}>{part.value}</ins> : part.removed ? <del key={index}>{part.value}</del> : <span key={index}>{part.value}</span>)}
-                </p>
+                <>
+                    <DiffModeSwitch />
+                    <WordDiff className={styles.was} before={text(block.content)} after={text(proposed)} />
+                </>
             )}
             <TextInput label="Пояснення (необовʼязково)" value={note} onChange={setNote} />
             {save.isError && <Notice tone="error">{save.error.message}</Notice>}
@@ -152,9 +152,15 @@ export function useReview(chapter: ReaderChapter) {
         mutationFn: () => suggestionApi.review(chapter.edition.editionId, chapter.number,
             Object.entries(verdicts).map(([id, verdict]) => ({ id: Number(id), accept: verdict === 'accept' }))),
         onSuccess: () => {
+            // Decided suggestions leave every list at once: this chapter's, the Studio's queue and
+            // the badges on the Studio tab — no page needs reloading to stop offering them.
+            const decided = new Set(Object.keys(verdicts).map(Number));
+            client.setQueryData<ReviewItem[]>(key, (items) => items?.filter((item) => !decided.has(item.id)));
             setVerdicts({});
-            void client.invalidateQueries({ queryKey: key });
-            void client.invalidateQueries({ queryKey: ['chapter', chapter.novelSlug] });
+            for (const stale of [key, ['chapter', chapter.novelSlug], ['suggestion-queue', chapter.edition.editionId], ['studio'],
+                ['studio-edition', chapter.edition.editionId], ['studio-chapters', chapter.edition.editionId]]) {
+                void client.invalidateQueries({ queryKey: stale });
+            }
         },
     });
     const items = pending.data ?? [];
@@ -170,10 +176,7 @@ export function ReviewCard({ item, verdict, onDecide, currentBlocks = [] }: {
     return (
         <div data-review-card className={`${styles.card} ${verdict === 'accept' ? styles.accepted : verdict === 'reject' ? styles.rejected : ''}`}>
             {item.kind === 'block' && item.current && item.proposed && (
-                <p className={styles.diff}>
-                    {diffWords(text(item.current), text(item.proposed)).map((part, index) =>
-                        part.added ? <ins key={index}>{part.value}</ins> : part.removed ? <del key={index}>{part.value}</del> : <span key={index}>{part.value}</span>)}
-                </p>
+                <WordDiff className={styles.diff} before={text(item.current)} after={text(item.proposed)} />
             )}
             {item.kind === 'replace' && <p className={styles.diff}><del>{item.find}</del> → <ins>{item.replacement}</ins> · {item.occurrences} у главі</p>}
             {item.kind === 'chapter' && <ChapterDiff proposed={item.proposedBlocks ?? []} current={currentBlocks} title={item.proposedTitle} />}
@@ -201,10 +204,7 @@ function ChapterDiff({ proposed, current, title }: { proposed: TextBlock[]; curr
         <div>
             <p className={styles.meta}>Зміни в усій главі{title ? ` · назва «${title}»` : ''} · абзаців: {changed.length + removed.length}</p>
             {changed.slice(0, 30).map((block) => (
-                <p key={block.id} className={styles.diff}>
-                    {diffWords(before.get(block.id) ?? '', text(block.content)).map((part, index) =>
-                        part.added ? <ins key={index}>{part.value}</ins> : part.removed ? <del key={index}>{part.value}</del> : <span key={index}>{part.value}</span>)}
-                </p>
+                <WordDiff key={block.id} className={styles.diff} before={before.get(block.id) ?? ''} after={text(block.content)} />
             ))}
             {removed.slice(0, 10).map((block) => <p key={`gone-${block.id}`} className={styles.diff}><del>{text(block.content)}</del></p>)}
         </div>
