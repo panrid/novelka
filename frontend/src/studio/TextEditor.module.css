@@ -22,7 +22,7 @@
     border: 1px solid var(--line);
     border-radius: 10px;
     background: var(--surface);
-    font-size: 15px;
+    font-size: 16px; /* 16 px keeps iOS from zooming into the field (see global.css) */
 }
 
 .description:focus-within {

@@ -75,3 +75,16 @@ button {
 .prerendered a {
     color: var(--accent);
 }
+
+/*
+ * iOS zooms the page into a field whose text is smaller than 16 px and stays zoomed after the
+ * keyboard hides: the page is cut at the sides and fixed bars sit mid-screen. On a touch screen
+ * every field is 16 px at least; the editors set it themselves.
+ */
+@media (pointer: coarse) {
+    input,
+    textarea,
+    select {
+        font-size: max(16px, 1em) !important;
+    }
+}
