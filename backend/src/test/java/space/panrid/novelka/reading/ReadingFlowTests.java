@@ -114,6 +114,17 @@ class ReadingFlowTests {
         assertThat(read(guest.get("/api/catalog?q=" + word + "&tag=жахи")).path("items")).isEmpty();
         assertThat(read(guest.get("/api/catalog?q=" + word + "&kind=original")).path("items")).isEmpty();
         assertThat(read(guest.get("/api/tags"))).anySatisfy(tag -> assertThat(tag.path("slug").asString()).isEqualTo("фентезі"));
+        assertThat(read(guest.get("/api/catalog?q=" + word)).path("total").asInt()).isEqualTo(1);
+
+        // A tag's name is searched for too, and the search box hints at novels and tags as one types.
+        assertThat(read(guest.get("/api/catalog?q=Фентез&sort=updated")).path("items"))
+                .anySatisfy(card -> assertThat(card.path("novelSlug").asString()).isEqualTo(slug));
+        JsonNode hints = read(guest.get("/api/search/hints?q=" + word));
+        assertThat(hints.path("novels")).singleElement()
+                .satisfies(card -> assertThat(card.path("novelSlug").asString()).isEqualTo(slug));
+        assertThat(read(guest.get("/api/search/hints?q=фент")).path("tags"))
+                .anySatisfy(tag -> assertThat(tag.path("slug").asString()).isEqualTo("фентезі"));
+        assertThat(read(guest.get("/api/search/hints?q=%20")).path("novels")).isEmpty();
     }
 
     @Test

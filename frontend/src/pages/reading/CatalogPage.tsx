@@ -1,11 +1,11 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { readingApi } from '../../reading/api';
+import { novelsWord, readingApi, type TagCount } from '../../reading/api';
+import { SearchBox } from '../../reading/SearchBox';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
-import { TextInput } from '../../ui/TextInput';
 import { CardRow } from './HomePage';
 import styles from './reading.module.css';
 
@@ -17,7 +17,10 @@ const KIND_OPTIONS = [
     { value: 'original', label: 'Твори' },
 ] as const;
 
-/** Filters live in the address, so a search can be shared and survives «назад». */
+/**
+ * The catalog: every novel of the site in one place, narrowed by words, tags and kind. Filters
+ * live in the address, so a search can be shared and survives «назад».
+ */
 export function CatalogPage() {
     const search: CatalogSearch = useSearch({ strict: false });
     const navigate = useNavigate();
@@ -29,6 +32,7 @@ export function CatalogPage() {
         if ((search.q ?? '') !== text.trim()) setText(search.q ?? '');
     }
     const [showAllTags, setShowAllTags] = useState(false);
+    const [tagWords, setTagWords] = useState('');
     const tags = search.tags ?? [];
     const kind = search.kind ?? 'all';
     const sort = search.sort ?? 'popular';
@@ -54,31 +58,51 @@ export function CatalogPage() {
         getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
     });
 
-    const visibleTags = (allTags.data ?? []).slice(0, showAllTags ? 60 : 12);
+    const visibleTags = shownTags(allTags.data ?? [], tags, showAllTags, tagWords);
     const items = results.data?.pages.flatMap((page) => page.items) ?? [];
+    const total = results.data?.pages[0]?.total;
+    const narrowed = Boolean(search.q) || tags.length > 0 || kind !== 'all';
 
     return (
         <section className={`${styles.page} ${styles.catalog}`}>
-            <h1 className="visually-hidden">Пошук</h1>
             <div className={styles.search}>
-                <TextInput label="Назва або автор" type="search" value={text} onChange={setText} placeholder="Наприклад, маг води" />
+                <h1 className={styles.catalogTitle}>
+                    Каталог
+                    {total !== undefined && (
+                        <span className={styles.small}>
+                            {' '}{narrowed ? `знайдено ${total} ${novelsWord(total)}` : `${total} ${novelsWord(total)}`}
+                        </span>
+                    )}
+                </h1>
+                <SearchBox label="Пошук новел" placeholder="Назва, автор або тег" value={text} onChange={setText}
+                    onSubmit={(words) => update({ q: words })} />
             </div>
             <div className={styles.filters}>
                 <Segmented label="Що шукаємо" value={kind} options={KIND_OPTIONS} onChange={(value) => update({ kind: value })} />
-                {visibleTags.length > 0 && (
-                    <div className={styles.chips} role="group" aria-label="Теги">
+                {(allTags.data?.length ?? 0) > 0 && (
+                    <div className={styles.small} id="catalog-tags">{showAllTags ? 'Усі теги' : 'Популярні теги'}</div>
+                )}
+                {showAllTags && (
+                    <input type="search" className={styles.select} aria-label="Знайти тег" placeholder="Знайти тег…"
+                        value={tagWords} onChange={(event) => setTagWords(event.target.value)} />
+                )}
+                {(visibleTags.length > 0 || (allTags.data?.length ?? 0) > 12) && (
+                    <div className={styles.chips} role="group" aria-labelledby="catalog-tags">
                         {visibleTags.map((tag) => {
                             const on = tags.includes(tag.slug);
                             return (
                                 <button key={tag.slug} type="button" aria-pressed={on}
                                     className={`${styles.chip} ${on ? styles.chipOn : styles.chipGhost}`}
                                     onClick={() => update({ tags: on ? tags.filter((t) => t !== tag.slug) : [...tags, tag.slug] })}>
-                                    {tag.name}
+                                    {tag.name} <span className={styles.chipCount}>{tag.novels}</span>
                                 </button>
                             );
                         })}
                         {(allTags.data?.length ?? 0) > 12 && (
-                            <button type="button" className={`${styles.chip} ${styles.chipGhost}`} onClick={() => setShowAllTags(!showAllTags)}>
+                            <button type="button" className={`${styles.chip} ${styles.chipGhost}`} onClick={() => {
+                                setShowAllTags(!showAllTags);
+                                setTagWords('');
+                            }}>
                                 {showAllTags ? 'менше' : 'усі теги'}
                             </button>
                         )}
@@ -101,6 +125,11 @@ export function CatalogPage() {
             {results.isSuccess && items.length === 0 && (
                 <p className={styles.empty}>
                     Нічого не знайшли. Спробуйте іншу назву або приберіть теги — чи <Link to="/proposals">запропонуйте новелу перекласти</Link>.
+                    {narrowed && (
+                        <>
+                            {' '}<Link to="/catalog">Показати всі новели</Link>.
+                        </>
+                    )}
                 </p>
             )}
             <div className={styles.cards}>{items.map((card) => <CardRow key={card.editionId} card={card} />)}</div>
@@ -114,6 +143,17 @@ export function CatalogPage() {
             </div>
         </section>
     );
+}
+
+/** The chosen tags always, then the most used ones; with all shown, those whose names hold the words. */
+function shownTags(all: TagCount[], chosen: string[], showAll: boolean, words: string): TagCount[] {
+    const picked = all.filter((tag) => chosen.includes(tag.slug));
+    const rest = all.filter((tag) => !chosen.includes(tag.slug));
+    const needle = words.trim().toLowerCase();
+    const others = showAll
+        ? rest.filter((tag) => !needle || tag.name.toLowerCase().includes(needle))
+        : rest.slice(0, Math.max(0, 12 - picked.length));
+    return [...picked, ...others];
 }
 
 function clean(search: CatalogSearch): CatalogSearch {

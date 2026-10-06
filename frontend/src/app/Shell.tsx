@@ -1,3 +1,4 @@
+import { SearchBox } from '../reading/SearchBox';
 import { useQuery } from '@tanstack/react-query';
 import { HeadContent, Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -16,7 +17,7 @@ type Tab = { to: '/' | '/catalog' | '/library' | '/studio' | '/inbox' | '/me'; l
 
 export const TABS: readonly Tab[] = [
     { to: '/', label: 'Головна', icon: Home },
-    { to: '/catalog', label: 'Пошук', icon: Search },
+    { to: '/catalog', label: 'Каталог', icon: Search },
     { to: '/library', label: 'Бібліотека', icon: BookOpen },
     { to: '/inbox', label: 'Вхідні', icon: Inbox },
     { to: '/me', label: 'Я', icon: User },
@@ -63,19 +64,23 @@ export function Shell() {
     );
 }
 
-/** On a wide screen the search box is always at hand; it opens the catalog with the words typed. */
+/**
+ * On a wide screen the search box is always at hand; it opens the catalog with the words typed.
+ * The catalog has its own, so there it steps aside.
+ */
 function HeaderSearch() {
     const navigate = useNavigate();
     const [text, setText] = useState('');
+    const catalog = useRouterState({ select: (state) => state.location.pathname === '/catalog' });
+    if (catalog) return <div className={styles.search} />;
     return (
-        <form role="search" className={styles.search} onSubmit={(event) => {
-            event.preventDefault();
-            void navigate({ to: '/catalog', search: text.trim() ? { q: text.trim() } : {} });
-            setText('');
-        }}>
-            <Search size={16} aria-hidden />
-            <input type="search" aria-label="Пошук новел" placeholder="Назва або автор…" value={text} onChange={(event) => setText(event.target.value)} />
-        </form>
+        <div className={styles.search}>
+            <SearchBox compact label="Пошук новел" placeholder="Назва, автор або тег…" value={text} onChange={setText}
+                onSubmit={(words) => {
+                    void navigate({ to: '/catalog', search: words ? { q: words } : {} });
+                    setText('');
+                }} />
+        </div>
     );
 }
 

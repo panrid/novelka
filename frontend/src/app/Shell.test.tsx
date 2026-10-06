@@ -8,7 +8,7 @@ describe('Shell', () => {
 
         const nav = screen.getAllByRole('navigation', { name: 'Розділи' })[0]!;
         const labels = within(nav).getAllByRole('link').map((link) => link.textContent);
-        expect(labels).toEqual(['Головна', 'Пошук', 'Бібліотека', 'Вхідні', 'Я']);
+        expect(labels).toEqual(['Головна', 'Каталог', 'Бібліотека', 'Вхідні', 'Я']);
     });
 
     it('marks the current section', async () => {

@@ -1,0 +1,121 @@
+.box {
+    position: relative;
+    width: 100%;
+}
+
+.field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 46px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--faint);
+}
+
+.field:focus-within {
+    outline: 2px solid var(--focus);
+    outline-offset: -1px;
+}
+
+.field input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: none;
+    color: var(--text);
+    font: 16px/1.4 var(--font-ui); /* 16 px keeps iOS from zooming into the field */
+}
+
+.compact .field {
+    min-height: 36px;
+}
+
+.compact .field input {
+    font-size: 14px;
+}
+
+.compact .field:focus-within {
+    outline: 0;
+    border-color: var(--accent);
+}
+
+.icon {
+    flex: none;
+}
+
+.hints {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 30;
+    min-width: 280px;
+    max-height: min(420px, 70vh);
+    margin: 0;
+    padding: 4px;
+    overflow-y: auto;
+    list-style: none;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 18%);
+}
+
+.hint {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.active {
+    background: var(--surface-2);
+}
+
+.grow {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.title {
+    overflow: hidden;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.muted {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 12.5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tag {
+    display: grid;
+    flex: none;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.all {
+    color: var(--accent);
+    font-weight: 500;
+}

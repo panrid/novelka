@@ -139,6 +139,20 @@
     color: var(--accent);
 }
 
+.chipCount {
+    color: var(--faint);
+    font-size: 11px;
+}
+
+.catalogTitle {
+    margin: 4px 0 10px;
+    font: 600 22px/1.2 var(--font-ui);
+}
+
+.catalogTitle .small {
+    font-weight: 400;
+}
+
 .chips {
     display: flex;
     flex-wrap: wrap;

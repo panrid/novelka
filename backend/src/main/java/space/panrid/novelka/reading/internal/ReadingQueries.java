@@ -217,13 +217,23 @@ class ReadingQueries {
         return result;
     }
 
-    Views.Page<Card> search(String query, List<String> tagSlugs, String kind, String machine, String sort,
+    /**
+     * The catalog: every novel with chapters, or those the words and tags lead to. Words are looked
+     * for in the titles, the author and the tags' names, so «магія» finds novels tagged «Магія».
+     *
+     * @param sort popular, updated, new, title, or relevance — titles beginning with the words first
+     */
+    Views.Found<Card> search(String query, List<String> tagSlugs, String kind, String machine, String sort,
             boolean adult, int page, int size) {
         Condition where = visible(adult).and(EDITION.CHAPTER_COUNT.gt(0));
-        if (query != null && !query.isBlank()) {
-            String like = "%" + query.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+        String words = query == null ? "" : query.strip();
+        if (!words.isEmpty()) {
+            String escaped = escapeLike(words);
+            String like = "%" + escaped + "%";
             where = where.and(NOVEL.TITLE.likeIgnoreCase(like).or(EDITION.TITLE.likeIgnoreCase(like))
-                    .or(NOVEL.AUTHOR.likeIgnoreCase(like)));
+                    .or(NOVEL.AUTHOR.likeIgnoreCase(like))
+                    .or(DSL.exists(DSL.selectOne().from(NOVEL_TAG).join(TAG).on(TAG.ID.eq(NOVEL_TAG.TAG_ID))
+                            .where(NOVEL_TAG.NOVEL_ID.eq(NOVEL.ID).and(TAG.NAME.likeIgnoreCase(like))))));
         }
         for (String slug : tagSlugs) {
             where = where.and(DSL.exists(DSL.selectOne().from(NOVEL_TAG).join(TAG).on(TAG.ID.eq(NOVEL_TAG.TAG_ID))
@@ -243,13 +253,35 @@ class ReadingQueries {
             case "updated" -> List.of(EDITION.LAST_PUBLISHED_AT.desc().nullsLast());
             case "new" -> List.of(EDITION.CREATED_AT.desc());
             case "title" -> List.of(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).asc());
+            case "relevance" -> List.of(DSL.when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase(escapeLike(words) + "%"), 0)
+                    .when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase("%" + escapeLike(words) + "%"), 1).otherwise(2).asc(),
+                    popularity().desc());
             default -> List.of(popularity().desc(), EDITION.LAST_PUBLISHED_AT.desc().nullsLast());
         };
         List<SortField<?>> stable = new ArrayList<>(order);
         stable.add(EDITION.ID.asc());
         List<Record> rows = cards().where(where).orderBy(stable).limit(size + 1).offset((page - 1) * size).fetch();
         boolean more = rows.size() > size;
-        return new Views.Page<>(toCards(more ? rows.subList(0, size) : rows), page, more);
+        int total = page == 1 && !more ? rows.size() : db.fetchCount(cards().where(where));
+        return new Views.Found<>(toCards(more ? rows.subList(0, size) : rows), page, more, total);
+    }
+
+    private static String escapeLike(String words) {
+        return words.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    }
+
+    /** Tags whose names hold the words, those on more novels first. */
+    List<Views.TagCount> tagsLike(String words, boolean adult, int limit) {
+        Field<Integer> novels = DSL.countDistinct(NOVEL_TAG.NOVEL_ID).as("novels");
+        String escaped = escapeLike(words.strip());
+        return db.select(TAG.NAME, TAG.SLUG, novels).from(TAG)
+                .join(NOVEL_TAG).on(NOVEL_TAG.TAG_ID.eq(TAG.ID))
+                .join(EDITION).on(EDITION.NOVEL_ID.eq(NOVEL_TAG.NOVEL_ID))
+                .where(visible(adult).and(EDITION.CHAPTER_COUNT.gt(0)).and(TAG.NAME.likeIgnoreCase("%" + escaped + "%")))
+                .groupBy(TAG.NAME, TAG.SLUG)
+                .orderBy(DSL.when(TAG.NAME.likeIgnoreCase(escaped + "%"), 0).otherwise(1), novels.desc(), TAG.NAME)
+                .limit(limit)
+                .fetch(r -> new Views.TagCount(r.value1(), r.value2(), r.value3()));
     }
 
     List<Views.TagCount> tags(boolean adult, int limit) {

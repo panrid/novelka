@@ -34,6 +34,14 @@ final class Views {
     record TagCount(String name, String slug, int novels) {
     }
 
+    /** A page of the catalog with how many there are in all. */
+    record Found<T>(List<T> items, int page, boolean hasMore, int total) {
+    }
+
+    /** What the search box offers while a person types. */
+    record Hints(List<Card> novels, List<TagCount> tags) {
+    }
+
     /** @param rating average stars, null until someone rates */
     record EditionSummary(long editionId, String teamHandle, String teamName, String kind, String status,
             int chapterCount, String coverUrl, Double rating, int ratings) {

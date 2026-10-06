@@ -59,7 +59,7 @@ class ReadingController {
     }
 
     @GetMapping("/catalog")
-    Views.Page<Views.Card> catalog(@RequestParam(required = false) String q,
+    Views.Found<Views.Card> catalog(@RequestParam(required = false) String q,
             @RequestParam(required = false) List<String> tag, @RequestParam(defaultValue = "all") String kind,
             @RequestParam(defaultValue = "all") String machine, @RequestParam(defaultValue = "popular") String sort,
             @RequestParam(defaultValue = "1") int page) {
@@ -72,7 +72,19 @@ class ReadingController {
 
     @GetMapping("/tags")
     List<Views.TagCount> tags() {
-        return queries.tags(adult(currentUser.viewer()), 60);
+        return queries.tags(adult(currentUser.viewer()), 300);
+    }
+
+    /** Hints for the search box: novels whose titles begin with the words come first, and tags. */
+    @GetMapping("/search/hints")
+    Views.Hints hints(@RequestParam String q) {
+        String words = q.strip();
+        if (words.isEmpty() || words.length() > 100) {
+            return new Views.Hints(List.of(), List.of());
+        }
+        boolean adult = adult(currentUser.viewer());
+        return new Views.Hints(queries.search(words, List.of(), "all", "all", "relevance", adult, 1, 6).items(),
+                queries.tagsLike(words, adult, 5));
     }
 
     @GetMapping("/novels/{slug}")

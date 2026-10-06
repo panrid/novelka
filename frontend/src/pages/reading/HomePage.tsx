@@ -9,6 +9,7 @@ import styles from './reading.module.css';
 
 export function HomePage() {
     const home = useQuery({ queryKey: ['home'], queryFn: readingApi.home });
+    const tags = useQuery({ queryKey: ['tags'], queryFn: readingApi.tags, staleTime: 5 * 60_000 });
 
     if (home.isPending) {
         return <p className={styles.empty}>Завантажуємо…</p>;
@@ -77,6 +78,18 @@ export function HomePage() {
                             {card.kind === 'machine' || card.kind === 'mixed' ? <span className={`${styles.chip} ${styles.chipGhost}`} title="Машинний переклад">ШІ</span> : null}
                         </Link>
                     ))}
+                </>
+            )}
+            {(tags.data?.length ?? 0) > 0 && (
+                <>
+                    <h2 className={styles.sectionTitle}>Популярні теги <Link to="/catalog">каталог →</Link></h2>
+                    <div className={styles.chips}>
+                        {tags.data?.slice(0, 16).map((tag) => (
+                            <Link key={tag.slug} className={styles.chip} to="/catalog" search={{ tags: [tag.slug] }}>
+                                {tag.name} <span className={styles.chipCount}>{tag.novels}</span>
+                            </Link>
+                        ))}
+                    </div>
                 </>
             )}
             <h2 className={styles.sectionTitle}>Що перекласти далі</h2>

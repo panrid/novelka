@@ -70,8 +70,8 @@ class SearchPages {
 
     @GetMapping("/catalog")
     ResponseEntity<String> catalog() {
-        return page(new Head("Пошук новел — " + SITE, "Пошук новел і ранобе українською за назвою, автором і тегами.",
-                "/catalog", null, true, null), "<h1>Пошук новел</h1>", HttpStatus.OK);
+        return page(new Head("Каталог новел — " + SITE, "Усі новели й ранобе українською: пошук за назвою, автором і тегами.",
+                "/catalog", null, true, null), "<h1>Каталог новел</h1>", HttpStatus.OK);
     }
 
     @GetMapping("/proposals")

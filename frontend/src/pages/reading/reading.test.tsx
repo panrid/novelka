@@ -191,3 +191,27 @@ describe('chapters 20 to a page', () => {
             .toEqual(['2', '3']);
     });
 });
+
+describe('catalog', () => {
+    it('counts the novels, offers popular tags and hints at novels and tags while typing', async () => {
+        const { router, calls } = await renderAt('/catalog', {
+            'GET /api/catalog': { body: { items: [CARD], page: 1, hasMore: false, total: 1 } },
+            'GET /api/tags': { body: [{ name: 'Фентезі', slug: 'фентезі', novels: 1 }, { name: 'Магія', slug: 'магія', novels: 1 }] },
+            'GET /api/search/hints': { body: { novels: [CARD], tags: [{ name: 'Магія', slug: 'магія', novels: 1 }] } },
+        });
+
+        await waitFor(() => expect(screen.getByRole('heading', { name: /Каталог/ })).toHaveTextContent('Каталог 1 новела'));
+        expect(screen.getByText('Популярні теги')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: /Магія/ }));
+        await waitFor(() => expect(router.state.location.search).toEqual({ tags: ['магія'] }));
+
+        await userEvent.type(screen.getByRole('combobox', { name: 'Пошук новел' }), 'ма');
+        const hints = await screen.findByRole('listbox', { name: 'Підказки' });
+        expect(hints).toHaveTextContent('Магія');
+        expect(hints).toHaveTextContent('Маг води');
+        expect(calls.some((call) => call.path === '/api/search/hints' && call.query === '?q=%D0%BC%D0%B0')).toBe(true);
+
+        await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody'));
+    });
+});

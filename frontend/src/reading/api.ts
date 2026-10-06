@@ -35,6 +35,11 @@ export type Home = {
 };
 
 export type Page<T> = { items: T[]; page: number; hasMore: boolean };
+/** A catalog page with how many novels match in all. */
+export type Found<T> = Page<T> & { total: number };
+export type TagCount = { name: string; slug: string; novels: number };
+/** What the search box offers while a person types. */
+export type Hints = { novels: Card[]; tags: TagCount[] };
 
 export type EditionSummary = {
     editionId: number;
@@ -127,8 +132,9 @@ export const readingApi = {
     activity: (nick: string) => api<{ reading: Card[]; acceptedSuggestions: number }>(`/api/users/${encodeURIComponent(nick)}/activity`),
     home: () => api<Home>('/api/home'),
     catalog: ({ q, tags, kind, machine, sort, page }: CatalogQuery) =>
-        api<Page<Card>>(`/api/catalog${query({ q, tag: tags, kind, machine, sort, page })}`),
-    tags: () => api<{ name: string; slug: string; novels: number }[]>('/api/tags'),
+        api<Found<Card>>(`/api/catalog${query({ q, tag: tags, kind, machine, sort, page })}`),
+    tags: () => api<TagCount[]>('/api/tags'),
+    hints: (q: string) => api<Hints>(`/api/search/hints${query({ q })}`),
     novel: (slug: string, team?: string) => api<NovelPage>(`${novelPath(slug)}${query({ t: team })}`),
     chapters: (slug: string, team: string | undefined, order: 'asc' | 'desc', page: number) =>
         api<Page<ChapterRow>>(`${novelPath(slug)}/chapters${query({ t: team, order, page })}`),
@@ -159,6 +165,15 @@ export const STATUS_LABELS: Record<Status, string> = {
 };
 
 /** Numbers of chapters in Ukrainian: 1 глава, 2 глави, 5 глав. */
+export function novelsWord(count: number): string {
+    const tens = count % 100;
+    const ones = count % 10;
+    if (tens >= 11 && tens <= 14) return 'новел';
+    if (ones === 1) return 'новела';
+    if (ones >= 2 && ones <= 4) return 'новели';
+    return 'новел';
+}
+
 export function chaptersWord(count: number): string {
     const tens = count % 100;
     const ones = count % 10;
