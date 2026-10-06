@@ -79,6 +79,36 @@ class SearchPagesTests {
         assertThat(new Browser(port).get("/sitemap.xml").body()).doesNotContain("/n/" + slug);
     }
 
+    @Test
+    void aNovelGetsABetterAddressAndTheOldOneStillLeadsToIt() {
+        Person translator = Accounts.signedIn(port, mailbox);
+        String old = publish(translator, "Володар водної стихії " + translator.nick(), false);
+        long edition = read(translator.browser().get("/api/studio")).path(0).path("editionId").asLong();
+        String wanted = "mag-vody-" + translator.nick().toLowerCase().replaceAll("[^a-z0-9]", "");
+
+        assertThat(translator.browser().put("/api/studio/editions/" + edition + "/slug", json("slug", "Маг води")).status()).isEqualTo(400);
+        JsonNode changed = read(translator.browser().put("/api/studio/editions/" + edition + "/slug", json("slug", wanted)));
+        assertThat(changed.path("slug").asString()).isEqualTo(wanted);
+
+        Browser reader = new Browser(port);
+        assertThat(read(reader.get("/api/novels/" + old)).path("slug").asString()).as("the old address still finds it").isEqualTo(wanted);
+        assertThat(read(reader.get("/api/novels/" + old + "/chapters/2")).path("novelSlug").asString()).isEqualTo(wanted);
+        Response moved = reader.get("/n/" + old + "/2");
+        assertThat(moved.status()).as("search engines move for good").isEqualTo(301);
+        assertThat(google(reader, "/sitemap.xml")).contains("/n/" + wanted + "</loc>").doesNotContain("/n/" + old + "<");
+
+        Person other = Accounts.signedIn(port, mailbox);
+        String theirs = publish(other, "Інша новела " + other.nick(), false);
+        long their = read(other.browser().get("/api/studio")).path(0).path("editionId").asLong();
+        assertThat(other.browser().put("/api/studio/editions/" + their + "/slug", json("slug", old)).status())
+                .as("an old address stays with its novel").isEqualTo(409);
+        assertThat(theirs).isNotEqualTo(old);
+    }
+
+    private static String google(Browser browser, String path) {
+        return browser.get(path).body();
+    }
+
     private static JsonNode read(Response response) {
         assertThat(response.status()).as(response.body()).isBetween(200, 299);
         return JSON.readTree(response.body());

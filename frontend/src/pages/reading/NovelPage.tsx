@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
+import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
 import { ArrowDownUp, BookmarkPlus, Check, MessageCircle } from 'lucide-react';
 import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import { Button as AriaButton, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
@@ -44,6 +44,10 @@ export function NovelPage() {
                 )}
             </section>
         );
+    }
+    if (novel.data.slug !== slug) {
+        // An address the novel had before: show it under the one it has now.
+        return <Navigate to="/n/$slug" params={{ slug: novel.data.slug }} search={t ? { t } : {}} hash={true} replace />;
     }
     return <NovelView novel={novel.data} team={t} />;
 }

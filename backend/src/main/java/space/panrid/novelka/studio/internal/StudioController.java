@@ -223,6 +223,28 @@ class StudioController {
         return overview(editionId);
     }
 
+    record SlugRequest(String slug) {
+    }
+
+    record SlugView(String slug) {
+    }
+
+    /**
+     * The novel's address (етап 17). It is the novel's, not one team's: the owner changes it while
+     * theirs is the only translation, the site's staff always; the old address keeps working.
+     */
+    @PutMapping("/editions/{editionId}/slug")
+    SlugView slug(@PathVariable long editionId, @RequestBody SlugRequest body) {
+        EditionAccess who = access.requireEditionOwner(editionId);
+        long novelId = db.select(EDITION.NOVEL_ID).from(EDITION).where(EDITION.ID.eq(editionId)).fetchSingle(EDITION.NOVEL_ID);
+        boolean staff = who.viewer().role() == space.panrid.novelka.account.SiteRole.OWNER
+                || who.viewer().role() == space.panrid.novelka.account.SiteRole.ADMIN;
+        if (!staff && db.fetchCount(EDITION, EDITION.NOVEL_ID.eq(novelId)) > 1) {
+            throw new UserFacingException(HttpStatus.FORBIDDEN, "У новели кілька перекладів, тож адресу змінює адміністрація сайту.");
+        }
+        return new SlugView(catalog.changeSlug(editionId, body.slug()));
+    }
+
     @PutMapping("/editions/{editionId}/cover")
     Overview setCover(@PathVariable long editionId, @RequestBody CoverRequest body) {
         EditionAccess who = access.requireEditionOwner(editionId);

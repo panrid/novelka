@@ -2,6 +2,7 @@ package space.panrid.novelka.catalog.internal;
 
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
+import static space.panrid.novelka.jooq.Tables.NOVEL_SLUG_ALIAS;
 import static space.panrid.novelka.jooq.Tables.NOVEL_TAG;
 import static space.panrid.novelka.jooq.Tables.TAG;
 
@@ -251,9 +252,44 @@ class CatalogService implements Catalog {
         return Normalizer.normalize(name, Normalizer.Form.NFKC).strip().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
     }
 
+    private static final java.util.regex.Pattern SLUG = java.util.regex.Pattern.compile("[a-z0-9]+(-[a-z0-9]+)*");
+
+    @Override
+    @Transactional
+    public String changeSlug(long editionId, String slug) {
+        String wanted = slug == null ? "" : slug.strip().toLowerCase(java.util.Locale.ROOT).replaceAll("[\\s_]+", "-");
+        if (wanted.length() < 2 || wanted.length() > 80 || !SLUG.matcher(wanted).matches()) {
+            throw UserFacingException.badRequest("Адреса — латинські літери, цифри й дефіси, від 2 до 80 знаків: mag-vody.");
+        }
+        long novelId = db.select(EDITION.NOVEL_ID).from(EDITION).where(EDITION.ID.eq(editionId)).fetchOptional(EDITION.NOVEL_ID)
+                .orElseThrow(() -> UserFacingException.notFound("Такої новели немає."));
+        String now = db.select(NOVEL.SLUG).from(NOVEL).where(NOVEL.ID.eq(novelId)).fetchSingle(NOVEL.SLUG);
+        if (now.equals(wanted)) {
+            return now;
+        }
+        boolean taken = db.fetchExists(NOVEL, NOVEL.SLUG.eq(wanted)) || db.fetchExists(NOVEL_SLUG_ALIAS,
+                NOVEL_SLUG_ALIAS.SLUG.eq(wanted).and(NOVEL_SLUG_ALIAS.NOVEL_ID.ne(novelId)));
+        if (taken) {
+            throw UserFacingException.conflict("Така адреса вже зайнята іншою новелою.");
+        }
+        // The new address stops being an alias; the old one becomes one.
+        db.deleteFrom(NOVEL_SLUG_ALIAS).where(NOVEL_SLUG_ALIAS.SLUG.eq(wanted)).execute();
+        db.insertInto(NOVEL_SLUG_ALIAS).set(NOVEL_SLUG_ALIAS.SLUG, now).set(NOVEL_SLUG_ALIAS.NOVEL_ID, novelId)
+                .onConflictDoNothing().execute();
+        db.update(NOVEL).set(NOVEL.SLUG, wanted).where(NOVEL.ID.eq(novelId)).execute();
+        return wanted;
+    }
+
+    @Override
+    public Optional<String> currentSlug(String oldSlug) {
+        return db.select(NOVEL.SLUG).from(NOVEL_SLUG_ALIAS).join(NOVEL).on(NOVEL.ID.eq(NOVEL_SLUG_ALIAS.NOVEL_ID))
+                .where(NOVEL_SLUG_ALIAS.SLUG.eq(oldSlug)).fetchOptional(NOVEL.SLUG);
+    }
+
     private String freeSlug(String base) {
         String candidate = base;
-        for (int n = 2; db.fetchExists(NOVEL, NOVEL.SLUG.eq(candidate)); n++) {
+        for (int n = 2; db.fetchExists(NOVEL, NOVEL.SLUG.eq(candidate))
+                || db.fetchExists(NOVEL_SLUG_ALIAS, NOVEL_SLUG_ALIAS.SLUG.eq(candidate)); n++) {
             candidate = base + "-" + n;
         }
         return candidate;

@@ -80,6 +80,35 @@ function AboutForm({ edition }: { edition: Overview }) {
                 {save.isSuccess && <Notice tone="success">Збережено.</Notice>}
                 <Button onPress={() => save.mutate()} pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти</Button>
             </div>
+            <SlugField editionId={edition.editionId} current={edition.novelSlug} />
         </section>
+    );
+}
+
+/**
+ * The novel's address, such as /n/mag-vody (етап 17). A first machine title may have left an
+ * odd one; the old address keeps working and sends readers and search engines here.
+ */
+function SlugField({ editionId, current }: { editionId: number; current: string }) {
+    const client = useQueryClient();
+    const [slug, setSlug] = useState(current);
+    const save = useMutation({
+        mutationFn: () => studioApi.setSlug(editionId, slug),
+        onSuccess: ({ slug: saved }) => {
+            setSlug(saved);
+            void client.invalidateQueries({ queryKey: ['studio-edition', editionId] });
+            void client.invalidateQueries({ queryKey: ['studio'] });
+        },
+    });
+    return (
+        <div className={styles.form} style={{ marginTop: 28 }}>
+            <h2 className={styles.sectionTitle}>Адреса новели</h2>
+            <TextInput label="novelka.panrid.space/n/…" value={slug} onChange={setSlug}
+                hint="Латинські літери, цифри й дефіси: mag-vody, the-water-magician. Стара адреса й далі працюватиме." />
+            {save.isError && <Notice tone="error">{save.error.message}</Notice>}
+            {save.isSuccess && <Notice tone="success">Тепер новела за адресою /n/{save.data.slug}.</Notice>}
+            <Button variant="secondary" onPress={() => save.mutate()} pending={save.isPending} pendingLabel="Зберігаємо…"
+                isDisabled={!slug.trim() || slug.trim() === current}>Змінити адресу</Button>
+        </div>
     );
 }

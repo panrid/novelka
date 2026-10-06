@@ -80,8 +80,19 @@ class SearchPages {
                 "/proposals", null, true, null), "<h1>Що перекласти</h1>", HttpStatus.OK);
     }
 
+    /** An address the novel had before: search engines and old links move to the new one for good. */
+    private Optional<ResponseEntity<String>> moved(String slug, String rest, String team) {
+        return queries.novel(slug).filter(novel -> !novel.slug().equals(slug)).map(novel -> ResponseEntity.status(HttpStatus.MOVED_PERMANENTLY)
+                .header("Location", "/n/" + novel.slug() + rest + (team == null || team.isBlank() ? "" : "?t=" + encode(team)))
+                .<String>body(null));
+    }
+
     @GetMapping("/n/{slug}")
     ResponseEntity<String> novel(@PathVariable String slug, @RequestParam(required = false) String t) {
+        Optional<ResponseEntity<String>> moved = moved(slug, "", t);
+        if (moved.isPresent()) {
+            return moved.get();
+        }
         Optional<Found> found = find(slug, t);
         if (found.isEmpty()) {
             return page(new Head(SITE, "", "/n/" + slug, null, false, null), "", HttpStatus.NOT_FOUND);
@@ -114,6 +125,10 @@ class SearchPages {
 
     @GetMapping("/n/{slug}/{number}")
     ResponseEntity<String> chapter(@PathVariable String slug, @PathVariable int number, @RequestParam(required = false) String t) {
+        Optional<ResponseEntity<String>> moved = moved(slug, "/" + number, t);
+        if (moved.isPresent()) {
+            return moved.get();
+        }
         Optional<Found> found = find(slug, t);
         if (found.isEmpty()) {
             return page(new Head(SITE, "", "/n/" + slug + "/" + number, null, false, null), "", HttpStatus.NOT_FOUND);

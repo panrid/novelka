@@ -18,6 +18,16 @@ public interface Catalog {
     /** Novel already imported from this source, if any. */
     Optional<Long> novelBySource(String sourceKey);
 
+    /**
+     * A new address for the edition's novel; the old one keeps working (етап 17).
+     *
+     * @return the address as stored: lower case, a–z, digits and hyphens
+     */
+    String changeSlug(long editionId, String slug);
+
+    /** The novel's address now, for an address it had before. */
+    Optional<String> currentSlug(String oldSlug);
+
     /** Called by the text module whenever chapters of an edition are published. */
     void recordPublication(long editionId, int publishedChapters, OffsetDateTime at);
 

@@ -6,6 +6,7 @@ import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITION_RATING;
 import static space.panrid.novelka.jooq.Tables.LIBRARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
+import static space.panrid.novelka.jooq.Tables.NOVEL_SLUG_ALIAS;
 import static space.panrid.novelka.jooq.Tables.NOVEL_TAG;
 import static space.panrid.novelka.jooq.Tables.READING_PROGRESS;
 import static space.panrid.novelka.jooq.Tables.REVISION;
@@ -268,9 +269,16 @@ class ReadingQueries {
     record NovelRow(long id, String slug, String title, String author, String source, JSONB description) {
     }
 
+    /** The novel by its address, or by an address it had before (the row then carries the current one). */
     Optional<NovelRow> novel(String slug) {
-        return db.select(NOVEL.ID, NOVEL.SLUG, NOVEL.TITLE, NOVEL.AUTHOR, NOVEL.SOURCE, NOVEL.DESCRIPTION)
+        var current = db.select(NOVEL.ID, NOVEL.SLUG, NOVEL.TITLE, NOVEL.AUTHOR, NOVEL.SOURCE, NOVEL.DESCRIPTION)
                 .from(NOVEL).where(NOVEL.SLUG.eq(slug))
+                .fetchOptional(r -> new NovelRow(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(), r.value6()));
+        if (current.isPresent()) {
+            return current;
+        }
+        return db.select(NOVEL.ID, NOVEL.SLUG, NOVEL.TITLE, NOVEL.AUTHOR, NOVEL.SOURCE, NOVEL.DESCRIPTION)
+                .from(NOVEL_SLUG_ALIAS).join(NOVEL).on(NOVEL.ID.eq(NOVEL_SLUG_ALIAS.NOVEL_ID)).where(NOVEL_SLUG_ALIAS.SLUG.eq(slug))
                 .fetchOptional(r -> new NovelRow(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(), r.value6()));
     }
 

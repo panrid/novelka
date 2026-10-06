@@ -83,6 +83,8 @@ export const studioApi = {
     overview: (id: number) => api<Overview>(edition(id)),
     update: (id: number, patch: Partial<{ title: string; author: string; description: StudioBlock[]; tags: string[]; status: string; adult: boolean }>) =>
         api<Overview>(edition(id), json('PATCH', patch)),
+    /** The novel's address (/n/…); the old one keeps working. */
+    setSlug: (id: number, slug: string) => api<{ slug: string }>(`${edition(id)}/slug`, json('PUT', { slug })),
     setCover: (id: number, imageId: number | null) => api<Overview>(`${edition(id)}/cover`, json('PUT', { imageId })),
     chapters: (id: number, page = 1) => api<StudioChapter[]>(`${edition(id)}/chapters?page=${page}`),
     deleteChapter: (id: number, number: number) => api<void>(chapter(id, number), { method: 'DELETE' }),

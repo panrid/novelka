@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
+import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
 import { ArrowLeft, ChevronLeft, ChevronRight, List, MessageCircle, Type } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Dialog, DialogTrigger, Button as AriaButton, Popover } from 'react-aria-components';
@@ -45,6 +45,10 @@ export function ReaderPage() {
                 <p style={{ marginTop: 12 }}><Link to="/n/$slug" params={{ slug }} search={t ? { t } : {}}>До новели</Link></p>
             </div>
         );
+    }
+    if (chapter.data.novelSlug !== slug) {
+        // An address the novel had before: the same chapter under the one it has now.
+        return <Navigate to="/n/$slug/$number" params={{ slug: chapter.data.novelSlug, number }} search={{ ...(t ? { t } : {}), ...(find ? { find } : {}) }} replace />;
     }
     return <Reader key={`${slug}:${chapterNumber}`} chapter={chapter.data} team={t} find={find} />;
 }
