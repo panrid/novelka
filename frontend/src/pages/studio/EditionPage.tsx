@@ -110,10 +110,10 @@ export function EditionPage() {
                     )}
                 </div>
             ))}
-            {(page > 1 || chapters.data?.length === 100) && (
+            {(page > 1 || chapters.data?.length === 20) && (
                 <div className={styles.actions}>
                     {page > 1 && <Button variant="secondary" onPress={() => setPage(page - 1)}>← Новіші</Button>}
-                    {chapters.data?.length === 100 && <Button variant="secondary" onPress={() => setPage(page + 1)}>Давніші →</Button>}
+                    {chapters.data?.length === 20 && <Button variant="secondary" onPress={() => setPage(page + 1)}>Давніші →</Button>}
                 </div>
             )}
 

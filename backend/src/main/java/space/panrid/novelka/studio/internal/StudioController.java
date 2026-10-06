@@ -130,6 +130,9 @@ class StudioController {
     record ImportResult(List<Integer> numbers) {
     }
 
+    /** Chapters in the Studio come 20 to a page, like on the novel page (етап 17). */
+    static final int STUDIO_CHAPTERS = 20;
+
     private static final Set<String> CREATE_KINDS = Set.of("human", "original");
 
     private final AccessPolicy access;
@@ -239,7 +242,7 @@ class StudioController {
     @GetMapping("/editions/{editionId}/chapters")
     List<EditorModels.StudioChapter> chapterList(@PathVariable long editionId, @RequestParam(defaultValue = "1") int page) {
         EditionAccess who = access.requireTextEditor(editionId);
-        return chapters.studioChapters(editionId, who.viewer().accountId(), Math.max(1, page), 100);
+        return chapters.studioChapters(editionId, who.viewer().accountId(), Math.max(1, page), STUDIO_CHAPTERS);
     }
 
     @PostMapping("/editions/{editionId}/chapters")

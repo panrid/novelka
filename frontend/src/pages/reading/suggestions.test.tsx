@@ -71,7 +71,7 @@ describe('suggestions in the reader', () => {
 
 describe('review by the team', () => {
     it('accepts a suggestion inside the text and applies the decisions at once', async () => {
-        const { calls } = await renderAt('/n/mah-vody/12', {
+        const { calls, router } = await renderAt('/n/mah-vody/12', {
             'GET /api/me': { body: ME },
             'GET /api/novels/mah-vody/chapters/12': { body: { ...CHAPTER, teamRole: 'editor' } },
             'GET /api/suggestions/mine': { body: { items: [], draftsInEdition: 0 } },
@@ -94,6 +94,8 @@ describe('review by the team', () => {
 
         await waitFor(() => expect(calls.find((call) => call.path.endsWith('/suggestions/review'))?.body)
             .toEqual({ decisions: [{ id: 9, accept: true }] }));
+        // Done reviewing: back to the translation in the Studio, not on with reading.
+        await waitFor(() => expect(router.state.location.pathname).toBe('/studio/7'));
     });
 });
 

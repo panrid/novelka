@@ -168,3 +168,26 @@ describe('own translation', () => {
         expect(calls.find((call) => call.path.endsWith('/own-translation'))?.body).toEqual({ team: 'mika', after: EDITION.editionId });
     });
 });
+
+describe('chapters 20 to a page', () => {
+    it('opens the page with the chapter the reader stopped at and turns pages', async () => {
+        const row = (number: number) => ({ number, title: `Глава ${number}`, publishedAt: '2026-09-20T10:00:00Z', label: null });
+        let served = 0;
+        const { calls } = await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': { body: { ...NOVEL, viewer: { list: 'reading', chapterNumber: 25, position: 0.3, teamRole: null, myRating: null, chapterLabel: null, relayAsked: false } } },
+            // The page opened first is the second one (chapter 25), then the third.
+            'GET /api/novels/mah-vody/chapters': () => {
+                const page = ++served + 1;
+                return { body: { items: Array.from({ length: 20 }, (_, i) => row((page - 1) * 20 + i + 1)).filter((r) => r.number <= 44), page, hasMore: page < 3 } };
+            },
+            'GET /api/editions/7/comments/count': { body: { count: 0 } },
+        });
+        expect(await screen.findByText('сторінка 2 з 3')).toBeInTheDocument();
+        expect(await screen.findByText('тут зупинились')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Наступна →' }));
+        expect(await screen.findByText('сторінка 3 з 3')).toBeInTheDocument();
+        expect(calls.filter((call) => call.path.endsWith('/chapters')).map((call) => new URLSearchParams(call.query).get('page')))
+            .toEqual(['2', '3']);
+    });
+});

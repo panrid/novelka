@@ -33,7 +33,8 @@ class ReadingController {
     }
 
     private static final int PAGE_SIZE = 20;
-    private static final int CHAPTERS_PAGE_SIZE = 100;
+    /** Chapters on the novel page come 20 to a page (етап 17); a caller may ask for up to 100. */
+    private static final int CHAPTERS_PAGE_SIZE = 20;
 
     private final ReadingQueries queries;
     private final LibraryService library;
@@ -91,10 +92,11 @@ class ReadingController {
 
     @GetMapping("/novels/{slug}/chapters")
     Views.Page<Views.ChapterRow> chapters(@PathVariable String slug, @RequestParam(required = false) String t,
-            @RequestParam(defaultValue = "asc") String order, @RequestParam(defaultValue = "1") int page) {
+            @RequestParam(defaultValue = "asc") String order, @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "" + CHAPTERS_PAGE_SIZE) int size) {
         EditionRow edition = pick(visibleEditions(queries.novel(slug).orElseThrow(ReadingController::noNovel),
                 currentUser.viewer()), t);
-        return queries.chapters(edition.id(), order.equals("desc"), Math.max(1, page), CHAPTERS_PAGE_SIZE);
+        return queries.chapters(edition.id(), order.equals("desc"), Math.max(1, page), Math.max(1, Math.min(size, 100)));
     }
 
     @GetMapping("/novels/{slug}/chapters/{number}")

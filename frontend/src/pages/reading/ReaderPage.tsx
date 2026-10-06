@@ -289,7 +289,13 @@ function Reader({ chapter, team, find }: { chapter: ReaderChapter; team: string 
                     <div className={styles.buttons}>
                         <Button variant="secondary" onPress={() => setReviewing(false)}>Закрити</Button>
                         <Button variant="secondary" onPress={review.acceptAll}>Прийняти всі</Button>
-                        <Button onPress={() => review.apply.mutate(undefined, { onSuccess: () => setReviewing(false) })}
+                        {/* Done reviewing means done with this chapter: back to the translation's page in the Studio. */}
+                        <Button onPress={() => review.apply.mutate(undefined, {
+                            onSuccess: () => {
+                                setReviewing(false);
+                                void navigate({ to: '/studio/$editionId', params: { editionId: String(chapter.edition.editionId) } });
+                            },
+                        })}
                             pending={review.apply.isPending} isDisabled={Object.keys(review.verdicts).length === 0}>
                             Застосувати ({Object.keys(review.verdicts).length})
                         </Button>

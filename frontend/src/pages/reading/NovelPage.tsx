@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
 import { ArrowDownUp, BookmarkPlus, Check, MessageCircle } from 'lucide-react';
 import { Fragment, useLayoutEffect, useRef, useState } from 'react';
@@ -18,6 +18,7 @@ import { Segmented } from '../../ui/Segmented';
 import { localProgress } from '../../reading/progress';
 import { novelQuery } from '../../reading/queries';
 import { Button } from '../../ui/Button';
+import { Pager } from '../../ui/Pager';
 import { LinkButton } from '../../ui/LinkButton';
 import { Notice } from '../../ui/Notice';
 import styles from './novel.module.css';
@@ -141,7 +142,7 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                     </div>
                 )}
 
-                <ChapterList slug={novel.slug} team={team} current={resume} />
+                <ChapterList slug={novel.slug} team={team} current={resume} total={edition.chapterCount} />
 
                 {novel.relay.continuations.map((next) => (
                     <Link key={next.teamHandle} to="/n/$slug/$number" params={{ slug: novel.slug, number: String(next.firstNumber) }}
@@ -291,21 +292,30 @@ function LibraryButton({ novel }: { novel: Novel }) {
     );
 }
 
-function ChapterList({ slug, team, current }: { slug: string; team: string | undefined; current: number | null }) {
+const CHAPTERS_PER_PAGE = 20;
+
+/** The chapters 20 to a page (етап 17), opened at the page with the chapter the reader stopped at. */
+function ChapterList({ slug, team, current, total }: { slug: string; team: string | undefined; current: number | null; total: number }) {
     const [order, setOrder] = useState<'asc' | 'desc'>('asc');
-    const chapters = useInfiniteQuery({
-        queryKey: ['chapters', slug, team ?? '', order],
-        queryFn: ({ pageParam }) => readingApi.chapters(slug, team, order, pageParam),
-        initialPageParam: 1,
-        getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
+    const pages = Math.max(1, Math.ceil(total / CHAPTERS_PER_PAGE));
+    const [page, setPage] = useState(() => (current ? Math.min(pages, Math.max(1, Math.ceil(current / CHAPTERS_PER_PAGE))) : 1));
+    const chapters = useQuery({
+        queryKey: ['chapters', slug, team ?? '', order, page],
+        queryFn: () => readingApi.chapters(slug, team, order, page),
+        placeholderData: (previous) => previous,
     });
-    const rows = chapters.data?.pages.flatMap((page) => page.items) ?? [];
+    const rows = chapters.data?.items ?? [];
+    const top = useRef<HTMLDivElement>(null);
+    const turn = (next: number) => {
+        setPage(next);
+        top.current?.scrollIntoView?.({ block: 'start' });
+    };
 
     return (
-        <div className={styles.chapters} id="chapters">
+        <div className={styles.chapters} id="chapters" ref={top}>
             <div className={styles.chaptersHead}>
                 <h2 className={styles.sectionTitle}>Глави</h2>
-                <button type="button" className={styles.order} onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}>
+                <button type="button" className={styles.order} onClick={() => { setOrder(order === 'asc' ? 'desc' : 'asc'); setPage(1); }}>
                     <ArrowDownUp size={14} aria-hidden /> {order === 'asc' ? 'від першої' : 'від останньої'}
                 </button>
             </div>
@@ -326,11 +336,7 @@ function ChapterList({ slug, team, current }: { slug: string; team: string | und
                     </Fragment>
                 ))}
             </ol>
-            {chapters.hasNextPage && (
-                <Button variant="secondary" wide onPress={() => void chapters.fetchNextPage()} pending={chapters.isFetchingNextPage} pendingLabel="Завантажуємо…">
-                    Показати ще
-                </Button>
-            )}
+            <Pager page={page} total={total} size={CHAPTERS_PER_PAGE} onPage={turn} />
         </div>
     );
 }
