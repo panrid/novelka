@@ -43,6 +43,7 @@ describe('what to translate', () => {
             'GET /api/proposals': { body: page([PROPOSAL]) },
             'GET /api/me/teams': { body: [{ handle: 'mika', name: 'mika', role: 'owner' }, { handle: 'svitlo', name: 'Світло', role: 'translator' }] },
             'POST /api/proposals/5/take': { body: { editionId: 12, novelSlug: 'dohliadach-mayaka' } },
+            'GET /api/me/shahs': { body: { available: 3, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
             'GET /api/studio/editions/12/autotranslate': { status: 404, body: { message: '—' } },
         });
         await userEvent.click(await screen.findByRole('button', { name: 'Беру перекладати' }));

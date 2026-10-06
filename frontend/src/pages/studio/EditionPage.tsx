@@ -1,3 +1,4 @@
+import { useCanRun } from '../../ledger/api';
 import { NewChapterSheet } from './NewChapterSheet';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
@@ -26,6 +27,8 @@ export function EditionPage() {
     const overview = useQuery({ queryKey: ['studio-edition', id], queryFn: () => studioApi.overview(id) });
     const [page, setPage] = useState(1);
     const [adding, setAdding] = useState(false);
+    // Autotranslation and its glossary show only to those who can run it (шаги or the site owner).
+    const canRun = useCanRun();
     const chapters = useQuery({ meta: { errorToast: true }, queryKey: ['studio-chapters', id, page], queryFn: () => studioApi.chapters(id, page), placeholderData: (p) => p });
     const remove = useMutation({
         mutationFn: (number: number) => studioApi.deleteChapter(id, number),
@@ -61,15 +64,15 @@ export function EditionPage() {
                 {translator && <Button onPress={() => setAdding(true)}>Нова глава</Button>}
                 {edition.chapterCount > 0 && <LinkButton to="/n/$slug" params={{ slug: edition.novelSlug }} search={{ t: edition.teamHandle }} variant="secondary">Як бачать читачі</LinkButton>}
             </div>
-            {adding && <NewChapterSheet editionId={id} machine={edition.kind === 'machine' || edition.kind === 'mixed'} onClose={() => setAdding(false)} />}
+            {adding && <NewChapterSheet editionId={id} machine={canRun && (edition.kind === 'machine' || edition.kind === 'mixed')} onClose={() => setAdding(false)} />}
 
             <nav className={`${styles.menu} ${styles.editionMenu}`} aria-label="Керування">
                 {owner && <Link to="/studio/$editionId/about" params={params} className={styles.menuItem}>Дані й обкладинка</Link>}
                 <Link to="/team/$handle" params={{ handle: edition.teamHandle }} className={styles.menuItem}>Команда ${edition.teamHandle}</Link>
-                {translator && edition.kind === 'machine' && <Link to="/studio/$editionId/translate" params={params} className={styles.menuItem}>Автопереклад</Link>}
+                {canRun && translator && edition.kind === 'machine' && <Link to="/studio/$editionId/translate" params={params} className={styles.menuItem}>Автопереклад</Link>}
                 {translator && <Link to="/studio/$editionId/structure" params={params} className={styles.menuItem}>Структура й томи</Link>}
-                {edition.kind === 'machine' && <Link to="/studio/$editionId/glossary" params={params} className={styles.menuItem}>Словник</Link>}
-                {edition.kind === 'machine' && <Link to="/studio/$editionId/titles" params={params} className={styles.menuItem}>Назви глав</Link>}
+                {canRun && edition.kind === 'machine' && <Link to="/studio/$editionId/glossary" params={params} className={styles.menuItem}>Словник</Link>}
+                {canRun && edition.kind === 'machine' && <Link to="/studio/$editionId/titles" params={params} className={styles.menuItem}>Назви глав</Link>}
                 {owner && edition.kind !== 'original' && <Link to="/studio/$editionId/relay" params={params} className={styles.menuItem}>Естафета</Link>}
             </nav>
 

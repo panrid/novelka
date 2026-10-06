@@ -25,9 +25,12 @@ export function useMyShahs() {
     return useQuery({ queryKey: ['shahs', 1], queryFn: () => shahApi.mine(1), enabled: me !== null });
 }
 
-/** Whether the person may start runs paid from their шаги (the site owner always may). */
+/**
+ * Whether autotranslation and drawing are offered at all: the site owner always, others while
+ * they have шаги — to spend or held by a run still going, so they can follow it to the end.
+ */
 export function useCanRun(): boolean {
     const me = useMe();
     const shahs = useMyShahs();
-    return me?.role === 'owner' || (shahs.data?.available ?? 0) > 0;
+    return me?.role === 'owner' || (shahs.data?.available ?? 0) > 0 || (shahs.data?.reserved ?? 0) > 0;
 }

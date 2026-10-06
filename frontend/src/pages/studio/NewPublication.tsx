@@ -59,10 +59,11 @@ export function NewPublication() {
                     text="Ви перекладаєте самі. Далі — глави в редакторі або з файлів .txt і .md." />
                 <Choice on={kind === 'original'} onPick={() => setKind('original')} icon={<Sparkles size={22} />} title="Свій твір"
                     text="Ваша власна історія українською. Ви — автор." />
-                <Choice on={kind === 'syosetu'} onPick={() => setKind('syosetu')} disabled={!canRun} icon={<RefreshCw size={22} />}
-                    title="Автопереклад із Syosetu"
-                    text={canRun ? 'Вставте посилання — назву й опис перекладемо одразу, далі глави «до N».'
-                        : 'Запускається за шаги. Їх нараховує власник сайту.'} />
+                {canRun && (
+                    <Choice on={kind === 'syosetu'} onPick={() => setKind('syosetu')} icon={<RefreshCw size={22} />}
+                        title="Автопереклад із Syosetu"
+                        text="Вставте посилання — назву й опис перекладемо одразу, далі глави «до N»." />
+                )}
                 <Choice on={false} disabled icon={<ArrowRightLeft size={22} />} title="Продовжити покинутий"
                     text="Відкрийте новелу — якщо переклад вільний, там буде кнопка «Продовжити переклад»." />
             </div>

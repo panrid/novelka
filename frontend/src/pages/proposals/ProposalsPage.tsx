@@ -3,6 +3,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { ChevronUp } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { useMe } from '../../auth/me';
+import { useCanRun } from '../../ledger/api';
 import { plural } from '../../lib/plural';
 import { proposalApi, type Proposal, type ProposalSort } from '../../proposals/api';
 import { teamApi } from '../../studio/api';
@@ -47,6 +48,7 @@ export function ProposalsPage() {
         if (link.trim()) propose.mutate();
     };
     const [taking, setTaking] = useState<Proposal | null>(null);
+    const canRun = useCanRun();
     const [editing, setEditing] = useState<Proposal | null>(null);
 
     return (
@@ -93,10 +95,12 @@ export function ProposalsPage() {
             {list.data && <Pager page={page} total={list.data.total} size={PAGE} onPage={setPage} />}
 
             {taking && (
-                <TakeSheet proposal={taking} onClose={() => setTaking(null)}
+                <TakeSheet proposal={taking} auto={canRun} onClose={() => setTaking(null)}
                     onTaken={(editionId) => {
                         refresh();
-                        void navigate({ to: '/studio/$editionId/translate', params: { editionId: String(editionId) } });
+                        void navigate(canRun
+                            ? { to: '/studio/$editionId/translate', params: { editionId: String(editionId) } }
+                            : { to: '/studio/$editionId', params: { editionId: String(editionId) } });
                     }} />
             )}
             {editing && <EditSheet proposal={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); refresh(); }} />}
@@ -164,7 +168,7 @@ function ProposalCard({ item, signedIn, staff, onChanged, onTake, onEdit }: {
 }
 
 /** The team that takes it; the personal one when the person has no other. */
-function TakeSheet({ proposal, onClose, onTaken }: { proposal: Proposal; onClose: () => void; onTaken: (editionId: number) => void }) {
+function TakeSheet({ proposal, auto, onClose, onTaken }: { proposal: Proposal; auto: boolean; onClose: () => void; onTaken: (editionId: number) => void }) {
     const teams = useQuery({ queryKey: ['my-teams'], queryFn: teamApi.mine });
     const translating = (teams.data ?? []).filter((team) => team.role !== 'editor');
     const [team, setTeam] = useState('');
@@ -174,7 +178,7 @@ function TakeSheet({ proposal, onClose, onTaken }: { proposal: Proposal; onClose
         <Sheet open onClose={onClose} title={`Перекладати «${proposal.title}»`}>
             <div className={styles.sheetForm}>
                 <p className={styles.muted}>
-                    У Студії з'явиться переклад із назвою й описом, як тут. Глави можна перекладати вручну або автоперекладом.
+                    У Студії з'явиться переклад із назвою й описом, як тут. Глави можна перекладати {auto ? 'вручну або автоперекладом' : 'в редакторі'}.
                     Ті, хто голосував, отримають сповіщення.
                 </p>
                 {translating.length > 1 && (

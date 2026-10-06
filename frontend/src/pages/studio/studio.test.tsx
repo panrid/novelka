@@ -130,9 +130,10 @@ describe('new publication', () => {
 });
 
 describe('machine translation', () => {
-    it('leads any translator of it to the autotranslation, not only the site owner', async () => {
+    it('leads any translator with шаги to the autotranslation, not only the site owner', async () => {
         await renderAt('/studio/12', {
             'GET /api/me': { body: ME },
+            'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
             'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner' } },
             'GET /api/studio/editions/12/chapters': { body: [] },
             'GET /api/studio/editions/12/contributions': { body: [] },
@@ -143,10 +144,28 @@ describe('machine translation', () => {
     });
 });
 
+describe('without шаги', () => {
+    it('hides autotranslation and its glossary everywhere', async () => {
+        await renderAt('/studio/12', {
+            'GET /api/me': { body: ME },
+            'GET /api/me/shahs': { body: { available: 0, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
+            'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner' } },
+            'GET /api/studio/editions/12/chapters': { body: [] },
+            'GET /api/studio/editions/12/contributions': { body: [] },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Нова глава' }));
+        expect(screen.queryByRole('radio', { name: /Автопереклад/ })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Відкрити редактор' })).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Автопереклад' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Словник' })).not.toBeInTheDocument();
+    });
+});
+
 describe('studio side menu', () => {
     it('lists the translations and the open one\'s sections', async () => {
         await renderAt('/studio/12', {
             'GET /api/me': { body: ME },
+            'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
             'GET /api/studio': { body: [
                 { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', coverUrl: null, kind: 'machine', status: 'ongoing', chapterCount: 2,
                     teamHandle: 'mika', teamName: 'mika', role: 'owner', drafts: 0, pendingSuggestions: 3 },
@@ -169,6 +188,7 @@ describe('new chapter', () => {
     const EDITION = (kind: string) => ({ editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind, status: 'ongoing', adult: false, coverUrl: null, chapterCount: 2, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner' });
     const base = (kind: string) => ({
         'GET /api/me': { body: ME },
+        'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
         'GET /api/studio/editions/12': { body: EDITION(kind) },
         'GET /api/studio/editions/12/chapters': { body: [] },
         'GET /api/studio/editions/12/contributions': { body: [] },

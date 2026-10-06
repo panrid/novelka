@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useRouterState } from '@tanstack/react-router';
+import { useCanRun } from '../ledger/api';
 import { Cover } from '../reading/Cover';
 import { studioApi } from '../studio/api';
 import styles from './StudioRail.module.css';
@@ -16,7 +17,8 @@ export function StudioRail() {
     const at = (to: string) => (path === to ? styles.on : undefined);
     const base = `/studio/${openId}`;
     const params = { editionId: String(openId) };
-    const machine = open?.kind === 'machine' || open?.kind === 'mixed';
+    // Autotranslation and its glossary show only to those who can run it (шаги or the site owner).
+    const machine = useCanRun() && (open?.kind === 'machine' || open?.kind === 'mixed');
     const translator = open !== undefined && open.role !== 'editor';
     return (
         <nav className={styles.rail} aria-label="Студія">

@@ -71,12 +71,22 @@ describe('шаги without payments', () => {
         expect(screen.getByText(/заблокуємо 2 шаги, решту повернемо/)).toBeInTheDocument();
     });
 
-    it('opens autotranslation in «Нова публікація» only with шаги', async () => {
+    it('shows autotranslation in «Нова публікація» only to people with шаги', async () => {
         await renderAt('/studio/new', {
             'GET /api/me': { body: person('reader') },
             'GET /api/me/shahs': { body: { ...MINE, available: 0, reserved: 0 } },
             'GET /api/me/teams': { body: [] },
         });
-        expect(await screen.findByText('Запускається за шаги. Їх нараховує власник сайту.')).toBeInTheDocument();
+        expect(await screen.findByText('Свій переклад')).toBeInTheDocument();
+        expect(screen.queryByText('Автопереклад із Syosetu')).not.toBeInTheDocument();
+    });
+
+    it('keeps autotranslation while шаги are held by a run still going', async () => {
+        await renderAt('/studio/new', {
+            'GET /api/me': { body: person('reader') },
+            'GET /api/me/shahs': { body: { ...MINE, available: 0, reserved: 2 } },
+            'GET /api/me/teams': { body: [] },
+        });
+        expect(await screen.findByText('Автопереклад із Syosetu')).toBeInTheDocument();
     });
 });
