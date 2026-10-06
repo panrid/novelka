@@ -1,6 +1,7 @@
 package space.panrid.novelka.reading;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static space.panrid.novelka.support.Browser.json;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
