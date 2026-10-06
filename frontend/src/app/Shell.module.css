@@ -137,12 +137,22 @@
     min-width: 0;
 }
 
-/* The Studio on a wide screen: its side menu beside the page. */
+/* A section on a wide screen (the Studio, «Я», «Вхідні»): its side menu beside the page. */
 @media (min-width: 1024px) {
-    .studio {
+    .withRail {
         display: grid;
         grid-template-columns: 230px minmax(0, 1fr);
         gap: 32px;
         align-items: start;
+    }
+
+    /*
+     * Settings, lists and conversations read best in a column of a comfortable width, from the
+     * menu's edge rather than floating mid-screen; a page that needs the room says data-wide.
+     */
+    .capped .slot > :not([data-wide]) {
+        max-width: 760px;
+        margin-left: 0;
+        margin-right: 0;
     }
 }

@@ -4,6 +4,19 @@
     padding-top: 20px;
 }
 
+/* A profile: a phone column, and a comfortable reading width on a wide screen. */
+.column {
+    max-width: 440px;
+    margin: 0 auto;
+    padding-top: 20px;
+}
+
+@media (min-width: 1024px) {
+    .column {
+        max-width: 760px;
+    }
+}
+
 .title {
     font: 600 26px/1.2 var(--font-reading);
     margin-bottom: 6px;

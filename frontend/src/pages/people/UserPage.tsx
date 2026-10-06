@@ -24,7 +24,7 @@ export function UserPage() {
     }
     if (profile.isError) {
         return (
-            <section className={styles.narrow}>
+            <section className={styles.column}>
                 <Notice tone="error">{profile.error.message}</Notice>
             </section>
         );
@@ -35,7 +35,7 @@ export function UserPage() {
         return <Navigate to="/u/$nick" params={{ nick: person.nick }} replace />;
     }
     return (
-        <section className={styles.narrow}>
+        <section className={styles.column}>
             <div className={styles.row}>
                 <Avatar nick={person.nick} url={person.avatarUrl} size={80} />
                 <div>

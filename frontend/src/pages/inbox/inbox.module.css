@@ -9,6 +9,13 @@
     margin: 4px 0 12px;
 }
 
+/* A wide screen has these sections in the side menu. */
+@media (min-width: 1024px) {
+    .nav {
+        display: none;
+    }
+}
+
 .navItem {
     padding: 8px 14px;
     border-radius: 18px;

@@ -3,6 +3,11 @@
     padding-top: 12px;
 }
 
+/* A page of its own, not beside the Studio's menu (a team): in the middle of a wide screen. */
+.centered {
+    margin: 0 auto;
+}
+
 .title {
     font: 600 24px/1.2 var(--font-reading);
     margin: 0 0 6px;

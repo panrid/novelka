@@ -8,6 +8,7 @@ import { useInboxCounts, useLiveEvents } from '../inbox/live';
 import { Avatar } from '../ui/Avatar';
 import styles from './Shell.module.css';
 import { AskHost } from '../ui/ask';
+import { InboxRail, MeRail } from './SideRails';
 import { StudioRail } from './StudioRail';
 import { ToastHost } from '../ui/toast';
 import { useKeyboardInset } from '../ui/keyboard';
@@ -36,7 +37,10 @@ export function Shell() {
     const reading = useRouterState({
         select: (state) => /^\/n\/[^/]+\/\d+(\/propose)?\/?$|^\/studio\/\d+\/chapters\/\d+\/?$/.test(state.location.pathname),
     });
-    const studio = useRouterState({ select: (state) => /^\/studio(\/|$)/.test(state.location.pathname) }) && !reading;
+    // A wide screen shows a section's side menu beside its pages: the Studio, «Я» with
+    // administration, and «Вхідні».
+    const rail = useRouterState({ select: (state) => railOf(state.location.pathname) });
+    const side = reading ? null : rail;
     return (
         <div className={reading ? undefined : styles.shell}>
             <HeadContent />
@@ -50,8 +54,10 @@ export function Shell() {
                 </header>
             )}
             <main className={reading ? undefined : styles.main}>
-                <div className={studio ? styles.studio : undefined}>
-                    {studio && <StudioRail />}
+                <div className={side ? `${styles.withRail} ${side !== 'studio' ? styles.capped : ''}` : undefined}>
+                    {side === 'studio' && <StudioRail />}
+                    {side === 'me' && <MeRail />}
+                    {side === 'inbox' && <InboxRail />}
                     <div className={styles.slot}>
                         <Outlet />
                     </div>
@@ -62,6 +68,14 @@ export function Shell() {
             <ToastHost />
         </div>
     );
+}
+
+function railOf(path: string): 'studio' | 'me' | 'inbox' | null {
+    if (/^\/studio(\/|$)/.test(path)) return 'studio';
+    // «Я» itself is already a desk with its menu; its pages and administration get the side menu.
+    if (/^\/me\/.+/.test(path) || /^\/admin(\/|$)/.test(path)) return 'me';
+    if (/^\/inbox(\/|$)/.test(path)) return 'inbox';
+    return null;
 }
 
 /**

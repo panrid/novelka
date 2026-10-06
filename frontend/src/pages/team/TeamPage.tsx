@@ -16,11 +16,11 @@ export function TeamPage() {
     const { handle } = useParams({ strict: false }) as { handle: string };
     const team = useQuery({ queryKey: ['team', handle.toLowerCase()], queryFn: () => teamApi.page(handle) });
 
-    if (team.isError) return <section className={styles.page}><Notice tone="error">{team.error.message}</Notice></section>;
+    if (team.isError) return <section className={`${styles.page} ${styles.centered}`}><Notice tone="error">{team.error.message}</Notice></section>;
     if (!team.data) return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
     const data = team.data;
     return (
-        <section className={styles.page}>
+        <section className={`${styles.page} ${styles.centered}`}>
             <h1 className={styles.title}>{data.name}</h1>
             <p className={styles.muted}>${data.handle} · тегайте команду в коментарях як ${data.handle}</p>
 

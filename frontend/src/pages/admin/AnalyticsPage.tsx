@@ -43,7 +43,7 @@ export function AnalyticsPage() {
     });
     const data = report.data;
     return (
-        <section className={styles.page}>
+        <section className={styles.page} data-wide>
             <Link to="/admin" className={styles.muted}>‹ Адміністрування</Link>
             <h1 className={styles.title}>Аналітика</h1>
             <Segmented label="Період" value={days} options={PERIODS} onChange={setDays} />
