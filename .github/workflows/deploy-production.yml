@@ -109,18 +109,13 @@ jobs:
               run: |
                   ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p /opt/novelka/app /opt/novelka/infra'
                   scp -i ~/.ssh/deploy release/novelka.jar backend/Dockerfile "$TARGET:/opt/novelka/app/"
-                  scp -i ~/.ssh/deploy infra/production.compose.yaml infra/Caddyfile "$TARGET:/opt/novelka/infra/"
+                  scp -i ~/.ssh/deploy infra/production.compose.yaml infra/Caddyfile infra/deploy.sh "$TARGET:/opt/novelka/infra/"
             - name: Restart
               env:
                   TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
               run: |
-                  ssh -i ~/.ssh/deploy "$TARGET" '
-                      set -e
-                      cd /opt/novelka
-                      # The first version of the site ran as the Compose project "infra"; it gives way once.
-                      docker rm -f infra-app-1 infra-caddy-1 infra-postgres-1 2>/dev/null || true
-                      docker compose --env-file .env.production -f infra/production.compose.yaml up -d --build --remove-orphans
-                      docker compose --env-file .env.production -f infra/production.compose.yaml ps'
+                  # The new version starts beside the old one; the old stops once the new answers (infra/deploy.sh).
+                  ssh -i ~/.ssh/deploy "$TARGET" 'sh /opt/novelka/infra/deploy.sh'
             - name: Check the app and its database
               run: |
                   curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors \

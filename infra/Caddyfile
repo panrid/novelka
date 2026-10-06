@@ -1,7 +1,11 @@
 novelka.panrid.space {
     encode gzip
     # Live updates (/api/events) must reach the browser at once, not in buffered chunks.
+    # During a deploy «app» is two copies; the one going away refuses connections, and the
+    # request is tried again on the other instead of failing.
     reverse_proxy app:8080 {
         flush_interval -1
+        lb_try_duration 15s
+        lb_try_interval 250ms
     }
 }
