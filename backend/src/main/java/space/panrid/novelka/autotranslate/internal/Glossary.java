@@ -6,6 +6,7 @@ import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_FORM;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
+import static space.panrid.novelka.jooq.Tables.REVISION;
 import static space.panrid.novelka.jooq.Tables.SOURCE_CHAPTER;
 import static space.panrid.novelka.jooq.Tables.TEAM;
 
@@ -343,6 +344,79 @@ class Glossary {
         }
         return new Original(scope.language(), current == null ? null : current.getOriginal(),
                 current == null ? null : current.getReading(), aliases, others, number, snippet, link);
+    }
+
+    /** One chapter where the Ukrainian form is used: how often and a few places to see it. */
+    record Occurrence(int number, String label, String title, int count, List<String> snippets) {
+    }
+
+    record Occurrences(String form, int total, List<Occurrence> chapters) {
+    }
+
+    private record Published(int number, String label, String title, List<space.panrid.novelka.platform.text.Block> blocks) {
+    }
+
+    private List<Published> published(long editionId) {
+        return db.select(CHAPTER.NUMBER, CHAPTER.LABEL, REVISION.TITLE, REVISION.BLOCKS).from(CHAPTER)
+                .join(REVISION).on(REVISION.ID.eq(CHAPTER.PUBLISHED_REVISION_ID))
+                .where(CHAPTER.EDITION_ID.eq(editionId)).orderBy(CHAPTER.NUMBER)
+                .fetch(r -> new Published(r.value1(), r.value2(), r.value3(), json.readValue(r.value4().data(), BLOCKS)));
+    }
+
+    /** Every chapter of the translation that uses the entry's Ukrainian form, in any case (етап 17). */
+    Occurrences occurrences(long editionId, long entryId) {
+        String form = db.select(GLOSSARY_ENTRY.UKRAINIAN).from(GLOSSARY_ENTRY)
+                .where(GLOSSARY_ENTRY.ID.eq(entryId), GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId())).fetchOptional(GLOSSARY_ENTRY.UKRAINIAN)
+                .orElseThrow(() -> UserFacingException.notFound("Такого запису немає."));
+        return occurrencesOf(editionId, form);
+    }
+
+    Occurrences occurrencesOf(long editionId, String form) {
+        List<Occurrence> found = new ArrayList<>();
+        int total = 0;
+        for (Published chapter : published(editionId)) {
+            int count = 0;
+            List<String> snippets = new ArrayList<>();
+            for (var block : chapter.blocks()) {
+                String text = block.text();
+                for (int[] at : WordForms.find(text, form)) {
+                    count++;
+                    if (snippets.size() < 3) {
+                        int from = Math.max(0, at[0] - AROUND);
+                        int to = Math.min(text.length(), at[1] + AROUND);
+                        snippets.add((from > 0 ? "…" : "") + text.substring(from, to).strip() + (to < text.length() ? "…" : ""));
+                    }
+                }
+            }
+            if (count > 0) {
+                found.add(new Occurrence(chapter.number(), chapter.label() == null ? String.valueOf(chapter.number()) : chapter.label(),
+                        chapter.title(), count, snippets));
+                total += count;
+            }
+        }
+        return new Occurrences(form, total, found);
+    }
+
+    /** Every paragraph of the translation where {@code from} would become {@code to}, as it would read. */
+    List<space.panrid.novelka.suggestion.Suggestions.BlockChange> rewrite(long editionId, String from, String to) {
+        List<space.panrid.novelka.suggestion.Suggestions.BlockChange> changes = new ArrayList<>();
+        if (from == null || from.isBlank() || to == null || to.isBlank() || from.strip().equals(to.strip())) {
+            return changes;
+        }
+        for (Published chapter : published(editionId)) {
+            for (var block : chapter.blocks()) {
+                if (block.content() == null || WordForms.find(block.text(), from).isEmpty()) {
+                    continue;
+                }
+                List<space.panrid.novelka.platform.text.Span> spans = block.content().stream()
+                        .map(span -> new space.panrid.novelka.platform.text.Span(WordForms.replace(span.text(), from, to), span.marks()))
+                        .toList();
+                if (!spans.equals(block.content())) {
+                    changes.add(new space.panrid.novelka.suggestion.Suggestions.BlockChange(chapter.number(), block.id(), spans));
+                }
+            }
+        }
+        return changes;
     }
 
     /** The text around the first form found, cut at about a sentence either side. */

@@ -42,7 +42,7 @@ import tools.jackson.databind.json.JsonMapper;
  * reader, and everything accepted in a chapter becomes one new revision.
  */
 @Service
-class SuggestionService {
+class SuggestionService implements space.panrid.novelka.suggestion.Suggestions {
 
     record ChapterDraft(String title, List<Block> blocks) {
     }
@@ -163,6 +163,51 @@ class SuggestionService {
                 .set(SUGGESTION.UPDATED_AT, now)
                 .returning(SUGGESTION.ID)
                 .fetchOne(SUGGESTION.ID);
+    }
+
+    @Override
+    @Transactional
+    public int propose(Viewer author, long editionId, List<space.panrid.novelka.suggestion.Suggestions.BlockChange> changes, String note,
+            boolean acceptNow) {
+        if (changes.isEmpty()) {
+            return 0;
+        }
+        String cleanNote = note == null || note.isBlank() ? null : note.strip();
+        OffsetDateTime now = now();
+        long batch = db.insertInto(SUGGESTION_BATCH).set(SUGGESTION_BATCH.EDITION_ID, editionId)
+                .set(SUGGESTION_BATCH.AUTHOR_ID, author.accountId()).returning(SUGGESTION_BATCH.ID).fetchOne(SUGGESTION_BATCH.ID);
+        Map<Integer, List<Long>> byChapter = new LinkedHashMap<>();
+        Map<Integer, CurrentText> texts = new LinkedHashMap<>();
+        for (var change : changes) {
+            CurrentText text = texts.computeIfAbsent(change.chapterNumber(), number -> chapters.current(editionId, number));
+            Block block = text.blocks().stream().filter(b -> b.id().equals(change.blockId())).findFirst().orElse(null);
+            if (block == null || spans(change.proposed()).equals(block.content())) {
+                continue;
+            }
+            long id = db.insertInto(SUGGESTION)
+                    .set(SUGGESTION.CHAPTER_ID, text.chapterId())
+                    .set(SUGGESTION.BASE_REVISION_ID, text.revisionId())
+                    .set(SUGGESTION.AUTHOR_ID, author.accountId())
+                    .set(SUGGESTION.BATCH_ID, batch)
+                    .set(SUGGESTION.KIND, "block")
+                    .set(SUGGESTION.BLOCK_ID, change.blockId())
+                    .set(SUGGESTION.ORIGINAL_TEXT, block.text())
+                    .set(SUGGESTION.PROPOSED, JSONB.valueOf(json.writeValueAsString(spans(change.proposed()))))
+                    .set(SUGGESTION.NOTE, cleanNote)
+                    .set(SUGGESTION.STATE, "pending")
+                    .set(SUGGESTION.CREATED_AT, now)
+                    .set(SUGGESTION.UPDATED_AT, now)
+                    .returning(SUGGESTION.ID).fetchOne(SUGGESTION.ID);
+            byChapter.computeIfAbsent(change.chapterNumber(), number -> new java.util.ArrayList<>()).add(id);
+        }
+        int count = byChapter.values().stream().mapToInt(List::size).sum();
+        if (acceptNow) {
+            byChapter.forEach((number, ids) -> review(author, editionId, number,
+                    ids.stream().map(id -> new Decision(id, true, null)).toList(), cleanNote));
+        } else if (count > 0) {
+            events.publishEvent(new SuggestionsSubmitted(editionId, author.accountId(), count));
+        }
+        return count;
     }
 
     /** A draft or a sent suggestion the author takes back before it is reviewed. */

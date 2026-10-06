@@ -26,6 +26,29 @@ const FAILED_JOB = {
 
 afterEach(() => vi.unstubAllGlobals());
 
+describe('glossary word in the chapters', () => {
+    it('offers to change the old form in the translated chapters after an edit', async () => {
+        const { calls } = await renderAt('/studio/4/glossary', {
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/4/glossary': { body: { items: [{ id: 2, ukrainian: 'Рьо', kind: 'character', gender: 'male', note: null, chapter: 1, manual: false, status: 'approved' }],
+                total: 1, page: 1, hasMore: false, chapters: [1], labels: { 1: '0' }, counts: { new: 0, approved: 1, rejected: 0 } } },
+            'PUT /api/studio/editions/4/glossary/2': { status: 200 },
+            'GET /api/studio/editions/4/glossary/2/occurrences': { body: { form: 'Рьо', total: 5, chapters: [{ number: 1, label: '0', title: '', count: 5, snippets: [] }] } },
+            'POST /api/studio/editions/4/glossary/2/rewrite': { body: { paragraphs: 4, chapters: 1 } },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: /^Рьо/ }));
+        const field = screen.getByLabelText('Українською');
+        await userEvent.clear(field);
+        await userEvent.type(field, 'Ріо');
+        await userEvent.click(screen.getByRole('button', { name: 'Зберегти' }));
+        expect(await screen.findByText(/«Рьо» трапляється 5 раз\(и\) у 1 главах/)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Надіслати правками на перевірку' }));
+        expect(await screen.findByText(/Правок на перевірку: 4/)).toBeInTheDocument();
+        expect(calls.find((call) => call.path.endsWith('/rewrite'))?.body).toEqual({ from: 'Рьо', apply: false });
+        expect(calls.find((call) => call.path.endsWith('/occurrences') && call.query.includes('form='))).toBeDefined();
+    });
+});
+
 describe('autotranslate', () => {
     it('waits until the number is typed, then shows the price and starts', async () => {
         const { calls } = await renderAt('/studio/4/translate', {
@@ -163,6 +186,11 @@ describe('glossary', () => {
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/4/glossary': { body: page([entry(2, 'Рьо')]) },
             'POST /api/studio/editions/4/glossary/status': { body: { changed: 1 } },
+            'GET /api/studio/editions/4/glossary/2/occurrences': { body: { form: 'Рьо', total: 3, chapters: [
+                { number: 1, label: '0', title: 'Пролог', count: 2, snippets: ['…Рьо прокинувся…'] },
+                { number: 3, label: '2', title: 'Ліс', count: 1, snippets: [] },
+            ] } },
+            'GET /api/studio/editions/4': { body: { editionId: 4, novelSlug: 'mah-vody', title: 'Маг води', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 3, ownNovel: false, teamHandle: 'panrid', teamName: 'panrid', role: 'owner' } },
             'GET /api/studio/editions/4/glossary/2/original': { body: {
                 language: 'ja', original: 'リョウ', reading: 'りょう', aliases: [], others: [{ language: 'en', original: 'Ryo' }],
                 sourceChapter: 1, snippet: '…リョウは目を開けた…',
@@ -177,6 +205,9 @@ describe('glossary', () => {
         expect(await screen.findByText('リョウ')).toBeInTheDocument();
         expect(screen.getByText('…リョウは目を開けた…')).toBeInTheDocument();
         expect(screen.getByText('Ryo').parentElement).toHaveTextContent('Англійською: Ryo');
-        expect(screen.getByRole('link', { name: 'У тексті: глава 0 ›' }).getAttribute('href')).toContain('find=');
+        // Every chapter that uses the word, each opening it at the word.
+        const first = await screen.findByRole('link', { name: /Глава 0 · Пролог — 2/ });
+        expect(first.getAttribute('href')).toContain('find=');
+        expect(screen.getByText('У тексті: 3 раз(и) у 2 главах')).toBeInTheDocument();
     });
 });

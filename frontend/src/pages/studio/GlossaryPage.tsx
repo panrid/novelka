@@ -4,9 +4,12 @@ import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useDebounced } from '../../lib/useDebounced';
 import {
-    KIND_LABELS, autotranslateApi, inLanguage, type Gender, type GlossaryItem, type GlossaryKind, type GlossaryStatus,
+    KIND_LABELS, autotranslateApi, inLanguage, type Gender, type GlossaryOccurrences, type GlossaryItem, type GlossaryKind, type GlossaryStatus,
 } from '../../studio/autotranslate';
 import { Button } from '../../ui/Button';
+import { Sheet } from '../../ui/Sheet';
+import { askConfirm } from '../../ui/ask';
+import { studioApi } from '../../studio/api';
 import { Notice } from '../../ui/Notice';
 import { Pager } from '../../ui/Pager';
 import { Segmented } from '../../ui/Segmented';
@@ -165,7 +168,15 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
     const [kind, setKind] = useState<GlossaryKind>(entry.kind);
     const [gender, setGender] = useState<Gender>(entry.gender ?? 'unknown');
     const [note, setNote] = useState(entry.note ?? '');
-    const save = useMutation({ mutationFn: () => autotranslateApi.updateEntry(editionId, entry.id, { ukrainian, kind, gender, note }), onSuccess: onDone });
+    const [rewriting, setRewriting] = useState<GlossaryOccurrences | null>(null);
+    const save = useMutation({
+        mutationFn: async () => {
+            await autotranslateApi.updateEntry(editionId, entry.id, { ukrainian, kind, gender, note });
+            // A new Ukrainian form: offer to change the old one in the chapters already translated.
+            return ukrainian.trim() !== entry.ukrainian ? autotranslateApi.occurrences(editionId, entry.id, entry.ukrainian) : null;
+        },
+        onSuccess: (old) => { if (old && old.total > 0) setRewriting(old); else onDone(); },
+    });
     const reject = useMutation({ mutationFn: () => autotranslateApi.setStatus(editionId, [entry.id], 'rejected'), onSuccess: onDone });
     return (
         <form className={`${styles.form} ${styles.entry}`} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
@@ -187,6 +198,7 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
             <TextInput label="Примітка" value={note} onChange={setNote} hint="Хто це або що це — підказка для перекладу." />
             <OriginalBox editionId={editionId} entry={entry} />
             <p className={styles.muted}>Збережений запис стає затвердженим.</p>
+            {rewriting && <RewriteSheet editionId={editionId} entryId={entry.id} old={rewriting} to={ukrainian.trim()} onDone={onDone} />}
             {(save.error ?? reject.error) && <Notice tone="error">{(save.error ?? reject.error)!.message}</Notice>}
             <div className={styles.actions}>
                 <Button type="submit" pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти</Button>
@@ -196,6 +208,68 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
                 <Button variant="secondary" onPress={onDone}>Скасувати</Button>
             </div>
         </form>
+    );
+}
+
+/**
+ * «Оновити в перекладених главах» (етап 17): the old form changed to the new one in every chapter,
+ * as suggestions for the team to look through, or at once with a warning.
+ */
+function RewriteSheet({ editionId, entryId, old, to, onDone }: {
+    editionId: number; entryId: number; old: GlossaryOccurrences; to: string; onDone: () => void;
+}) {
+    const [result, setResult] = useState<{ paragraphs: number; apply: boolean } | null>(null);
+    const rewrite = useMutation({
+        mutationFn: (apply: boolean) => autotranslateApi.rewrite(editionId, entryId, old.form, apply),
+        onSuccess: (done, apply) => setResult({ paragraphs: done.paragraphs, apply }),
+    });
+    return (
+        <Sheet open onClose={onDone} title="Оновити в перекладених главах?">
+            <div style={{ display: 'grid', gap: 12 }}>
+                {result ? (
+                    <>
+                        <Notice tone="success">
+                            {result.apply ? `Змінено абзаців: ${result.paragraphs}. Читачі вже бачать нову форму.`
+                                : `Правок на перевірку: ${result.paragraphs}. Їх видно в Студії й у главах.`}
+                        </Notice>
+                        <Button onPress={onDone}>Готово</Button>
+                    </>
+                ) : (
+                    <>
+                        <p>«{old.form}» трапляється {old.total} раз(и) у {old.chapters.length} главах. Замінити на «{to}» з тим самим відмінком?</p>
+                        <p className={styles.muted}>Закінчення лишаються як були; рідкісні відмінки варто перевірити очима.</p>
+                        {rewrite.isError && <Notice tone="error">{rewrite.error.message}</Notice>}
+                        <Button onPress={() => rewrite.mutate(false)} pending={rewrite.isPending && rewrite.variables === false}>Надіслати правками на перевірку</Button>
+                        <Button variant="secondary" pending={rewrite.isPending && rewrite.variables === true} onPress={() => void askConfirm({
+                            title: 'Замінити одразу, без перевірки?',
+                            text: 'Зміни одразу побачать читачі. Вони збережуться в історії глав, і їх можна буде повернути.',
+                            confirmLabel: 'Замінити одразу', danger: true,
+                        }).then((yes) => { if (yes) rewrite.mutate(true); })}>Замінити одразу</Button>
+                        <Button variant="secondary" onPress={onDone}>Не змінювати текст</Button>
+                    </>
+                )}
+            </div>
+        </Sheet>
+    );
+}
+
+/** Every chapter that uses the word, with a few places to see it; each opens the chapter at the word. */
+function Occurrences({ editionId, entry }: { editionId: number; entry: GlossaryItem }) {
+    const found = useQuery({ queryKey: ['glossary-occurrences', editionId, entry.id, entry.ukrainian], queryFn: () => autotranslateApi.occurrences(editionId, entry.id) });
+    const edition = useQuery({ queryKey: ['studio-edition', editionId], queryFn: () => studioApi.overview(editionId) });
+    if (!found.data || !edition.data) return null;
+    if (found.data.total === 0) return <span className={styles.muted}>У перекладених главах цього слова ще немає.</span>;
+    return (
+        <div style={{ display: 'grid', gap: 6 }}>
+            <span className={styles.muted}>У тексті: {found.data.total} раз(и) у {found.data.chapters.length} главах</span>
+            {found.data.chapters.map((chapter) => (
+                <Link key={chapter.number} to="/n/$slug/$number" params={{ slug: edition.data!.novelSlug, number: String(chapter.number) }}
+                    search={{ t: edition.data!.teamHandle, find: entry.ukrainian }}>
+                    Глава {chapter.label}{chapter.title ? ` · ${chapter.title}` : ''} — {chapter.count} ›
+                    {chapter.snippets[0] && <span className={styles.snippet} style={{ display: 'block' }}>{chapter.snippets[0]}</span>}
+                </Link>
+            ))}
+        </div>
     );
 }
 
@@ -231,14 +305,7 @@ function OriginalBox({ editionId, entry }: { editionId: number; entry: GlossaryI
                                 </div>
                             ))}
                             {data.snippet && <p className={styles.snippet} lang="und">{data.snippet}</p>}
-                            {data.chapter ? (
-                                <Link to="/n/$slug/$number" params={{ slug: data.chapter.slug, number: String(data.chapter.number) }}
-                                    search={{ t: data.chapter.team, find: entry.ukrainian }}>
-                                    У тексті: глава {data.chapter.label} ›
-                                </Link>
-                            ) : data.sourceChapter ? (
-                                <span className={styles.muted}>Глава {data.sourceChapter} оригіналу ще не перекладена.</span>
-                            ) : null}
+                            <Occurrences editionId={editionId} entry={entry} />
                         </>
                     )}
                 </div>

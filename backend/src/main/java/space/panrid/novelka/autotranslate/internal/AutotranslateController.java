@@ -48,9 +48,11 @@ class AutotranslateController {
     private final Analyses analyses;
     private final Ledger ledger;
     private final Sources sources;
+    private final space.panrid.novelka.suggestion.Suggestions suggestions;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
-            Teams teams, Analyses analyses, Ledger ledger, Sources sources) {
+            Teams teams, Analyses analyses, Ledger ledger, Sources sources, space.panrid.novelka.suggestion.Suggestions suggestions) {
+        this.suggestions = suggestions;
         this.sources = sources;
         this.ledger = ledger;
         this.teams = teams;
@@ -311,6 +313,36 @@ class AutotranslateController {
     Glossary.Original original(@PathVariable long editionId, @PathVariable long entryId) {
         access.requireTextEditor(editionId);
         return glossary.original(editionId, entryId);
+    }
+
+    /** Every chapter where the entry's Ukrainian form is used, in any case (етап 17). */
+    @GetMapping("/editions/{editionId}/glossary/{entryId}/occurrences")
+    Glossary.Occurrences occurrences(@PathVariable long editionId, @PathVariable long entryId,
+            @RequestParam(required = false) String form) {
+        access.requireTextEditor(editionId);
+        Glossary.Occurrences current = glossary.occurrences(editionId, entryId);
+        // Another form (the one before an edit) is looked up the same way, to say what changing it touches.
+        return form == null || form.isBlank() ? current : glossary.occurrencesOf(editionId, form.strip());
+    }
+
+    /**
+     * @param from  the Ukrainian form the text has now
+     * @param apply true: change the chapters at once; otherwise the changes go to the team as suggestions
+     */
+    record Rewrite(String from, boolean apply) {
+    }
+
+    record Rewritten(int paragraphs, int chapters) {
+    }
+
+    /** «Оновити в перекладених главах»: the entry's old form turned into its new one everywhere. */
+    @PostMapping("/editions/{editionId}/glossary/{entryId}/rewrite")
+    Rewritten rewrite(@PathVariable long editionId, @PathVariable long entryId, @RequestBody Rewrite body) {
+        Viewer viewer = access.requireTextEditor(editionId).viewer();
+        String to = glossary.occurrences(editionId, entryId).form();
+        List<space.panrid.novelka.suggestion.Suggestions.BlockChange> changes = glossary.rewrite(editionId, body.from(), to);
+        int paragraphs = suggestions.propose(viewer, editionId, changes, "Словник: «%s» → «%s»".formatted(body.from(), to), body.apply());
+        return new Rewritten(paragraphs, (int) changes.stream().mapToInt(space.panrid.novelka.suggestion.Suggestions.BlockChange::chapterNumber).distinct().count());
     }
 
     @DeleteMapping("/editions/{editionId}/glossary/{entryId}")

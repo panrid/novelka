@@ -59,6 +59,11 @@ export function inLanguage(code: string): string {
     return LANGUAGES[code] ?? code;
 }
 
+export type GlossaryOccurrences = {
+    form: string; total: number;
+    chapters: { number: number; label: string; title: string; count: number; snippets: string[] }[];
+};
+
 export type GlossaryPage = {
     items: GlossaryItem[]; total: number; page: number; hasMore: boolean; chapters: number[]; labels: Record<number, string>; counts: Record<GlossaryStatus, number>;
 };
@@ -105,6 +110,12 @@ export const autotranslateApi = {
     updateEntry: (id: number, entryId: number, body: { ukrainian: string; kind: GlossaryKind; gender: Gender | null; note: string }) =>
         api<void>(`${base(id)}/glossary/${entryId}`, json('PUT', body)),
     original: (id: number, entryId: number) => api<GlossaryOriginal>(`${base(id)}/glossary/${entryId}/original`),
+    /** Chapters using the entry's Ukrainian form (or {@code form}, such as the one before an edit), in any case. */
+    occurrences: (id: number, entryId: number, form?: string) =>
+        api<GlossaryOccurrences>(`${base(id)}/glossary/${entryId}/occurrences${form ? `?form=${encodeURIComponent(form)}` : ''}`),
+    /** The old form turned into the entry's new one in every chapter: as suggestions, or at once. */
+    rewrite: (id: number, entryId: number, from: string, apply: boolean) =>
+        api<{ paragraphs: number; chapters: number }>(`${base(id)}/glossary/${entryId}/rewrite`, json('POST', { from, apply })),
     deleteEntry: (id: number, entryId: number) => api<void>(`${base(id)}/glossary/${entryId}`, { method: 'DELETE' }),
     wallet: (days = 30) => api<Wallet>(`/api/studio/autotranslate/wallet?days=${days}`),
     saveSettings: (settings: Settings) => api<void>('/api/studio/autotranslate/settings', json('PUT', settings)),
