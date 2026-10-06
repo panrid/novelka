@@ -59,3 +59,19 @@ button {
         scroll-padding-bottom: calc(var(--tabbar-height) + var(--safe-bottom) + 16px);
     }
 }
+
+/*
+ * The page as the server sends it for search engines (етап 16), seen for a moment before the
+ * app starts: a calm reading column rather than raw text.
+ */
+.prerendered {
+    max-width: var(--reading-width);
+    margin: 0 auto;
+    padding: 24px var(--gutter);
+    color: var(--text-reading);
+    font: 17px/1.7 var(--font-reading);
+}
+
+.prerendered a {
+    color: var(--accent);
+}

@@ -39,7 +39,7 @@ class ApplicationTests {
 
     @Test
     void pagePathsServeTheWebApp() {
-        ResponseEntity<String> response = http.getForEntity("/n/mag-vody/12", String.class);
+        ResponseEntity<String> response = http.getForEntity("/u/mika", String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getHeaders().getContentType()).isNotNull()
