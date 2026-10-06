@@ -399,6 +399,25 @@ class Glossary {
 
     /** Every paragraph of the translation where {@code from} would become {@code to}, as it would read. */
     List<space.panrid.novelka.suggestion.Suggestions.BlockChange> rewrite(long editionId, String from, String to) {
+        return rewrite(editionId, from, to, new java.util.HashMap<>());
+    }
+
+    /** Paragraphs that name the form, as they are, for a model to look through (gender, етап 17). */
+    List<space.panrid.novelka.suggestion.Suggestions.BlockChange> naming(long editionId, String form) {
+        List<space.panrid.novelka.suggestion.Suggestions.BlockChange> out = new ArrayList<>();
+        for (Published chapter : published(editionId)) {
+            for (var block : chapter.blocks()) {
+                if (block.content() != null && block.content().size() == 1 && !WordForms.find(block.text(), form).isEmpty()) {
+                    out.add(new space.panrid.novelka.suggestion.Suggestions.BlockChange(chapter.number(), block.id(), block.content()));
+                }
+            }
+        }
+        return out;
+    }
+
+    /** @param originals filled with each changed paragraph's text before the change, by «chapter:block» */
+    List<space.panrid.novelka.suggestion.Suggestions.BlockChange> rewrite(long editionId, String from, String to,
+            Map<String, String> originals) {
         List<space.panrid.novelka.suggestion.Suggestions.BlockChange> changes = new ArrayList<>();
         if (from == null || from.isBlank() || to == null || to.isBlank() || from.strip().equals(to.strip())) {
             return changes;
@@ -413,6 +432,7 @@ class Glossary {
                         .toList();
                 if (!spans.equals(block.content())) {
                     changes.add(new space.panrid.novelka.suggestion.Suggestions.BlockChange(chapter.number(), block.id(), spans));
+                    originals.put(chapter.number() + ":" + block.id(), block.text());
                 }
             }
         }

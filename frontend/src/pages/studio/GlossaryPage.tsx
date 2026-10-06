@@ -1,13 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, X } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useDebounced } from '../../lib/useDebounced';
 import {
     KIND_LABELS, autotranslateApi, inLanguage, type Gender, type GlossaryOccurrences, type GlossaryItem, type GlossaryKind, type GlossaryStatus,
 } from '../../studio/autotranslate';
 import { Button } from '../../ui/Button';
 import { Sheet } from '../../ui/Sheet';
+import { Toggle } from '../../ui/Toggle';
+import { useCanRun } from '../../ledger/api';
 import { askConfirm } from '../../ui/ask';
 import { studioApi } from '../../studio/api';
 import { Notice } from '../../ui/Notice';
@@ -169,14 +171,22 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
     const [gender, setGender] = useState<Gender>(entry.gender ?? 'unknown');
     const [note, setNote] = useState(entry.note ?? '');
     const [rewriting, setRewriting] = useState<GlossaryOccurrences | null>(null);
+    const [regendering, setRegendering] = useState(false);
+    const genderChanged = gender !== (entry.gender ?? 'unknown') && gender !== 'unknown';
     const save = useMutation({
         mutationFn: async () => {
             await autotranslateApi.updateEntry(editionId, entry.id, { ukrainian, kind, gender, note });
             // A new Ukrainian form: offer to change the old one in the chapters already translated.
             return ukrainian.trim() !== entry.ukrainian ? autotranslateApi.occurrences(editionId, entry.id, entry.ukrainian) : null;
         },
-        onSuccess: (old) => { if (old && old.total > 0) setRewriting(old); else onDone(); },
+        onSuccess: (old) => {
+            if (old && old.total > 0) setRewriting(old);
+            else if (genderChanged) setRegendering(true);
+            else onDone();
+        },
     });
+    // After the name, the gender: the words about the character follow it.
+    const afterRewrite = () => { setRewriting(null); if (genderChanged) setRegendering(true); else onDone(); };
     const reject = useMutation({ mutationFn: () => autotranslateApi.setStatus(editionId, [entry.id], 'rejected'), onSuccess: onDone });
     return (
         <form className={`${styles.form} ${styles.entry}`} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
@@ -198,7 +208,8 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
             <TextInput label="Примітка" value={note} onChange={setNote} hint="Хто це або що це — підказка для перекладу." />
             <OriginalBox editionId={editionId} entry={entry} />
             <p className={styles.muted}>Збережений запис стає затвердженим.</p>
-            {rewriting && <RewriteSheet editionId={editionId} entryId={entry.id} old={rewriting} to={ukrainian.trim()} onDone={onDone} />}
+            {rewriting && <RewriteSheet editionId={editionId} entryId={entry.id} old={rewriting} to={ukrainian.trim()} onDone={afterRewrite} />}
+            {regendering && <GenderSheet editionId={editionId} entry={{ ...entry, ukrainian: ukrainian.trim(), gender }} onDone={onDone} />}
             {(save.error ?? reject.error) && <Notice tone="error">{(save.error ?? reject.error)!.message}</Notice>}
             <div className={styles.actions}>
                 <Button type="submit" pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти</Button>
@@ -219,8 +230,10 @@ function RewriteSheet({ editionId, entryId, old, to, onDone }: {
     editionId: number; entryId: number; old: GlossaryOccurrences; to: string; onDone: () => void;
 }) {
     const [result, setResult] = useState<{ paragraphs: number; apply: boolean } | null>(null);
+    const canRun = useCanRun();
+    const [agree, setAgree] = useState(false);
     const rewrite = useMutation({
-        mutationFn: (apply: boolean) => autotranslateApi.rewrite(editionId, entryId, old.form, apply),
+        mutationFn: (apply: boolean) => autotranslateApi.rewrite(editionId, entryId, old.form, apply, canRun && agree),
         onSuccess: (done, apply) => setResult({ paragraphs: done.paragraphs, apply }),
     });
     return (
@@ -238,6 +251,12 @@ function RewriteSheet({ editionId, entryId, old, to, onDone }: {
                     <>
                         <p>«{old.form}» трапляється {old.total} раз(и) у {old.chapters.length} главах. Замінити на «{to}» з тим самим відмінком?</p>
                         <p className={styles.muted}>Закінчення лишаються як були; рідкісні відмінки варто перевірити очима.</p>
+                        {canRun && (
+                            <Toggle label="Підігнати відмінки ШІ" isSelected={agree} onChange={setAgree} />
+                        )}
+                        {canRun && agree && (
+                            <p className={styles.muted}>Модель виправить лише нове слово й слова, що з ним узгоджуються. Платиться шагами за фактом, зазвичай 1 шаг.</p>
+                        )}
                         {rewrite.isError && <Notice tone="error">{rewrite.error.message}</Notice>}
                         <Button onPress={() => rewrite.mutate(false)} pending={rewrite.isPending && rewrite.variables === false}>Надіслати правками на перевірку</Button>
                         <Button variant="secondary" pending={rewrite.isPending && rewrite.variables === true} onPress={() => void askConfirm({
@@ -246,6 +265,51 @@ function RewriteSheet({ editionId, entryId, old, to, onDone }: {
                             confirmLabel: 'Замінити одразу', danger: true,
                         }).then((yes) => { if (yes) rewrite.mutate(true); })}>Замінити одразу</Button>
                         <Button variant="secondary" onPress={onDone}>Не змінювати текст</Button>
+                    </>
+                )}
+            </div>
+        </Sheet>
+    );
+}
+
+/**
+ * The character's gender changed (етап 17): where they are named, for fixing by hand, and with
+ * шаги a model that makes the words about them agree, as suggestions or at once.
+ */
+function GenderSheet({ editionId, entry, onDone }: { editionId: number; entry: GlossaryItem; onDone: () => void }) {
+    const canRun = useCanRun();
+    const [result, setResult] = useState<{ paragraphs: number; apply: boolean } | null>(null);
+    const fix = useMutation({
+        mutationFn: (apply: boolean) => autotranslateApi.regender(editionId, entry.id, apply),
+        onSuccess: (done, apply) => setResult({ paragraphs: done.paragraphs, apply }),
+    });
+    return (
+        <Sheet open onClose={onDone} title={`Рід: ${GENDER_LABELS[entry.gender ?? 'unknown']}`} tall>
+            <div style={{ display: 'grid', gap: 12 }}>
+                {result ? (
+                    <>
+                        <Notice tone="success">
+                            {result.paragraphs === 0 ? 'Модель не знайшла, що змінювати.'
+                                : result.apply ? `Змінено абзаців: ${result.paragraphs}.` : `Правок на перевірку: ${result.paragraphs}.`}
+                        </Notice>
+                        <Button onPress={onDone}>Готово</Button>
+                    </>
+                ) : (
+                    <>
+                        <p>Дієслова, прикметники й займенники про «{entry.ukrainian}» у вже перекладених главах могли лишитися в іншому роді.</p>
+                        {canRun ? (
+                            <>
+                                <p className={styles.muted}>Модель перегляне абзаци з цим іменем і виправить лише слова про цього персонажа. Платиться шагами за фактом.</p>
+                                {fix.isError && <Notice tone="error">{fix.error.message}</Notice>}
+                                <Button onPress={() => fix.mutate(false)} pending={fix.isPending && fix.variables === false}>Виправити ШІ правками на перевірку</Button>
+                                <Button variant="secondary" pending={fix.isPending && fix.variables === true} onPress={() => void askConfirm({
+                                    title: 'Виправити одразу, без перевірки?', text: 'Зміни одразу побачать читачі; вони збережуться в історії глав.',
+                                    confirmLabel: 'Виправити одразу', danger: true,
+                                }).then((yes) => { if (yes) fix.mutate(true); })}>Виправити ШІ одразу</Button>
+                            </>
+                        ) : <p className={styles.muted}>Виправте вручну: нижче всі місця, де згадано цього персонажа.</p>}
+                        <Occurrences editionId={editionId} entry={entry} />
+                        <Button variant="secondary" onPress={onDone}>Готово</Button>
                     </>
                 )}
             </div>
@@ -269,6 +333,15 @@ function Occurrences({ editionId, entry }: { editionId: number; entry: GlossaryI
                     {chapter.snippets[0] && <span className={styles.snippet} style={{ display: 'block' }}>{chapter.snippets[0]}</span>}
                 </Link>
             ))}
+            {found.data.chapters.length > 0 && (
+                <span className={styles.muted}>У редакторі: {found.data.chapters.map((chapter, index) => (
+                    <Fragment key={chapter.number}>{index > 0 && ', '}
+                        <Link to="/studio/$editionId/chapters/$number" params={{ editionId: String(editionId), number: String(chapter.number) }}>
+                            гл. {chapter.label}
+                        </Link>
+                    </Fragment>
+                ))}</span>
+            )}
         </div>
     );
 }

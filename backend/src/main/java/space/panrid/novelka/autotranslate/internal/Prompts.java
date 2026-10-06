@@ -77,6 +77,27 @@ final class Prompts {
             the first 4 characters of that block's original, copied exactly. Never move text between blocks.
             Readings written as 漢字《かんじ》 are hints; they never appear in the translation.""";
 
+    /** After a glossary word was changed in finished chapters: agreement only, nothing else. */
+    static String agreement(String from, String to) {
+        return """
+                You are a Ukrainian copy editor. In these paragraphs of a translated novel the word or name «%s» was
+                mechanically replaced by «%s», keeping the old endings, so the grammar may now be wrong.
+                Fix only the grammatical agreement of «%s» and of the words that agree with it (case, gender, number,
+                verb endings). Do not change anything else: no other words, no punctuation, no style.
+                Return every id exactly once with its full text.""".formatted(from, to, to);
+    }
+
+    /** A character's gender changed in the glossary: only what refers to them follows. */
+    static String gender(String name, String gender) {
+        String now = "female".equals(gender) ? "a woman or a girl (feminine)" : "male".equals(gender) ? "a man or a boy (masculine)" : "of unknown gender";
+        return """
+                You are a Ukrainian copy editor. In these paragraphs of a translated novel the character «%s» is %s,
+                but the text may treat them as the other gender. Fix only the words that refer to «%s»: verb endings in
+                the past tense, adjectives, participles and pronouns. Do not change anything else: no other words or
+                characters, no punctuation, no style. If a paragraph is already right, return it unchanged.
+                Return every id exactly once with its full text.""".formatted(name, now, name);
+    }
+
     // ---- schemas ----------------------------------------------------------------------------
 
     private static Map<String, Object> object(Map<String, Object> properties) {

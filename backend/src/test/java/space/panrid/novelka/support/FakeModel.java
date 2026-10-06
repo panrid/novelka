@@ -87,6 +87,7 @@ public class FakeModel implements AiTransport {
         JsonNode request = JSON.readTree(body);
         String schema = request.path("response_format").path("json_schema").path("name").asString("");
         String user = request.path("messages").path(1).path("content").asString();
+        String system = request.path("messages").path(0).path("content").asString();
         calls.add(schema);
         requests.add(request);
         Trouble trouble = troubles.poll();
@@ -125,6 +126,18 @@ public class FakeModel implements AiTransport {
                         "known", english && unlinked.find()
                                 ? List.of(Map.of("id", Long.parseLong(unlinked.group(1)), "original", "Yuki"))
                                 : List.of());
+            }
+            case "agreement" -> {
+                // Puts «Мірелєю» right; asked about a paragraph marked ЗАЙВЕ, it rewrites the whole thing.
+                List<Map<String, String>> blocks = new ArrayList<>();
+                for (JsonNode block : JSON.readTree(user)) {
+                    String text = block.path("text").asString();
+                    blocks.add(Map.of("id", block.path("id").asString(), "start", "",
+                            "text", text.contains("ЗАЙВЕ") ? "Зовсім інший текст, якого тут не було і бути не могло."
+                                    : system.contains("(feminine)") ? text.replace("пішов", "пішла").replace("сміливий", "смілива")
+                                    : text.replace("Мірелєю", "Мірелою")));
+                }
+                yield Map.of("blocks", blocks);
             }
             case "translation" -> {
                 List<Map<String, String>> blocks = new ArrayList<>();

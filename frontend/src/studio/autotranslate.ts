@@ -114,8 +114,11 @@ export const autotranslateApi = {
     occurrences: (id: number, entryId: number, form?: string) =>
         api<GlossaryOccurrences>(`${base(id)}/glossary/${entryId}/occurrences${form ? `?form=${encodeURIComponent(form)}` : ''}`),
     /** The old form turned into the entry's new one in every chapter: as suggestions, or at once. */
-    rewrite: (id: number, entryId: number, from: string, apply: boolean) =>
-        api<{ paragraphs: number; chapters: number }>(`${base(id)}/glossary/${entryId}/rewrite`, json('POST', { from, apply })),
+    /** The entry's gender changed: a model makes the words about the character agree, as suggestions or at once. */
+    regender: (id: number, entryId: number, apply: boolean) =>
+        api<{ paragraphs: number; chapters: number }>(`${base(id)}/glossary/${entryId}/regender`, json('POST', { apply })),
+    rewrite: (id: number, entryId: number, from: string, apply: boolean, ai = false) =>
+        api<{ paragraphs: number; chapters: number }>(`${base(id)}/glossary/${entryId}/rewrite`, json('POST', { from, apply, ai })),
     deleteEntry: (id: number, entryId: number) => api<void>(`${base(id)}/glossary/${entryId}`, { method: 'DELETE' }),
     wallet: (days = 30) => api<Wallet>(`/api/studio/autotranslate/wallet?days=${days}`),
     saveSettings: (settings: Settings) => api<void>('/api/studio/autotranslate/settings', json('PUT', settings)),

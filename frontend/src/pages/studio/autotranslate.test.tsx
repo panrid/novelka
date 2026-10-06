@@ -44,8 +44,30 @@ describe('glossary word in the chapters', () => {
         expect(await screen.findByText(/«Рьо» трапляється 5 раз\(и\) у 1 главах/)).toBeInTheDocument();
         await userEvent.click(screen.getByRole('button', { name: 'Надіслати правками на перевірку' }));
         expect(await screen.findByText(/Правок на перевірку: 4/)).toBeInTheDocument();
-        expect(calls.find((call) => call.path.endsWith('/rewrite'))?.body).toEqual({ from: 'Рьо', apply: false });
+        expect(calls.find((call) => call.path.endsWith('/rewrite'))?.body).toEqual({ from: 'Рьо', apply: false, ai: false });
         expect(calls.find((call) => call.path.endsWith('/occurrences') && call.query.includes('form='))).toBeDefined();
+    });
+});
+
+describe('a character\'s gender changed', () => {
+    it('lists where they are named and lets the model make the words agree', async () => {
+        const { calls } = await renderAt('/studio/4/glossary', {
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/4/glossary': { body: { items: [{ id: 2, ukrainian: 'Сашко', kind: 'character', gender: 'male', note: null, chapter: 1, manual: false, status: 'approved' }],
+                total: 1, page: 1, hasMore: false, chapters: [1], labels: { 1: '1' }, counts: { new: 0, approved: 1, rejected: 0 } } },
+            'PUT /api/studio/editions/4/glossary/2': { status: 200 },
+            'GET /api/studio/editions/4/glossary/2/occurrences': { body: { form: 'Сашко', total: 2, chapters: [{ number: 1, label: '1', title: 'Сніг', count: 2, snippets: ['Сашко пішов…'] }] } },
+            'GET /api/studio/editions/4': { body: { editionId: 4, novelSlug: 'mah-vody', title: 'Маг води', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 3, ownNovel: false, teamHandle: 'panrid', teamName: 'panrid', role: 'owner' } },
+            'POST /api/studio/editions/4/glossary/2/regender': { body: { paragraphs: 1, chapters: 1 } },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: /^Сашко/ }));
+        await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Рід' }), 'female');
+        await userEvent.click(screen.getByRole('button', { name: 'Зберегти' }));
+        const sheet = await screen.findByRole('dialog', { name: 'Рід: жіночий' });
+        expect(await within(sheet).findByRole('link', { name: 'гл. 1' })).toHaveAttribute('href', '/studio/4/chapters/1');
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Виправити ШІ правками на перевірку' }));
+        expect(await within(sheet).findByText('Правок на перевірку: 1.')).toBeInTheDocument();
+        expect(calls.find((call) => call.path.endsWith('/regender'))?.body).toEqual({ apply: false });
     });
 });
 

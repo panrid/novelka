@@ -4,6 +4,7 @@ import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import org.jooq.DSLContext;
 import org.springframework.http.HttpStatus;
@@ -49,9 +50,12 @@ class AutotranslateController {
     private final Ledger ledger;
     private final Sources sources;
     private final space.panrid.novelka.suggestion.Suggestions suggestions;
+    private final Agreement agreement;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
-            Teams teams, Analyses analyses, Ledger ledger, Sources sources, space.panrid.novelka.suggestion.Suggestions suggestions) {
+            Teams teams, Analyses analyses, Ledger ledger, Sources sources, space.panrid.novelka.suggestion.Suggestions suggestions,
+            Agreement agreement) {
+        this.agreement = agreement;
         this.suggestions = suggestions;
         this.sources = sources;
         this.ledger = ledger;
@@ -329,7 +333,7 @@ class AutotranslateController {
      * @param from  the Ukrainian form the text has now
      * @param apply true: change the chapters at once; otherwise the changes go to the team as suggestions
      */
-    record Rewrite(String from, boolean apply) {
+    record Rewrite(String from, boolean apply, Boolean ai) {
     }
 
     record Rewritten(int paragraphs, int chapters) {
@@ -340,9 +344,41 @@ class AutotranslateController {
     Rewritten rewrite(@PathVariable long editionId, @PathVariable long entryId, @RequestBody Rewrite body) {
         Viewer viewer = access.requireTextEditor(editionId).viewer();
         String to = glossary.occurrences(editionId, entryId).form();
-        List<space.panrid.novelka.suggestion.Suggestions.BlockChange> changes = glossary.rewrite(editionId, body.from(), to);
+        Map<String, String> originals = new java.util.HashMap<>();
+        List<space.panrid.novelka.suggestion.Suggestions.BlockChange> changes = glossary.rewrite(editionId, body.from(), to, originals);
+        if (Boolean.TRUE.equals(body.ai()) && !changes.isEmpty()) {
+            // The site owner's runs are the site's; anyone else pays from their шаги (рішення 29).
+            Long payer = personal(viewer) ? viewer.accountId() : null;
+            if (payer != null && ledger.balance(payer).available() < 1) {
+                throw UserFacingException.badRequest("Вичитка ШІ — за шаги, а у вас їх поки немає.");
+            }
+            changes = agreement.fix(changes, originals, body.from(), to, payer);
+        }
         int paragraphs = suggestions.propose(viewer, editionId, changes, "Словник: «%s» → «%s»".formatted(body.from(), to), body.apply());
         return new Rewritten(paragraphs, (int) changes.stream().mapToInt(space.panrid.novelka.suggestion.Suggestions.BlockChange::chapterNumber).distinct().count());
+    }
+
+    record Regender(boolean apply) {
+    }
+
+    /**
+     * The entry's gender changed: a model makes the words about the character agree in every
+     * chapter that names them; the rest is for people, from the list of places.
+     */
+    @PostMapping("/editions/{editionId}/glossary/{entryId}/regender")
+    Rewritten regender(@PathVariable long editionId, @PathVariable long entryId, @RequestBody Regender body) {
+        Viewer viewer = access.requireTextEditor(editionId).viewer();
+        Glossary.Entry entry = glossary.all(editionId).stream().filter(e -> e.id() == entryId).findFirst()
+                .orElseThrow(() -> UserFacingException.notFound("Такого запису немає."));
+        Long payer = personal(viewer) ? viewer.accountId() : null;
+        if (payer != null && ledger.balance(payer).available() < 1) {
+            throw UserFacingException.badRequest("Вичитка ШІ — за шаги, а у вас їх поки немає.");
+        }
+        List<space.panrid.novelka.suggestion.Suggestions.BlockChange> paragraphs = glossary.naming(editionId, entry.ukrainian());
+        List<space.panrid.novelka.suggestion.Suggestions.BlockChange> changes = paragraphs.isEmpty() ? List.of()
+                : agreement.regender(paragraphs, entry.ukrainian(), entry.gender(), payer);
+        int count = suggestions.propose(viewer, editionId, changes, "Словник: рід «%s»".formatted(entry.ukrainian()), body.apply());
+        return new Rewritten(count, (int) changes.stream().mapToInt(space.panrid.novelka.suggestion.Suggestions.BlockChange::chapterNumber).distinct().count());
     }
 
     @DeleteMapping("/editions/{editionId}/glossary/{entryId}")
