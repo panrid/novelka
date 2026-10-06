@@ -152,6 +152,37 @@ class RelayService implements Relay {
         return new EditionRef(old.value1(), editionId, old.value4());
     }
 
+    @Override
+    @Transactional
+    public EditionRef ownEdition(String novelSlug, long teamId, Long after) {
+        var novel = db.select(NOVEL.ID, NOVEL.SOURCE, NOVEL.SLUG).from(NOVEL).where(NOVEL.SLUG.eq(novelSlug)).fetchOptional()
+                .orElseThrow(() -> UserFacingException.notFound("Такої новели немає."));
+        if ("original".equals(novel.value2())) {
+            throw UserFacingException.badRequest("Це оригінальний твір автора, його не перекладають.");
+        }
+        if (db.fetchExists(EDITION, EDITION.NOVEL_ID.eq(novel.value1()).and(EDITION.TEAM_ID.eq(teamId)))) {
+            throw UserFacingException.conflict("У вашої команди вже є переклад цієї новели.");
+        }
+        int first = 1;
+        boolean adult = db.fetchExists(EDITION, EDITION.NOVEL_ID.eq(novel.value1()).and(EDITION.ADULT.isTrue()));
+        if (after != null) {
+            if (!db.fetchExists(EDITION, EDITION.ID.eq(after).and(EDITION.NOVEL_ID.eq(novel.value1())))) {
+                throw UserFacingException.notFound("Такого перекладу цієї новели немає.");
+            }
+            first = state(after).lastNumber() + 1;
+        }
+        long editionId = db.insertInto(EDITION)
+                .set(EDITION.NOVEL_ID, novel.value1())
+                .set(EDITION.TEAM_ID, teamId)
+                .set(EDITION.KIND, "human")
+                .set(EDITION.ADULT, adult)
+                .set(EDITION.CONTINUES_EDITION_ID, after)
+                .set(EDITION.FIRST_NUMBER, first)
+                .returning(EDITION.ID)
+                .fetchOne(EDITION.ID);
+        return new EditionRef(novel.value1(), editionId, novel.value3());
+    }
+
     private OffsetDateTime now() {
         return OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC);
     }

@@ -227,6 +227,7 @@
 
 .editions {
     display: flex;
+    align-items: center;
     gap: 6px;
     flex-wrap: wrap;
     margin-top: 12px;
@@ -359,4 +360,14 @@
 
 .volumeHead:first-child {
     padding-top: 4px;
+}
+
+.select {
+    min-height: 44px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    font: 15px var(--font-ui);
 }

@@ -66,6 +66,31 @@ class RelayTests {
     }
 
     @Test
+    void anotherTeamTranslatesTheNovelItselfFromTheStartOrFromTheNextChapterAndReadersChoose() {
+        long fresh = read(successor.browser().post("/api/novels/" + slug + "/own-translation", "{}")).path("editionId").asLong();
+        assertThat(read(successor.browser().post("/api/studio/editions/" + fresh + "/chapters", "{}")).path("number").asInt())
+                .as("from scratch: chapter 1").isEqualTo(1);
+        assertThat(successor.browser().post("/api/novels/" + slug + "/own-translation", "{}").status())
+                .as("one translation per team").isEqualTo(409);
+
+        Person third = Accounts.signedIn(port, mailbox);
+        long after = read(third.browser().post("/api/novels/" + slug + "/own-translation", json("after", edition))).path("editionId").asLong();
+        assertThat(read(third.browser().post("/api/studio/editions/" + after + "/chapters", "{}")).path("number").asInt())
+                .as("going on from the owner's last chapter, no permission asked").isEqualTo(3);
+        third.browser().post("/api/studio/editions/" + after + "/chapters/3/publish", """
+                {"title":"Глава 3","blocks":[{"id":"b1","type":"paragraph","content":[{"text":"Далі.","marks":[]}]}]}""");
+
+        // Readers pick the team; hiding one translation leaves the other.
+        JsonNode novel = read(new Browser(port).get("/api/novels/" + slug));
+        assertThat(novel.path("editions").size()).isEqualTo(2);
+        db.update(ACCOUNT).set(ACCOUNT.SITE_ROLE, "admin").where(ACCOUNT.NICK.eq(owner.nick())).execute();
+        assertThat(owner.browser().post("/api/admin/hidden/edition/" + after, json("reason", "перевірка")).status()).isBetween(200, 204);
+        JsonNode left = read(new Browser(port).get("/api/novels/" + slug));
+        assertThat(left.path("editions").size()).isEqualTo(1);
+        assertThat(left.path("edition").path("editionId").asLong()).isEqualTo(edition);
+    }
+
+    @Test
     void anAbandonedTranslationContinuesWithAnotherTeamFromTheNextChapter() {
         assertThat(successor.browser().post("/api/editions/" + edition + "/continue", json("kind", "machine")).status())
                 .as("not free yet").isEqualTo(403);

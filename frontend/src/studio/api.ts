@@ -134,6 +134,9 @@ export const relayApi = {
         api<void>(`/api/editions/${editionId}/takeover-requests`, json('POST', { team, message })),
     start: (editionId: number, team: string, kind: 'human' | 'machine') =>
         api<{ editionId: number; novelSlug: string }>(`/api/editions/${editionId}/continue`, json('POST', { team, kind })),
+    /** A team's own translation of a novel already here: from the start, or after another translation's last chapter. */
+    own: (slug: string, team: string, after: number | null) =>
+        api<{ editionId: number; novelSlug: string }>(`/api/novels/${encodeURIComponent(slug)}/own-translation`, json('POST', { team, after })),
 };
 
 export const ROLE_LABELS: Record<TeamRole, string> = { owner: 'власник', translator: 'перекладач', editor: 'редактор' };

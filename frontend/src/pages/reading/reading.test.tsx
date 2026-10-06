@@ -149,3 +149,22 @@ function scrollTo(y: number) {
         fireEvent.scroll(window);
     });
 }
+
+describe('own translation', () => {
+    it('starts a team\'s own translation going on after the current one, without asking', async () => {
+        const { calls, router } = await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': { body: NOVEL },
+            'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
+            'GET /api/editions/7/comments/count': { body: { count: 0 } },
+            'GET /api/me/teams': { body: [{ handle: 'mika', name: 'mika', role: 'owner' }] },
+            'POST /api/novels/mah-vody/own-translation': { status: 201, body: { editionId: 31, novelSlug: 'mah-vody' } },
+            'GET /api/studio/editions/31': { status: 404, body: { detail: '—' } },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Перекласти самому' }));
+        expect(await screen.findByText(/з глави 45/)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Почати переклад' }));
+        await waitFor(() => expect(router.state.location.pathname).toBe('/studio/31'));
+        expect(calls.find((call) => call.path.endsWith('/own-translation'))?.body).toEqual({ team: 'mika', after: EDITION.editionId });
+    });
+});

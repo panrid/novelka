@@ -125,6 +125,21 @@ class RelayController {
         return new Started(ref.editionId(), ref.novelSlug());
     }
 
+    /** @param after the translation to go on from (its next chapter), or null to start from the first */
+    record OwnRequest(String team, Long after) {
+    }
+
+    /** «Перекласти самому»: a team's own translation of a novel already here, no permission needed. */
+    @PostMapping("/api/novels/{slug}/own-translation")
+    @ResponseStatus(HttpStatus.CREATED)
+    Started own(@PathVariable String slug, @RequestBody OwnRequest body) {
+        Viewer viewer = access.requireSignedIn();
+        TeamInfo team = team(body.team(), viewer);
+        access.requireTeamTranslator(team.id());
+        EditionRef ref = relay.ownEdition(slug, team.id(), body.after());
+        return new Started(ref.editionId(), ref.novelSlug());
+    }
+
     private TeamInfo team(String handle, Viewer viewer) {
         if (handle == null || handle.isBlank()) {
             return teams.find(teams.personalTeam(viewer.accountId())).orElseThrow();

@@ -13,7 +13,8 @@ import { Sheet } from '../../ui/Sheet';
 import { Blocks } from '../../reading/Blocks';
 import { Cover } from '../../reading/Cover';
 import { LIST_LABELS, STATUS_LABELS, chapterHeading, chaptersWord, readingApi, volumeTitle, type ListName, type NovelPage as Novel } from '../../reading/api';
-import { relayApi } from '../../studio/api';
+import { relayApi, teamApi } from '../../studio/api';
+import { Segmented } from '../../ui/Segmented';
 import { localProgress } from '../../reading/progress';
 import { novelQuery } from '../../reading/queries';
 import { Button } from '../../ui/Button';
@@ -83,6 +84,7 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
 
                 {novel.editions.length > 1 && (
                     <div className={styles.editions} role="group" aria-label="Переклади">
+                        <span className={styles.muted}>Переклади:</span>
                         {novel.editions.map((other) => (
                             <Link key={other.editionId} to="/n/$slug" params={{ slug: novel.slug }} search={{ t: other.teamHandle }}
                                 className={`${styles.chip} ${other.editionId === edition.editionId ? styles.on : styles.ghost}`}
@@ -148,6 +150,7 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                     </Link>
                 ))}
                 {novel.origin === 'translation' && !novel.viewer?.teamRole && <RelayOffer novel={novel} />}
+            {novel.origin === 'translation' && <OwnTranslation novel={novel} />}
                 <HideEdition editionId={edition.editionId} />
                 <DiscussionButton editionId={edition.editionId} />
             </div>
@@ -198,6 +201,56 @@ function RelayOffer({ novel }: { novel: Novel }) {
                 </>
             )}
         </div>
+    );
+}
+
+/**
+ * «Перекласти самому» (етап 17): anyone with an account starts their own translation of this
+ * novel — from the first chapter or going on after this one — without asking anybody.
+ */
+function OwnTranslation({ novel }: { novel: Novel }) {
+    const me = useMe();
+    const navigate = useNavigate();
+    const [open, setOpen] = useState(false);
+    const [from, setFrom] = useState<'start' | 'after'>('after');
+    const teams = useQuery({ queryKey: ['my-teams'], queryFn: teamApi.mine, enabled: open });
+    const mine = (teams.data ?? []).filter((team) => team.role !== 'editor');
+    const [team, setTeam] = useState('');
+    const chosen = team || mine[0]?.handle || '';
+    const start = useMutation({
+        mutationFn: () => relayApi.own(novel.slug, chosen, from === 'after' ? novel.edition.editionId : null),
+        onSuccess: ({ editionId }) => void navigate({ to: '/studio/$editionId', params: { editionId: String(editionId) } }),
+    });
+    if (!me) return null;
+    return (
+        <>
+            <button type="button" className={styles.more} style={{ marginTop: 12 }} onClick={() => setOpen(true)}>Перекласти самому</button>
+            {open && (
+                <Sheet open onClose={() => setOpen(false)} title="Свій переклад">
+                    <div style={{ display: 'grid', gap: 14 }}>
+                        <p className={styles.muted}>
+                            Ваш переклад стане поруч із наявними, читачі оберуть, чий читати. Дозвіл не потрібен.
+                        </p>
+                        <Segmented label="З якої глави" value={from} onChange={setFrom} options={[
+                            { value: 'after', label: `Після ${'$'}${novel.edition.teamHandle} — з глави ${novel.relay.lastNumber + 1}` },
+                            { value: 'start', label: 'З першої глави' },
+                        ]} />
+                        {mine.length > 1 && (
+                            <label style={{ display: 'grid', gap: 6 }}>
+                                <span className={styles.muted}>Команда</span>
+                                <select className={styles.select} value={chosen} onChange={(event) => setTeam(event.target.value)}>
+                                    {mine.map((option) => <option key={option.handle} value={option.handle}>{option.name}</option>)}
+                                </select>
+                            </label>
+                        )}
+                        {start.isError && <Notice tone="error">{start.error.message}</Notice>}
+                        <Button onPress={() => start.mutate()} pending={start.isPending} pendingLabel="Створюємо…" isDisabled={teams.isPending}>
+                            Почати переклад
+                        </Button>
+                    </div>
+                </Sheet>
+            )}
+        </>
     );
 }
 
