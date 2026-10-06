@@ -16,7 +16,9 @@ public final class ChapterLabels {
     private static final String AFTER = "(?=$|[\\s　:：.．、,，\\-－―—「『【(（〈《]|[話章部幕節回羽])";
     private static final Pattern JAPANESE_DIGITS = Pattern.compile(
             "^(?:第\\s*)?(" + NUMBER + ")\\s*(?:話|章|部|幕|節|回|羽)?" + AFTER);
-    private static final Pattern JAPANESE_KANJI = Pattern.compile("^(?:第|其の)([〇零一二三四五六七八九十百千]+)(?:話|章|部|幕|節|回|羽)?");
+    /** «第十二話», «其の三»; but «第二の魔法» is «the second magic», not chapter 2: a separator or the end must follow. */
+    private static final Pattern JAPANESE_KANJI = Pattern.compile(
+            "^(?:第|其の)([〇零一二三四五六七八九十百千]+)(?:話|章|部|幕|節|回|羽)?" + AFTER);
     private static final Pattern UKRAINIAN = Pattern.compile(
             "^(?:(?:глава|розділ|епізод|серія|частина|chapter|episode)\\s*№?\\s*)?(" + NUMBER + ")(?:\\s*[.:)\\-–—]\\s*|\\s+|$)",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);

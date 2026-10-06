@@ -20,6 +20,9 @@ class ChapterLabelsTests {
         assertThat(ChapterLabels.fromJapanese("其の三")).contains("3");
         assertThat(ChapterLabels.fromJapanese("第百五話")).contains("105");
         assertThat(ChapterLabels.fromJapanese("3人の魔女")).as("a count, not a number").isEmpty();
+        assertThat(ChapterLabels.fromJapanese("第二の魔法に至るか否か")).as("«the second magic», not chapter 2").isEmpty();
+        assertThat(ChapterLabels.fromJapanese("第一章")).contains("1");
+        assertThat(ChapterLabels.fromJapanese("第三話「灯り」")).contains("3");
         assertThat(ChapterLabels.fromJapanese("プロローグ")).isEmpty();
         assertThat(ChapterLabels.isSpecial("閑話　ある日の話")).isTrue();
     }

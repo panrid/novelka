@@ -73,9 +73,12 @@ class Analyses {
         if (ChapterLabels.isSpecial(originalTitle)) {
             return "";
         }
-        boolean numbered = db.select(SOURCE_CHAPTER.TITLE).from(SOURCE_CHAPTER).where(SOURCE_CHAPTER.NOVEL_ID.eq(novelId))
-                .fetch(SOURCE_CHAPTER.TITLE).stream().anyMatch(title -> ChapterLabels.fromJapanese(title).isPresent());
-        return numbered ? "" : null;
+        // The novel numbers its chapters in the titles when most of them carry a number; one title
+        // that happens to start like one («第二の魔法…») must not leave all the others without numbers.
+        List<String> titles = db.select(SOURCE_CHAPTER.TITLE).from(SOURCE_CHAPTER).where(SOURCE_CHAPTER.NOVEL_ID.eq(novelId))
+                .fetch(SOURCE_CHAPTER.TITLE);
+        long numbered = titles.stream().filter(title -> ChapterLabels.fromJapanese(title).isPresent()).count();
+        return numbered * 2 > titles.size() ? "" : null;
     }
 
     void save(long editionId, int number, long sourceChapterId, String title, String label, long jobId) {
