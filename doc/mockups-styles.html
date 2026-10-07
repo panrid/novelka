@@ -1,0 +1,634 @@
+<title>Вигляд Новелки</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Lora:ital,wght@0,400;0,600;1,400&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Playfair+Display:wght@500;700&family=Rubik:wght@400;500;600&family=Nunito:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=Comfortaa:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a settings column beside a live preview (side by side on a wide screen, preview first on a phone). */
+:root {
+    --bg: #f3f4f1;
+    --panel: #ffffff;
+    --panel-2: #eceee9;
+    --line: #d9ddd5;
+    --fg: #1d211c;
+    --muted: #616a5f;
+    --accent: #3f6b34;
+    --accent-ink: #ffffff;
+    --font-ui: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+    --font-head: 'Literata', Georgia, serif;
+    color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg: #111311; --panel: #191c19; --panel-2: #222622; --line: #2e332e;
+        --fg: #e7e8e2; --muted: #9aa197; --accent: #93b884; --accent-ink: #10150e; color-scheme: dark;
+    }
+}
+:root[data-theme="dark"] {
+    --bg: #111311; --panel: #191c19; --panel-2: #222622; --line: #2e332e;
+    --fg: #e7e8e2; --muted: #9aa197; --accent: #93b884; --accent-ink: #10150e; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 var(--font-ui); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; }
+h1 { font: 600 26px/1.2 var(--font-head); margin: 0 0 4px; text-wrap: balance; }
+.lead { color: var(--muted); margin: 0 0 16px; max-width: 70ch; }
+.tabs { display: flex; gap: 4px; padding: 4px; background: var(--panel-2); border-radius: 12px; width: fit-content; max-width: 100%; margin-bottom: 18px; }
+.tabs button { border: 0; background: none; color: var(--muted); font: 500 14px var(--font-ui); padding: 8px 16px; border-radius: 9px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--panel); color: var(--fg); box-shadow: 0 1px 2px rgb(0 0 0 / 12%); }
+.tabs button:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } .preview-col { order: -1; } }
+.controls { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.preview-col { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); min-width: 0; }
+@media (max-width: 900px) { .preview-col { position: static; } }
+
+.group { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.group h2 { margin: 0; font: 600 15px var(--font-ui); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.group h2 small { font-weight: 400; color: var(--muted); font-size: 12px; }
+.row { display: flex; flex-direction: column; gap: 6px; }
+.row > label, .label { font-size: 12px; color: var(--muted); letter-spacing: 0.02em; }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; background: var(--panel-2); border-radius: 10px; }
+.seg button { flex: 1 1 auto; border: 0; background: none; color: var(--muted); font: 13px var(--font-ui); padding: 6px 10px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--fg); box-shadow: 0 1px 2px rgb(0 0 0 / 14%); }
+select { width: 100%; min-height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); color: var(--fg); font: 14px var(--font-ui); }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.range { display: grid; grid-template-columns: minmax(0, 1fr) 46px; gap: 10px; align-items: center; }
+.range output { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; text-align: right; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 15%); }
+.swatch[aria-pressed="true"] { border-color: var(--fg); }
+.pair { width: 40px; height: 28px; border-radius: 7px; border: 2px solid transparent; cursor: pointer; font: 600 13px var(--font-head); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 15%); }
+.pair[aria-pressed="true"] { border-color: var(--accent); }
+.check { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+.note { font-size: 12.5px; color: var(--muted); background: var(--panel-2); border-radius: 10px; padding: 8px 10px; margin: 0; }
+.custom-badge { font-size: 11px; color: var(--accent); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.custom-badge[hidden] { display: none; }
+
+/* Presets: each card is a tiny picture of the style itself. */
+.presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.preset { border: 2px solid var(--line); border-radius: 12px; padding: 0; cursor: pointer; overflow: hidden; background: none; text-align: left; color: var(--fg); }
+.preset[aria-pressed="true"] { border-color: var(--accent); }
+.preset .thumb { height: 58px; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
+.preset .thumb i { display: block; height: 6px; border-radius: 3px; }
+.preset .thumb .covers { display: flex; gap: 4px; margin-top: auto; }
+.preset .thumb .covers b { flex: 1; height: 18px; display: block; }
+.preset span { display: block; padding: 5px 8px 6px; font-size: 12px; background: var(--panel); border-top: 1px solid var(--line); }
+
+/* ---------- Site preview: everything inside reads the --s-* variables of the chosen style. ---------- */
+.site { border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: var(--s-bg); color: var(--s-text); font-family: var(--s-ui); font-size: calc(14px * var(--s-scale)); height: 640px; display: grid; grid-template-rows: auto minmax(0, 1fr); transition: background .3s, color .3s; }
+.site.no-anim, .site.no-anim * { transition: none !important; animation: none !important; }
+.site .top { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--s-line); min-width: 0; }
+.site .logo { font: 700 calc(19px * var(--s-scale)) var(--s-head); letter-spacing: -0.01em; white-space: nowrap; }
+.site .logo em { color: var(--s-accent); font-style: normal; }
+.site .nav { display: flex; gap: 2px; flex-wrap: nowrap; overflow: hidden; min-width: 0; }
+.site .nav a { display: flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: var(--s-radius-sm); color: var(--s-muted); text-decoration: none; font-size: .93em; white-space: nowrap; }
+.site .nav a.on { color: var(--s-text); background: var(--s-surface2); }
+.site .nav a svg { flex: none; }
+.site .searchbox { margin-left: auto; display: flex; align-items: center; gap: 6px; min-width: 0; flex: 0 1 180px; padding: 6px 10px; border-radius: var(--s-radius-sm); border: 1px solid var(--s-line); color: var(--s-muted); font-size: .9em; background: var(--s-surface); }
+.site .searchbox span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.site .body { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
+.site.side .body { grid-template-columns: 168px minmax(0, 1fr); }
+.site.side .top .nav { display: none; }
+.site .sidenav { display: none; flex-direction: column; gap: 2px; padding: 12px 10px; border-right: 1px solid var(--s-line); }
+.site.side .sidenav { display: flex; }
+.site .sidenav a { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: var(--s-radius-sm); color: var(--s-muted); text-decoration: none; font-size: .93em; }
+.site .sidenav a.on { color: var(--s-text); background: var(--s-surface2); }
+.site .main { overflow: auto; padding: var(--s-pad) 18px; display: flex; flex-direction: column; gap: var(--s-gap); min-width: 0; }
+.site h3 { font: 600 calc(17px * var(--s-scale)) var(--s-head); margin: 0; display: flex; justify-content: space-between; align-items: baseline; }
+.site h3 small { font: 400 .78em var(--s-ui); color: var(--s-muted); }
+.site .card { background: var(--s-surface); border-radius: var(--s-radius); padding: var(--s-card-pad); display: flex; gap: 12px; align-items: center; min-width: 0; }
+.site.cards-border .card, .site.cards-border .cover-box { border: 1px solid var(--s-line); }
+.site.cards-shadow .card { box-shadow: var(--s-shadow); }
+.site.cards-flat .card { background: var(--s-surface2); }
+.site .cover { width: 46px; aspect-ratio: 2 / 3; border-radius: calc(var(--s-radius-sm) * .6); flex: none; position: relative; overflow: hidden; }
+.site .cover::after { content: ""; position: absolute; inset: auto -20% -30% 30%; height: 60%; border-radius: 50%; background: rgb(255 255 255 / 18%); }
+.site .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.site .title { font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--s-head); }
+.site .muted { color: var(--s-muted); font-size: .86em; }
+.site .bar { height: 4px; border-radius: 2px; background: var(--s-line); }
+.site .bar i { display: block; height: 100%; width: 62%; border-radius: 2px; background: var(--s-accent); }
+.site .btn { border: 0; border-radius: var(--s-radius-sm); padding: 7px 14px; background: var(--s-accent); color: var(--s-accent-ink); font: 600 .9em var(--s-ui); cursor: pointer; white-space: nowrap; }
+.site .btn.ghost { background: none; border: 1px solid var(--s-line); color: var(--s-text); }
+
+/* The shelf: rows, a grid of covers, or a wooden-shelf strip. */
+.site .shelf { display: flex; flex-direction: column; gap: 6px; }
+.site .shelf .item { display: flex; gap: 10px; align-items: center; padding-block: 6px; border-bottom: 1px solid var(--s-line); min-width: 0; }
+.site.cat-grid .shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 14px 12px; }
+.site.cat-grid .shelf .item, .site.cat-shelf .shelf .item { flex-direction: column; align-items: stretch; border: 0; padding: 0; gap: 6px; }
+.site.cat-grid .shelf .cover, .site.cat-shelf .shelf .cover { width: 100%; }
+.site.cat-grid .shelf .tags, .site.cat-shelf .shelf .tags { display: none; }
+.site.cat-shelf .shelf { display: flex; flex-direction: row; gap: 12px; overflow-x: auto; padding: 0 4px 12px; border-bottom: 6px solid var(--s-shelf); border-radius: 0 0 4px 4px; box-shadow: 0 6px 8px -6px rgb(0 0 0 / 35%); }
+.site.cat-shelf .shelf .item { flex: 0 0 84px; }
+.site.cat-shelf .shelf .title { white-space: normal; font-size: .85em; line-height: 1.25; }
+.site .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.site .chip { padding: 3px 10px; border-radius: max(var(--s-radius-sm), 6px); background: var(--s-surface2); font-size: .85em; color: var(--s-text); }
+.site .chip.on { background: color-mix(in srgb, var(--s-accent) 24%, transparent); color: var(--s-accent); }
+.site .ico { color: var(--s-icon); }
+.site.anim-full .card, .site.anim-full .shelf .item { animation: rise .45s both; }
+.site.anim-full .shelf .item:nth-child(2) { animation-delay: .05s; } .site.anim-full .shelf .item:nth-child(3) { animation-delay: .1s; } .site.anim-full .shelf .item:nth-child(4) { animation-delay: .15s; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .site *, .reader * { animation: none !important; transition: none !important; } }
+.site.retro .cover::after { display: none; }
+.site.retro .logo::before { content: "> "; color: var(--s-accent); }
+
+/* ---------- Reader preview: a phone, with its own variables (--r-*). ---------- */
+.phone { width: min(100%, 390px); margin: 0 auto; border-radius: 36px; padding: 10px; background: #0b0c0b; box-shadow: 0 10px 30px rgb(0 0 0 / 25%); }
+.reader { border-radius: 28px; overflow: hidden; height: 680px; background: var(--r-bg); color: var(--r-text); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; position: relative; transition: background .3s, color .3s; }
+.reader .rtop, .reader .rbottom { background: color-mix(in srgb, var(--r-bg) 88%, var(--r-text)); font: 13px var(--font-ui); color: var(--r-muted); display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+.reader .rtop b { color: var(--r-text); font-weight: 600; display: block; font-size: 13.5px; }
+.reader .rtop .aa { margin-left: auto; border: 1px solid color-mix(in srgb, var(--r-text) 25%, transparent); background: none; color: var(--r-text); border-radius: 8px; font: 600 14px var(--font-head); padding: 4px 9px; cursor: pointer; }
+.reader .rbottom { justify-content: space-between; }
+.reader .rbottom .nb { border: 0; background: color-mix(in srgb, var(--r-accent) 85%, transparent); color: var(--r-bg); border-radius: 9px; padding: 6px 14px; font: 600 13px var(--font-ui); cursor: pointer; }
+.reader .rbottom .nb.prev { background: none; color: var(--r-text); border: 1px solid color-mix(in srgb, var(--r-text) 22%, transparent); }
+.reader.hide-bars .rtop, .reader.hide-bars .rbottom { visibility: hidden; }
+.reader .stage { position: relative; overflow: hidden; perspective: 1400px; }
+.reader .scroll { height: 100%; overflow-y: auto; padding: 18px var(--r-margin); }
+.reader .text { margin: 0 auto; max-width: var(--r-width); font-family: var(--r-font); font-size: var(--r-size); line-height: var(--r-lh); text-align: var(--r-align); hyphens: var(--r-hyph); -webkit-hyphens: var(--r-hyph); }
+.reader .text h4 { font: 600 1.25em/1.3 var(--r-font); margin: 0 0 .9em; text-align: left; }
+.reader .text p { margin: 0 0 var(--r-pgap); text-indent: var(--r-indent); }
+.reader .text em { color: var(--r-accent); font-style: italic; }
+.reader .pages { position: absolute; inset: 0; padding: 18px var(--r-margin); }
+.reader .pages .viewport { height: 100%; overflow: hidden; }
+.reader .pages .text { height: 100%; max-width: none; column-fill: auto; column-gap: calc(var(--r-margin) * 2); transition: transform .35s ease, opacity .2s; }
+.reader .pages .text.no-move { transition: none; }
+.reader .tapzone { position: absolute; top: 0; bottom: 0; width: 30%; border: 0; background: none; cursor: pointer; z-index: 2; }
+.reader .tapzone.left { left: 0; } .reader .tapzone.right { right: 0; }
+.reader .pageno { font-variant-numeric: tabular-nums; }
+.reader .curl { position: absolute; inset: 0; z-index: 3; pointer-events: none; transform-origin: left center; background: var(--r-bg); box-shadow: -18px 0 30px rgb(0 0 0 / 30%) inset; opacity: 0; }
+.reader .curl.go { animation: curl .5s ease-in forwards; }
+@keyframes curl { 0% { opacity: 1; transform: rotateY(0deg); } 100% { opacity: 1; transform: rotateY(-100deg); } }
+.reader .curl.back { transform-origin: left center; animation: curlback .5s ease-out forwards; }
+@keyframes curlback { 0% { opacity: 1; transform: rotateY(-100deg); } 100% { opacity: 0; transform: rotateY(0deg); } }
+.reader .clock { font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="wrap">
+    <h1>Вигляд Новелки</h1>
+    <p class="lead">Макет до етапу 18. Тут два окремі налаштування: вигляд сайту (лише в «Налаштуваннях») і вигляд читалки (у «Налаштуваннях» і в самій читалці за кнопкою «Аа»). Усе клікається, але нічого не зберігається. Готові стилі можна змінювати по частинах, тоді вони стають «Своїм стилем».</p>
+
+    <div class="tabs" role="tablist" aria-label="Що налаштовуємо">
+        <button role="tab" id="tab-site" aria-selected="true" aria-controls="panel-site">Вигляд сайту</button>
+        <button role="tab" id="tab-reader" aria-selected="false" aria-controls="panel-reader">Вигляд читалки</button>
+    </div>
+
+    <!-- ===================== SITE ===================== -->
+    <section id="panel-site" role="tabpanel" aria-labelledby="tab-site">
+        <div class="layout">
+            <div class="controls">
+                <div class="group">
+                    <h2>Готові стилі <span class="custom-badge" id="site-custom" hidden>Свій стиль</span></h2>
+                    <div class="presets" id="site-presets"></div>
+                    <p class="hint" id="site-based"></p>
+                </div>
+
+                <div class="group">
+                    <h2>Кольори</h2>
+                    <div class="row"><span class="label">Основа</span>
+                        <div class="seg" data-key="base"><button data-v="light">Світла</button><button data-v="dark">Темна</button></div></div>
+                    <div class="row"><span class="label">Тло</span><div class="swatches" id="bg-swatches"></div></div>
+                    <div class="row"><span class="label">Акцент</span><div class="swatches" id="accent-swatches"></div></div>
+                </div>
+
+                <div class="group">
+                    <h2>Шрифти</h2>
+                    <div class="row"><label for="ui-font">Інтерфейс</label><select id="ui-font" data-key="ui"></select></div>
+                    <div class="row"><label for="head-font">Заголовки й назви</label><select id="head-font" data-key="head"></select></div>
+                    <div class="row"><label for="scale">Розмір</label><div class="range"><input type="range" id="scale" data-key="scale" min="0.9" max="1.2" step="0.05"><output id="scale-out"></output></div></div>
+                </div>
+
+                <div class="group">
+                    <h2>Іконки <small>лише відкриті набори</small></h2>
+                    <div class="row"><label for="icon-set">Набір</label><select id="icon-set" data-key="icons"></select></div>
+                    <div class="row"><label for="icon-weight">Товщина ліній</label><div class="range"><input type="range" id="icon-weight" data-key="iconWeight" min="1" max="2.5" step="0.25"><output id="icon-weight-out"></output></div></div>
+                    <div class="row"><span class="label">Колір</span>
+                        <div class="seg" data-key="iconColor"><button data-v="text">Як текст</button><button data-v="accent">Акцент</button><button data-v="muted">Приглушений</button></div></div>
+                    <label class="check"><input type="checkbox" id="icon-fill" data-key="iconFill"> Заповнені</label>
+                    <div class="row"><span class="label">Як виглядатимуть</span><div id="icon-demo" style="display:flex;gap:14px;flex-wrap:wrap"></div></div>
+                </div>
+
+                <div class="group">
+                    <h2>Форма</h2>
+                    <div class="row"><label for="radius">Кути</label><div class="range"><input type="range" id="radius" data-key="radius" min="0" max="24" step="2"><output id="radius-out"></output></div></div>
+                    <div class="row"><span class="label">Щільність</span>
+                        <div class="seg" data-key="density"><button data-v="compact">Компактно</button><button data-v="normal">Звичайно</button><button data-v="airy">Просторо</button></div></div>
+                    <div class="row"><span class="label">Картки</span>
+                        <div class="seg" data-key="cards"><button data-v="flat">Пласкі</button><button data-v="border">З рамкою</button><button data-v="shadow">З тінню</button></div></div>
+                </div>
+
+                <div class="group">
+                    <h2>Верстка</h2>
+                    <div class="row"><span class="label">Меню на комп'ютері</span>
+                        <div class="seg" data-key="nav"><button data-v="top">Вгорі</button><button data-v="side">Збоку</button></div></div>
+                    <div class="row"><span class="label">Новели в каталозі й на головній</span>
+                        <div class="seg" data-key="catalog"><button data-v="rows">Рядками</button><button data-v="grid">Сіткою</button><button data-v="shelf">Полицею</button></div></div>
+                    <div class="row"><span class="label">Анімації</span>
+                        <div class="seg" data-key="anim"><button data-v="full">Увімкнені</button><button data-v="light">Лише легкі</button><button data-v="off">Вимкнені</button></div></div>
+                    <p class="hint">За замовчуванням анімації — як у системі телефону (якщо там «менше руху», вони вимкнені).</p>
+                </div>
+                <p class="note">Свої файли (іконки, шрифти, картинки) додати не можна: лише варіанти, які пропонує сайт. Кольори акценту підібрані так, щоб текст на кнопках завжди читався.</p>
+            </div>
+
+            <div class="preview-col">
+                <div class="site" id="site" aria-label="Попередній вигляд сайту">
+                    <div class="top">
+                        <div class="logo">новелка<em>.</em></div>
+                        <nav class="nav" id="topnav"></nav>
+                        <div class="searchbox"><span class="ico" data-icon="search"></span><span>Назва, автор або тег</span></div>
+                    </div>
+                    <div class="body">
+                        <nav class="sidenav" id="sidenav"></nav>
+                        <div class="main">
+                            <div class="card">
+                                <div class="cover" style="background:linear-gradient(160deg,#5d7a52,#2b3a27)"></div>
+                                <div class="grow">
+                                    <span class="muted">Продовжити</span>
+                                    <span class="title">Останній ліхтарник міста</span>
+                                    <span class="muted">Глава 3 з 5 · Мавка</span>
+                                    <div class="bar"><i></i></div>
+                                </div>
+                                <button class="btn">Читати</button>
+                            </div>
+                            <h3>Популярне <small>усе →</small></h3>
+                            <div class="shelf" id="shelf"></div>
+                            <h3>Популярні теги</h3>
+                            <div class="chips"><span class="chip on">Фентезі 12</span><span class="chip">Магія 8</span><span class="chip">Ісекай 7</span><span class="chip">Затишне 5</span><span class="chip">Повільна романтика 3</span></div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn">Запропонувати новелу</button><button class="btn ghost">Каталог</button></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== READER ===================== -->
+    <section id="panel-reader" role="tabpanel" aria-labelledby="tab-reader" hidden>
+        <div class="layout">
+            <div class="controls">
+                <div class="group">
+                    <h2>Готові стилі читалки <span class="custom-badge" id="reader-custom" hidden>Свій стиль</span></h2>
+                    <div class="seg" id="reader-presets"></div>
+                </div>
+                <div class="group">
+                    <h2>Гортання</h2>
+                    <div class="seg" data-rkey="mode"><button data-v="scroll">Прокрутка вниз</button><button data-v="pages">Сторінки</button></div>
+                    <div class="row" id="anim-row"><span class="label">Анімація сторінок</span>
+                        <div class="seg" data-rkey="anim"><button data-v="none">Без анімації</button><button data-v="slide">Зсув</button><button data-v="fade">Згасання</button><button data-v="curl">Аркуш</button></div>
+                        <p class="hint">Якщо телефон не тягне — просто «Без анімації». Гортати можна торканням країв екрана, свайпом або стрілками.</p></div>
+                </div>
+                <div class="group">
+                    <h2>Текст</h2>
+                    <div class="row"><label for="r-font">Шрифт</label><select id="r-font" data-rkey="font"></select></div>
+                    <div class="row"><label for="r-size">Розмір</label><div class="range"><input type="range" id="r-size" data-rkey="size" min="14" max="26" step="1"><output id="r-size-out"></output></div></div>
+                    <div class="row"><label for="r-lh">Міжрядковий інтервал</label><div class="range"><input type="range" id="r-lh" data-rkey="lh" min="1.3" max="2.1" step="0.1"><output id="r-lh-out"></output></div></div>
+                    <div class="row"><span class="label">Вирівнювання</span>
+                        <div class="seg" data-rkey="align"><button data-v="left">Ліворуч</button><button data-v="justify">По ширині з переносами</button></div></div>
+                    <div class="row"><span class="label">Абзаци</span>
+                        <div class="seg" data-rkey="para"><button data-v="gap">Пропуск між абзацами</button><button data-v="indent">Відступ першого рядка</button></div></div>
+                    <div class="row"><span class="label">Ширина колонки</span>
+                        <div class="seg" data-rkey="width"><button data-v="narrow">Вузька</button><button data-v="medium">Середня</button><button data-v="wide">Широка</button><button data-v="full">На весь екран</button></div></div>
+                    <div class="row"><label for="r-margin">Поля</label><div class="range"><input type="range" id="r-margin" data-rkey="margin" min="8" max="40" step="4"><output id="r-margin-out"></output></div></div>
+                </div>
+                <div class="group">
+                    <h2>Кольори</h2>
+                    <div class="row"><span class="label">Тло й текст</span><div class="swatches" id="r-colors"></div></div>
+                    <div class="row"><span class="label">Позначки й посилання</span><div class="swatches" id="r-accents"></div></div>
+                </div>
+                <div class="group">
+                    <h2>Інше</h2>
+                    <label class="check"><input type="checkbox" id="r-hide" data-rkey="hide"> Ховати панелі під час читання</label>
+                    <label class="check"><input type="checkbox" id="r-clock" data-rkey="clock"> Годинник у панелі</label>
+                    <label class="check"><input type="checkbox" id="r-percent" data-rkey="percent"> Відсоток прочитаного</label>
+                    <label class="check"><input type="checkbox" id="r-awake" data-rkey="awake"> Не гасити екран, поки читаю</label>
+                </div>
+            </div>
+
+            <div class="preview-col">
+                <div class="phone">
+                    <div class="reader" id="reader" lang="uk">
+                        <div class="rtop">
+                            <span>‹</span>
+                            <div><b>Останній ліхтарник міста</b>Глава 3 з 5</div>
+                            <button class="aa" title="Відкриває ці ж налаштування просто в читалці">Аа</button>
+                        </div>
+                        <div class="stage" id="stage"></div>
+                        <div class="rbottom">
+                            <button class="nb prev" id="prev">‹</button>
+                            <span id="status"></span>
+                            <button class="nb" id="next">Далі ›</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+(function () {
+    const $ = (s, el = document) => el.querySelector(s);
+    const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+
+    /* ---------------- tabs ---------------- */
+    $$('[role="tab"]').forEach((tab) => tab.addEventListener('click', () => {
+        $$('[role="tab"]').forEach((t) => t.setAttribute('aria-selected', String(t === tab)));
+        $('#panel-site').hidden = tab.id !== 'tab-site';
+        $('#panel-reader').hidden = tab.id !== 'tab-reader';
+        if (tab.id === 'tab-reader') renderReader();
+    }));
+
+    /* ---------------- shared choices (only these exist; nothing can be uploaded) ---------------- */
+    const FONTS = {
+        'Inter': "'Inter', sans-serif", 'Rubik': "'Rubik', sans-serif", 'Nunito': "'Nunito', sans-serif",
+        'IBM Plex Sans': "'IBM Plex Sans', sans-serif", 'Comfortaa': "'Comfortaa', sans-serif", 'JetBrains Mono': "'JetBrains Mono', monospace",
+        'Literata': "'Literata', Georgia, serif", 'Lora': "'Lora', Georgia, serif", 'PT Serif': "'PT Serif', Georgia, serif",
+        'Merriweather': "'Merriweather', Georgia, serif", 'Playfair Display': "'Playfair Display', Georgia, serif",
+    };
+    const BG = {
+        light: [['#f7f5ef', '#ffffff', '#eceae2', '#dedad0'], ['#ffffff', '#ffffff', '#f1f2f4', '#e3e5e8'], ['#f1ead9', '#faf6ec', '#e8dfca', '#d6c9ad'], ['#e9dcc0', '#f3e9d3', '#ddcfaf', '#c9b791'], ['#fbf1f3', '#ffffff', '#f6e4e8', '#ecd2d8'], ['#eef4f6', '#ffffff', '#e1ebef', '#cfdde3']],
+        dark: [['#121412', '#1b1e1b', '#242824', '#2f342f'], ['#000000', '#0d0d0d', '#171717', '#232323'], ['#0e1a24', '#14232f', '#1b2e3c', '#26394a'], ['#172016', '#1e2a1d', '#263425', '#324231'], ['#0b0716', '#140e24', '#1d1532', '#2a2045'], ['#0a0f0a', '#0f160f', '#142014', '#1e301e']],
+    };
+    const ACCENTS = ['#8fb07f', '#4f7a40', '#2f4a6b', '#4fb3d9', '#7a5a2b', '#d8b45a', '#ffd400', '#c2456b', '#ff3ea5', '#b48cff', '#e07b39', '#2a9d8f', '#8cff9c', '#111111', '#d9776b', '#6c7ae0'];
+    const ICON_SETS = {
+        lucide: { name: 'Lucide (як зараз)', cap: 'round', join: 'round', fill: false },
+        phosphor: { name: 'Phosphor', cap: 'round', join: 'round', fill: true },
+        tabler: { name: 'Tabler', cap: 'square', join: 'miter', fill: false },
+        remix: { name: 'Remix', cap: 'round', join: 'round', fill: 'duo' },
+        material: { name: 'Material Symbols', cap: 'butt', join: 'round', fill: true },
+    };
+    const ICONS = {
+        home: '<path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/>',
+        search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4" data-line/>',
+        book: '<path d="M4 5.5C6.5 4 9.5 4 12 6c2.5-2 5.5-2 8-.5V19c-2.5-1.5-5.5-1.5-8 .5-2.5-2-5.5-2-8-.5z"/><path d="M12 6v13.5" data-line/>',
+        inbox: '<path d="M4 13 6.5 5h11L20 13v6H4z"/><path d="M4 13h4.5l1 2h5l1-2H20" data-line/>',
+        user: '<circle cx="12" cy="8.5" r="3.8"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5z"/>',
+        pen: '<path d="M15 4.5 19.5 9 9 19.5H4.5V15z"/>',
+    };
+    function icon(name, s, size = 18) {
+        const set = ICON_SETS[s.icons];
+        const fill = s.iconFill || set.fill === true;
+        const body = ICONS[name].replace(/<(path|circle)([^>]*?)(data-line)?\/>/g, (m, tag, attrs, line) => {
+            const f = line ? 'none' : (fill ? 'currentColor' : set.fill === 'duo' ? 'currentColor' : 'none');
+            const op = !line && set.fill === 'duo' && !s.iconFill ? ' fill-opacity="0.22"' : '';
+            return `<${tag}${attrs} fill="${f}"${op}/>`;
+        });
+        return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="${s.iconWeight}" stroke-linecap="${set.cap}" stroke-linejoin="${set.join}" aria-hidden="true">${body}</svg>`;
+    }
+
+    /* ---------------- site presets ---------------- */
+    const P = (name, base, bgIndex, accent, ui, head, rest) => ({ name, base, bgIndex, accent, ui, head, scale: 1, icons: 'lucide', iconWeight: 1.75, iconColor: 'text', iconFill: false, radius: 12, density: 'normal', cards: 'flat', nav: 'top', catalog: 'rows', anim: 'light', ...rest });
+    const SITE_PRESETS = [
+        P('Звичайний', 'dark', 0, '#8fb07f', 'Inter', 'Literata', { catalog: 'grid' }),
+        P('Світлий', 'light', 0, '#4f7a40', 'Inter', 'Literata', { catalog: 'grid', cards: 'shadow' }),
+        P('Книжковий', 'light', 2, '#2f4a6b', 'PT Serif', 'Playfair Display', { icons: 'phosphor', iconWeight: 1.5, radius: 2, cards: 'border', nav: 'side', catalog: 'shelf', iconColor: 'accent' }),
+        P('Пергамент', 'light', 3, '#7a5a2b', 'Merriweather', 'Merriweather', { icons: 'remix', radius: 6, cards: 'border', catalog: 'shelf' }),
+        P('Нічний', 'dark', 1, '#b48cff', 'Inter', 'Lora', { iconColor: 'muted', cards: 'flat' }),
+        P('Контрастний', 'dark', 1, '#ffd400', 'Rubik', 'Rubik', { scale: 1.15, iconWeight: 2.25, cards: 'border', radius: 8 }),
+        P('Мінімалізм', 'light', 1, '#111111', 'Inter', 'Inter', { icons: 'tabler', iconWeight: 1.25, radius: 0, density: 'airy', cards: 'flat', catalog: 'rows', anim: 'off' }),
+        P('Сакура', 'light', 4, '#c2456b', 'Nunito', 'Comfortaa', { icons: 'phosphor', iconFill: true, radius: 20, cards: 'shadow', catalog: 'grid', anim: 'full', iconColor: 'accent' }),
+        P('Океан', 'dark', 2, '#4fb3d9', 'IBM Plex Sans', 'IBM Plex Sans', { icons: 'material', radius: 14, cards: 'shadow', catalog: 'grid', nav: 'side' }),
+        P('Ліс', 'dark', 3, '#d8b45a', 'Nunito', 'Lora', { icons: 'remix', radius: 10, cards: 'border', catalog: 'shelf' }),
+        P('Неон', 'dark', 4, '#ff3ea5', 'Rubik', 'Rubik', { radius: 10, cards: 'shadow', catalog: 'grid', anim: 'full', iconColor: 'accent', iconWeight: 2 }),
+        P('Ретро-термінал', 'dark', 5, '#8cff9c', 'JetBrains Mono', 'JetBrains Mono', { icons: 'tabler', iconWeight: 2, radius: 0, cards: 'border', nav: 'side', catalog: 'rows', density: 'compact', anim: 'off', iconColor: 'accent' }),
+    ];
+    let site = { ...SITE_PRESETS[0] };
+    let sitePreset = 0;
+    let siteCustom = false;
+
+    function siteTokens(s) {
+        const [bg, surface, surface2, line] = BG[s.base][s.bgIndex] ?? BG[s.base][0];
+        const dark = s.base === 'dark';
+        const retro = s.name === 'Ретро-термінал' && !siteCustom;
+        return {
+            bg, surface, surface2, line,
+            text: retro ? '#8cff9c' : dark ? '#e9e7df' : (s.bgIndex === 2 || s.bgIndex === 3 ? '#2a2118' : '#1c1e1b'),
+            muted: retro ? '#4fae5d' : dark ? '#9a9d94' : '#62655c',
+            accent: s.accent, accentInk: contrastInk(s.accent),
+            shelf: dark ? '#3a2e22' : '#b08b5e',
+        };
+    }
+    function contrastInk(hex) {
+        const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+        return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#10140f' : '#ffffff';
+    }
+
+    const NAV = [['home', 'Головна'], ['search', 'Каталог'], ['book', 'Бібліотека'], ['inbox', 'Вхідні'], ['user', 'Я']];
+    const NOVELS = [
+        ['Маг води', 'Кюхо Тадаші', '#3d6d8a', '#162a38', 'Фентезі · ШІ'],
+        ['Меджик Мейкер', 'Ука Унмей', '#7a4e8c', '#2d1b36', 'Магія · Ісекай'],
+        ['Сто ночей у крамниці ліхтарів', 'Лисиця', '#a1773d', '#3d2a14', 'Затишне'],
+        ['Останній ліхтарник міста', 'Мавка', '#5d7a52', '#2b3a27', 'Повільна романтика'],
+    ];
+
+    function renderSite() {
+        const s = site, t = siteTokens(s), el = $('#site');
+        const iconColor = s.iconColor === 'accent' ? t.accent : s.iconColor === 'muted' ? t.muted : 'currentColor';
+        const dens = { compact: [10, 10, '8px 10px'], normal: [16, 18, '12px'], airy: [22, 26, '16px'] }[s.density];
+        Object.entries({
+            '--s-bg': t.bg, '--s-surface': t.surface, '--s-surface2': t.surface2, '--s-line': t.line, '--s-text': t.text, '--s-muted': t.muted,
+            '--s-accent': t.accent, '--s-accent-ink': t.accentInk, '--s-shelf': t.shelf, '--s-icon': iconColor,
+            '--s-ui': FONTS[s.ui], '--s-head': FONTS[s.head], '--s-scale': s.scale,
+            '--s-radius': s.radius + 'px', '--s-radius-sm': Math.round(s.radius * 0.7) + 'px',
+            '--s-pad': dens[0] + 'px', '--s-gap': dens[1] + 'px', '--s-card-pad': dens[2],
+            '--s-shadow': s.base === 'dark' ? `0 6px 18px rgb(0 0 0 / 45%), 0 0 0 1px ${t.line}` : '0 6px 16px rgb(40 30 20 / 12%)',
+        }).forEach(([k, v]) => el.style.setProperty(k, v));
+        if (s.name === 'Неон' && !siteCustom) el.style.setProperty('--s-shadow', `0 0 0 1px ${t.accent}55, 0 0 18px ${t.accent}33`);
+        el.className = `site cat-${s.catalog} cards-${s.cards} anim-${s.anim}${s.nav === 'side' ? ' side' : ''}${s.anim === 'off' ? ' no-anim' : ''}${s.name === 'Ретро-термінал' && !siteCustom ? ' retro' : ''}`;
+
+        const navHtml = NAV.map(([k, label], i) => `<a href="#" class="${i === 0 ? 'on' : ''}" onclick="return false"><span class="ico">${icon(k, s)}</span>${label}</a>`).join('');
+        $('#topnav').innerHTML = navHtml;
+        $('#sidenav').innerHTML = navHtml;
+        $('.searchbox .ico').innerHTML = icon('search', s, 15);
+        $('#shelf').innerHTML = NOVELS.map(([title, author, a, b, tags]) => `
+            <div class="item"><div class="cover cover-box" style="background:linear-gradient(160deg,${a},${b})"></div>
+            <div class="grow"><span class="title">${title}</span><span class="muted">${author}</span><span class="muted tags">${tags}</span></div></div>`).join('');
+        $('#icon-demo').innerHTML = ['home', 'search', 'book', 'inbox', 'user', 'pen'].map((k) => `<span style="color:var(--fg)">${icon(k, s, 24)}</span>`).join('');
+        // A replay of the entrance so «Увімкнені» shows what it does.
+        if (s.anim === 'full') { const m = $('.site .main'); m.style.display = 'none'; void m.offsetWidth; m.style.display = ''; }
+        syncSiteControls();
+    }
+
+    function syncSiteControls() {
+        $$('#site-presets .preset').forEach((b, i) => b.setAttribute('aria-pressed', String(!siteCustom && i === sitePreset)));
+        $('#site-custom').hidden = !siteCustom;
+        $('#site-based').textContent = siteCustom ? `Свій стиль на основі «${SITE_PRESETS[sitePreset].name}». Будь-коли можна скинути до готового.` : `Обрано «${site.name}». Змініть будь-що нижче — і він стане вашим.`;
+        $$('#panel-site .seg[data-key]').forEach((seg) => $$('button', seg).forEach((b) => b.setAttribute('aria-pressed', String(String(site[seg.dataset.key]) === b.dataset.v))));
+        $('#ui-font').value = site.ui; $('#head-font').value = site.head; $('#icon-set').value = site.icons;
+        $('#scale').value = site.scale; $('#scale-out').textContent = Math.round(site.scale * 100) + '%';
+        $('#icon-weight').value = site.iconWeight; $('#icon-weight-out').textContent = site.iconWeight.toFixed(2);
+        $('#radius').value = site.radius; $('#radius-out').textContent = site.radius + ' px';
+        $('#icon-fill').checked = site.iconFill;
+        $('#bg-swatches').innerHTML = BG[site.base].map((t, i) => `<button class="swatch" title="Тло ${i + 1}" aria-pressed="${i === site.bgIndex}" style="background:linear-gradient(135deg,${t[0]} 50%,${t[1]} 50%)" data-i="${i}"></button>`).join('');
+        $('#accent-swatches').innerHTML = ACCENTS.map((c) => `<button class="swatch" title="${c}" aria-pressed="${c === site.accent}" style="background:${c}" data-c="${c}"></button>`).join('');
+    }
+
+    function changeSite(patch) { site = { ...site, ...patch }; siteCustom = true; renderSite(); }
+
+    $('#site-presets').innerHTML = SITE_PRESETS.map((p) => {
+        const t = siteTokens(p);
+        return `<button class="preset" type="button"><div class="thumb" style="background:${t.bg}">
+            <i style="width:60%;background:${t.text};opacity:.85;border-radius:${p.radius / 3}px"></i><i style="width:35%;background:${t.accent};border-radius:${p.radius / 3}px"></i>
+            <div class="covers"><b style="background:${t.surface2};border-radius:${p.radius / 4}px"></b><b style="background:${t.accent};opacity:.7;border-radius:${p.radius / 4}px"></b><b style="background:${t.surface2};border-radius:${p.radius / 4}px"></b></div>
+            </div><span style="font-family:${FONTS[p.head]}">${p.name}</span></button>`;
+    }).join('');
+    $$('#site-presets .preset').forEach((b, i) => b.addEventListener('click', () => { sitePreset = i; siteCustom = false; site = { ...SITE_PRESETS[i] }; renderSite(); }));
+    ['ui-font', 'head-font'].forEach((id) => { $('#' + id).innerHTML = Object.keys(FONTS).map((f) => `<option>${f}</option>`).join(''); });
+    $('#icon-set').innerHTML = Object.entries(ICON_SETS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join('');
+    $$('#panel-site select[data-key]').forEach((sel) => sel.addEventListener('change', () => changeSite({ [sel.dataset.key]: sel.value })));
+    $$('#panel-site input[type="range"][data-key]').forEach((r) => r.addEventListener('input', () => changeSite({ [r.dataset.key]: Number(r.value) })));
+    $('#icon-fill').addEventListener('change', (e) => changeSite({ iconFill: e.target.checked }));
+    $$('#panel-site .seg[data-key]').forEach((seg) => seg.addEventListener('click', (e) => {
+        const b = e.target.closest('button'); if (!b) return;
+        const key = seg.dataset.key;
+        changeSite(key === 'base' ? { base: b.dataset.v, bgIndex: 0 } : { [key]: b.dataset.v });
+    }));
+    $('#bg-swatches').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b) changeSite({ bgIndex: Number(b.dataset.i) }); });
+    $('#accent-swatches').addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (b) changeSite({ accent: b.dataset.c }); });
+    renderSite();
+
+    /* ---------------- reader ---------------- */
+    const R_FONTS = ['Literata', 'PT Serif', 'Lora', 'Merriweather', 'Inter', 'Nunito', 'Rubik', 'JetBrains Mono'];
+    const R_COLORS = [['#f7f5ef', '#22241f', 'Папір'], ['#f1e4c8', '#3b2f22', 'Сепія'], ['#d9dbd6', '#232521', 'Сірий'], ['#1b1e1b', '#dcdad1', 'Ніч'], ['#000000', '#c9c9c4', 'Чорний'], ['#e6efe3', '#1f2a1c', 'Зелений чай'], ['#1a2230', '#cfd8e6', 'Сутінки']];
+    const R_ACCENTS = ['#4f7a40', '#8fb07f', '#2f4a6b', '#7a5a2b', '#c2456b', '#b48cff', '#d8b45a'];
+    const R = (name, rest) => ({ name, mode: 'scroll', anim: 'slide', font: 'Literata', size: 18, lh: 1.7, align: 'left', para: 'gap', width: 'medium', margin: 20, colors: 3, accent: 1, hide: true, clock: false, percent: true, awake: false, ...rest });
+    const READER_PRESETS = [
+        R('Як на сайті', {}),
+        R('Папір', { colors: 0, accent: 0 }),
+        R('Сепія', { colors: 1, accent: 3, font: 'PT Serif' }),
+        R('Сірий', { colors: 2, accent: 2, font: 'Lora' }),
+        R('Ніч', { colors: 3 }),
+        R('Чорний', { colors: 4, accent: 5 }),
+        R('Книжка', { colors: 1, accent: 3, font: 'PT Serif', align: 'justify', para: 'indent', mode: 'pages', anim: 'curl', lh: 1.55, width: 'full' }),
+        R('Для дислексії', { colors: 0, accent: 2, font: 'Rubik', size: 20, lh: 2, width: 'narrow' }),
+    ];
+    let rd = { ...READER_PRESETS[0] };
+    let rdPreset = 0, rdCustom = false, page = 0, pages = 1;
+
+    const CHAPTER = `
+        <h4>3. Лист без марки</h4>
+        <p>Ліхтарник Орест прокинувся раніше за місто. Над дахами ще висіла сива пара, а годинник на ратуші вперто показував за п'ять шосту, хоча всі знали, що він поспішає на цілу вічність.</p>
+        <p>На порозі лежав конверт. Ні марки, ні адреси — лише його ім'я, виведене рівним почерком, яким колись писали в канцеляріях. Орест довго крутив його в руках, перш ніж відкрити.</p>
+        <p>«Ліхтар на Ковальській гасне першим, — було в листі. — Не тому, що старий. Тому, що чекає».</p>
+        <p>Він узяв драбину, торбу з ґнотами й вийшов на вулицю. Кожен ліхтар тут мав своє ім'я, і Орест знав їх усі: Сиву, Рудого, Тиху Олену біля аптеки. Але про ліхтар, що чекає, він чув уперше.</p>
+        <p>— Доброго ранку, Сиву, — сказав він найстарішому, біля пекарні. Ліхтар, звісно, не відповів. Але скло ніби посвітлішало, і на бруківці лягла тепла пляма, хоча сонце ще не встало.</p>
+        <p>Пекарка Галя вже відчинила віконце. Пахло кмином і <em>теплим тістом</em>. Вона помахала йому борошняною рукою й гукнула, щоб не забув зайти по дорозі назад, бо сьогодні буде маковий рулет.</p>
+        <p>На Ковальській було тихо. Ліхтар стояв там, де завжди, трохи нахилений, наче прислухався. Орест піднявся драбиною, відкрив дверцята — і завмер. Усередині, замість ґнота, лежав ще один конверт.</p>
+        <p>Цього разу на ньому було два слова: «Для міста». Орест обережно сховав його за пазуху. Він ще не знав, що до вечора в цьому місті не залишиться жодного ліхтаря, який би світив сам по собі.</p>
+        <p>А поки що над Ковальською розвиднялося, і з вікон тягнуло кавою, і хтось на другому поверсі вперто вчився грати на скрипці ту саму мелодію, що й учора.</p>`;
+
+    function renderReader() {
+        const el = $('#reader'), [bg, text] = R_COLORS[rd.colors], accent = R_ACCENTS[rd.accent];
+        const width = { narrow: '30ch', medium: '42ch', wide: '58ch', full: 'none' }[rd.width];
+        Object.entries({
+            '--r-bg': bg, '--r-text': text, '--r-muted': mix(text, bg), '--r-accent': accent,
+            '--r-font': FONTS[rd.font], '--r-size': rd.size + 'px', '--r-lh': rd.lh, '--r-width': width, '--r-margin': rd.margin + 'px',
+            '--r-align': rd.align, '--r-hyph': rd.align === 'justify' ? 'auto' : 'manual',
+            '--r-indent': rd.para === 'indent' ? '1.6em' : '0', '--r-pgap': rd.para === 'indent' ? '0' : '0.9em',
+        }).forEach(([k, v]) => el.style.setProperty(k, v));
+        el.classList.toggle('hide-bars', false);
+        const stage = $('#stage');
+        if (rd.mode === 'scroll') {
+            stage.innerHTML = `<div class="scroll"><div class="text">${CHAPTER}</div></div>`;
+            $('.scroll', stage).addEventListener('scroll', status);
+        } else {
+            stage.innerHTML = `<div class="pages"><div class="viewport"><div class="text">${CHAPTER}</div></div></div><div class="curl"></div>
+                <button class="tapzone left" aria-label="Попередня сторінка"></button><button class="tapzone right" aria-label="Наступна сторінка"></button>`;
+            const vp = $('.viewport', stage), t = $('.text', stage);
+            t.style.columnWidth = vp.clientWidth + 'px';
+            requestAnimationFrame(() => {
+                const gap = rd.margin * 2;
+                pages = Math.max(1, Math.round((t.scrollWidth + gap) / (vp.clientWidth + gap)));
+                page = Math.min(page, pages - 1);
+                move(false);
+            });
+            $('.tapzone.left', stage).addEventListener('click', () => flip(-1));
+            $('.tapzone.right', stage).addEventListener('click', () => flip(1));
+        }
+        status();
+        $('#anim-row').hidden = rd.mode !== 'pages';
+        syncReaderControls();
+    }
+    function mix(a, b) {
+        const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+        const [x, y] = [p(a), p(b)];
+        return `rgb(${x.map((v, i) => Math.round(v * .6 + y[i] * .4)).join(',')})`;
+    }
+    function move(animate) {
+        const vp = $('.viewport'), t = $('.pages .text');
+        if (!vp || !t) return;
+        t.classList.toggle('no-move', !animate || rd.anim !== 'slide');
+        t.style.transform = `translateX(${-page * (vp.clientWidth + rd.margin * 2)}px)`;
+        status();
+    }
+    function flip(dir) {
+        if (rd.mode !== 'pages') return;
+        const next = page + dir;
+        if (next < 0 || next >= pages) return;
+        const t = $('.pages .text'), curl = $('.curl');
+        if (rd.anim === 'fade') {
+            t.style.opacity = 0;
+            setTimeout(() => { page = next; move(false); t.style.opacity = 1; }, 180);
+        } else if (rd.anim === 'curl') {
+            curl.className = 'curl ' + (dir > 0 ? 'go' : 'back');
+            setTimeout(() => { page = next; move(false); }, dir > 0 ? 250 : 0);
+            setTimeout(() => { curl.className = 'curl'; }, 520);
+        } else {
+            page = next; move(rd.anim === 'slide');
+        }
+    }
+    function status() {
+        const parts = [];
+        if (rd.clock) parts.push('<span class="clock">19:42</span>');
+        if (rd.mode === 'pages') parts.push(`<span class="pageno">сторінка ${page + 1} з ${pages}</span>`);
+        else if (rd.percent) {
+            const sc = $('.scroll');
+            const pc = sc ? Math.round(100 * sc.scrollTop / Math.max(1, sc.scrollHeight - sc.clientHeight)) : 0;
+            parts.push(`${pc}%`);
+        }
+        $('#status').innerHTML = parts.join(' · ');
+    }
+    function syncReaderControls() {
+        $$('#reader-presets button').forEach((b, i) => b.setAttribute('aria-pressed', String(!rdCustom && i === rdPreset)));
+        $('#reader-custom').hidden = !rdCustom;
+        $$('#panel-reader .seg[data-rkey]').forEach((seg) => $$('button', seg).forEach((b) => b.setAttribute('aria-pressed', String(String(rd[seg.dataset.rkey]) === b.dataset.v))));
+        $('#r-font').value = rd.font;
+        $('#r-size').value = rd.size; $('#r-size-out').textContent = rd.size + ' px';
+        $('#r-lh').value = rd.lh; $('#r-lh-out').textContent = Number(rd.lh).toFixed(1);
+        $('#r-margin').value = rd.margin; $('#r-margin-out').textContent = rd.margin + ' px';
+        ['hide', 'clock', 'percent', 'awake'].forEach((k) => { $('#r-' + k).checked = rd[k]; });
+        $('#r-colors').innerHTML = R_COLORS.map(([b, t, n], i) => `<button class="pair" title="${n}" aria-pressed="${i === rd.colors}" style="background:${b};color:${t}" data-i="${i}">Аа</button>`).join('');
+        $('#r-accents').innerHTML = R_ACCENTS.map((c, i) => `<button class="swatch" title="${c}" aria-pressed="${i === rd.accent}" style="background:${c}" data-i="${i}"></button>`).join('');
+    }
+    function changeReader(patch) { rd = { ...rd, ...patch }; rdCustom = true; renderReader(); }
+
+    $('#reader-presets').innerHTML = READER_PRESETS.map((p) => `<button>${p.name}</button>`).join('');
+    $$('#reader-presets button').forEach((b, i) => b.addEventListener('click', () => { rdPreset = i; rdCustom = false; rd = { ...READER_PRESETS[i] }; page = 0; renderReader(); }));
+    $('#r-font').innerHTML = R_FONTS.map((f) => `<option>${f}</option>`).join('');
+    $('#r-font').addEventListener('change', (e) => changeReader({ font: e.target.value }));
+    ['size', 'lh', 'margin'].forEach((k) => $('#r-' + k).addEventListener('input', (e) => changeReader({ [k]: Number(e.target.value) })));
+    ['hide', 'clock', 'percent', 'awake'].forEach((k) => $('#r-' + k).addEventListener('change', (e) => changeReader({ [k]: e.target.checked })));
+    $$('#panel-reader .seg[data-rkey]').forEach((seg) => seg.addEventListener('click', (e) => {
+        const b = e.target.closest('button'); if (!b) return;
+        changeReader({ [seg.dataset.rkey]: b.dataset.v });
+    }));
+    $('#r-colors').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b) changeReader({ colors: Number(b.dataset.i) }); });
+    $('#r-accents').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b) changeReader({ accent: Number(b.dataset.i) }); });
+    $('#prev').addEventListener('click', () => flip(-1));
+    $('#next').addEventListener('click', () => flip(1));
+    document.addEventListener('keydown', (e) => {
+        if ($('#panel-reader').hidden || e.target.matches('input, select')) return;
+        if (e.key === 'ArrowRight') flip(1);
+        if (e.key === 'ArrowLeft') flip(-1);
+    });
+    // Hide-bars: tapping the text in scroll mode toggles the bars, as in the real reader.
+    $('#stage').addEventListener('click', (e) => { if (rd.mode === 'scroll' && rd.hide && !e.target.closest('button')) $('#reader').classList.toggle('hide-bars'); });
+    let touchX = null;
+    $('#stage').addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+    $('#stage').addEventListener('touchend', (e) => { if (touchX === null) return; const dx = e.changedTouches[0].clientX - touchX; if (Math.abs(dx) > 40) flip(dx < 0 ? 1 : -1); touchX = null; });
+    window.addEventListener('resize', () => { if (!$('#panel-reader').hidden) renderReader(); });
+    document.fonts && document.fonts.ready.then(() => { if (!$('#panel-reader').hidden) renderReader(); });
+})();
+</script>
