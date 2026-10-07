@@ -65,7 +65,9 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
         }
     }, [expanded, novel.description]);
     const edition = novel.edition;
-    const local = localProgress(novel.slug, edition.teamHandle);
+    // The place kept in this browser is a guest's: a signed-in reader (viewer is theirs) has their own on the
+    // server, and a new account must not take up where someone else stopped in the same browser.
+    const local = novel.viewer ? null : localProgress(novel.slug, edition.teamHandle);
     const resume = novel.viewer?.chapterNumber ?? local?.number ?? null;
     // The chapter's own number (0, 31.1); a place remembered only in this browser has just its position.
     const shown = novel.viewer?.chapterNumber

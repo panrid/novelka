@@ -64,6 +64,18 @@ describe('novel page', () => {
         expect(await screen.findByText('тут зупинились')).toBeInTheDocument();
     });
 
+    it('does not hand a new account the place someone else left in this browser', async () => {
+        localStorage.setItem('novelka:progress:mah-vody:panrid', JSON.stringify({ number: 35, position: 0.3 }));
+        await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': { body: { ...NOVEL, viewer: { list: null, chapterNumber: null, position: null, teamRole: null,
+                myRating: null, chapterLabel: null, relayAsked: false, subscribed: false } } },
+            'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
+            'GET /api/editions/7/comments/count': { body: { count: 0 } },
+        });
+        expect(await screen.findByRole('link', { name: 'Почати читати' })).toHaveAttribute('href', '/n/mah-vody/1');
+    });
+
     it('explains an 18+ novel instead of pretending it is missing', async () => {
         await renderAt('/n/doroslyi', {
             'GET /api/novels/doroslyi': { status: 403, body: { detail: 'Ця новела для дорослих.', reason: 'adult' } },

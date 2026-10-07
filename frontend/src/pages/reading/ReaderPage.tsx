@@ -56,6 +56,11 @@ export function ReaderPage() {
 
 function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter; team: string | undefined; find?: string | undefined; look?: boolean }) {
     const me = useMe();
+    // Read when a chapter opens, not a reason to scroll again once the account has loaded.
+    const signedIn = useRef(me !== null);
+    useEffect(() => {
+        signedIn.current = me !== null;
+    }, [me]);
     const client = useQueryClient();
     const navigate = useNavigate();
     const [size, setSize] = useReaderSize();
@@ -83,7 +88,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
             requestAnimationFrame(() => mark.scrollIntoView({ block: 'center' }));
             return;
         }
-        const local = localProgress(opened.novelSlug, opened.edition.teamHandle);
+        const local = signedIn.current ? null : localProgress(opened.novelSlug, opened.edition.teamHandle);
         const position = opened.savedPosition ?? (local?.number === opened.number ? local.position : 0);
         place.current = position;
         if (position > 0.02) {
@@ -97,7 +102,8 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
         // Opened to show a word or to review suggestions: a look, not reading — the place stays.
         if (lookOnly.current) return;
         const position = Math.round(place.current * 1000) / 1000;
-        if (movesPlace(localProgress(opened.novelSlug, opened.edition.teamHandle), opened.number, position)) {
+        // Only a guest's place lives in the browser; an account's is on the server.
+        if (!me && movesPlace(localProgress(opened.novelSlug, opened.edition.teamHandle), opened.number, position)) {
             saveLocalProgress(opened.novelSlug, opened.edition.teamHandle, { number: opened.number, position, label: opened.label ?? null });
         }
         const now = Date.now();
