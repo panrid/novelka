@@ -31,6 +31,10 @@ class PipelinePartsTests {
         assertThat(Pipeline.sameStart("『ファイ』に来て十二日目。", "ついに、")).as("another line's start").isFalse();
         assertThat(Pipeline.sameStart("The spear gives soldiers courage.", "the s")).as("any language of the original").isTrue();
         assertThat(Pipeline.sameStart("……", "")).as("a line of dots has nothing to compare").isTrue();
+        // DeepSeek V4 Flash, «Меджик Мейкер» chapter 52: refused nine times as a slip, split down to ten lines.
+        assertThat(Pipeline.sameStart("「……ブリジット・ギーテ」", "「……")).as("a quote of punctuation only").isTrue();
+        assertThat(Pipeline.sameStart("「……ブリジット・ギーテ」", "「...")).isTrue();
+        assertThat(Pipeline.sameStart("「……ブリジット・ギーテ」", "「……お")).as("a letter that is not its own").isFalse();
         assertThat(Pipeline.sameStart("何か", null)).as("an answer without «start»").isTrue();
     }
 

@@ -384,16 +384,32 @@ class Jobs {
         db.update(JOB).set(JOB.CHARGED_SHAH, charged).where(JOB.ID.eq(jobId)).execute();
     }
 
-    /** After a failure: the failed chapter goes back to the queue; lost answers may be asked again. */
+    /**
+     * After a failure: the failed chapter goes back to the queue; lost answers may be asked again.
+     * A cancelled run comes back too when it is the novel's last one and the site pays for it
+     * (a person's run gave its hold back when cancelled): chapters done stay done, the rest go on
+     * from what their steps saved.
+     */
     @Transactional
     void resume(long editionId, long jobId) {
+        db.execute("SELECT 1 FROM edition WHERE id = ? FOR UPDATE", editionId);
+        JobRecord job = job(editionId, jobId).orElseThrow(() -> UserFacingException.notFound("Такого запуску немає."));
+        if ("cancelled".equals(job.getState())) {
+            if ("account".equals(job.getFunding())) {
+                throw UserFacingException.conflict("Скасований запуск за шаги не відновлюється. Запустіть переклад знову: готові глави він пропустить.");
+            }
+            long last = db.select(DSL.max(JOB.ID)).from(JOB).where(JOB.EDITION_ID.eq(editionId)).fetchSingle().value1();
+            if (last != jobId) {
+                throw UserFacingException.conflict("Відновити можна лише останній запуск цієї новели.");
+            }
+        }
         int changed = db.update(JOB).set(JOB.STATE, "running").set(JOB.ERROR, (String) null).set(JOB.FINISHED_AT, (OffsetDateTime) null)
-                .where(JOB.ID.eq(jobId), JOB.EDITION_ID.eq(editionId), JOB.STATE.eq("failed")).execute();
+                .where(JOB.ID.eq(jobId), JOB.EDITION_ID.eq(editionId), JOB.STATE.in("failed", "cancelled")).execute();
         if (changed == 0) {
-            throw UserFacingException.conflict("Продовжити можна лише переклад, що зупинився з помилкою.");
+            throw UserFacingException.conflict("Продовжити можна лише запуск, що зупинився з помилкою або був скасований.");
         }
         db.update(JOB_STEP).set(JOB_STEP.STATE, "pending").set(JOB_STEP.ATTEMPTS, 0).set(JOB_STEP.NOT_BEFORE, DSL.currentOffsetDateTime())
-                .where(JOB_STEP.JOB_ID.eq(jobId), JOB_STEP.STATE.eq("failed")).execute();
+                .where(JOB_STEP.JOB_ID.eq(jobId), JOB_STEP.STATE.in("failed", "cancelled")).execute();
         ai.forgetUncertain(jobId);
     }
 

@@ -8,6 +8,7 @@ import { PresetPicker } from '../../studio/PresetPicker';
 import pickerStyles from '../../studio/modelPicker.module.css';
 import { useDebounced } from '../../lib/useDebounced';
 import { relativeTime } from '../../lib/dates';
+import { askConfirm } from '../../ui/ask';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
@@ -108,7 +109,7 @@ export function AutotranslatePage() {
 
             {job && <JobCard job={job} editionId={id} showShah={show} usdPerShah={data.usdPerShah}
                 refreshed={{ at: Math.max(overview.dataUpdatedAt, overview.errorUpdatedAt), failed: overview.isRefetchError }}
-                onCancel={() => cancel.mutate(job.id)} onResume={() => resume.mutate(job.id)}
+                onCancel={() => cancel.mutate(job.id)} onResume={() => resume.mutate(job.id)} restorable
                 pending={cancel.isPending || resume.isPending} />}
             {(cancel.isError || resume.isError) && <Notice tone="error">{(cancel.error ?? resume.error)!.message}</Notice>}
 
@@ -246,12 +247,21 @@ export function AutotranslatePage() {
 const range = (job: Pick<Job, 'from' | 'to'>) => (job.from === job.to ? `глава ${job.from}` : `глави ${job.from}–${job.to}`);
 
 /**
- * @param refreshed when the card's data last came (or failed to): a live run shows a turn per refresh
+ * @param refreshed  when the card's data last came (or failed to): a live run shows a turn per refresh
+ * @param restorable the novel's last run: cancelled by the site owner, it can be taken up again
  */
-export function JobCard({ job, editionId, showShah, usdPerShah, onCancel, onResume, pending, title, refreshed }: {
+export function JobCard({ job, editionId, showShah, usdPerShah, onCancel, onResume, pending, title, refreshed, restorable = false }: {
     job: Job; editionId: number; showShah: boolean; usdPerShah: number; onCancel: () => void; onResume: () => void; pending: boolean;
-    title?: React.ReactNode; refreshed?: { at: number; failed: boolean };
+    title?: React.ReactNode; refreshed?: { at: number; failed: boolean }; restorable?: boolean;
 }) {
+    // One tap on «Скасувати» by mistake stopped a run: it asks first.
+    const confirmCancel = async () => {
+        if (await askConfirm({
+            title: 'Скасувати переклад?',
+            text: `Готові глави залишаться. ${job.personal ? 'Невитрачені шаги повернуться.' : 'Відновити запуск можна, поки він останній для цієї новели.'}`,
+            confirmLabel: 'Скасувати переклад', danger: true,
+        })) onCancel();
+    };
     const total = Math.max(1, job.to - job.from + 1);
     // The chapter at work counts by its parts, so a long chapter does not leave the bar empty.
     const working = active(job) && job.current ? job.current.progress : 0;
@@ -291,7 +301,12 @@ export function JobCard({ job, editionId, showShah, usdPerShah, onCancel, onResu
             {(active(job) || job.state === 'failed') && (
                 <div className={styles.actions}>
                     {job.state === 'failed' && <Button onPress={onResume} pending={pending}>Продовжити</Button>}
-                    <Button variant="secondary" onPress={onCancel} isDisabled={pending}>Скасувати</Button>
+                    <Button variant="secondary" onPress={() => void confirmCancel()} isDisabled={pending}>Скасувати</Button>
+                </div>
+            )}
+            {job.state === 'cancelled' && restorable && !job.personal && job.done < job.to - job.from + 1 && (
+                <div className={styles.actions}>
+                    <Button variant="secondary" onPress={onResume} pending={pending}>Відновити</Button>
                 </div>
             )}
         </div>

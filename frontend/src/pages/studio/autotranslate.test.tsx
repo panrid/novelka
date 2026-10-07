@@ -209,6 +209,31 @@ describe('autotranslate', () => {
         expect(within(card).getByRole('link', { name: /Журнал запуску/ })).toHaveAttribute('href', '/studio/4/translate/jobs/9');
     });
 
+    it('asks before cancelling a run and restores the last one cancelled', async () => {
+        const running = { ...FAILED_JOB, state: 'running', error: null,
+            current: { number: 2, stage: 'translate', state: 'running', error: null, part: 1, parts: 4, progress: 0.3 } };
+        const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/4/autotranslate': { body: { ...OVERVIEW, jobs: [running] } },
+            'POST /api/studio/editions/4/autotranslate/jobs/9/cancel': { status: 204 },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Скасувати' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Скасувати переклад?' });
+        expect(calls.some((call) => call.path.endsWith('/cancel'))).toBe(false);
+        await userEvent.click(within(dialog).getByRole('button', { name: 'Скасувати переклад' }));
+        await vi.waitFor(() => expect(calls.some((call) => call.path.endsWith('/jobs/9/cancel'))).toBe(true));
+    });
+
+    it('offers to take up the novel\'s last cancelled run again', async () => {
+        const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/4/autotranslate': { body: { ...OVERVIEW, jobs: [{ ...FAILED_JOB, state: 'cancelled', error: null }] } },
+            'POST /api/studio/editions/4/autotranslate/jobs/9/resume': { status: 204 },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Відновити' }));
+        expect(calls.some((call) => call.method === 'POST' && call.path.endsWith('/jobs/9/resume'))).toBe(true);
+    });
+
     it('offers the Syosetu path in a new publication to the site owner', async () => {
         const { router } = await renderAt('/studio/new', {
             'GET /api/me': { body: OWNER },

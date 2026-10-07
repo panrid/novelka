@@ -347,6 +347,27 @@ class AutotranslateFlowTests {
     }
 
     @Test
+    void aRunCancelledByMistakeIsRestoredWhileItIsTheNovelsLast() {
+        long edition = prepare();
+        String base = "/api/studio/editions/" + edition + "/autotranslate";
+        owner.browser().post(base + "/jobs", json("to", 2));
+        long first = jobId(edition);
+        assertThat(owner.browser().post(base + "/jobs/" + first + "/cancel", "{}").status()).isEqualTo(200);
+        assertThat(owner.browser().post(base + "/jobs/" + first + "/resume", "{}").status()).isEqualTo(200);
+        worker.drain();
+        assertThat(read(owner.browser().get(base)).path("jobs").path(0).path("state").asString()).isEqualTo("done");
+
+        owner.browser().post(base + "/jobs", json("to", 3));
+        long second = jobId(edition);
+        owner.browser().post(base + "/jobs/" + second + "/cancel", "{}");
+        owner.browser().post(base + "/jobs", json("to", 4));
+        long third = jobId(edition);
+        owner.browser().post(base + "/jobs/" + third + "/cancel", "{}");
+        assertThat(owner.browser().post(base + "/jobs/" + second + "/resume", "{}").status())
+                .as("an older run would race the newer one").isEqualTo(409);
+    }
+
+    @Test
     void aModelThatSpentEveryTokenThinkingIsAskedAgainNotStopped() {
         long edition = prepare();
         owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/jobs", json("to", 1));

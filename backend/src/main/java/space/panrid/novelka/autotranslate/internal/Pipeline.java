@@ -418,7 +418,8 @@ class Pipeline {
         }
         String source = letters(original);
         String quoted = letters(start);
-        if (source.isEmpty()) {
+        // «「……» is all a model can quote of 「……ブリジット」: four characters with no letter tell nothing.
+        if (source.isEmpty() || quoted.isEmpty()) {
             return true;
         }
         int length = Math.min(2, Math.min(source.length(), quoted.length()));
