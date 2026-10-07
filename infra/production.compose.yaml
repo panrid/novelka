@@ -48,6 +48,8 @@ services:
       NOVELKA_MAIL_FROM: ${MAIL_FROM:-Новелка <no-reply@novelka.panrid.space>}
       NOVELKA_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       NOVELKA_GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      NOVELKA_TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      NOVELKA_TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
     volumes:
       - media:/data/media
     depends_on:

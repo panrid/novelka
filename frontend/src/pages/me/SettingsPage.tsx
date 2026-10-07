@@ -10,6 +10,7 @@ import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
+import { TelegramSection } from './TelegramSection';
 import ui from '../../ui/ui.module.css';
 import styles from '../pages.module.css';
 
@@ -26,6 +27,7 @@ export function SettingsPage() {
             <EmailSection me={me} />
             <PasswordSection me={me} />
             <GoogleSection me={me} />
+            <TelegramSection />
             <AppearanceSection />
             <MenuSection me={me} />
         </section>

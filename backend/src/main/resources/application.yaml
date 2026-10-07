@@ -56,6 +56,12 @@ novelka:
   google:
     client-id: ${NOVELKA_GOOGLE_CLIENT_ID:}
     client-secret: ${NOVELKA_GOOGLE_CLIENT_SECRET:}
+  # Telegram notifications; without the bot token the settings do not offer them.
+  telegram:
+    bot-token: ${NOVELKA_TELEGRAM_BOT_TOKEN:}
+    bot-username: ${NOVELKA_TELEGRAM_BOT_USERNAME:}
+    # auto: a webhook when public-url is HTTPS, else polling (development)
+    mode: ${NOVELKA_TELEGRAM_MODE:auto}
   owner:
     nick: ${NOVELKA_OWNER_NICK:}
     email: ${NOVELKA_OWNER_EMAIL:}

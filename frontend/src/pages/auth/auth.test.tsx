@@ -177,3 +177,39 @@ describe('sign-in with Google', () => {
         expect(await screen.findByRole('link', { name: 'Прив’язати Google' })).toHaveAttribute('href', '/api/auth/google?next=%2Fme%2Fsettings&link=true');
     });
 });
+
+describe('Telegram in the settings', () => {
+    const STATUS = { available: true, linked: false, username: null, botUsername: 'novelka_bot', notifyInbox: true, notifyChapters: true, notifyMessages: true };
+
+    it('hands out the one-time link and waits for «Start»', async () => {
+        const { calls } = await renderAt('/me/settings', {
+            'GET /api/me': { body: { ...ME, google: false, hasPassword: true } },
+            'GET /api/me/telegram': { body: STATUS },
+            'POST /api/me/telegram/link': { body: { url: 'https://t.me/novelka_bot?start=abc' } },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Прив’язати Telegram' }));
+        expect(await screen.findByRole('link', { name: 'Відкрити Telegram' })).toHaveAttribute('href', 'https://t.me/novelka_bot?start=abc');
+        expect(calls.filter((call) => call.path === '/api/me/telegram/link')).toHaveLength(1);
+    });
+
+    it('lets a tied chat choose what comes there', async () => {
+        const { calls } = await renderAt('/me/settings', {
+            'GET /api/me': { body: { ...ME, google: false, hasPassword: true } },
+            'GET /api/me/telegram': { body: { ...STATUS, linked: true, username: 'mika_tg' } },
+            'PATCH /api/me/telegram': { body: { ...STATUS, linked: true, username: 'mika_tg', notifyChapters: false } },
+        });
+        expect(await screen.findByText(/@mika_tg/)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('switch', { name: 'Нові глави з підписок' }));
+        await waitFor(() => expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ notifyChapters: false }));
+        expect(screen.getByRole('switch', { name: 'Нові глави з підписок' })).not.toBeChecked();
+    });
+
+    it('stays hidden while the site has no bot', async () => {
+        await renderAt('/me/settings', {
+            'GET /api/me': { body: { ...ME, google: false, hasPassword: true } },
+            'GET /api/me/telegram': { body: { ...STATUS, available: false } },
+        });
+        expect(await screen.findByRole('heading', { name: 'Пароль' })).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Telegram' })).not.toBeInTheDocument();
+    });
+});

@@ -9,8 +9,10 @@ import java.util.Map;
 import org.jooq.DSLContext;
 import org.jooq.JSONB;
 import org.jooq.impl.DSL;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
+import space.panrid.novelka.notification.NotificationAdded;
 import space.panrid.novelka.platform.live.LiveEvents;
 import space.panrid.novelka.platform.tx.AfterCommit;
 import tools.jackson.core.type.TypeReference;
@@ -26,17 +28,20 @@ class Inbox {
     private final DSLContext db;
     private final JsonMapper json;
     private final LiveEvents live;
+    private final ApplicationEventPublisher events;
 
-    Inbox(DSLContext db, JsonMapper json, LiveEvents live) {
+    Inbox(DSLContext db, JsonMapper json, LiveEvents live, ApplicationEventPublisher events) {
         this.db = db;
         this.json = json;
         this.live = live;
+        this.events = events;
     }
 
     void add(long recipientId, String kind, Map<String, Object> payload) {
         db.insertInto(NOTIFICATION).set(NOTIFICATION.RECIPIENT_ID, recipientId).set(NOTIFICATION.KIND, kind)
                 .set(NOTIFICATION.PAYLOAD, JSONB.valueOf(json.writeValueAsString(payload))).execute();
         nudge(recipientId);
+        events.publishEvent(new NotificationAdded(recipientId, kind, new java.util.HashMap<>(payload)));
     }
 
     /**
@@ -65,6 +70,7 @@ class Inbox {
                     created_at = now()
                 """, recipientId, kind, groupKey, json.writeValueAsString(fresh));
         nudge(recipientId);
+        events.publishEvent(new NotificationAdded(recipientId, kind, fresh));
     }
 
     /** One unread row per group whose «count» grows: suggestions sent to a team one batch after another. */
@@ -79,6 +85,7 @@ class Inbox {
                     created_at = now()
                 """, recipientId, kind, groupKey, json.writeValueAsString(fresh));
         nudge(recipientId);
+        events.publishEvent(new NotificationAdded(recipientId, kind, fresh));
     }
 
     record Item(long id, String kind, Map<String, Object> payload, OffsetDateTime createdAt, boolean read) {

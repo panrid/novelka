@@ -8,11 +8,13 @@ import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.Optional;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import space.panrid.novelka.account.AccountMessenger;
 import space.panrid.novelka.account.GoogleSignIn;
 import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.account.internal.EmailTokens.Purpose;
@@ -41,12 +43,15 @@ class AccountService {
     private final RateLimiter signInsByLogin;
     private final RateLimiter registrationsByAddress;
     private final SiteSettings settings;
+    private final ObjectProvider<AccountMessenger> messengers;
     // Spent on unknown logins, so a wrong nick takes as long as a wrong password.
     private final String dummyHash;
 
     AccountService(AccountRepository accounts, EmailTokens tokens, AccountMails mails, Mailer mailer,
-            PasswordEncoder passwords, Clock clock, AccountLimits limits, SiteSettings settings) {
+            PasswordEncoder passwords, Clock clock, AccountLimits limits, SiteSettings settings,
+            ObjectProvider<AccountMessenger> messengers) {
         this.settings = settings;
+        this.messengers = messengers;
         this.accounts = accounts;
         this.tokens = tokens;
         this.mails = mails;
@@ -130,6 +135,8 @@ class AccountService {
                 .ifPresent(account -> {
                     String token = tokens.issue(account.id(), Purpose.RESET, account.email());
                     AfterCommit.run(() -> mailer.send(mails.reset(account.email(), account.nick(), token)));
+                    tell(account.id(), "Посилання, щоб задати новий пароль на Новелці. Діє 30 хвилин. "
+                            + "Якщо ви не просили — нічого не робіть.", mails.resetLink(token));
                 });
     }
 
@@ -167,6 +174,7 @@ class AccountService {
             throw UserFacingException.conflict("Цей нік уже зайнятий. Оберіть інший.");
         }
         accounts.changeNick(id, account.nick(), nick, now);
+        tell(id, "Ваш нік на Новелці тепер «%s».".formatted(nick), null);
     }
 
     /** The new address gets a link; the old one stays in use until it is opened. */
@@ -198,6 +206,8 @@ class AccountService {
         accounts.updateEmail(account.id(), used.email());
         accounts.markEmailVerified(account.id(), now());
         AfterCommit.run(() -> mailer.send(mails.emailChanged(account.email(), account.nick(), used.email())));
+        tell(account.id(), "Пошту акаунта змінено на %s. Якщо це були не ви — відновіть пароль.".formatted(used.email()),
+                mails.resetPage());
         return account.id();
     }
 
@@ -209,6 +219,12 @@ class AccountService {
         accounts.updatePassword(id, passwords.encode(password));
         tokens.revokeAll(id, Purpose.RESET);
         AfterCommit.run(() -> mailer.send(mails.passwordChanged(account.email(), account.nick())));
+        tell(id, "Пароль акаунта змінено. Якщо це були не ви — відновіть пароль.", mails.resetPage());
+    }
+
+    /** After the commit, to the person's messengers (Telegram) as well as the letters. */
+    private void tell(long accountId, String text, String link) {
+        AfterCommit.run(() -> messengers.orderedStream().forEach(messenger -> messenger.tell(accountId, text, link)));
     }
 
     /** The account a Google sign-in opens, if there is one already. */

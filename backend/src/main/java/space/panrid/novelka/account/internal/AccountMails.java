@@ -70,6 +70,16 @@ class AccountMails {
                 """.formatted(nick));
     }
 
+    /** The link a reset letter carries; also sent to the person's messenger. */
+    String resetLink(String token) {
+        return link("/reset", token);
+    }
+
+    /** Where to ask for a new password, for «if it was not you». */
+    String resetPage() {
+        return site.link("/reset");
+    }
+
     private String link(String path, String token) {
         return site.link(path + "?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8));
     }

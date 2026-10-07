@@ -9,9 +9,10 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import space.panrid.novelka.support.FakeGoogle;
 import space.panrid.novelka.support.FakeModel;
 import space.panrid.novelka.support.FakeSyosetu;
+import space.panrid.novelka.support.FakeTelegram;
 import space.panrid.novelka.support.TestMailbox;
 
-/** A real PostgreSQL 17, a mailbox that keeps letters, and Syosetu, Google and the model faked. */
+/** A real PostgreSQL 17, a mailbox that keeps letters, and Syosetu, Google, Telegram and the model faked. */
 @TestConfiguration(proxyBeanMethods = false)
 public class TestcontainersConfiguration {
 
@@ -37,6 +38,12 @@ public class TestcontainersConfiguration {
     @Primary
     FakeGoogle fakeGoogle() {
         return new FakeGoogle();
+    }
+
+    @Bean
+    @Primary
+    FakeTelegram fakeTelegram() {
+        return new FakeTelegram();
     }
 
     @Bean

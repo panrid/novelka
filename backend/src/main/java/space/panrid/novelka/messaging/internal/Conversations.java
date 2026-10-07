@@ -6,6 +6,7 @@ import static space.panrid.novelka.jooq.Tables.CONVERSATION_MEMBER;
 import static space.panrid.novelka.jooq.Tables.IMAGE;
 import static space.panrid.novelka.jooq.Tables.MESSAGE;
 import static space.panrid.novelka.jooq.Tables.MESSAGE_IMAGE;
+import static space.panrid.novelka.jooq.Tables.TEAM;
 import static space.panrid.novelka.jooq.Tables.TEAM_MEMBER;
 
 import java.time.Clock;
@@ -24,6 +25,7 @@ import java.util.Set;
 import org.jooq.DSLContext;
 import org.jooq.Record;
 import org.jooq.impl.DSL;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,7 @@ import space.panrid.novelka.community.Mentions;
 import space.panrid.novelka.jooq.tables.records.ConversationRecord;
 import space.panrid.novelka.jooq.tables.records.MessageRecord;
 import space.panrid.novelka.media.Images;
+import space.panrid.novelka.messaging.MessagePosted;
 import space.panrid.novelka.media.StoredImage;
 import space.panrid.novelka.platform.live.LiveEvents;
 import space.panrid.novelka.platform.tx.AfterCommit;
@@ -63,7 +66,11 @@ class Conversations {
     private final Clock clock;
     private final RateLimiter sending;
 
-    Conversations(DSLContext db, Teams teams, Blocks blocks, Mentions mentions, Images images, LiveEvents live, Clock clock) {
+    private final ApplicationEventPublisher events;
+
+    Conversations(DSLContext db, Teams teams, Blocks blocks, Mentions mentions, Images images, LiveEvents live, Clock clock,
+            ApplicationEventPublisher events) {
+        this.events = events;
         this.db = db;
         this.teams = teams;
         this.blocks = blocks;
@@ -366,6 +373,8 @@ class Conversations {
         db.update(CONVERSATION_MEMBER).setNull(CONVERSATION_MEMBER.LEFT_AT)
                 .where(CONVERSATION_MEMBER.CONVERSATION_ID.eq(conversationId), DSL.val("direct").eq(conversation.getKind())).execute();
         nudge(conversation, "message");
+        events.publishEvent(new MessagePosted(conversationId, conversation.getKind(), conversationTitle(conversation),
+                me.nick(), body.isEmpty() ? "картинка" : body, firstUnread(conversation, me.accountId(), id)));
         return id;
     }
 
@@ -615,6 +624,33 @@ class Conversations {
         db.insertInto(MESSAGE).set(MESSAGE.CONVERSATION_ID, conversationId).set(MESSAGE.KIND, "system").set(MESSAGE.BODY, text)
                 .set(MESSAGE.CREATED_AT, now()).execute();
         db.update(CONVERSATION).set(CONVERSATION.LAST_MESSAGE_AT, now()).where(CONVERSATION.ID.eq(conversationId)).execute();
+    }
+
+    /** Members who had read everything before {@code messageId} and did not mute the conversation. */
+    private List<Long> firstUnread(ConversationRecord conversation, long author, long messageId) {
+        List<Long> people = "team".equals(conversation.getKind())
+                ? teamPeople(conversation.getTeamId())
+                : db.select(CONVERSATION_MEMBER.ACCOUNT_ID).from(CONVERSATION_MEMBER)
+                        .where(CONVERSATION_MEMBER.CONVERSATION_ID.eq(conversation.getId()), CONVERSATION_MEMBER.LEFT_AT.isNull())
+                        .fetch(CONVERSATION_MEMBER.ACCOUNT_ID);
+        var earlier = MESSAGE.as("earlier");
+        return db.select(CONVERSATION_MEMBER.ACCOUNT_ID).from(CONVERSATION_MEMBER)
+                .where(CONVERSATION_MEMBER.CONVERSATION_ID.eq(conversation.getId()),
+                        CONVERSATION_MEMBER.ACCOUNT_ID.in(people), CONVERSATION_MEMBER.ACCOUNT_ID.ne(author),
+                        CONVERSATION_MEMBER.MUTED.isFalse(),
+                        DSL.notExists(DSL.selectOne().from(earlier).where(earlier.CONVERSATION_ID.eq(conversation.getId()),
+                                earlier.ID.gt(DSL.coalesce(CONVERSATION_MEMBER.LAST_READ_MESSAGE_ID, 0L)), earlier.ID.lt(messageId),
+                                earlier.DELETED_AT.isNull(),
+                                earlier.AUTHOR_ID.isNull().or(earlier.AUTHOR_ID.ne(CONVERSATION_MEMBER.ACCOUNT_ID)))))
+                .fetch(CONVERSATION_MEMBER.ACCOUNT_ID);
+    }
+
+    private String conversationTitle(ConversationRecord conversation) {
+        return switch (conversation.getKind()) {
+            case "team" -> db.select(TEAM.HANDLE).from(TEAM).where(TEAM.ID.eq(conversation.getTeamId())).fetchOne(TEAM.HANDLE);
+            case "direct" -> "";
+            default -> conversation.getTitle() == null ? "" : conversation.getTitle();
+        };
     }
 
     /** Every current member's open tabs hear that the conversation changed. */
