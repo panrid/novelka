@@ -17,6 +17,9 @@ class Checkpoint {
     public Long sourceId;
     public Integer chars;
     public String title;
+    /** Who tells the chapter in the first person, as analysis said (Ukrainian name and gender). */
+    public String narrator;
+    public String narratorGender;
     public List<Integer> analyzed = new ArrayList<>();
     public Map<String, List<Line>> draft = new HashMap<>();
     public Map<String, String> summaries = new HashMap<>();

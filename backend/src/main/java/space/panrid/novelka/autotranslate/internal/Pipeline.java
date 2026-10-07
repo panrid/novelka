@@ -114,6 +114,11 @@ class Pipeline {
             if (part == 0) {
                 checkpoint.title = answer.path("title").asString("").strip();
             }
+            String narrator = answer.path("narrator").path("name").asString("").strip();
+            if ((checkpoint.narrator == null || checkpoint.narrator.isEmpty()) && !narrator.isEmpty()) {
+                checkpoint.narrator = narrator;
+                checkpoint.narratorGender = answer.path("narrator").path("gender").asString("unknown");
+            }
             List<Glossary.Proposed> proposed = new ArrayList<>();
             for (JsonNode entry : answer.path("entries")) {
                 proposed.add(new Glossary.Proposed(entry.path("original").asString(""), entry.path("reading").asString(""),
@@ -143,12 +148,14 @@ class Pipeline {
             if (label != null && !label.isEmpty() || ChapterLabels.fromJapanese(source.title()).isPresent()) {
                 title = ChapterLabels.withoutNumber(title);
             }
-            analyses.save(editionId, number, source.id(), title, label, job.getId());
+            analyses.save(editionId, number, source.id(), title, label, checkpoint.narrator, checkpoint.narratorGender, job.getId());
         }
         if ("analyze".equals(job.getKind())) {
             save(step, "done", checkpoint);
             return;
         }
+        calls.narrator = analyses.find(editionId, number)
+                .map(done -> Prompts.narrator(done.narrator(), done.narratorGender())).orElse("");
 
         if (checkpoint.linesPerPart == null) {
             checkpoint.linesPerPart = checkpoint.draft.isEmpty() ? LINES_PER_PART : Integer.MAX_VALUE;
@@ -243,7 +250,7 @@ class Pipeline {
     private Translated translate(Calls calls, long editionId, int part, List<Block> blocks, String context, List<Line> before) {
         JsonNode answer;
         try {
-            answer = calls.ask("translate", part, Prompts.TRANSLATE, translateRequest(editionId, blocks, context, before),
+            answer = calls.ask("translate", part, Prompts.TRANSLATE, translateRequest(editionId, calls.narrator, blocks, context, before),
                     "translation", Prompts.blocksSchema(true), maxTokens(joined(blocks)), reply -> usable(reply, blocks));
         } catch (BadOutput unusable) {
             if (blocks.size() < MIN_SPLIT) {
@@ -264,17 +271,20 @@ class Pipeline {
         if (!missing.isEmpty()) {
             log.info("Chapter {} part {}: {} lines left out, asking for them alone", calls.number, part, missing.size());
             journal.add(calls.job.getId(), calls.number, "missing", Map.of("part", part, "lines", missing.size()));
-            JsonNode extra = calls.ask("translate", part, Prompts.TRANSLATE, translateRequest(editionId, missing, context, lines),
+            JsonNode extra = calls.ask("translate", part, Prompts.TRANSLATE, translateRequest(editionId, calls.narrator, missing, context, lines),
                     "translation", Prompts.blocksSchema(true), maxTokens(joined(missing)), reply -> complete(reply, missing));
             lines = merged(blocks, lines, lines(extra));
         }
         return new Translated(lines, answer.path("summary").asString("").strip());
     }
 
-    private String translateRequest(long editionId, List<Block> blocks, String context, List<Line> before) {
+    private String translateRequest(long editionId, String narrator, List<Block> blocks, String context, List<Line> before) {
         String text = joined(blocks);
         StringBuilder user = new StringBuilder();
         user.append("Glossary:\n").append(glossaryLines(editionId, text)).append("\n\n");
+        if (!narrator.isEmpty()) {
+            user.append(narrator).append("\n\n");
+        }
         if (context != null && !context.isBlank()) {
             user.append("What happened just before (context only, do not translate):\n").append(context).append("\n\n");
         }
@@ -300,7 +310,8 @@ class Pipeline {
             pair.put("draft", byId.getOrDefault(block.id(), ""));
             pairs.add(pair);
         }
-        String user = "Glossary:\n" + glossaryLines(editionId, text) + "\n\nBlocks (JSON):\n" + json.writeValueAsString(pairs);
+        String user = "Glossary:\n" + glossaryLines(editionId, text) + "\n\n"
+                + (calls.narrator.isEmpty() ? "" : calls.narrator + "\n\n") + "Blocks (JSON):\n" + json.writeValueAsString(pairs);
         JsonNode answer;
         try {
             answer = calls.ask("proofread", part, Prompts.PROOFREAD, user, "proofread", Prompts.blocksSchema(false),
@@ -320,6 +331,8 @@ class Pipeline {
      */
     static String usable(JsonNode answer, List<Block> blocks) {
         JsonNode lines = answer.path("blocks");
+        List<Boolean> speech = speech(blocks);
+        String previousOff = null;
         int at = 0;
         for (JsonNode line : lines) {
             String id = line.path("id").asString("");
@@ -335,6 +348,15 @@ class Pipeline {
             if (!sameStart(blocks.get(at).text(), line.path("start").asString(null))) {
                 return "переклад абзацу %s не від його оригіналу: переклади зсунулися".formatted(id);
             }
+            String left = leftover(id, line.path("text").asString(""));
+            if (left != null) {
+                return left;
+            }
+            boolean off = !fitsSpeech(speech.get(at), line.path("text").asString(""));
+            if (off && previousOff != null) {
+                return "репліки й оповідь не на своїх місцях (абзаци %s і %s): переклади зсунулися".formatted(previousOff, id);
+            }
+            previousOff = off ? id : null;
             at++;
         }
         if (lines.size() * 2 < blocks.size()) {
@@ -401,8 +423,65 @@ class Pipeline {
             if (!sameStart(blocks.get(i).text(), line.path("start").asString(null))) {
                 return "переклад абзацу %s не від його оригіналу: переклади зсунулися".formatted(blocks.get(i).id());
             }
+            String left = leftover(blocks.get(i).id(), line.path("text").asString(""));
+            if (left != null) {
+                return left;
+            }
         }
         return null;
+    }
+
+    private static final java.util.regex.Pattern UNTRANSLATED =
+            java.util.regex.Pattern.compile("[\\p{IsHiragana}\\p{IsKatakana}\\p{IsHan}]{3,}|\\[term]");
+
+    /** What is wrong when a translation still has Japanese in it or a model's marker such as «[term]»; null when clean. */
+    static String leftover(String id, String text) {
+        return UNTRANSLATED.matcher(text).find()
+                ? "у перекладі абзацу %s лишився японський текст або службова позначка".formatted(id)
+                : null;
+    }
+
+    /**
+     * Where each line stands in the dialogue: true when it opens a speech in 「」, false for
+     * narration, null when it cannot be told — a speech going on from the line before, a quote in
+     * 『』 or a thought in （）, a line opening with a dash, or the beginning of a part that may sit
+     * inside a speech. A translation that slipped by a line puts speech under narration and back.
+     */
+    static List<Boolean> speech(List<Block> blocks) {
+        List<Boolean> out = new ArrayList<>();
+        Integer depth = null;
+        for (Block block : blocks) {
+            String text = block.text().strip();
+            int opens = (int) text.chars().filter(c -> c == '「').count();
+            int closes = (int) text.chars().filter(c -> c == '」').count();
+            if (text.startsWith("「")) {
+                out.add(true);
+                depth = Math.max(0, opens - closes);
+            } else if (depth == null) {
+                out.add(null);
+                if (closes > 0 || opens > 0) {
+                    depth = Math.max(0, opens - closes);
+                }
+            } else if (depth > 0) {
+                out.add(null);
+                depth = Math.max(0, depth + opens - closes);
+            } else {
+                boolean unclear = text.isEmpty() || "『（(―—─ー“\"".indexOf(text.charAt(0)) >= 0;
+                out.add(unclear ? null : false);
+                depth = Math.max(0, opens - closes);
+            }
+        }
+        return out;
+    }
+
+    /** Whether the translation opens as its original does: a speech with a dash or a quote, narration without a dash. */
+    static boolean fitsSpeech(Boolean speech, String translation) {
+        if (speech == null) {
+            return true;
+        }
+        String text = translation.strip();
+        boolean dash = text.startsWith("—") || text.startsWith("–") || text.startsWith("-");
+        return speech ? dash || text.startsWith("«") || text.startsWith("„") || text.startsWith("\"") : !dash;
     }
 
     /**
@@ -413,6 +492,8 @@ class Pipeline {
         private final JobRecord job;
         private final Settings settings;
         private final int number;
+        /** What the prompts say about the chapter's first-person narrator; known once analysis is done. */
+        private String narrator = "";
 
         Calls(JobRecord job, Settings settings, int number) {
             this.job = job;

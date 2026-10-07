@@ -204,6 +204,10 @@ class Glossary {
                 continue;
             }
             String kind = KINDS.contains(entry.kind()) ? entry.kind() : "other";
+            // 水 or 火 alone is an ordinary word that every paragraph mentions; only a person goes by one character (涼).
+            if (original.codePointCount(0, original.length()) == 1 && !kind.equals("character")) {
+                continue;
+            }
             added += db.transactionResult(trx -> {
                 DSLContext tx = trx.dsl();
                 if (tx.fetchExists(GLOSSARY_FORM, GLOSSARY_FORM.NOVEL_ID.eq(scope.novelId()),

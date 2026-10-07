@@ -26,20 +26,27 @@ class Analyses {
         this.db = db;
     }
 
-    record Analysis(int number, long sourceChapterId, String title, String label, boolean edited) {
+    /** @param narrator who tells the chapter in the first person (Ukrainian name), or null */
+    record Analysis(int number, long sourceChapterId, String title, String label, boolean edited, String narrator,
+            String narratorGender) {
+    }
+
+    private static Analysis analysis(space.panrid.novelka.jooq.tables.records.ChapterAnalysisRecord r) {
+        return new Analysis(r.getNumber(), r.getSourceChapterId(), r.getTitle(), r.getLabel(), r.getEdited(), r.getNarrator(),
+                r.getNarratorGender());
     }
 
     Optional<Analysis> find(long editionId, int number) {
         return db.selectFrom(CHAPTER_ANALYSIS)
                 .where(CHAPTER_ANALYSIS.EDITION_ID.eq(editionId), CHAPTER_ANALYSIS.NUMBER.eq(number))
-                .fetchOptional(r -> new Analysis(r.getNumber(), r.getSourceChapterId(), r.getTitle(), r.getLabel(), r.getEdited()));
+                .fetchOptional(Analyses::analysis);
     }
 
     List<Analysis> from(long editionId, int firstNumber) {
         return db.selectFrom(CHAPTER_ANALYSIS)
                 .where(CHAPTER_ANALYSIS.EDITION_ID.eq(editionId), CHAPTER_ANALYSIS.NUMBER.ge(firstNumber))
                 .orderBy(CHAPTER_ANALYSIS.NUMBER)
-                .fetch(r -> new Analysis(r.getNumber(), r.getSourceChapterId(), r.getTitle(), r.getLabel(), r.getEdited()));
+                .fetch(Analyses::analysis);
     }
 
     static final int PAGE = 50;
@@ -52,7 +59,7 @@ class Analyses {
         int at = Math.max(1, page);
         List<Analysis> items = db.selectFrom(CHAPTER_ANALYSIS).where(CHAPTER_ANALYSIS.EDITION_ID.eq(editionId))
                 .orderBy(CHAPTER_ANALYSIS.NUMBER).limit(PAGE).offset((at - 1) * PAGE)
-                .fetch(r -> new Analysis(r.getNumber(), r.getSourceChapterId(), r.getTitle(), r.getLabel(), r.getEdited()));
+                .fetch(Analyses::analysis);
         return new Page(items, total, at, at * PAGE < total);
     }
 
@@ -81,18 +88,28 @@ class Analyses {
         return numbered * 2 > titles.size() ? "" : null;
     }
 
-    void save(long editionId, int number, long sourceChapterId, String title, String label, long jobId) {
+    void save(long editionId, int number, long sourceChapterId, String title, String label, String narrator,
+            String narratorGender, long jobId) {
+        String name = narrator == null || narrator.isBlank() ? null : narrator.strip();
+        if (name != null && name.length() > 100) {
+            name = name.substring(0, 100);
+        }
+        String gender = name == null || !Glossary.GENDERS.contains(narratorGender) ? null : narratorGender;
         db.insertInto(CHAPTER_ANALYSIS)
                 .set(CHAPTER_ANALYSIS.EDITION_ID, editionId)
                 .set(CHAPTER_ANALYSIS.NUMBER, number)
                 .set(CHAPTER_ANALYSIS.SOURCE_CHAPTER_ID, sourceChapterId)
                 .set(CHAPTER_ANALYSIS.TITLE, title)
                 .set(CHAPTER_ANALYSIS.LABEL, label)
+                .set(CHAPTER_ANALYSIS.NARRATOR, name)
+                .set(CHAPTER_ANALYSIS.NARRATOR_GENDER, gender)
                 .set(CHAPTER_ANALYSIS.JOB_ID, jobId)
                 .onConflict(CHAPTER_ANALYSIS.EDITION_ID, CHAPTER_ANALYSIS.NUMBER).doUpdate()
                 .set(CHAPTER_ANALYSIS.SOURCE_CHAPTER_ID, sourceChapterId)
                 .set(CHAPTER_ANALYSIS.TITLE, title)
                 .set(CHAPTER_ANALYSIS.LABEL, label)
+                .set(CHAPTER_ANALYSIS.NARRATOR, name)
+                .set(CHAPTER_ANALYSIS.NARRATOR_GENDER, gender)
                 .set(CHAPTER_ANALYSIS.JOB_ID, jobId)
                 .set(CHAPTER_ANALYSIS.EDITED, false)
                 .set(CHAPTER_ANALYSIS.UPDATED_AT, DSL.currentOffsetDateTime())

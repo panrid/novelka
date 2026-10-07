@@ -34,6 +34,59 @@ class PipelinePartsTests {
         assertThat(Pipeline.sameStart("何か", null)).as("an answer without «start»").isTrue();
     }
 
+    private static tools.jackson.databind.JsonNode answer(List<Block> blocks, String... texts) {
+        tools.jackson.databind.json.JsonMapper json = tools.jackson.databind.json.JsonMapper.builder().build();
+        var lines = json.createArrayNode();
+        for (int i = 0; i < texts.length; i++) {
+            lines.addObject().put("id", blocks.get(i).id()).put("start", blocks.get(i).text().substring(0, 2)).put("text", texts[i]);
+        }
+        var out = json.createObjectNode();
+        out.set("blocks", lines);
+        return out;
+    }
+
+    @Test
+    void aTranslationSlippedByALineIsCaughtByWhereTheSpeechIs() {
+        // «Меджик Мейкер», chapter 21: the narrator's thoughts came back as dialogue a line late.
+        List<Block> blocks = List.of(
+                line(1, "「よくわからんがわかった。しかし電気か……。"),
+                line(2, "雷ほどではないが、似たような現象を見たことがある、と聞いたような」"),
+                line(3, "静電気の類だろうか？"),
+                line(4, "視認できるのならば、それなりの電力が発生しているということ。"),
+                line(5, "「グラストがそんなようなことを言っていた気がする。"));
+        assertThat(Pipeline.usable(answer(blocks, "— Не зовсім розумію, але гаразд. Електрика, кажеш…",
+                "— Здається, я чув, що хтось бачив подібне явище.", "Може, це статична електрика?",
+                "Якщо її видно, то й потужність там чимала.", "— Здається, Ґраст казав щось подібне."), blocks))
+                .as("in step; the speech's second line may have a dash or not").isNull();
+        assertThat(Pipeline.usable(answer(blocks, "— Не зовсім розумію, але гаразд.", "Здається, я чув про подібне.",
+                "— Можливо, це статична електрика?", "— Якщо її видно, то й потужність чимала.",
+                "— Здається, Ґраст казав щось подібне."), blocks))
+                .as("narration came back as speech twice in a row").contains("зсунулися");
+        assertThat(Pipeline.usable(answer(blocks, "— Не зовсім розумію, але гаразд.", "— Чув про подібне.",
+                "— Можливо, це статична електрика?", "Якщо її видно, то й потужність чимала.",
+                "— Здається, Ґраст казав щось подібне."), blocks))
+                .as("one odd line is not a slip").isNull();
+        assertThat(Pipeline.speech(List.of(line(1, "それは悲しみから生まれたものではない。"), line(2, "『ファイ』に来た。"))))
+                .as("a part may begin inside a speech; 『』 is a quote, not dialogue").containsExactly(null, null);
+    }
+
+    @Test
+    void japaneseOrAMarkerLeftInTheTranslationIsNotAccepted() {
+        assertThat(Pipeline.leftover("s1", "Повернемося до перевірки водяної магії [term].")).isNotNull();
+        assertThat(Pipeline.leftover("s1", "Він сказав: まあいいか.")).isNotNull();
+        assertThat(Pipeline.leftover("s1", "Дякую! (^^)ノ")).as("a kana in a smiley is not untranslated text").isNull();
+        assertThat(Pipeline.leftover("s1", "— Флер!")).isNull();
+    }
+
+    @Test
+    void theNarratorIsToldWithTheGrammarTheirGenderNeeds() {
+        assertThat(Prompts.narrator("Сіон", "male")).contains("Сіон").contains("я думав");
+        assertThat(Prompts.narrator("Каталіна", "female")).contains("я думала");
+        assertThat(Prompts.narrator("Рьо", "unknown")).isEqualTo("The text is told in the first person by Рьо.");
+        assertThat(Prompts.narrator("", "male")).as("third person: nothing to say").isEmpty();
+        assertThat(Prompts.narrator(null, null)).isEmpty();
+    }
+
     @Test
     void anAnswerThatIgnoredTheSchemaIsReadIfItsContentIsThere() {
         tools.jackson.databind.json.JsonMapper json = tools.jackson.databind.json.JsonMapper.builder().build();
