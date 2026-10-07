@@ -105,7 +105,7 @@ class IllustrationFlowTests {
         try {
             assertThat(owner.browser().put("/api/studio/illustrations/settings", settings.formatted("fake/drawer", "openai/gpt-4.1-mini")).status())
                     .isBetween(200, 204);
-            JsonNode logged = read(owner.browser().get("/api/admin/audit")).path(0);
+            JsonNode logged = read(owner.browser().get("/api/admin/audit")).path("items").path(0);
             assertThat(logged.path("action").asString()).as("model changes are in the journal").isEqualTo("illustration_settings");
             assertThat(logged.path("details").path("after").path("model").asString()).isEqualTo("fake/drawer");
         } finally {

@@ -5,11 +5,14 @@ import { ROLE_LABELS, teamApi } from '../../studio/api';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
+import { Pager } from '../../ui/Pager';
+import { PAGE_SIZE, usePaged } from '../../lib/usePage';
 import styles from '../studio/studio.module.css';
 
 export function MyTeamsPage() {
     const navigate = useNavigate();
     const teams = useQuery({ meta: { errorToast: true }, queryKey: ['my-teams'], queryFn: teamApi.mine });
+    const paged = usePaged(teams.data);
     const [name, setName] = useState('');
     const [handle, setHandle] = useState('');
     const create = useMutation({
@@ -21,7 +24,7 @@ export function MyTeamsPage() {
         <section className={styles.page}>
             <Link to="/studio" className={styles.muted}>‹ До Студії</Link>
             <h1 className={styles.title}>Мої команди</h1>
-            {teams.data?.map((team) => (
+            {paged.shown.map((team) => (
                 <Link key={team.handle} to="/team/$handle" params={{ handle: team.handle }} className={styles.row}>
                     <div className={styles.grow}>
                         <div>{team.name}</div>
@@ -30,6 +33,7 @@ export function MyTeamsPage() {
                     <span className={styles.muted}>{ROLE_LABELS[team.role]}</span>
                 </Link>
             ))}
+            <Pager page={paged.page} total={paged.total} size={PAGE_SIZE} onPage={paged.setPage} />
             <form className={styles.form} style={{ marginTop: 20 }} onSubmit={(event: FormEvent) => { event.preventDefault(); create.mutate(); }}>
                 <h2 className={styles.sectionTitle} style={{ margin: 0 }}>Нова команда</h2>
                 <TextInput label="Назва" value={name} onChange={setName} placeholder="Кіцуне" />

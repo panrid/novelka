@@ -9,6 +9,8 @@ import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
+import { Pager } from '../../ui/Pager';
+import { PAGE_SIZE, usePaged } from '../../lib/usePage';
 import styles from './inbox.module.css';
 
 /** Members, the group's name and picture, «Без звуку», leaving and blocking. */
@@ -32,6 +34,8 @@ export function ConversationAboutPage() {
         onSuccess: refresh,
         onError: (error: Error) => setNotice(error.message),
     });
+
+    const members = usePaged(about.data?.members);
 
     if (about.isError) return <section className={styles.page}><Notice tone="error">{about.error.message}</Notice></section>;
     if (!about.data || !me) return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
@@ -71,7 +75,7 @@ export function ConversationAboutPage() {
             )}
 
             {c.members.length > 0 && <h2 className={styles.title} style={{ margin: '20px 0 6px', fontSize: 16 }}>Учасники</h2>}
-            {c.members.map((member) => (
+            {members.shown.map((member) => (
                 <div key={member.nick} className={styles.member}>
                     <Avatar nick={member.nick} url={member.avatarUrl} size={32} />
                     <Link to="/u/$nick" params={{ nick: member.nick }} className={styles.grow}>{member.nick}</Link>
@@ -86,6 +90,7 @@ export function ConversationAboutPage() {
                     )}
                 </div>
             ))}
+            <Pager page={members.page} total={members.total} size={PAGE_SIZE} onPage={members.setPage} />
 
             {group && c.admin && (
                 <form className={styles.form} style={{ marginTop: 12 }} onSubmit={(event) => {

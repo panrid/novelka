@@ -115,10 +115,10 @@ describe('my suggestions', () => {
     it('lists what was sent and what the team decided', async () => {
         await renderAt('/me/suggestions', {
             'GET /api/me': { body: ME },
-            'GET /api/me/suggestions': { body: [
+            'GET /api/me/suggestions': { body: { total: 1, page: 1, hasMore: false, items: [
                 { id: 1, novelSlug: 'mah-vody', novelTitle: 'Маг води', teamHandle: 'panrid', chapter: 12, kind: 'replace',
                     preview: '«скрипнуло» → «рипнуло»', state: 'rejected', reviewNote: 'так в оригіналі', updatedAt: '2026-09-25T10:00:00Z' },
-            ] },
+            ] } },
         });
 
         expect(await screen.findByText('«скрипнуло» → «рипнуло»')).toBeInTheDocument();

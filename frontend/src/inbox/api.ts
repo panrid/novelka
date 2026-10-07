@@ -22,8 +22,9 @@ export type NotificationPayload = {
 export type Notification = { id: number; kind: NotificationKind; payload: NotificationPayload; createdAt: string; read: boolean };
 
 export const notificationApi = {
-    page: (before?: number) => api<{ items: Notification[]; unread: number; hasMore: boolean }>(
-        `/api/notifications${before ? `?before=${before}` : ''}`),
+    /** 20 to a page, newest first; newest is the newest of all, for marking them seen. */
+    page: (page = 1) => api<{ items: Notification[]; unread: number; hasMore: boolean; total: number; page: number; newest: number | null }>(
+        `/api/notifications?page=${page}`),
     unread: () => api<{ unread: number }>('/api/notifications/unread'),
     read: (upTo?: number) => api<{ unread: number }>('/api/notifications/read', json('POST', { upTo: upTo ?? null })),
 };

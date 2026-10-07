@@ -49,7 +49,7 @@ class Analyses {
                 .fetch(Analyses::analysis);
     }
 
-    static final int PAGE = 50;
+    static final int PAGE = 20;
 
     record Page(List<Analysis> items, int total, int page, boolean hasMore) {
     }

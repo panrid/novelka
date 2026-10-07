@@ -25,11 +25,12 @@ export const adminApi = {
     hidden: () => api<Hidden[]>('/api/admin/hidden'),
     hide: (target: Target, id: number, reason: string) => api<void>(`/api/admin/hidden/${target}/${id}`, json('POST', { reason })),
     restore: (target: Target, id: number) => api<void>(`/api/admin/hidden/${target}/${id}/restore`, json('POST', {})),
-    users: (q: string) => api<Person[]>(`/api/admin/users?q=${encodeURIComponent(q)}`),
+    users: (q: string, page = 1) =>
+        api<{ items: Person[]; total: number; page: number; hasMore: boolean }>(`/api/admin/users?q=${encodeURIComponent(q)}&page=${page}`),
     setRole: (nick: string, role: Person['role']) => api<void>(`/api/admin/users/${encodeURIComponent(nick)}/role`, json('PUT', { role })),
     settings: () => api<SiteSettingsView>('/api/admin/settings'),
     saveSettings: (settings: SiteSettingsView) => api<SiteSettingsView>('/api/admin/settings', json('PUT', settings)),
-    audit: (before?: number) => api<AuditEntry[]>(`/api/admin/audit${before ? `?before=${before}` : ''}`),
+    audit: (page = 1) => api<{ items: AuditEntry[]; total: number; page: number; hasMore: boolean }>(`/api/admin/audit?page=${page}`),
 };
 
 export const TARGET_LABELS: Record<Target, string> = {

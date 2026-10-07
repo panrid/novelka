@@ -203,10 +203,11 @@ class AutotranslateController {
         jobs.resume(editionId, jobId);
     }
 
-    /** Every run the viewer started, running ones first. */
+    /** Every run the viewer started, unfinished ones first; by state and kind, by words of the title. */
     @GetMapping("/autotranslate/processes")
-    List<Jobs.Process> processes(@RequestParam(defaultValue = "1") int page) {
-        return jobs.processes(access.requireSignedIn().accountId(), page);
+    Jobs.Processes processes(@RequestParam(defaultValue = "") String state, @RequestParam(defaultValue = "") String kind,
+            @RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "1") int page) {
+        return jobs.processes(access.requireSignedIn().accountId(), state, kind, q, page);
     }
 
     /**

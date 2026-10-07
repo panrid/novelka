@@ -8,6 +8,8 @@ import { ROLE_LABELS, teamApi, type TeamPage as Team, type TeamRole } from '../.
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
+import { Pager } from '../../ui/Pager';
+import { PAGE_SIZE, usePaged } from '../../lib/usePage';
 import { TextInput } from '../../ui/TextInput';
 import styles from '../studio/studio.module.css';
 import { askConfirm } from '../../ui/ask';
@@ -19,13 +21,19 @@ export function TeamPage() {
     if (team.isError) return <section className={`${styles.page} ${styles.centered}`}><Notice tone="error">{team.error.message}</Notice></section>;
     if (!team.data) return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
     const data = team.data;
+    return <TeamView data={data} />;
+}
+
+function TeamView({ data }: { data: Team }) {
+    const members = usePaged(data.members, 'members');
+    const works = usePaged(data.editions, 'works');
     return (
         <section className={`${styles.page} ${styles.centered}`}>
             <h1 className={styles.title}>{data.name}</h1>
             <p className={styles.muted}>${data.handle} · тегайте команду в коментарях як ${data.handle}</p>
 
             <h2 className={styles.sectionTitle}>Учасники</h2>
-            {data.members.map((member) => (
+            {members.shown.map((member) => (
                 <div key={member.nick} className={styles.row}>
                     <Avatar nick={member.nick} url={member.avatarUrl} size={36} />
                     <Link to="/u/$nick" params={{ nick: member.nick }} className={styles.grow} style={{ color: 'var(--text)', textDecoration: 'none' }}>
@@ -36,12 +44,13 @@ export function TeamPage() {
                         : <span className={styles.muted}>{ROLE_LABELS[member.role]}</span>}
                 </div>
             ))}
+            <Pager page={members.page} total={members.total} size={PAGE_SIZE} onPage={members.setPage} />
             {data.viewerRole && data.viewerRole !== 'owner' && <LeaveTeam team={data} />}
             {data.viewerRole === 'owner' && <OwnerTools team={data} />}
 
             <h2 className={styles.sectionTitle}>Переклади й твори</h2>
             {data.editions.length === 0 && <p className={styles.muted}>Поки нічого не опубліковано.</p>}
-            {data.editions.map((edition) => (
+            {works.shown.map((edition) => (
                 <Link key={edition.novelSlug} to="/n/$slug" params={{ slug: edition.novelSlug }} search={{ t: data.handle }} className={styles.row}>
                     <Cover url={edition.coverUrl} title={edition.title} seed={edition.novelSlug} width={40} />
                     <div className={styles.grow}>
@@ -50,6 +59,7 @@ export function TeamPage() {
                     </div>
                 </Link>
             ))}
+            <Pager page={works.page} total={works.total} size={PAGE_SIZE} onPage={works.setPage} />
         </section>
     );
 }

@@ -16,6 +16,7 @@ import { Notice } from '../../ui/Notice';
 import { Pager } from '../../ui/Pager';
 import { Segmented } from '../../ui/Segmented';
 import { TextInput } from '../../ui/TextInput';
+import { PAGE_SIZE, usePage } from '../../lib/usePage';
 import { useEditionId } from './EditionPage';
 import styles from './studio.module.css';
 
@@ -38,7 +39,7 @@ export function GlossaryPage() {
     const [chapter, setChapter] = useState<number | undefined>(undefined);
     const [sort, setSort] = useState<'alpha' | 'chapter'>('alpha');
     const [search, setSearch] = useState('');
-    const [page, setPage] = useState(1);
+    const [page, setPage] = usePage();
     const [selecting, setSelecting] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [editing, setEditing] = useState<number | null>(null);
@@ -148,7 +149,7 @@ export function GlossaryPage() {
                         {entry.chapter ? <span className={styles.badge}>{shown(entry.chapter).badge}</span> : null}
                     </div>
                 ))}
-            {data && <Pager page={page} total={data.total} size={50} onPage={(next) => { setPage(next); setSelected(new Set()); }} />}
+            {data && <Pager page={page} total={data.total} size={PAGE_SIZE} onPage={(next) => { setPage(next); setSelected(new Set()); }} />}
 
             {selecting && (
                 <div className={styles.selectionBar} role="toolbar" aria-label="Дії з виділеним">

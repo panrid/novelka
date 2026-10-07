@@ -80,8 +80,10 @@ const readerSearch = (search: Record<string, unknown>): { t?: string; find?: str
     ...(search.look === true || search.look === 'true' || search.look === 1 || search.look === '1' ? { look: true as const } : {}),
 });
 const LIST_NAMES = ['reading', 'planned', 'done', 'paused', 'dropped'] as const;
-const listSearch = (search: Record<string, unknown>): { list?: (typeof LIST_NAMES)[number] } =>
-    LIST_NAMES.includes(search.list as (typeof LIST_NAMES)[number]) ? { list: search.list as (typeof LIST_NAMES)[number] } : {};
+const listSearch = (search: Record<string, unknown>): { list?: (typeof LIST_NAMES)[number]; page?: number } => ({
+    ...(LIST_NAMES.includes(search.list as (typeof LIST_NAMES)[number]) ? { list: search.list as (typeof LIST_NAMES)[number] } : {}),
+    ...(Number.isInteger(Number(search.page)) && Number(search.page) > 1 ? { page: Number(search.page) } : {}),
+});
 
 /** Studio pages: signed-in only; team rights are checked by the API on every call. */
 const studio = <TPath extends string>(path: TPath, component: () => React.ReactNode, heading: string) =>

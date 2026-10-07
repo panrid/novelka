@@ -11,6 +11,8 @@ import { Button } from '../../ui/Button';
 import { monthYearGenitive } from '../../lib/dates';
 import { plural } from '../../lib/plural';
 import { Notice } from '../../ui/Notice';
+import { Pager } from '../../ui/Pager';
+import { PAGE_SIZE, usePaged } from '../../lib/usePage';
 import styles from '../pages.module.css';
 
 
@@ -122,11 +124,12 @@ function Activity({ nick }: { nick: string }) {
 /** Translations and works of the teams the person owns or belongs to. */
 function Works({ nick }: { nick: string }) {
     const works = useQuery({ queryKey: ['works', nick.toLowerCase()], queryFn: () => readingApi.works(nick) });
+    const paged = usePaged(works.data, 'works');
     if (!works.data?.length) return null;
     return (
         <div className={styles.section} style={{ marginTop: 24 }}>
             <h2 className={styles.sectionTitle}>Переклади й твори</h2>
-            {works.data.map((card) => (
+            {paged.shown.map((card) => (
                 <Link key={card.editionId} to="/n/$slug" params={{ slug: card.novelSlug }} search={{ t: card.teamHandle }} className={styles.row}
                     style={{ padding: '8px 0', color: 'var(--text)', textDecoration: 'none' }}>
                     <Cover url={card.coverUrl} title={card.title} seed={card.novelSlug} width={40} />
@@ -136,6 +139,7 @@ function Works({ nick }: { nick: string }) {
                     </div>
                 </Link>
             ))}
+            <Pager page={paged.page} total={paged.total} size={PAGE_SIZE} onPage={paged.setPage} />
         </div>
     );
 }

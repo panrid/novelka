@@ -162,12 +162,12 @@ class ReadingController {
     }
 
     @GetMapping("/library")
-    Views.LibraryPage library(@RequestParam(defaultValue = "reading") String list) {
+    Views.LibraryPage library(@RequestParam(defaultValue = "reading") String list, @RequestParam(defaultValue = "1") int page) {
         Viewer viewer = currentUser.requireSignedIn();
         if (!LibraryService.LISTS.contains(list)) {
             throw UserFacingException.badRequest("Такого списку немає.");
         }
-        return queries.library(viewer.accountId(), list, viewer.adultConfirmed());
+        return queries.library(viewer.accountId(), list, viewer.adultConfirmed(), page);
     }
 
     @PutMapping("/library/{editionId}")

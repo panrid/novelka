@@ -147,22 +147,31 @@ class SuggestionController {
         return new Mine(items, drafts);
     }
 
+    record History(List<MySuggestion> items, int total, int page, boolean hasMore) {
+    }
+
+    private static final int HISTORY_PAGE = 20;
+
     @GetMapping("/api/me/suggestions")
-    List<MySuggestion> history() {
+    History history(@RequestParam(defaultValue = "1") int page) {
         Viewer viewer = access.requireSignedIn();
-        return db.select(SUGGESTION.ID, NOVEL.SLUG, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), TEAM.HANDLE, CHAPTER.NUMBER,
+        int at = Math.max(1, page);
+        org.jooq.Condition mine = SUGGESTION.AUTHOR_ID.eq(viewer.accountId()).and(SUGGESTION.STATE.ne("withdrawn"));
+        int total = db.fetchCount(SUGGESTION, mine);
+        List<MySuggestion> items = db.select(SUGGESTION.ID, NOVEL.SLUG, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), TEAM.HANDLE, CHAPTER.NUMBER,
                         SUGGESTION.KIND, SUGGESTION.PROPOSED, SUGGESTION.FIND_TEXT, SUGGESTION.REPLACEMENT, SUGGESTION.STATE,
                         SUGGESTION.REVIEW_NOTE, SUGGESTION.UPDATED_AT, CHAPTER.LABEL)
                 .from(SUGGESTION).join(CHAPTER).on(CHAPTER.ID.eq(SUGGESTION.CHAPTER_ID))
                 .join(EDITION).on(EDITION.ID.eq(CHAPTER.EDITION_ID)).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
                 .join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
-                .where(SUGGESTION.AUTHOR_ID.eq(viewer.accountId()).and(SUGGESTION.STATE.ne("withdrawn")))
-                .orderBy(SUGGESTION.UPDATED_AT.desc())
-                .limit(200)
+                .where(mine)
+                .orderBy(SUGGESTION.UPDATED_AT.desc(), SUGGESTION.ID.desc())
+                .limit(HISTORY_PAGE).offset((at - 1) * HISTORY_PAGE)
                 .fetch(r -> new MySuggestion(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(),
                         r.value13() == null ? String.valueOf(r.value5()) : r.value13(), r.value6(),
                         preview(r.value6(), r.value7() == null ? null : r.value7().data(), r.value8(), r.value9()),
                         r.value10(), r.value11(), r.value12()));
+        return new History(items, total, at, at * HISTORY_PAGE < total);
     }
 
     // ---- the team ----------------------------------------------------------------------------

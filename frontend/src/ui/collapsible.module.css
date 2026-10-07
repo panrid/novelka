@@ -1,0 +1,57 @@
+.section {
+    margin-top: 20px;
+}
+
+.heading {
+    margin: 0;
+    font: inherit;
+}
+
+.toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text);
+    font: 600 17px var(--font-ui);
+    text-align: left;
+    cursor: pointer;
+}
+
+.toggle:focus-visible {
+    outline: 2px solid var(--focus);
+    border-radius: 6px;
+}
+
+.arrow,
+.arrowOpen {
+    display: inline-block;
+    width: 14px;
+    color: var(--muted);
+    transition: transform 0.15s ease;
+}
+
+.arrowOpen {
+    transform: rotate(90deg);
+}
+
+.count {
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 14px;
+}
+
+.body {
+    margin-top: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .arrow,
+    .arrowOpen {
+        transition: none;
+    }
+}

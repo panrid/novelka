@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { chaptersWord } from '../../reading/api';
@@ -8,20 +8,22 @@ import { relativeTime } from '../../lib/dates';
 import { plural } from '../../lib/plural';
 import { shahWord } from '../../studio/autotranslate';
 import { Notice } from '../../ui/Notice';
+import { Pager } from '../../ui/Pager';
+import { PAGE_SIZE, usePage } from '../../lib/usePage';
 import { InboxNav } from './InboxNav';
 import styles from './inbox.module.css';
 
 export function NotificationsPage() {
     const client = useQueryClient();
-    const pages = useInfiniteQuery({
-        queryKey: ['notifications'],
-        queryFn: ({ pageParam }) => notificationApi.page(pageParam),
-        initialPageParam: undefined as number | undefined,
-        getNextPageParam: (last) => (last.hasMore ? last.items[last.items.length - 1]?.id : undefined),
+    const [page, setPage] = usePage();
+    const list = useQuery({
+        queryKey: ['notifications', page],
+        queryFn: () => notificationApi.page(page),
+        placeholderData: (previous) => previous,
     });
-    const items = pages.data?.pages.flatMap((page) => page.items) ?? [];
-    const newest = items[0]?.id;
-    const unread = pages.data?.pages[0]?.unread ?? 0;
+    const items = list.data?.items ?? [];
+    const newest = list.data?.newest ?? undefined;
+    const unread = list.data?.unread ?? 0;
 
     // Opening the list is seeing it: the dots stay for this visit, the badge goes away.
     useEffect(() => {
@@ -33,14 +35,12 @@ export function NotificationsPage() {
     return (
         <section className={styles.page}>
             <InboxNav />
-            {pages.isError && <Notice tone="error">{pages.error.message}</Notice>}
-            {pages.isSuccess && items.length === 0 && (
+            {list.isError && <Notice tone="error">{list.error.message}</Notice>}
+            {list.isSuccess && list.data.total === 0 && (
                 <p className={styles.muted}>Поки тихо. Тут зʼявляться відповіді, згадки, нові глави з вашої бібліотеки, правки до ваших перекладів і рішення щодо ваших правок.</p>
             )}
             {items.map((item) => <Row key={item.id} item={item} />)}
-            {pages.hasNextPage && (
-                <button type="button" className={styles.older} onClick={() => void pages.fetchNextPage()}>Показати давніші</button>
-            )}
+            {list.data && <Pager page={page} total={list.data.total} size={PAGE_SIZE} onPage={setPage} />}
         </section>
     );
 }

@@ -9,6 +9,7 @@ import pickerStyles from '../../studio/modelPicker.module.css';
 import { useDebounced } from '../../lib/useDebounced';
 import { relativeTime } from '../../lib/dates';
 import { askConfirm } from '../../ui/ask';
+import { Collapsible } from '../../ui/Collapsible';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
@@ -227,8 +228,7 @@ export function AutotranslatePage() {
             </nav>
 
             {data.jobs.length > 1 && (
-                <>
-                    <h2 className={styles.sectionTitle}>Раніше</h2>
+                <Collapsible id="autotranslate-earlier" title="Раніше" count={data.jobs.length - 1}>
                     {data.jobs.slice(1).map((old) => (
                         <div key={old.id} className={styles.row}>
                             <div className={styles.grow}>{old.kind === 'analyze' ? 'Аналіз' : 'Переклад'} {range(old)} · {JOB_LABELS[old.state]}</div>
@@ -237,7 +237,7 @@ export function AutotranslatePage() {
                             </span>
                         </div>
                     ))}
-                </>
+                </Collapsible>
             )}
         </section>
     );

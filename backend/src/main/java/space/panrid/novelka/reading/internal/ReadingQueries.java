@@ -474,7 +474,10 @@ class ReadingQueries {
 
     // ---- library --------------------------------------------------------------------------
 
-    Views.LibraryPage library(long accountId, String list, boolean adult) {
+    static final int LIBRARY_PAGE = 20;
+
+    Views.LibraryPage library(long accountId, String list, boolean adult, int page) {
+        int at = Math.max(1, page);
         Condition mine = LIBRARY_ENTRY.ACCOUNT_ID.eq(accountId);
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (String name : LibraryService.LISTS) {
@@ -487,14 +490,17 @@ class ReadingQueries {
                 .leftJoin(READING_PROGRESS).on(READING_PROGRESS.EDITION_ID.eq(EDITION.ID).and(READING_PROGRESS.ACCOUNT_ID.eq(accountId)))
                 .leftJoin(CHAPTER).on(CHAPTER.EDITION_ID.eq(EDITION.ID), CHAPTER.NUMBER.eq(READING_PROGRESS.CHAPTER_NUMBER))
                 .where(mine.and(LIBRARY_ENTRY.LIST.eq(list)).and(visible(adult)))
-                .orderBy(DSL.greatest(LIBRARY_ENTRY.UPDATED_AT, DSL.coalesce(READING_PROGRESS.UPDATED_AT, LIBRARY_ENTRY.UPDATED_AT)).desc())
+                .orderBy(DSL.greatest(LIBRARY_ENTRY.UPDATED_AT, DSL.coalesce(READING_PROGRESS.UPDATED_AT, LIBRARY_ENTRY.UPDATED_AT)).desc(),
+                        EDITION.ID)
+                .limit(LIBRARY_PAGE).offset((at - 1) * LIBRARY_PAGE)
                 .fetch();
         List<Card> cards = toCards(rows);
         List<Views.LibraryItem> items = new ArrayList<>();
         for (int i = 0; i < cards.size(); i++) {
             items.add(new Views.LibraryItem(cards.get(i), list, rows.get(i).get(READING_PROGRESS.CHAPTER_NUMBER), rows.get(i).get(CHAPTER.LABEL)));
         }
-        return new Views.LibraryPage(items, counts);
+        int total = counts.getOrDefault(list, 0);
+        return new Views.LibraryPage(items, counts, total, at, at * LIBRARY_PAGE < total);
     }
 
     private OffsetDateTime now() {

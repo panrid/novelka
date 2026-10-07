@@ -145,9 +145,9 @@ export const readingApi = {
         api<ReaderChapter>(`${novelPath(slug)}/chapters/${number}${query({ t: team })}`),
     saveProgress: (editionId: number, chapterNumber: number, position: number) =>
         api<void>(`/api/progress/${editionId}`, { method: 'PUT', body: JSON.stringify({ chapterNumber, position }) }),
-    library: (list: ListName) =>
-        api<{ items: { card: Card; list: ListName; chapterNumber: number | null; chapterLabel: string | null }[]; counts: Record<ListName, number> }>(
-            `/api/library?list=${list}`),
+    library: (list: ListName, page = 1) =>
+        api<{ items: { card: Card; list: ListName; chapterNumber: number | null; chapterLabel: string | null }[]; counts: Record<ListName, number>;
+            total: number; page: number; hasMore: boolean }>(`/api/library?list=${list}&page=${page}`),
     setList: (editionId: number, list: ListName | null) =>
         api<void>(`/api/library/${editionId}`, { method: 'PUT', body: JSON.stringify({ list }) }),
     /** The bell: new chapters of this translation come to the inbox while it rings. */

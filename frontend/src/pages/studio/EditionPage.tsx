@@ -13,6 +13,7 @@ import { LinkButton } from '../../ui/LinkButton';
 import { Notice } from '../../ui/Notice';
 import { relativeTime } from '../../lib/dates';
 import { changes, characters, paragraphs } from '../../lib/plural';
+import { Collapsible } from '../../ui/Collapsible';
 import styles from './studio.module.css';
 import { askConfirm } from '../../ui/ask';
 
@@ -89,7 +90,7 @@ export function EditionPage() {
                 </>
             )}
 
-            <h2 className={styles.sectionTitle}>Глави</h2>
+            <Collapsible id="studio-chapters" title="Останні глави">
             {chapters.data?.length === 0 && <p className={styles.muted}>Глав ще немає.</p>}
             {remove.isError && <Notice tone="error">{remove.error.message}</Notice>}
             {chapters.data?.map((chapter) => (
@@ -116,6 +117,7 @@ export function EditionPage() {
                     {chapters.data?.length === 20 && <Button variant="secondary" onPress={() => setPage(page + 1)}>Давніші →</Button>}
                 </div>
             )}
+            </Collapsible>
 
             {(contributions.data?.length ?? 0) > 0 && (
                 <>

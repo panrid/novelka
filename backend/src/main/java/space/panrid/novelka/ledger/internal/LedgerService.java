@@ -160,7 +160,11 @@ class LedgerService implements Ledger {
     record OpenHold(int amount, String what, OffsetDateTime createdAt) {
     }
 
-    static final int PAGE = 30;
+    static final int PAGE = 20;
+
+    int historySize(long accountId) {
+        return db.fetchCount(SHAH_ENTRY, SHAH_ENTRY.ACCOUNT_ID.eq(accountId).and(SHAH_ENTRY.KIND.in("grant", "charge")));
+    }
 
     /** Grants and charges, newest first; holds and returns are shown as the runs still going. */
     List<Entry> history(long accountId, int page) {

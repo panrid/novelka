@@ -6,14 +6,15 @@ import { autotranslateApi, type ChapterAnalysis } from '../../studio/autotransla
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Pager } from '../../ui/Pager';
+import { PAGE_SIZE, usePage } from '../../lib/usePage';
 import { TextInput } from '../../ui/TextInput';
 import { useEditionId } from './EditionPage';
 import styles from './studio.module.css';
 
-/** Chapter titles and numbers from analysis, 50 to a page, fixed before translating. */
+/** Chapter titles and numbers from analysis, 20 to a page, fixed before translating. */
 export function TitlesPage() {
     const id = useEditionId();
-    const [page, setPage] = useState(1);
+    const [page, setPage] = usePage();
     const titles = useQuery({ queryKey: ['analysis', id, page], queryFn: () => autotranslateApi.analysis(id, page), placeholderData: (p) => p });
     return (
         <section className={styles.page}>
@@ -26,7 +27,7 @@ export function TitlesPage() {
             {titles.isError && <Notice tone="error">{titles.error.message}</Notice>}
             {titles.data?.total === 0 && <p className={styles.muted}>Назви з'являться після аналізу глав.</p>}
             {titles.data?.items.map((chapter) => <TitleRow key={chapter.number} editionId={id} chapter={chapter} />)}
-            {titles.data && <Pager page={page} total={titles.data.total} size={50} onPage={setPage} />}
+            {titles.data && <Pager page={page} total={titles.data.total} size={PAGE_SIZE} onPage={setPage} />}
         </section>
     );
 }

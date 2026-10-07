@@ -11,12 +11,12 @@ import { askConfirm } from '../../ui/ask';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Pager } from '../../ui/Pager';
+import { PAGE_SIZE, usePage } from '../../lib/usePage';
 import { Segmented } from '../../ui/Segmented';
 import { Sheet } from '../../ui/Sheet';
 import { TextInput } from '../../ui/TextInput';
 import styles from './proposals.module.css';
 
-const PAGE = 30;
 
 /**
  * «Що перекласти» (рішення 32): a novel proposed by its link, its page translated by the site,
@@ -27,7 +27,7 @@ export function ProposalsPage() {
     const client = useQueryClient();
     const navigate = useNavigate();
     const [sort, setSort] = useState<ProposalSort>('votes');
-    const [page, setPage] = useState(1);
+    const [page, setPage] = usePage();
     const [link, setLink] = useState('');
     const [notice, setNotice] = useState<string | null>(null);
     const list = useQuery({ queryKey: ['proposals', sort, page], queryFn: () => proposalApi.list(sort, page), placeholderData: (previous) => previous });
@@ -92,7 +92,7 @@ export function ProposalsPage() {
                         onChanged={refresh} onTake={() => setTaking(item)} onEdit={() => setEditing(item)} />
                 ))}
             </div>
-            {list.data && <Pager page={page} total={list.data.total} size={PAGE} onPage={setPage} />}
+            {list.data && <Pager page={page} total={list.data.total} size={PAGE_SIZE} onPage={setPage} />}
 
             {taking && (
                 <TakeSheet proposal={taking} auto={canRun} onClose={() => setTaking(null)}

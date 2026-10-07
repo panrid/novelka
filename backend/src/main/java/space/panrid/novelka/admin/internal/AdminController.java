@@ -122,8 +122,8 @@ class AdminController {
     // ---- administrators --------------------------------------------------------------------------
 
     @GetMapping("/admin/users")
-    List<Staff.Person> users(@RequestParam(defaultValue = "") String q) {
-        return staff.find(access.requireSiteRole(SiteRole.ADMIN), q);
+    Staff.People users(@RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "1") int page) {
+        return staff.find(access.requireSiteRole(SiteRole.ADMIN), q, page);
     }
 
     record Role(String role) {
@@ -170,15 +170,22 @@ class AdminController {
 
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() { };
 
+    record Audit(List<Entry> items, int total, int page, boolean hasMore) {
+    }
+
+    private static final int AUDIT_PAGE = 20;
+
     @GetMapping("/admin/audit")
-    List<Entry> audit(@RequestParam(required = false) Long before) {
+    Audit audit(@RequestParam(defaultValue = "1") int page) {
         access.requireSiteRole(SiteRole.OWNER);
-        return db.select(AUDIT_LOG.ID, ACCOUNT.NICK, AUDIT_LOG.ACTION, AUDIT_LOG.TARGET_TYPE, AUDIT_LOG.TARGET_ID, AUDIT_LOG.DETAILS,
+        int at = Math.max(1, page);
+        int total = db.fetchCount(AUDIT_LOG);
+        List<Entry> items = db.select(AUDIT_LOG.ID, ACCOUNT.NICK, AUDIT_LOG.ACTION, AUDIT_LOG.TARGET_TYPE, AUDIT_LOG.TARGET_ID, AUDIT_LOG.DETAILS,
                         AUDIT_LOG.CREATED_AT)
                 .from(AUDIT_LOG).join(ACCOUNT).on(ACCOUNT.ID.eq(AUDIT_LOG.ACTOR_ID))
-                .where(before == null ? DSL.noCondition() : AUDIT_LOG.ID.lt(before))
-                .orderBy(AUDIT_LOG.ID.desc()).limit(50)
+                .orderBy(AUDIT_LOG.ID.desc()).limit(AUDIT_PAGE).offset((at - 1) * AUDIT_PAGE)
                 .fetch(r -> new Entry(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(), json.readValue(r.value6().data(), MAP),
                         r.value7()));
+        return new Audit(items, total, at, at * AUDIT_PAGE < total);
     }
 }

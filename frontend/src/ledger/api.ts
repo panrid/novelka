@@ -5,7 +5,7 @@ import { useMe } from '../auth/me';
 export type ShahEntry = { kind: 'grant' | 'charge'; amount: number; what: string | null; createdAt: string };
 export type ShahHold = { amount: number; what: string; createdAt: string };
 export type MyShahs = {
-    available: number; reserved: number; usdPerShah: number; running: ShahHold[]; history: ShahEntry[]; hasMore: boolean;
+    available: number; reserved: number; usdPerShah: number; running: ShahHold[]; history: ShahEntry[]; hasMore: boolean; total: number; page: number;
 };
 
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });

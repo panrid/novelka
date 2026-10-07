@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { ROLE_LABELS, TARGET_LABELS, adminApi, type AuditEntry, type Person, type Preview, type SiteSettingsView, type Target } from '../../admin/api';
@@ -13,6 +13,8 @@ import { shahApi } from '../../ledger/api';
 import { dollars, shahWord } from '../../studio/autotranslate';
 import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
+import { Pager } from '../../ui/Pager';
+import { PAGE_SIZE, usePage, usePaged } from '../../lib/usePage';
 import styles from './admin.module.css';
 import { askText } from '../../ui/ask';
 
@@ -76,6 +78,8 @@ export function ModerationPage() {
     const [view, setView] = useState<'reports' | 'hidden'>('reports');
     const reports = useQuery({ meta: { errorToast: true }, queryKey: ['admin-reports'], queryFn: adminApi.reports, enabled: view === 'reports' });
     const hidden = useQuery({ meta: { errorToast: true }, queryKey: ['admin-hidden'], queryFn: adminApi.hidden, enabled: view === 'hidden' });
+    const reportPage = usePaged(reports.data);
+    const hiddenPage = usePaged(hidden.data);
     const refresh = () => ['admin-reports', 'admin-hidden', 'admin-overview'].forEach((key) => void client.invalidateQueries({ queryKey: [key] }));
     const act = useMutation({ mutationFn: (action: () => Promise<unknown>) => action(), onSuccess: refresh });
 
@@ -83,11 +87,11 @@ export function ModerationPage() {
         <section className={styles.page}>
             <Link to="/admin" className={styles.muted}>‹ Адміністрування</Link>
             <h1 className={styles.title}>Модерація</h1>
-            <Segmented label="Що показати" value={view} onChange={setView}
+            <Segmented label="Що показати" value={view} onChange={(next) => { setView(next); reportPage.setPage(1); }}
                 options={[{ value: 'reports', label: 'Скарги' }, { value: 'hidden', label: 'Приховане' }]} />
             {act.isError && <Notice tone="error">{act.error.message}</Notice>}
             {view === 'reports' && reports.data?.length === 0 && <p className={styles.muted}>Скарг немає.</p>}
-            {view === 'reports' && reports.data?.map((item) => (
+            {view === 'reports' && reportPage.shown.map((item) => (
                 <article key={`${item.target}-${item.targetId}`} className={styles.item}>
                     <PreviewBox target={item.target} preview={item.preview} />
                     <div className={styles.muted}>
@@ -106,8 +110,9 @@ export function ModerationPage() {
                     </div>
                 </article>
             ))}
+            {view === 'reports' && <Pager page={reportPage.page} total={reportPage.total} size={PAGE_SIZE} onPage={reportPage.setPage} />}
             {view === 'hidden' && hidden.data?.length === 0 && <p className={styles.muted}>Нічого не приховано.</p>}
-            {view === 'hidden' && hidden.data?.map((item) => (
+            {view === 'hidden' && hiddenPage.shown.map((item) => (
                 <article key={`${item.target}-${item.targetId}`} className={styles.item}>
                     <PreviewBox target={item.target} preview={item.preview} />
                     {item.target === 'edition' && item.preview.text && <div className={styles.quote}>{item.preview.text}</div>}
@@ -119,6 +124,7 @@ export function ModerationPage() {
                     </div>
                 </article>
             ))}
+            {view === 'hidden' && <Pager page={hiddenPage.page} total={hiddenPage.total} size={PAGE_SIZE} onPage={hiddenPage.setPage} />}
         </section>
     );
 }
@@ -130,7 +136,9 @@ export function UsersPage() {
     const me = useMe();
     const client = useQueryClient();
     const [q, setQ] = useState('');
-    const people = useQuery({ meta: { errorToast: true }, queryKey: ['admin-users', q], queryFn: () => adminApi.users(q), placeholderData: (previous) => previous });
+    const [page, setPage] = usePage();
+    const people = useQuery({ meta: { errorToast: true }, queryKey: ['admin-users', q, page], queryFn: () => adminApi.users(q, page),
+        placeholderData: (previous) => previous });
     const setRole = useMutation({
         mutationFn: ({ nick, role }: { nick: string; role: Person['role'] }) => adminApi.setRole(nick, role),
         onSuccess: () => void client.invalidateQueries({ queryKey: ['admin-users'] }),
@@ -143,14 +151,14 @@ export function UsersPage() {
         <section className={styles.page}>
             <Link to="/admin" className={styles.muted}>‹ Адміністрування</Link>
             <h1 className={styles.title}>Користувачі й ролі</h1>
-            <TextInput label="Пошук" value={q} onChange={setQ} placeholder={rank >= RANK.owner ? 'нік або пошта' : 'нік'} />
+            <TextInput label="Пошук" value={q} onChange={(value) => { setQ(value); setPage(1); }} placeholder={rank >= RANK.owner ? 'нік або пошта' : 'нік'} />
             {setRole.isError && <Notice tone="error">{setRole.error.message}</Notice>}
             {granted && <Notice tone="success">{granted}</Notice>}
             {granting && (
                 <GrantSheet nick={granting} onClose={() => setGranting(null)}
                     onDone={(message) => { setGranting(null); setGranted(message); void client.invalidateQueries({ queryKey: ['admin-users'] }); }} />
             )}
-            {people.data?.map((person) => {
+            {people.data?.items.map((person) => {
                 const editable = person.nick !== me?.nick && person.role !== 'owner' && (rank >= RANK.owner || RANK[person.role] < RANK.admin);
                 return (
                     <div key={person.nick} className={styles.row}>
@@ -177,6 +185,7 @@ export function UsersPage() {
                     </div>
                 );
             })}
+            {people.data && <Pager page={page} total={people.data.total} size={PAGE_SIZE} onPage={setPage} />}
         </section>
     );
 }
@@ -290,13 +299,9 @@ function modelChanges(details: Record<string, unknown>): string {
 }
 
 export function AuditPage() {
-    const pages = useInfiniteQuery({
-        queryKey: ['admin-audit'],
-        queryFn: ({ pageParam }) => adminApi.audit(pageParam),
-        initialPageParam: undefined as number | undefined,
-        getNextPageParam: (last) => (last.length === 50 ? last[last.length - 1]?.id : undefined),
-    });
-    const entries = pages.data?.pages.flat() ?? [];
+    const [page, setPage] = usePage();
+    const pages = useQuery({ queryKey: ['admin-audit', page], queryFn: () => adminApi.audit(page), placeholderData: (previous) => previous });
+    const entries = pages.data?.items ?? [];
     return (
         <section className={styles.page}>
             <Link to="/admin" className={styles.muted}>‹ Адміністрування</Link>
@@ -309,7 +314,7 @@ export function AuditPage() {
                     <span className={styles.muted}>{relativeTime(new Date(entry.createdAt))}</span>
                 </div>
             ))}
-            {pages.hasNextPage && <Button variant="secondary" onPress={() => void pages.fetchNextPage()}>Давніші</Button>}
+            {pages.data && <Pager page={page} total={pages.data.total} size={PAGE_SIZE} onPage={setPage} />}
         </section>
     );
 }

@@ -20,7 +20,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 class Inbox {
 
-    private static final int PAGE = 30;
+    private static final int PAGE = 20;
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() { };
 
     private final DSLContext db;
@@ -84,16 +84,20 @@ class Inbox {
     record Item(long id, String kind, Map<String, Object> payload, OffsetDateTime createdAt, boolean read) {
     }
 
-    record Page(List<Item> items, int unread, boolean hasMore) {
+    /** @param newest the newest row of all (not of this page): opening the list marks up to it as seen */
+    record Page(List<Item> items, int unread, boolean hasMore, int total, int page, Long newest) {
     }
 
-    Page page(long recipientId, Long before) {
+    Page page(long recipientId, int page) {
+        int at = Math.max(1, page);
+        int total = db.fetchCount(NOTIFICATION, NOTIFICATION.RECIPIENT_ID.eq(recipientId));
         List<Item> items = db.selectFrom(NOTIFICATION)
-                .where(NOTIFICATION.RECIPIENT_ID.eq(recipientId), before == null ? DSL.noCondition() : NOTIFICATION.ID.lt(before))
-                .orderBy(NOTIFICATION.ID.desc()).limit(PAGE + 1)
+                .where(NOTIFICATION.RECIPIENT_ID.eq(recipientId))
+                .orderBy(NOTIFICATION.ID.desc()).limit(PAGE).offset((at - 1) * PAGE)
                 .fetch(r -> new Item(r.getId(), r.getKind(), json.readValue(r.getPayload().data(), MAP), r.getCreatedAt(), r.getReadAt() != null));
-        boolean more = items.size() > PAGE;
-        return new Page(more ? items.subList(0, PAGE) : items, unread(recipientId), more);
+        Long newest = db.select(DSL.max(NOTIFICATION.ID)).from(NOTIFICATION).where(NOTIFICATION.RECIPIENT_ID.eq(recipientId))
+                .fetchOne(0, Long.class);
+        return new Page(items, unread(recipientId), at * PAGE < total, total, at, newest);
     }
 
     int unread(long recipientId) {

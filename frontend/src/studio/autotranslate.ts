@@ -111,7 +111,14 @@ export const autotranslateApi = {
     /** A run's journal (етап 17); {@code after}: the last event already shown. */
     journal: (id: number, jobId: number, after = 0) =>
         api<{ job: Job; events: JobEvent[] }>(`${base(id)}/autotranslate/jobs/${jobId}/log?after=${after}`),
-    processes: (page = 1) => api<Process[]>(`/api/studio/autotranslate/processes?page=${page}`),
+    /** 20 to a page; state: active | failed | done | cancelled, kind: analyze | translate, q: words of the title. */
+    processes: (filter: { state?: string; kind?: string; q?: string; page: number }) => {
+        const params = new URLSearchParams({ page: String(filter.page) });
+        if (filter.state) params.set('state', filter.state);
+        if (filter.kind) params.set('kind', filter.kind);
+        if (filter.q?.trim()) params.set('q', filter.q.trim());
+        return api<{ items: Process[]; total: number; page: number; hasMore: boolean }>(`/api/studio/autotranslate/processes?${params}`);
+    },
     models: (q: string, chars: number, output: 'text' | 'image' = 'text', stage?: 'analyze' | 'translate' | 'proofread', show: ModelShow = 'usual') =>
         api<ModelChoice[]>(`/api/studio/autotranslate/models?q=${encodeURIComponent(q)}&chars=${chars}&output=${output}${stage ? `&stage=${stage}` : ''}&show=${show}`),
     analysis: (id: number, page: number) => api<AnalysisPage>(`${base(id)}/analysis?page=${page}`),

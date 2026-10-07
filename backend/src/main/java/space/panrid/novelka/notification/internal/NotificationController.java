@@ -26,8 +26,8 @@ class NotificationController {
     }
 
     @GetMapping("/notifications")
-    Inbox.Page notifications(@RequestParam(required = false) Long before) {
-        return inbox.page(currentUser.requireSignedIn().accountId(), before);
+    Inbox.Page notifications(@RequestParam(defaultValue = "1") int page) {
+        return inbox.page(currentUser.requireSignedIn().accountId(), page);
     }
 
     record Unread(int unread) {

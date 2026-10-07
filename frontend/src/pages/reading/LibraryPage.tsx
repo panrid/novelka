@@ -5,6 +5,8 @@ import { Cover } from '../../reading/Cover';
 import { LIST_LABELS, chaptersWord, readingApi, type ListName, resumeLine } from '../../reading/api';
 import { LinkButton } from '../../ui/LinkButton';
 import { Notice } from '../../ui/Notice';
+import { Pager } from '../../ui/Pager';
+import { PAGE_SIZE, usePage } from '../../lib/usePage';
 import { teamSearch } from './HomePage';
 import styles from './reading.module.css';
 
@@ -14,7 +16,9 @@ export function LibraryPage() {
     const me = useMe();
     const { list = 'reading' }: { list?: ListName } = useSearch({ strict: false });
     const navigate = useNavigate();
-    const library = useQuery({ queryKey: ['library', list], queryFn: () => readingApi.library(list), enabled: me !== null });
+    const [page, setPage] = usePage();
+    const library = useQuery({ queryKey: ['library', list, page], queryFn: () => readingApi.library(list, page), enabled: me !== null,
+        placeholderData: (previous) => previous });
 
     if (!me) {
         return (
@@ -62,6 +66,7 @@ export function LibraryPage() {
                 </Link>
             ))}
             </div>
+            {library.data && <Pager page={page} total={library.data.total} size={PAGE_SIZE} onPage={setPage} />}
         </section>
     );
 }

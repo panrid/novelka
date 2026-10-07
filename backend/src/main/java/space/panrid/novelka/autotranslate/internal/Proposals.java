@@ -43,7 +43,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 class Proposals {
 
-    static final int PAGE = 30;
+    static final int PAGE = 20;
     private static final TypeReference<List<Block>> BLOCKS = new TypeReference<>() { };
 
     private final DSLContext db;

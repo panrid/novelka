@@ -103,7 +103,7 @@ class AdminFlowTests {
         read(moderator.browser().post("/api/admin/hidden/comment/" + rude + "/restore", "{}"));
         assertThat(read(new Browser(port).get("/api/editions/" + edition + "/comments")).path("items").toString()).contains("Грубий");
 
-        JsonNode audit = read(owner.browser().get("/api/admin/audit"));
+        JsonNode audit = read(owner.browser().get("/api/admin/audit")).path("items");
         assertThat(audit).extracting(entry -> entry.path("action").asString()).startsWith("restore", "hide");
         assertThat(audit.path(1).path("actor").asString()).isEqualTo(moderator.nick());
         assertThat(moderator.browser().get("/api/admin/audit").status()).isEqualTo(403);
@@ -144,10 +144,10 @@ class AdminFlowTests {
     @Test
     void whoMayGiveWhichRole() {
         assertThat(moderator.browser().get("/api/admin/users").status()).isEqualTo(403);
-        JsonNode found = read(admin.browser().get("/api/admin/users?q=" + reader.nick()));
+        JsonNode found = read(admin.browser().get("/api/admin/users?q=" + reader.nick())).path("items");
         assertThat(found.path(0).path("nick").asString()).isEqualTo(reader.nick());
         assertThat(found.path(0).path("email").isNull()).as("administrators do not see addresses").isTrue();
-        assertThat(read(owner.browser().get("/api/admin/users?q=" + reader.nick())).path(0).path("email").asString()).isEqualTo(reader.email());
+        assertThat(read(owner.browser().get("/api/admin/users?q=" + reader.nick())).path("items").path(0).path("email").asString()).isEqualTo(reader.email());
 
         read(admin.browser().put("/api/admin/users/" + reader.nick() + "/role", json("role", "moderator")));
         assertThat(admin.browser().put("/api/admin/users/" + reader.nick() + "/role", json("role", "admin")).status()).isEqualTo(403);
@@ -182,7 +182,7 @@ class AdminFlowTests {
         assertThat(closed.body()).contains("Реєстрацію тимчасово закрито");
         assertThat(owner.browser().put("/api/admin/settings", json("relayInactiveMonths", 0, "registrationOpen", true, "adultEnabled", true))
                 .status()).isEqualTo(400);
-        assertThat(read(owner.browser().get("/api/admin/audit")).path(0).path("action").asString()).isEqualTo("settings");
+        assertThat(read(owner.browser().get("/api/admin/audit")).path("items").path(0).path("action").asString()).isEqualTo("settings");
     }
 
     private static JsonNode read(Response response) {

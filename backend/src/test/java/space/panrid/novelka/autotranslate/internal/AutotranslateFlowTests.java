@@ -550,9 +550,16 @@ class AutotranslateFlowTests {
         assertThat(chapters).extracting(row -> row.path("number").asInt()).containsExactly(1, 2, 4, 5);
 
         JsonNode processes = read(owner.browser().get("/api/studio/autotranslate/processes"));
-        assertThat(processes).hasSizeGreaterThanOrEqualTo(3);
-        assertThat(processes.path(0).path("slug").asString()).isEqualTo(slug);
-        assertThat(processes.path(0).path("job").path("from").asInt()).isEqualTo(4);
+        assertThat(processes.path("items")).hasSizeGreaterThanOrEqualTo(3);
+        assertThat(processes.path("total").asInt()).isEqualTo(processes.path("items").size());
+        assertThat(processes.path("items").path(0).path("slug").asString()).isEqualTo(slug);
+        assertThat(processes.path("items").path(0).path("job").path("from").asInt()).isEqualTo(4);
+        String title = processes.path("items").path(0).path("title").asString();
+        assertThat(read(owner.browser().get("/api/studio/autotranslate/processes?kind=translate&state=done&q="
+                + java.net.URLEncoder.encode(title.split(" ")[0].toUpperCase(), java.nio.charset.StandardCharsets.UTF_8))).path("items"))
+                .as("by kind, state and a word of the title in any case").isNotEmpty()
+                .allSatisfy(row -> assertThat(row.path("job").path("kind").asString()).isEqualTo("translate"));
+        assertThat(read(owner.browser().get("/api/studio/autotranslate/processes?q=немаєтакоїновели")).path("total").asInt()).isZero();
     }
 
     @Test

@@ -113,7 +113,7 @@ class Glossary {
                 List.of(GLOSSARY_ENTRY.KIND, GLOSSARY_ENTRY.UKRAINIAN), Integer.MAX_VALUE, 0);
     }
 
-    static final int PAGE = 50;
+    static final int PAGE = 20;
     static final Set<String> STATUSES = Set.of("new", "approved", "rejected");
 
     /** {@code labels}: what readers see for each chapter in {@code chapters} — its number, or its title when it has none. */

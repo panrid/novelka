@@ -33,7 +33,7 @@ export const suggestionApi = {
         api<{ items: MineItem[]; draftsInEdition: number }>(`/api/suggestions/mine?editionId=${editionId}&number=${number}`),
     submit: (editionId: number) => api<{ count: number }>('/api/suggestions/submit', { method: 'POST', body: JSON.stringify({ editionId }) }),
     withdraw: (id: number) => api<void>(`/api/suggestions/${id}`, { method: 'DELETE' }),
-    history: () => api<MySuggestion[]>('/api/me/suggestions'),
+    history: (page = 1) => api<{ items: MySuggestion[]; total: number; page: number; hasMore: boolean }>(`/api/me/suggestions?page=${page}`),
     queue: (editionId: number) => api<{ number: number; label: string | null; title: string; pending: number }[]>(`/api/studio/editions/${editionId}/suggestions`),
     pending: (editionId: number, number: number) => api<ReviewItem[]>(studio(editionId, number)),
     review: (editionId: number, number: number, decisions: { id: number; accept: boolean; content?: Span[] }[]) =>

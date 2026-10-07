@@ -41,18 +41,27 @@ class Staff {
     record Person(String nick, String role, String email, OffsetDateTime createdAt, OffsetDateTime lastSeenAt, Integer shahs) {
     }
 
-    List<Person> find(Viewer viewer, String query) {
+    static final int PAGE = 20;
+
+    record People(List<Person> items, int total, int page, boolean hasMore) {
+    }
+
+    People find(Viewer viewer, String query, int page) {
         String q = query == null ? "" : query.strip().toLowerCase(java.util.Locale.ROOT);
         boolean owner = viewer.role() == SiteRole.OWNER;
+        int at = Math.max(1, page);
         var shahs = DSL.coalesce(SHAH_BALANCE.AVAILABLE.plus(SHAH_BALANCE.RESERVED), DSL.zero());
-        return db.select(ACCOUNT.NICK, ACCOUNT.SITE_ROLE, ACCOUNT.EMAIL, ACCOUNT.CREATED_AT, ACCOUNT.LAST_SEEN_AT, shahs).from(ACCOUNT)
+        org.jooq.Condition where = q.isEmpty() ? DSL.noCondition()
+                : owner ? ACCOUNT.NICK_KEY.contains(q).or(ACCOUNT.EMAIL_KEY.contains(q)) : ACCOUNT.NICK_KEY.contains(q);
+        int total = db.fetchCount(ACCOUNT, where);
+        List<Person> items = db.select(ACCOUNT.NICK, ACCOUNT.SITE_ROLE, ACCOUNT.EMAIL, ACCOUNT.CREATED_AT, ACCOUNT.LAST_SEEN_AT, shahs).from(ACCOUNT)
                 .leftJoin(SHAH_BALANCE).on(SHAH_BALANCE.ACCOUNT_ID.eq(ACCOUNT.ID))
-                .where(q.isEmpty() ? DSL.noCondition()
-                        : owner ? ACCOUNT.NICK_KEY.contains(q).or(ACCOUNT.EMAIL_KEY.contains(q)) : ACCOUNT.NICK_KEY.contains(q))
+                .where(where)
                 // Staff first, then the most recently seen.
-                .orderBy(DSL.when(ACCOUNT.SITE_ROLE.eq("reader"), 1).otherwise(0), ACCOUNT.LAST_SEEN_AT.desc().nullsLast())
-                .limit(50)
+                .orderBy(DSL.when(ACCOUNT.SITE_ROLE.eq("reader"), 1).otherwise(0), ACCOUNT.LAST_SEEN_AT.desc().nullsLast(), ACCOUNT.ID)
+                .limit(PAGE).offset((at - 1) * PAGE)
                 .fetch(r -> new Person(r.value1(), r.value2(), owner ? r.value3() : null, r.value4(), r.value5(), owner ? r.value6() : null));
+        return new People(items, total, at, at * PAGE < total);
     }
 
     @Transactional

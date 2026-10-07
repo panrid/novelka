@@ -96,7 +96,7 @@ final class Views {
     record Activity(List<Card> reading, int acceptedSuggestions) {
     }
 
-    record LibraryPage(List<LibraryItem> items, java.util.Map<String, Integer> counts) {
+    record LibraryPage(List<LibraryItem> items, java.util.Map<String, Integer> counts, int total, int page, boolean hasMore) {
     }
 
     record LibraryItem(Card card, String list, Integer chapterNumber, String chapterLabel) {

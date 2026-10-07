@@ -8,7 +8,7 @@ const person = (role: string) => ({
     dmPolicy: 'everyone', showReading: true, adultConfirmed: false, showShah: true,
 });
 const MINE = {
-    available: 9, reserved: 2, usdPerShah: 0.07, hasMore: false,
+    available: 9, reserved: 2, usdPerShah: 0.07, hasMore: false, total: 2, page: 1,
     running: [{ amount: 2, what: 'Автопереклад «Маг води», глави 3–5', createdAt: new Date().toISOString() }],
     history: [
         { kind: 'charge', amount: 1, what: 'Ілюстрація', createdAt: new Date().toISOString() },
@@ -38,7 +38,8 @@ describe('шаги without payments', () => {
     it('lets the site owner grant шаги from the users list', async () => {
         const { calls } = await renderAt('/admin/users', {
             'GET /api/me': { body: person('owner') },
-            'GET /api/admin/users': { body: [{ nick: 'lysytsia', role: 'reader', email: 'l@example.com', createdAt: new Date().toISOString(), lastSeenAt: null }] },
+            'GET /api/admin/users': { body: { total: 1, page: 1, hasMore: false,
+                items: [{ nick: 'lysytsia', role: 'reader', email: 'l@example.com', createdAt: new Date().toISOString(), lastSeenAt: null }] } },
             'POST /api/admin/users/lysytsia/shahs': { status: 201, body: { available: 10 } },
         });
         await userEvent.click(await screen.findByRole('button', { name: 'Нарахувати шаги lysytsia' }));

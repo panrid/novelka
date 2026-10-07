@@ -94,7 +94,7 @@ class SuggestionFlowTests {
         assertThat(history.get(0).path("origin").asString()).isEqualTo("suggestion");
         assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/contributions")))
                 .anySatisfy(row -> assertThat(row.path("nick").asString()).isEqualTo(reader.nick()));
-        assertThat(read(reader.browser().get("/api/me/suggestions"))).allSatisfy(item ->
+        assertThat(read(reader.browser().get("/api/me/suggestions")).path("items")).allSatisfy(item ->
                 assertThat(item.path("state").asString()).isEqualTo("accepted"));
     }
 

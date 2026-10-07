@@ -41,7 +41,7 @@ describe('administration', () => {
         ];
         const { calls } = await renderAt('/admin/users', {
             'GET /api/me': { body: person('admin') },
-            'GET /api/admin/users': { body: people },
+            'GET /api/admin/users': { body: { items: people, total: 2, page: 1, hasMore: false } },
             'PUT /api/admin/users/lysytsia/role': { status: 200 },
         });
         const select = await screen.findByRole('combobox', { name: 'Роль lysytsia' });
@@ -68,12 +68,12 @@ describe('administration', () => {
         const at = new Date().toISOString();
         await renderAt('/admin/audit', {
             'GET /api/me': { body: person('owner') },
-            'GET /api/admin/audit': { body: [
+            'GET /api/admin/audit': { body: { total: 3, page: 1, hasMore: false, items: [
                 { id: 3, actor: 'panrid', action: 'shahs_granted', targetType: 'account', targetId: 7, details: { shah: 10, nick: 'lysytsia', note: 'на пробу' }, createdAt: at },
                 { id: 2, actor: 'panrid', action: 'autotranslate_settings', targetType: 'site', targetId: null, createdAt: at,
                     details: { before: { translate: { model: 'openai/gpt-4.1-mini' } }, after: { translate: { model: 'anthropic/claude-sonnet-5' } } } },
                 { id: 1, actor: 'panrid', action: 'shah_price', targetType: 'site', targetId: null, details: { microUsdPerShah: 70000 }, createdAt: at },
-            ] },
+            ] } },
         });
         expect(await screen.findByText(/нараховує 10 шагів lysytsia · «на пробу»/)).toBeInTheDocument();
         expect(screen.getByText(/змінює моделі й ціни автоперекладу · переклад: openai\/gpt-4.1-mini → anthropic\/claude-sonnet-5/)).toBeInTheDocument();

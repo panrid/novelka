@@ -1,14 +1,15 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
 import { shahApi } from '../../ledger/api';
 import { relativeTime } from '../../lib/dates';
 import { dollars, shahWord } from '../../studio/autotranslate';
 import { Notice } from '../../ui/Notice';
+import { Pager } from '../../ui/Pager';
+import { PAGE_SIZE, usePage } from '../../lib/usePage';
 import styles from '../studio/studio.module.css';
 
 /** A person's шаги (рішення 29): what is left, what runs hold, what came and what went. */
 export function ShahsPage() {
-    const [page, setPage] = useState(1);
+    const [page, setPage] = usePage();
     const mine = useQuery({ queryKey: ['shahs', page], queryFn: () => shahApi.mine(page), placeholderData: keepPreviousData });
     const data = mine.data;
     return (
@@ -52,12 +53,7 @@ export function ShahsPage() {
                             </b>
                         </div>
                     ))}
-                    {(page > 1 || data.hasMore) && (
-                        <div className={styles.actions} style={{ marginTop: 12 }}>
-                            <button type="button" className={styles.plainButton} disabled={page <= 1} onClick={() => setPage(page - 1)}>← Новіші</button>
-                            <button type="button" className={styles.plainButton} disabled={!data.hasMore} onClick={() => setPage(page + 1)}>Давніші →</button>
-                        </div>
-                    )}
+                    <Pager page={page} total={data.total} size={PAGE_SIZE} onPage={setPage} />
                 </>
             )}
         </section>

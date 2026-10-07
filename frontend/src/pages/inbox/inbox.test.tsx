@@ -8,7 +8,7 @@ const ME = {
     dmPolicy: 'everyone', showReading: true, adultConfirmed: false, showShah: true,
 };
 const NOTIFICATIONS = {
-    unread: 2, hasMore: false,
+    unread: 2, hasMore: false, total: 3, page: 1, newest: 7,
     items: [
         { id: 7, kind: 'new_chapters', read: false, createdAt: new Date().toISOString(),
             payload: { slug: 'mah-vody', novelTitle: 'Маг води', teamHandle: 'panrid', first: 12, last: 14, firstLabel: '11', lastLabel: '13' } },
@@ -45,6 +45,21 @@ describe('inbox', () => {
         expect(within(reply).getByText(/глава 2\.5/)).toBeInTheDocument();
         expect(screen.getByText('3 нові правки').closest('a')).toHaveAttribute('href', '/studio/9');
         await vi.waitFor(() => expect(calls.find((call) => call.path === '/api/notifications/read')?.body).toEqual({ upTo: 7 }));
+    });
+
+    it('pages notifications 20 at a time and keeps the page in the address', async () => {
+        const { calls, router } = await renderAt('/inbox?page=2', {
+            'GET /api/me': { body: ME },
+            'GET /api/notifications': { body: { ...NOTIFICATIONS, total: 45, page: 2 } },
+            'GET /api/notifications/unread': { body: { unread: 2 } },
+            'GET /api/conversations': { body: { items: [], unread: 0 } },
+            'POST /api/notifications/read': { body: { unread: 0 } },
+        });
+        expect(await screen.findByText('сторінка 2 з 3')).toBeInTheDocument();
+        expect(calls.find((call) => call.path === '/api/notifications')?.query).toContain('page=2');
+        await userEvent.click(screen.getByRole('button', { name: 'Наступна →' }));
+        await vi.waitFor(() => expect(router.state.location.search).toEqual({ page: 3 }));
+        await vi.waitFor(() => expect(calls.some((call) => call.path === '/api/notifications' && call.query.includes('page=3'))).toBe(true));
     });
 
     it('shows a conversation with markup and sends a message', async () => {

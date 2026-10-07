@@ -6,6 +6,8 @@ import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
 import { Toggle } from '../../ui/Toggle';
+import { Pager } from '../../ui/Pager';
+import { PAGE_SIZE, usePaged } from '../../lib/usePage';
 import styles from '../pages.module.css';
 
 /** Each switch saves at once; there is no «Зберегти» to forget. */
@@ -53,16 +55,18 @@ function BlockedPeople() {
         mutationFn: (nick: string) => messagingApi.unblock(nick),
         onSuccess: () => void client.invalidateQueries({ queryKey: ['blocked'] }),
     });
+    const paged = usePaged(blocked.data);
     if (!blocked.data?.length) return null;
     return (
         <div className={styles.section} style={{ marginTop: 24 }}>
             <h2 className={styles.sectionTitle}>Заблоковані</h2>
-            {blocked.data.map((nick) => (
+            {paged.shown.map((nick) => (
                 <div key={nick} className={styles.row} style={{ justifyContent: 'space-between', padding: '6px 0' }}>
                     <span>{nick}</span>
                     <Button variant="secondary" onPress={() => unblock.mutate(nick)}>Розблокувати</Button>
                 </div>
             ))}
+            <Pager page={paged.page} total={paged.total} size={PAGE_SIZE} onPage={paged.setPage} />
         </div>
     );
 }

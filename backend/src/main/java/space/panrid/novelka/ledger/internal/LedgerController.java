@@ -38,7 +38,7 @@ class LedgerController {
     }
 
     record Mine(int available, int reserved, BigDecimal usdPerShah, List<LedgerService.OpenHold> running,
-            List<LedgerService.Entry> history, boolean hasMore) {
+            List<LedgerService.Entry> history, boolean hasMore, int total, int page) {
     }
 
     /** The «Шаги» page of anyone: what is left, what runs hold, what came and went. */
@@ -49,7 +49,7 @@ class LedgerController {
         List<LedgerService.Entry> history = ledger.history(viewer.accountId(), page);
         boolean more = history.size() > LedgerService.PAGE;
         return new Mine(balance.available(), balance.reserved(), usd(ledger.microUsdPerShah()), ledger.openHolds(viewer.accountId()),
-                more ? history.subList(0, LedgerService.PAGE) : history, more);
+                more ? history.subList(0, LedgerService.PAGE) : history, more, ledger.historySize(viewer.accountId()), Math.max(1, page));
     }
 
     record Grant(Integer shah, String note) {

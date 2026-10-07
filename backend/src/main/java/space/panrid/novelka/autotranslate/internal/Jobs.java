@@ -545,18 +545,45 @@ class Jobs {
     record Process(long editionId, String title, String slug, JobView job) {
     }
 
-    /** Every job the owner started, newest first: the «Процеси» page. */
-    List<Process> processes(long ownerId, int page) {
+    static final int PROCESSES_PAGE = 20;
+
+    record Processes(List<Process> items, int total, int page, boolean hasMore) {
+    }
+
+    /**
+     * Every job the person started, unfinished first, then newest: the «Процеси» page.
+     *
+     * @param state «active» (queued or running), «failed», «done», «cancelled»; anything else: all
+     * @param kind  «analyze» or «translate»; anything else: both
+     * @param q     words of the novel's title
+     */
+    Processes processes(long ownerId, String state, String kind, String q, int page) {
         int at = Math.max(1, page);
+        org.jooq.Condition where = JOB.REQUESTED_BY.eq(ownerId);
+        where = switch (state == null ? "" : state) {
+            case "active" -> where.and(JOB.STATE.in("queued", "running"));
+            case "failed", "done", "cancelled" -> where.and(JOB.STATE.eq(state));
+            default -> where;
+        };
+        if ("analyze".equals(kind) || "translate".equals(kind)) {
+            where = where.and(JOB.KIND.eq(kind));
+        }
+        for (String word : (q == null ? "" : q).strip().toLowerCase(java.util.Locale.ROOT).split("\\s+")) {
+            if (!word.isEmpty()) {
+                where = where.and(DSL.lower(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE)).contains(word));
+            }
+        }
+        int total = db.fetchCount(DSL.select(JOB.ID).from(JOB).join(EDITION).on(EDITION.ID.eq(JOB.EDITION_ID))
+                .join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)).where(where));
         List<Process> out = new ArrayList<>();
         for (Record row : db.select(JOB.asterisk(), DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).as("title"), NOVEL.SLUG)
                 .from(JOB).join(EDITION).on(EDITION.ID.eq(JOB.EDITION_ID)).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
-                .where(JOB.REQUESTED_BY.eq(ownerId))
+                .where(where)
                 .orderBy(DSL.when(JOB.STATE.in("queued", "running", "failed"), 0).otherwise(1), JOB.ID.desc())
-                .limit(30).offset((at - 1) * 30).fetch()) {
+                .limit(PROCESSES_PAGE).offset((at - 1) * PROCESSES_PAGE).fetch()) {
             JobRecord job = row.into(JOB);
             out.add(new Process(job.getEditionId(), row.get("title", String.class), row.get(NOVEL.SLUG), view(job)));
         }
-        return out;
+        return new Processes(out, total, at, at * PROCESSES_PAGE < total);
     }
 }
