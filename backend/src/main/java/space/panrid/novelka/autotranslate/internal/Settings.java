@@ -55,9 +55,9 @@ record Settings(Stage analyze, Stage translate, Stage proofread, int segmentChar
     /**
      * Tokens per 1000 characters of the original, measured on real chapters: analysis reads
      * the whole text once, translation reads and writes it, proofreading reads the original
-     * and the draft and writes the text again.
+     * and the draft and writes only the lines it changes (about a quarter at most).
      */
-    static final double[][] TOKENS_PER_THOUSAND = {{910, 130}, {1300, 950}, {2050, 990}};
+    static final double[][] TOKENS_PER_THOUSAND = {{910, 130}, {1300, 950}, {2050, 300}};
 
     /** What a chapter of {@code chars} is expected to cost at these models, in millionths of a dollar. */
     long expectedMicroUsd(int chars, boolean analyzeToo, boolean translateToo) {

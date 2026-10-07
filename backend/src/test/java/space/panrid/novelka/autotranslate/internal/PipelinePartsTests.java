@@ -70,6 +70,37 @@ class PipelinePartsTests {
                 .as("a part may begin inside a speech; 『』 is a quote, not dialogue").containsExactly(null, null);
     }
 
+    private static tools.jackson.databind.JsonNode changes(List<Block> blocks, int[] at, String... texts) {
+        tools.jackson.databind.json.JsonMapper json = tools.jackson.databind.json.JsonMapper.builder().build();
+        var lines = json.createArrayNode();
+        for (int i = 0; i < texts.length; i++) {
+            Block block = blocks.get(at[i]);
+            lines.addObject().put("id", block.id()).put("start", block.text().substring(0, 2)).put("text", texts[i]);
+        }
+        var out = json.createObjectNode();
+        out.set("blocks", lines);
+        return out;
+    }
+
+    @Test
+    void theEditorReturnsOnlyTheLinesItChanges() {
+        List<Block> blocks = List.of(
+                line(1, "「よくわからんがわかった。しかし電気か……。"),
+                line(2, "雷ほどではないが、似たような現象を見たことがある、と聞いたような」"),
+                line(3, "静電気の類だろうか？"),
+                line(4, "視認できるのならば、それなりの電力が発生しているということ。"),
+                line(5, "「グラストがそんなようなことを言っていた気がする。"));
+        assertThat(Pipeline.edits(changes(blocks, new int[0]), blocks)).as("a draft with nothing to fix").isNull();
+        assertThat(Pipeline.edits(changes(blocks, new int[] {2}, "Може, це статична електрика?"), blocks)).isNull();
+        assertThat(Pipeline.edits(changes(blocks, new int[] {2, 0}, "Може, це статична електрика?", "— Гаразд."), blocks))
+                .as("out of order").contains("переставлений");
+        assertThat(Pipeline.edits(changes(blocks, new int[] {2, 3}, "— Може, це статична електрика?", "— Якщо її видно…"), blocks))
+                .as("neighbouring narration turned into speech").contains("зсунулися");
+        assertThat(Pipeline.edits(changes(blocks, new int[] {0, 2}, "Не зовсім розумію.", "— Може, це статична електрика?"), blocks))
+                .as("two odd lines apart are not a slip").isNull();
+        assertThat(Pipeline.edits(changes(blocks, new int[] {4}, "— Ґраст казав щось подібне [term]."), blocks)).isNotNull();
+    }
+
     @Test
     void japaneseOrAMarkerLeftInTheTranslationIsNotAccepted() {
         assertThat(Pipeline.leftover("s1", "Повернемося до перевірки водяної магії [term].")).isNotNull();

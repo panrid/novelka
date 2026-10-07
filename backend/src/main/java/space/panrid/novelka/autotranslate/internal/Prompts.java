@@ -99,8 +99,10 @@ final class Prompts {
             agreement (also the narrator's, when the request names them), the vocative case in address,
             honorifics left in (-сан, -кун, -чан: remove them), a dash at the start of every block of a speech in
             「」, punctuation, typos and Russian calques. Keep what is already right; do not reword good sentences.
-            Return every block id exactly once, in the same order, with the final Ukrainian text, and «start»:
-            the first 4 characters of that block's original, copied exactly. Never move text between blocks.
+            Return ONLY the blocks you change, in their order, each with its full final Ukrainian text and «start»:
+            the first 4 characters of that block's original, copied exactly. A block left out keeps its draft;
+            when nothing needs fixing, return an empty list. If drafts slipped by a line, return every block
+            you put back. Never move text between blocks.
             Readings written as 漢字《かんじ》 are hints; they never appear in the translation.""";
 
     /** After a glossary word was changed in finished chapters: agreement only, nothing else. */

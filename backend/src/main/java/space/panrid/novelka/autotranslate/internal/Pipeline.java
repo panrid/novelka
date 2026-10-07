@@ -297,7 +297,7 @@ class Pipeline {
         return user.toString();
     }
 
-    /** The edited part; a line the editor left out keeps its draft translation. */
+    /** The edited part: the editor returns only the lines it changes; the others keep their draft. */
     private List<Line> proofread(Calls calls, long editionId, int part, List<Block> blocks, List<Line> draft) {
         String text = joined(blocks);
         Map<String, String> byId = new HashMap<>();
@@ -315,7 +315,7 @@ class Pipeline {
         JsonNode answer;
         try {
             answer = calls.ask("proofread", part, Prompts.PROOFREAD, user, "proofread", Prompts.blocksSchema(false),
-                    maxTokens(text), reply -> usable(reply, blocks));
+                    maxTokens(text), reply -> edits(reply, blocks));
         } catch (BadOutput unusable) {
             // Better the draft than an edit that lost its place.
             log.warn("Chapter {} part {}: proofreading unusable ({}), the draft stays", calls.number, part, unusable.getMessage());
@@ -361,6 +361,44 @@ class Pipeline {
         }
         if (lines.size() * 2 < blocks.size()) {
             return "абзаців %d замість %d".formatted(lines.size(), blocks.size());
+        }
+        return null;
+    }
+
+    /**
+     * Null when the editor's changes are lines of this part in order, each at most once, with
+     * text from their own original; otherwise what is wrong. No changes at all is a good draft.
+     */
+    static String edits(JsonNode answer, List<Block> blocks) {
+        List<Boolean> speech = speech(blocks);
+        int previousOff = -2;
+        int at = 0;
+        for (JsonNode line : answer.path("blocks")) {
+            String id = line.path("id").asString("");
+            while (at < blocks.size() && !blocks.get(at).id().equals(id)) {
+                at++;
+            }
+            if (at == blocks.size()) {
+                return "абзац «%s» зайвий, повторений або переставлений".formatted(id);
+            }
+            String text = line.path("text").asString("");
+            if (text.isBlank()) {
+                return "абзац " + id + " порожній";
+            }
+            if (!sameStart(blocks.get(at).text(), line.path("start").asString(null))) {
+                return "переклад абзацу %s не від його оригіналу: переклади зсунулися".formatted(id);
+            }
+            String left = leftover(id, text);
+            if (left != null) {
+                return left;
+            }
+            // Only neighbours tell a slip: two changed lines far apart may each be odd on their own.
+            boolean off = !fitsSpeech(speech.get(at), text);
+            if (off && previousOff == at - 1) {
+                return "репліки й оповідь не на своїх місцях (абзаци %s і %s): переклади зсунулися".formatted(blocks.get(at - 1).id(), id);
+            }
+            previousOff = off ? at : -2;
+            at++;
         }
         return null;
     }
