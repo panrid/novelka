@@ -22,6 +22,8 @@ export type Me = {
     google?: boolean;
     /** False for an account made through Google until a password is chosen. */
     hasPassword?: boolean;
+    /** How the site and the reader look (appearance/model.ts); empty for the defaults. */
+    appearance?: unknown;
 };
 
 export const meQuery = queryOptions({

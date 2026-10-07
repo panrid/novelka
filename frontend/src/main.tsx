@@ -5,10 +5,10 @@ import { createRoot } from 'react-dom/client';
 import { ApiError } from './api/client';
 import { createAppRouter } from './app/router';
 import { mutationCache, queryCache } from './app/mutationErrors';
-import { applyStoredTheme } from './reading/theme';
+import { apply as applyAppearance } from './appearance/store';
 import './styles/global.css';
 
-applyStoredTheme();
+applyAppearance();
 
 const queryClient = new QueryClient({
     mutationCache: mutationCache(),

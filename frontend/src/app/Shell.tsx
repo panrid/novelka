@@ -1,9 +1,10 @@
 import { SearchBox } from '../reading/SearchBox';
 import { useQuery } from '@tanstack/react-query';
 import { HeadContent, Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BookOpen, Home, Inbox, PenLine, Search, User, type LucideIcon } from 'lucide-react';
-import { useMe } from '../auth/me';
+import { syncWithAccount } from '../appearance/store';
+import { meQuery, useMe } from '../auth/me';
 import { useInboxCounts, useLiveEvents } from '../inbox/live';
 import { Avatar } from '../ui/Avatar';
 import styles from './Shell.module.css';
@@ -30,6 +31,7 @@ export const TABS: readonly Tab[] = [
  */
 export function Shell() {
     useLiveEvents();
+    useAppearanceSync();
     useKeyboardInset();
     // The reader draws its own bars that hide while reading; no site chrome there.
     // The page always sits at the same place in the tree: moving it would remount the reader.
@@ -68,6 +70,15 @@ export function Shell() {
             <ToastHost />
         </div>
     );
+}
+
+/** The look the account keeps follows the person to every device. */
+function useAppearanceSync() {
+    const me = useMe();
+    const loaded = useQuery(meQuery).isFetched;
+    useEffect(() => {
+        if (loaded) syncWithAccount(me ? me.appearance ?? {} : null);
+    }, [me, loaded]);
 }
 
 function railOf(path: string): 'studio' | 'me' | 'inbox' | null {

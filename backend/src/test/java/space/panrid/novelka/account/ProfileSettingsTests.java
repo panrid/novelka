@@ -45,6 +45,27 @@ class ProfileSettingsTests {
     }
 
     @Test
+    void theLookOfTheSiteAndTheReaderIsKeptWithTheAccount() {
+        assertThat(read(person.browser().get("/api/me")).path("appearance").isEmpty()).as("defaults at first").isTrue();
+        String look = """
+                {"site": {"preset": "light", "accent": "#4f7a40", "radius": 8},
+                 "reader": {"preset": "paper", "size": 20, "lineHeight": 1.7, "align": "justify", "hideBars": true}}""";
+        JsonNode me = read(person.browser().put("/api/me/appearance", look));
+        assertThat(me.path("appearance").path("site").path("preset").asString()).isEqualTo("light");
+        assertThat(me.path("appearance").path("reader").path("size").asInt()).isEqualTo(20);
+        assertThat(read(person.browser().get("/api/me")).path("appearance").path("reader").path("align").asString())
+                .as("another device sees the same").isEqualTo("justify");
+
+        assertThat(person.browser().put("/api/me/appearance", "{\"site\": {\"preset\": \"my-own\"}}").status())
+                .as("only the site's own styles").isEqualTo(400);
+        assertThat(person.browser().put("/api/me/appearance", "{\"site\": {\"iconsUrl\": \"https://x\"}}").status())
+                .as("nothing of one's own").isEqualTo(400);
+        assertThat(person.browser().put("/api/me/appearance", "{\"reader\": {\"size\": 99}}").status()).isEqualTo(400);
+        assertThat(person.browser().put("/api/me/appearance", "{\"site\": {\"accent\": \"red\"}}").status()).isEqualTo(400);
+        assertThat(new Browser(port).put("/api/me/appearance", look).status()).isEqualTo(401);
+    }
+
+    @Test
     void settingsChangeOnlyWhatIsSent() {
         Response response = person.browser().patch("/api/me",
                 json("bio", "  Читаю ісекаї й слайс-оф-лайф.  ", "dmPolicy", "nobody", "adultConfirmed", true));

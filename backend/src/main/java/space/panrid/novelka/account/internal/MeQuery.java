@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.media.Images;
+import tools.jackson.databind.json.JsonMapper;
 
 @Component
 class MeQuery {
@@ -21,10 +22,12 @@ class MeQuery {
 
     private final DSLContext db;
     private final Images images;
+    private final JsonMapper json;
 
-    MeQuery(DSLContext db, Images images) {
+    MeQuery(DSLContext db, Images images, JsonMapper json) {
         this.db = db;
         this.images = images;
+        this.json = json;
     }
 
     Optional<Me> find(long id) {
@@ -33,7 +36,8 @@ class MeQuery {
                 avatar(r.getAvatarImageId()), r.getDmPolicy(), r.getShowReading(), r.getAdultConfirmedAt() != null,
                 // Shags-or-dollars only matters to the site owner (рішення 21).
                 SiteRole.fromCode(r.getSiteRole()) == SiteRole.OWNER ? r.getShowShah() : true, r.getStudioInMenu(),
-                r.getGoogleSub() != null, r.getPasswordSet()));
+                r.getGoogleSub() != null, r.getPasswordSet(),
+                json.readTree(r.getAppearance().data())));
     }
 
     Optional<PublicProfile> publicProfile(long id) {

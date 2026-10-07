@@ -10,7 +10,8 @@ import { Blocks } from '../../reading/Blocks';
 import { chapterHeading, volumeTitle, readingApi, type NovelPage, type ReaderChapter } from '../../reading/api';
 import { localProgress, movesPlace, saveLocalProgress } from '../../reading/progress';
 import { chapterQuery } from '../../reading/queries';
-import { useReaderSize, useTheme, type Theme } from '../../reading/theme';
+import { READER_COLORS, READER_SIZE, readerColors, readerSize, type ReaderColors } from '../../appearance/model';
+import { readerOpened, setReader, useAppearance } from '../../appearance/store';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Sheet } from '../../ui/Sheet';
@@ -64,7 +65,13 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     }, [me]);
     const client = useQueryClient();
     const navigate = useNavigate();
-    const [size, setSize] = useReaderSize();
+    const appearance = useAppearance();
+    const size = readerSize(appearance);
+    // The reader's own colours while it is open; the site's style comes back on leaving.
+    useEffect(() => {
+        readerOpened(true);
+        return () => readerOpened(false);
+    }, []);
     const [barsVisible, setBarsVisible] = useState(true);
     const [progress, setProgress] = useState(0);
     const lastY = useRef(0);
@@ -225,7 +232,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                     <div className={styles.novel}>{chapter.novelTitle}</div>
                     <div className={styles.count}>{chapter.label === null ? `Глава ${chapter.number}` : chapter.number} з {chapter.edition.chapterCount}</div>
                 </div>
-                <TextSettings size={size} setSize={setSize} />
+                <TextSettings />
                 <Link to="/n/$slug" params={{ slug: chapter.novelSlug }} search={search} hash="chapters" className={styles.icon} aria-label="Зміст">
                     <List size={22} aria-hidden />
                 </Link>
@@ -351,20 +358,22 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     );
 }
 
-function TextSettings({ size, setSize }: { size: number; setSize: (size: number) => void }) {
-    const [theme, setTheme] = useTheme();
+/** «Аа»: the reader's own look, kept with the account and also in «Налаштування». */
+function TextSettings() {
+    const appearance = useAppearance();
+    const size = readerSize(appearance);
     return (
         <DialogTrigger>
-            <AriaButton className={styles.icon} aria-label="Розмір тексту й тема"><Type size={22} aria-hidden /></AriaButton>
+            <AriaButton className={styles.icon} aria-label="Вигляд читалки"><Type size={22} aria-hidden /></AriaButton>
             <Popover className={styles.settings} placement="bottom end">
-                <Dialog className={styles.settingsDialog} aria-label="Розмір тексту й тема">
+                <Dialog className={styles.settingsDialog} aria-label="Вигляд читалки">
                     <div className={styles.sizeRow}>
-                        <AriaButton className={styles.sizeButton} onPress={() => setSize(size - 1)} isDisabled={size <= 15} aria-label="Менший текст">А−</AriaButton>
+                        <AriaButton className={styles.sizeButton} onPress={() => setReader({ size: size - 1 })} isDisabled={size <= READER_SIZE.min} aria-label="Менший текст">А−</AriaButton>
                         <span aria-live="polite">{size}</span>
-                        <AriaButton className={styles.sizeButton} onPress={() => setSize(size + 1)} isDisabled={size >= 26} aria-label="Більший текст">А+</AriaButton>
+                        <AriaButton className={styles.sizeButton} onPress={() => setReader({ size: size + 1 })} isDisabled={size >= READER_SIZE.max} aria-label="Більший текст">А+</AriaButton>
                     </div>
-                    <Segmented<Theme> label="Тема" value={theme} onChange={setTheme}
-                        options={[{ value: 'dark', label: 'Темна' }, { value: 'black', label: 'Чорна' }, { value: 'light', label: 'Світла' }]} />
+                    <Segmented<ReaderColors> label="Кольори" value={readerColors(appearance).value} onChange={(colors) => setReader({ colors })}
+                        options={READER_COLORS.map(({ value, label }) => ({ value, label }))} />
                 </Dialog>
             </Popover>
         </DialogTrigger>

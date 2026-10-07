@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -26,6 +27,7 @@ import space.panrid.novelka.account.Viewer;
 import space.panrid.novelka.media.ImageKind;
 import space.panrid.novelka.media.Images;
 import space.panrid.novelka.platform.web.UserFacingException;
+import tools.jackson.databind.JsonNode;
 
 /** The signed-in person's own profile and settings. */
 @RestController
@@ -55,9 +57,11 @@ class SettingsController {
     private final Images images;
     private final Sessions sessions;
     private final Clock clock;
+    private final AppearanceStore appearance;
 
     SettingsController(CurrentUser access, AccountService service, AccountRepository accounts, MeQuery me,
-            Images images, Sessions sessions, Clock clock) {
+            Images images, Sessions sessions, Clock clock, AppearanceStore appearance) {
+        this.appearance = appearance;
         this.access = access;
         this.service = service;
         this.accounts = accounts;
@@ -79,6 +83,14 @@ class SettingsController {
         Boolean showShah = viewer.role() == SiteRole.OWNER ? body.showShah() : null;
         accounts.updateSettings(viewer.accountId(), bio, body.dmPolicy(), body.showReading(), adultAt,
                 body.adultConfirmed() != null, showShah, body.studioInMenu());
+        return me.find(viewer.accountId()).orElseThrow();
+    }
+
+    /** How the site and the reader look for this person: the whole object is replaced. */
+    @PutMapping("/appearance")
+    Me setAppearance(@RequestBody JsonNode body) {
+        Viewer viewer = access.requireSignedIn();
+        appearance.save(viewer.accountId(), Appearance.checked(body).toString());
         return me.find(viewer.accountId()).orElseThrow();
     }
 
