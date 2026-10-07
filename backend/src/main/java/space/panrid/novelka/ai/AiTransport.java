@@ -27,6 +27,11 @@ public interface AiTransport {
     /** GET /models: the public catalogue with prices. */
     Reply models() throws NotSent, Lost;
 
+    /** GET /models/{model}/endpoints: who serves the model and at what price; 404 when unknown. */
+    default Reply endpoints(String model) throws NotSent, Lost {
+        return new Reply(404, "");
+    }
+
     /** GET /credits with the management key; empty body if there is no such key. */
     Reply credits() throws NotSent, Lost;
 }

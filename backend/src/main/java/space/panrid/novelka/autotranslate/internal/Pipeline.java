@@ -553,6 +553,7 @@ class Pipeline {
                         model.price(), new AiTag(job.getId(), number, stage, part), attempt + settings.salt()));
                 if (answer.cut()) {
                     last = "відповідь обірвалася на межі довжини";
+                    journal.add(job.getId(), number, "retry", Map.of("stage", stage, "part", part, "reason", last));
                     continue;
                 }
                 JsonNode parsed;

@@ -252,6 +252,11 @@ class AiService implements Ai {
             return new Parsed(null, false, choice.path("error").path("message").asString("error"));
         }
         JsonNode content = choice.path("message").path("content");
+        boolean cut = "length".equals(choice.path("finish_reason").asString(""));
+        if (!content.isString() && cut) {
+            // A model that thinks first spent every token on thinking: an answer cut short, not a lost one.
+            return new Parsed("", true, null);
+        }
         if (!content.isString()) {
             throw new IllegalStateException("no content");
         }
@@ -284,10 +289,12 @@ class AiService implements Ai {
         body.put("messages", List.of(
                 Map.of("role", "system", "content", request.system()),
                 Map.of("role", "user", "content", request.user())));
-        body.put("max_tokens", request.maxTokens());
+        Optional<AiModel> known = models().stream().filter(model -> model.id().equals(request.model())).findFirst();
+        // A model that thinks before it answers counts its thinking in max_tokens; it gets room for both.
+        boolean thinks = known.map(model -> model.accepts("reasoning")).orElse(false);
+        body.put("max_tokens", request.maxTokens() + (thinks ? THINKING_ROOM : 0));
         // Some models take no temperature; with require_parameters OpenRouter would find no endpoint for them.
-        boolean temperature = models().stream().filter(model -> model.id().equals(request.model())).findFirst()
-                .map(model -> model.accepts("temperature")).orElse(true);
+        boolean temperature = known.map(model -> model.accepts("temperature")).orElse(true);
         if (temperature) {
             body.put("temperature", 0.3);
         }
@@ -298,7 +305,16 @@ class AiService implements Ai {
             // Venice serves some open models but ignores the schema (seen 2026-10-06 with DeepSeek V3.2).
             // The cheapest provider first: an open model costs from 0.21 to 1.91 $ per million tokens
             // depending on who serves it (DeepSeek V4 Pro, 2026-10-07), and quotes count on the low end.
-            body.put("provider", Map.of("require_parameters", true, "ignore", List.of("Venice"), "sort", "price"));
+            Map<String, Object> provider = new LinkedHashMap<>();
+            provider.put("require_parameters", true);
+            provider.put("ignore", List.of(IGNORED));
+            List<String> cheapest = cheapest(request.model());
+            if (cheapest.isEmpty()) {
+                provider.put("sort", "price");
+            } else {
+                provider.put("order", cheapest);
+            }
+            body.put("provider", provider);
         }
         return body;
     }
@@ -317,6 +333,57 @@ class AiService implements Ai {
                 .set(AI_CALL.ERROR, DSL.concat(DSL.coalesce(AI_CALL.ERROR, ""), DSL.inline("; власник дозволив нову спробу")))
                 .where(AI_CALL.JOB_ID.eq(jobId), AI_CALL.STATE.in("pending", "uncertain"))
                 .execute();
+    }
+
+    /** Room for thinking on top of the answer, for models that think first (DeepSeek V4 Flash thinks ~8000 tokens per part). */
+    static final int THINKING_ROOM = 16_000;
+    private static final String IGNORED = "Venice";
+    /**
+     * Output weighs more than input when ranking who serves a model: a translation writes as much
+     * as it reads, and a model that thinks writes several times more. OpenRouter's own «price»
+     * sort looks at the input price and sent DeepSeek V4 Flash where output costs 17 times more.
+     */
+    private static final double OUTPUT_WEIGHT = 4;
+
+    private record Endpoints(List<String> cheapest, Instant at) {
+    }
+
+    private final Map<String, Endpoints> endpoints = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Endpoints that answer in a schema, cheapest for this work first; empty when unknown. */
+    List<String> cheapest(String model) {
+        Instant now = clock.instant();
+        Endpoints cached = endpoints.get(model);
+        if (cached != null && cached.at().plus(Duration.ofHours(1)).isAfter(now)) {
+            return cached.cheapest();
+        }
+        List<String> order = List.of();
+        try {
+            AiTransport.Reply reply = transport.endpoints(model);
+            if (reply.status() == 200) {
+                record Offer(String tag, double price) {
+                }
+                List<Offer> offers = new java.util.ArrayList<>();
+                for (JsonNode endpoint : json.readTree(reply.body()).path("data").path("endpoints")) {
+                    List<String> parameters = new java.util.ArrayList<>();
+                    endpoint.path("supported_parameters").forEach(parameter -> parameters.add(parameter.asString()));
+                    String tag = endpoint.path("tag").asString("");
+                    if (tag.isEmpty() || IGNORED.equals(endpoint.path("provider_name").asString(""))
+                            || !parameters.contains("structured_outputs")) {
+                        continue;
+                    }
+                    JsonNode pricing = endpoint.path("pricing");
+                    offers.add(new Offer(tag, perMillion(pricing.path("prompt")) + OUTPUT_WEIGHT * perMillion(pricing.path("completion"))));
+                }
+                order = offers.stream().sorted(java.util.Comparator.comparingDouble(Offer::price)).map(Offer::tag).distinct().toList();
+            }
+        } catch (AiTransport.NotSent | AiTransport.Lost | RuntimeException error) {
+            // OpenRouter's own price sort this time; the list is asked for again with the next request.
+            log.warn("OpenRouter endpoints of {} unavailable: {}", model, error.getMessage());
+            return order;
+        }
+        endpoints.put(model, new Endpoints(order, now));
+        return order;
     }
 
     private volatile List<AiModel> models = List.of();

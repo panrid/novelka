@@ -18,7 +18,9 @@ import tools.jackson.databind.json.JsonMapper;
 public class FakeModel implements AiTransport {
 
     /** SHIFT: every line comes back under the next line's id, as a model that lost its place does. */
-    public enum Trouble { NONE, RATE_LIMIT, LOST, DROP_BLOCK, GARBLE, CUT, NO_CREDITS, SHIFT }
+    public enum Trouble { NONE, RATE_LIMIT, LOST, DROP_BLOCK, GARBLE, CUT, NO_CREDITS, SHIFT,
+        /** All the tokens went on thinking: no content at all, cut at the length limit. */
+        THOUGHT_OUT }
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -62,7 +64,7 @@ public class FakeModel implements AiTransport {
                   "supported_parameters":["max_tokens","response_format","structured_outputs","temperature"]},
                  {"id":"fake/better","name":"Better Translator","pricing":{"prompt":"0.000002","completion":"0.000008"},
                   "context_length":200000,"architecture":{"output_modalities":["text"]},
-                  "supported_parameters":["max_tokens","response_format","structured_outputs"]},
+                  "supported_parameters":["max_tokens","reasoning","response_format","structured_outputs"]},
                  {"id":"fake/plain","name":"Plain Talker","pricing":{"prompt":"0.000001","completion":"0.000001"},
                   "context_length":8000,"architecture":{"output_modalities":["text"]},
                   "supported_parameters":["max_tokens","temperature"]},
@@ -71,6 +73,24 @@ public class FakeModel implements AiTransport {
                  {"id":"fake/drawer","name":"Drawer","pricing":{"prompt":"0.0000003","completion":"0.0000025","image_output":"0.00003"},
                   "context_length":32000,"architecture":{"output_modalities":["image","text"]},
                   "supported_parameters":["max_tokens","response_format","structured_outputs","temperature"]}%s]}""".formatted(EXTRA));
+    }
+
+    /** Who serves «fake/better»: cheap to read but dear to write, the other way round, and one without schemas. */
+    @Override
+    public Reply endpoints(String model) {
+        if (!model.equals("fake/better")) {
+            return new Reply(404, "");
+        }
+        return new Reply(200, """
+                {"data":{"endpoints":[
+                 {"provider_name":"Readcheap","tag":"readcheap/fp4","pricing":{"prompt":"0.0000001","completion":"0.00001"},
+                  "supported_parameters":["max_tokens","response_format","structured_outputs"]},
+                 {"provider_name":"Writecheap","tag":"writecheap/fp8","pricing":{"prompt":"0.000002","completion":"0.000001"},
+                  "supported_parameters":["max_tokens","response_format","structured_outputs"]},
+                 {"provider_name":"Venice","tag":"venice","pricing":{"prompt":"0","completion":"0"},
+                  "supported_parameters":["max_tokens","response_format","structured_outputs"]},
+                 {"provider_name":"Loose","tag":"loose","pricing":{"prompt":"0","completion":"0"},
+                  "supported_parameters":["max_tokens"]}]}}""");
     }
 
     private static String start(String original) {
@@ -99,6 +119,11 @@ public class FakeModel implements AiTransport {
         }
         if (trouble == Trouble.LOST) {
             throw new Lost("timeout");
+        }
+        if (trouble == Trouble.THOUGHT_OUT) {
+            return new Reply(200, """
+                    {"choices":[{"message":{"role":"assistant","content":null},"finish_reason":"length"}],
+                     "usage":{"prompt_tokens":100,"completion_tokens":3332,"cost":0.001}}""");
         }
         if (request.has("modalities")) {
             String picture = java.util.Base64.getEncoder().encodeToString(Pictures.png(400, 500, java.awt.Color.CYAN));

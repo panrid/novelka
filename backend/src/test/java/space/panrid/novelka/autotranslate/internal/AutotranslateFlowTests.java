@@ -347,6 +347,18 @@ class AutotranslateFlowTests {
     }
 
     @Test
+    void aModelThatSpentEveryTokenThinkingIsAskedAgainNotStopped() {
+        long edition = prepare();
+        owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/jobs", json("to", 1));
+        // DeepSeek V4 Flash on 2026-10-07: 3332 tokens of thinking, no answer, «length».
+        model.troubleNext(Trouble.NONE, Trouble.THOUGHT_OUT);
+        worker.drain();
+        JsonNode job = read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate")).path("jobs").path(0);
+        assertThat(job.path("state").asString()).as("an answer cut short, not a lost one").isEqualTo("done");
+        assertThat(db.fetchCount(AI_CALL, AI_CALL.JOB_ID.eq(jobId(edition)), AI_CALL.STATE.eq("uncertain"))).isZero();
+    }
+
+    @Test
     void aTranslationThatLostItsPlaceIsNotPublished() {
         long edition = prepare();
         owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/jobs", json("to", 1));
@@ -502,6 +514,11 @@ class AutotranslateFlowTests {
                 .fetch(AI_CALL.MODEL)).containsOnly("fake/better");
         assertThat(model.requests).as("a model that takes no temperature does not get one")
                 .allSatisfy(request -> assertThat(request.has("temperature")).isFalse());
+        assertThat(model.requests).allSatisfy(request -> {
+            assertThat(request.path("provider").path("order")).as("cheapest for writing first, no schema-less or ignored ones")
+                    .extracting(JsonNode::asString).containsExactly("writecheap/fp8", "readcheap/fp4");
+            assertThat(request.path("max_tokens").asInt()).as("room for thinking").isGreaterThan(16_000);
+        });
         assertThat(read(new Browser(port).get("/api/novels/" + slug + "/chapters/1")).path("blocks").toString())
                 .as("no proofreading this time").doesNotContain("✓");
 

@@ -54,6 +54,13 @@ class OpenRouterTransport implements AiTransport {
     }
 
     @Override
+    public Reply endpoints(String model) throws NotSent, Lost {
+        return send(HttpRequest.newBuilder(URI.create(properties.baseUrl() + "/models/" + model + "/endpoints"))
+                .timeout(Duration.ofSeconds(20))
+                .GET().build());
+    }
+
+    @Override
     public Reply credits() throws NotSent, Lost {
         String key = properties.managementKey() == null || properties.managementKey().isBlank()
                 ? properties.apiKey() : properties.managementKey();
