@@ -1,7 +1,11 @@
 import { useSyncExternalStore } from 'react';
 import { api } from '../api/client';
-import { clean, presetLook, readerColors, readerLook, siteStyle, type Appearance, type ReaderAppearance, type ReaderPreset, type SiteAppearance } from './model';
 import { loadFont } from './fonts';
+import {
+    clean, presetLook, readerColors, readerLook, siteLook, sitePresetLook, siteStyle,
+    type Appearance, type ReaderAppearance, type ReaderPreset, type SiteAppearance, type SiteStyle,
+} from './model';
+import { COLOR_VARS, siteVars } from './siteVars';
 
 /**
  * The person's appearance settings: in this browser at once (so the page opens in its style,
@@ -10,6 +14,7 @@ import { loadFont } from './fonts';
 const KEY = 'novelka:appearance';
 const LEGACY_THEME = 'novelka:theme';
 const LEGACY_SIZE = 'novelka:reader-size';
+const VARS_KEY = 'novelka:appearance-css';
 
 const listeners = new Set<() => void>();
 let current: Appearance = load();
@@ -49,23 +54,39 @@ function keep(next: Appearance) {
     listeners.forEach((listener) => listener());
 }
 
-/** Puts the site's style (or, inside the reader, the reader's colours) on the page. */
+/**
+ * Puts the site's look on the page as CSS variables — or, inside the reader with its own
+ * palette, the reader's colours over the site's fonts and shapes.
+ */
 export function apply() {
     const root = document.documentElement;
-    const site = siteStyle(current);
+    const site = siteLook(current);
+    const style = siteStyle(current);
     const reader = readerColors(current);
     const own = readerOpen && reader.theme !== null;
-    const theme = own && reader.theme ? reader.theme : site.theme;
-    root.dataset.style = site.value;
-    root.dataset.theme = theme;
-    if (own) root.dataset.reader = reader.value;
-    else delete root.dataset.reader;
+    const theme = own && reader.theme ? reader.theme : style.theme;
+    const vars = siteVars(site);
+    for (const [name, value] of Object.entries(vars)) {
+        if (own && COLOR_VARS.includes(name)) root.style.removeProperty(name);
+        else root.style.setProperty(name, value);
+    }
     const accent = readerOpen ? readerLook(current).accent : null;
     if (accent) root.style.setProperty('--accent', accent);
-    else root.style.removeProperty('--accent');
+    root.dataset.style = site.preset;
+    root.dataset.theme = theme;
+    root.dataset.motion = site.anim;
+    if (own) root.dataset.reader = reader.value;
+    else delete root.dataset.reader;
+    void loadFont(site.ui);
+    void loadFont(site.head);
     if (readerOpen) void loadFont(readerLook(current).font);
-    const color = { dark: '#121412', light: '#f7f5ef', black: '#000000' }[theme];
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', own ? reader.bg : style.color);
+    try {
+        // The next visit starts in this look before the app loads (public/appearance-boot.js).
+        localStorage.setItem(VARS_KEY, JSON.stringify({ vars, theme: style.theme, preset: site.preset, motion: site.anim }));
+    } catch {
+        // Private mode: the default look until the app loads.
+    }
 }
 
 export function useAppearance(): Appearance {
@@ -89,8 +110,14 @@ function changed(next: Appearance) {
     }, 600);
 }
 
+/** A change to the site's look: from now on it is one's own («Свій стиль»). */
 export function setSite(patch: SiteAppearance) {
-    changed({ ...current, site: { ...current.site, ...patch } });
+    changed({ ...current, site: { ...current.site, ...patch, custom: true } });
+}
+
+/** A ready site style replaces whatever was changed before. */
+export function setSitePreset(preset: SiteStyle) {
+    changed({ ...current, site: sitePresetLook(preset) });
 }
 
 /** A change to the reader's look: from now on it is one's own («Свій стиль»). */

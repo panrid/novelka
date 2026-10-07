@@ -26,6 +26,8 @@
     background: var(--surface);
     color: var(--text);
     text-decoration: none;
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
 }
 
 .continues {
@@ -244,7 +246,7 @@
     min-height: 40px;
     padding: 0 10px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text);
     font: 14px var(--font-ui);

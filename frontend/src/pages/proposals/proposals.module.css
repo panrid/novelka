@@ -41,6 +41,8 @@
     padding: 14px;
     border-radius: var(--radius);
     background: var(--surface);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
 }
 
 .vote {
@@ -51,7 +53,7 @@
     min-width: 48px;
     padding: 6px 4px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--text);
     font: inherit;
@@ -126,7 +128,7 @@
     min-height: 44px;
     padding: 8px 10px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: var(--bg);
     color: var(--text);
     font: inherit;

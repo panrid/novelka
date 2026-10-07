@@ -23,7 +23,7 @@
 .card {
     padding: 14px;
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: var(--radius);
     color: var(--text);
     text-decoration: none;
 }
@@ -79,7 +79,7 @@
 
 .picture {
     max-width: 240px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
 }
 
 .actions {
@@ -106,7 +106,7 @@
 .select {
     padding: 8px 10px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text);
     font: inherit;

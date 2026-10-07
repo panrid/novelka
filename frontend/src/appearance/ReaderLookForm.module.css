@@ -50,7 +50,7 @@
     min-height: 40px;
     padding: 0 10px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text);
     font-size: 16px;
@@ -66,7 +66,7 @@
     min-width: 52px;
     min-height: 38px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text);
     font: 600 15px var(--font-reading);
@@ -113,7 +113,7 @@
     width: 46px;
     height: 34px;
     border: 2px solid transparent;
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 18%, transparent);
     font: 600 14px var(--font-reading);
     cursor: pointer;

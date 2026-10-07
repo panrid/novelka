@@ -102,7 +102,7 @@
     min-width: 18px;
     height: 18px;
     padding: 0 5px;
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     background: var(--accent);
     color: var(--accent-ink);
     font-size: 11px;

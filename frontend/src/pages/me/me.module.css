@@ -24,6 +24,8 @@
     padding: 18px 20px;
     border-radius: var(--radius);
     background: var(--surface);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
 }
 
 .panel h2:first-child {
@@ -77,7 +79,7 @@
     gap: 12px;
     min-width: 0;
     padding: 10px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: var(--surface-2);
     color: var(--text);
     text-decoration: none;

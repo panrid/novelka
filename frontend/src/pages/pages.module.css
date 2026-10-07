@@ -104,6 +104,8 @@
     background: var(--surface);
     color: var(--text);
     text-decoration: none;
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
 }
 
 .bio {

@@ -4,7 +4,7 @@
     flex: none;
     aspect-ratio: 2 / 3;
     height: auto;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     object-fit: cover;
 }
 

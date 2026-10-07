@@ -126,4 +126,6 @@
     border-radius: var(--radius);
     background: var(--surface);
     font: 14px var(--font-ui);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
 }

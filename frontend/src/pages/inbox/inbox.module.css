@@ -18,7 +18,7 @@
 
 .navItem {
     padding: 8px 14px;
-    border-radius: 18px;
+    border-radius: var(--radius-lg);
     background: var(--surface-2);
     color: var(--muted);
     font-size: 14px;
@@ -80,7 +80,7 @@
     min-width: 22px;
     height: 22px;
     padding: 0 6px;
-    border-radius: 11px;
+    border-radius: var(--radius-sm);
     background: var(--accent);
     color: var(--accent-ink);
     font-size: 12px;
@@ -132,7 +132,7 @@
 .bubble {
     max-width: 82%;
     padding: 8px 12px;
-    border-radius: 14px;
+    border-radius: var(--radius);
     background: var(--surface-2);
 }
 
@@ -179,7 +179,7 @@
 .gallery img {
     width: 100%;
     aspect-ratio: 1;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     object-fit: cover;
 }
 

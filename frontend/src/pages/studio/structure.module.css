@@ -147,6 +147,8 @@
     padding: 12px;
     border-radius: var(--radius);
     background: var(--surface);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
 }
 
 .inline {

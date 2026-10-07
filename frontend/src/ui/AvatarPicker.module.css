@@ -21,6 +21,8 @@
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     background: var(--surface);
     outline: none;
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
 }
 
 .heading {

@@ -211,7 +211,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 11px 12px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     font-size: 15px;
     cursor: pointer;
     outline: none;
@@ -326,6 +326,8 @@
     padding: 14px;
     border-radius: var(--radius);
     background: var(--surface);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
 }
 
 .stars {
@@ -366,7 +368,7 @@
     min-height: 44px;
     padding: 0 10px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text);
     font: 15px var(--font-ui);

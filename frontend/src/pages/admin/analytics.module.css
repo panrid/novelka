@@ -45,6 +45,8 @@
     padding: 12px 14px;
     border-radius: var(--radius);
     background: var(--surface);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
 }
 
 .card b {
@@ -71,6 +73,8 @@
     padding: 16px;
     border-radius: var(--radius);
     background: var(--surface);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
 }
 
 .panelTitle {

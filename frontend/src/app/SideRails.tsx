@@ -39,6 +39,8 @@ export function MeRail() {
             {item('/me/suggestions', 'Мої правки')}
             {item('/me/settings', 'Налаштування')}
             {item('/me/settings/privacy', 'Приватність')}
+            {item('/me/settings/appearance', 'Вигляд сайту')}
+            {item('/me/settings/reader', 'Вигляд читалки')}
             {rank >= RANK.moderator && (
                 <>
                     <div className={styles.label}>Адміністрування</div>

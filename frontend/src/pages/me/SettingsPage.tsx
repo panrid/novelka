@@ -1,9 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { useSearch } from '@tanstack/react-router';
-import { SITE_STYLES, siteStyle, type SiteStyle } from '../../appearance/model';
-import { ReaderLookForm } from '../../appearance/ReaderLookForm';
-import { setSite, useAppearance } from '../../appearance/store';
+import { Link, useSearch } from '@tanstack/react-router';
 import { authApi, googleUrl, meApi } from '../../auth/api';
 import { GoogleMark, useProviders } from '../../auth/GoogleButton';
 import { useMe, useSetMe, type Me } from '../../auth/me';
@@ -12,7 +9,6 @@ import { AvatarPicker } from '../../ui/AvatarPicker';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
-import { Segmented } from '../../ui/Segmented';
 import { Toggle } from '../../ui/Toggle';
 import ui from '../../ui/ui.module.css';
 import styles from '../pages.module.css';
@@ -41,15 +37,13 @@ export function SettingsPage() {
  * reader's can also be changed in the reader itself («Аа»).
  */
 function AppearanceSection() {
-    const appearance = useAppearance();
     return (
         <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>Вигляд сайту</h2>
-            <Segmented<SiteStyle> label="Стиль сайту" value={siteStyle(appearance).value} onChange={(preset) => setSite({ preset })}
-                options={SITE_STYLES.map(({ value, label }) => ({ value, label }))} />
-            <h2 className={styles.sectionTitle}>Вигляд читалки</h2>
-            <p className={styles.muted}>Окремо від сайту. Те саме можна змінити й у самій читалці — кнопка «Аа». Однаково на всіх пристроях, де ви увійшли.</p>
-            <ReaderLookForm />
+            <h2 className={styles.sectionTitle}>Вигляд</h2>
+            <nav className={styles.menu} aria-label="Вигляд">
+                <Link to="/me/settings/appearance" className={styles.menuItem}>Вигляд сайту — стилі, кольори, шрифти</Link>
+                <Link to="/me/settings/reader" className={styles.menuItem}>Вигляд читалки — шрифт, сторінки, кольори</Link>
+            </nav>
         </div>
     );
 }

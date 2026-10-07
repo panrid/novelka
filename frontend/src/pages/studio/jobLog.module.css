@@ -80,7 +80,7 @@
     display: grid;
     gap: 2px;
     padding: 8px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     background: var(--bg);
 }
 

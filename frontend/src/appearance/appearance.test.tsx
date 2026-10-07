@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderAt } from '../test/render';
+import { setReader, setReaderPreset } from './store';
 
 const ME = {
     id: 1, nick: 'mika', email: 'mika@example.com', emailVerified: true, role: 'reader', bio: '', avatarUrl: null,
@@ -19,19 +20,27 @@ afterEach(() => vi.unstubAllGlobals());
 describe('the look of the site and of the reader', () => {
     it('is chosen in the settings, kept with the account, and the reader has its own colours', async () => {
         const saved: unknown[] = [];
-        const { router } = await renderAt('/me/settings', {
+        const { router } = await renderAt('/me/settings/appearance', {
             'GET /api/me': { body: ME },
             'PUT /api/me/appearance': (body) => { saved.push(body); return { body: { ...ME, appearance: body } }; },
             'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
         });
 
-        await userEvent.click(await screen.findByRole('radio', { name: 'Світлий' }));
+        await userEvent.click(within(await screen.findByRole('radiogroup', { name: 'Готовий стиль' })).getByRole('radio', { name: /Світлий/ }));
         expect(document.documentElement.dataset.theme).toBe('light');
+        expect(document.documentElement.style.getPropertyValue('--bg')).toBe('#f7f5ef');
+        // One's own change on top of the style: the accent.
+        await userEvent.click(screen.getByRole('radio', { name: '#c2456b' }));
+        expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#c2456b');
+        expect(screen.getByText(/Свій стиль на основі «Світлий»/)).toBeInTheDocument();
+
+        await act(() => router.navigate({ to: '/me/settings/reader' }));
         await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Кольори' })).getByRole('radio', { name: 'Чорний' }));
         expect(document.documentElement.dataset.theme).toBe('light'); // the reader's colours stay in the reader
-        const look = { site: { preset: 'light' }, reader: { colors: 'black', custom: true } };
-        await waitFor(() => expect(saved.at(-1)).toEqual(look), { timeout: 2000 });
-        expect(JSON.parse(localStorage.getItem('novelka:appearance')!)).toEqual(look);
+        await waitFor(() => expect(saved.at(-1)).toMatchObject({
+            site: { preset: 'light', accent: '#c2456b', custom: true }, reader: { colors: 'black', custom: true },
+        }), { timeout: 2000 });
+        expect(JSON.parse(localStorage.getItem('novelka:appearance')!)).toMatchObject({ site: { preset: 'light' }, reader: { colors: 'black' } });
 
         await act(() => router.navigate({ to: '/n/$slug/$number', params: { slug: 'mah-vody', number: '12' } }));
         await screen.findByRole('heading', { name: '12. Спокійне життя' });
@@ -54,7 +63,8 @@ describe('the look of the site and of the reader', () => {
     });
 
     it('turns pages like a book and goes on to the next chapter after the last page', async () => {
-        localStorage.setItem('novelka:appearance', JSON.stringify({ reader: { preset: 'book', mode: 'pages', pageAnim: 'none' } }));
+        setReaderPreset('book');
+        setReader({ pageAnim: 'none' });
         const { router } = await renderAt('/n/mah-vody/12', {
             'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
             'GET /api/novels/mah-vody/chapters/13': { body: { ...CHAPTER, number: 13, title: 'Далі', previous: 12, next: null } },

@@ -30,7 +30,7 @@
     height: 40px;
     padding: 0;
     border: 0;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: none;
     color: var(--text);
     cursor: pointer;
@@ -236,7 +236,7 @@
 .originalLine {
     margin: 0 0 0.8em;
     padding: 2px 6px;
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
 }
 
 .lit {

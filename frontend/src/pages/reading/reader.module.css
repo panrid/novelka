@@ -220,7 +220,7 @@
 
 /* The paragraph a quote leads to, lit up for a moment. */
 .flash {
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
     background: color-mix(in srgb, var(--accent) 25%, transparent);
     transition: background 1.2s ease-out;
 }
@@ -239,7 +239,7 @@
     min-width: 44px;
     min-height: 36px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: none;
     color: var(--text);
     font-size: 20px;

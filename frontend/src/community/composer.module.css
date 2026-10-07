@@ -17,7 +17,7 @@
     max-height: 160px;
     padding: 10px 12px;
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: var(--radius);
     background: var(--surface);
     color: var(--text);
     font: inherit;
@@ -37,7 +37,7 @@
     width: 42px;
     height: 42px;
     border: 0;
-    border-radius: 12px;
+    border-radius: var(--radius);
     background: none;
     color: var(--muted);
     cursor: pointer;
@@ -91,7 +91,7 @@
 .picture img {
     width: 64px;
     height: 64px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     object-fit: cover;
 }
 
@@ -104,7 +104,7 @@
     width: 20px;
     height: 20px;
     border: 0;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: rgb(0 0 0 / 60%);
     color: #fff;
     cursor: pointer;
@@ -128,7 +128,7 @@
     min-width: 36px;
     height: 32px;
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     background: none;
     color: var(--text);
     font: 600 14px var(--font-ui);
@@ -139,7 +139,7 @@
     margin: 0;
     padding: 4px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
     list-style: none;
 }
@@ -150,7 +150,7 @@
     align-items: center;
     gap: 8px;
     padding: 6px 8px;
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
     cursor: pointer;
 }
 

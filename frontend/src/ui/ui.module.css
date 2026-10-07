@@ -69,7 +69,7 @@
     min-height: 46px;
     padding: 10px 12px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text);
     font: 16px/1.4 var(--font-ui); /* 16 px keeps iOS from zooming into the field */
@@ -146,13 +146,13 @@ textarea.input {
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
     padding: 3px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
 }
 
 .segment {
     padding: 9px 6px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     color: var(--muted);
     font-size: 14px;
     text-align: center;
@@ -182,7 +182,7 @@ textarea.input {
     width: 44px;
     height: 26px;
     padding: 3px;
-    border-radius: 13px;
+    border-radius: var(--radius);
     background: var(--line);
     transition: background 0.15s;
 }
@@ -223,7 +223,7 @@ textarea.input {
 .pager button {
     padding: 8px 12px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: none;
     color: var(--text);
     font: inherit;
@@ -267,7 +267,7 @@ textarea.input {
     margin: 0 auto;
     padding: 12px 14px;
     border: 1px solid var(--danger);
-    border-radius: 12px;
+    border-radius: var(--radius);
     background: var(--surface);
     color: var(--text);
     box-shadow: 0 8px 24px rgb(0 0 0 / 30%);

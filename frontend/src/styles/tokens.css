@@ -118,6 +118,11 @@
 :root {
     --font-ui: 'Inter Variable', -apple-system, 'Segoe UI', Roboto, sans-serif;
     --font-reading: 'Literata Variable', Georgia, 'Times New Roman', serif;
+    --radius-xs: 6px;
+    /* Set by the site's look (appearance/siteVars.ts); these are the default style's. */
+    --density: 1;
+    --card-border: 1px solid transparent;
+    --card-shadow: none;
     --radius-sm: 8px;
     --radius: 12px;
     --radius-lg: 18px;

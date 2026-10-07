@@ -24,7 +24,7 @@
 
 .toggle:focus-visible {
     outline: 2px solid var(--focus);
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
 }
 
 .arrow,
