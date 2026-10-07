@@ -246,13 +246,14 @@ class Glossary {
     record Known(long id, String original) {
     }
 
+    /** Only numbers analysis was shown: a model may make one up, and it must not tie a stranger's name to an entry. */
     int link(long editionId, List<Known> known) {
         Scope scope = scope(editionId);
+        Set<Long> shown = unlinked(editionId).stream().map(Entry::id).collect(java.util.stream.Collectors.toSet());
         int linked = 0;
         for (Known item : known) {
             String original = item.original() == null ? "" : item.original().strip();
-            if (original.isEmpty() || original.length() > 100
-                    || !db.fetchExists(GLOSSARY_ENTRY, GLOSSARY_ENTRY.ID.eq(item.id()), GLOSSARY_ENTRY.NOVEL_ID.eq(scope.novelId()))) {
+            if (original.isEmpty() || original.length() > 100 || !shown.contains(item.id())) {
                 continue;
             }
             linked += addForm(db, scope, item.id(), original, null);

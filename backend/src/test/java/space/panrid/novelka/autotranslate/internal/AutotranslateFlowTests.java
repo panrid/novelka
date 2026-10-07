@@ -156,6 +156,12 @@ class AutotranslateFlowTests {
                 new Glossary.Proposed("Harbor", "", "Гавань", "place", "unknown", ""),
                 new Glossary.Proposed("Yuki", "", "Юкі", "character", "female", "")))).as("nothing new").isZero();
         assertThat(glossary.original(edition, harbor).original()).isEqualTo("Harbor");
+
+        // A number analysis was not shown (here: a rejected entry) is one the model made up.
+        long ghost = db.insertInto(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.NOVEL_ID, novel).set(GLOSSARY_ENTRY.UKRAINIAN, "привид")
+                .set(GLOSSARY_ENTRY.STATUS, "rejected").returning(GLOSSARY_ENTRY.ID).fetchOne(GLOSSARY_ENTRY.ID);
+        assertThat(glossary.link(edition, java.util.List.of(new Glossary.Known(ghost, "Lighthouse")))).isZero();
+        assertThat(glossary.original(edition, ghost).original()).as("left without a form").isNull();
     }
 
     @Test
