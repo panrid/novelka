@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -173,6 +174,19 @@ class ReadingController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void setList(@PathVariable long editionId, @RequestBody ListRequest body) {
         library.setList(currentUser.requireSignedIn(), editionId, body.list());
+    }
+
+    /** The bell: subscribe to the translation's new chapters, or stop hearing about them. */
+    @PutMapping("/library/{editionId}/subscription")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void subscribe(@PathVariable long editionId) {
+        library.subscribe(currentUser.requireSignedIn(), editionId, true);
+    }
+
+    @DeleteMapping("/library/{editionId}/subscription")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void unsubscribe(@PathVariable long editionId) {
+        library.subscribe(currentUser.requireSignedIn(), editionId, false);
     }
 
     private Views.Relay relay(long editionId) {

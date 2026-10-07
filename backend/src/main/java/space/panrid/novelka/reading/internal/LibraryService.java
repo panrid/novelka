@@ -2,6 +2,7 @@ package space.panrid.novelka.reading.internal;
 
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.EDITION;
+import static space.panrid.novelka.jooq.Tables.EDITION_SUBSCRIPTION;
 import static space.panrid.novelka.jooq.Tables.LIBRARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.READING_PROGRESS;
 
@@ -52,6 +53,23 @@ class LibraryService {
                 .onConflict(LIBRARY_ENTRY.ACCOUNT_ID, LIBRARY_ENTRY.EDITION_ID)
                 .doUpdate().set(LIBRARY_ENTRY.LIST, list).set(LIBRARY_ENTRY.UPDATED_AT, now)
                 .execute();
+    }
+
+    /** The bell on the translation's page: new chapters reach the reader only while it rings. */
+    void subscribe(Viewer viewer, long editionId, boolean on) {
+        requireVisible(viewer, editionId);
+        if (on) {
+            db.insertInto(EDITION_SUBSCRIPTION)
+                    .set(EDITION_SUBSCRIPTION.ACCOUNT_ID, viewer.accountId())
+                    .set(EDITION_SUBSCRIPTION.EDITION_ID, editionId)
+                    .set(EDITION_SUBSCRIPTION.CREATED_AT, now())
+                    .onConflictDoNothing()
+                    .execute();
+        } else {
+            db.deleteFrom(EDITION_SUBSCRIPTION)
+                    .where(EDITION_SUBSCRIPTION.ACCOUNT_ID.eq(viewer.accountId()), EDITION_SUBSCRIPTION.EDITION_ID.eq(editionId))
+                    .execute();
+        }
     }
 
     /** Read this far, an earlier chapter counts as read again and becomes the place. */

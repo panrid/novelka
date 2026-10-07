@@ -3,7 +3,7 @@ package space.panrid.novelka.notification.internal;
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.EDITION;
-import static space.panrid.novelka.jooq.Tables.LIBRARY_ENTRY;
+import static space.panrid.novelka.jooq.Tables.EDITION_SUBSCRIPTION;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.REVISION;
 import static space.panrid.novelka.jooq.Tables.TEAM;
@@ -77,7 +77,7 @@ class NotificationListeners {
         mentions(line.mentionedAccounts(), line.mentionedTeams(), base, told);
     }
 
-    /** Readers who keep the translation in «Читаю» or «В планах» — not everyone (as in v1). */
+    /** Readers who rang the bell on the translation's page; the library alone tells nobody. */
     @ApplicationModuleListener
     void on(ChaptersPublished published) {
         Map<String, Object> base = place(published.editionId(), null);
@@ -93,9 +93,9 @@ class NotificationListeners {
         if (cover != null) {
             images.find(cover).ifPresent(image -> base.put("coverUrl", image.url(160)));
         }
-        List<Long> readers = db.select(LIBRARY_ENTRY.ACCOUNT_ID).from(LIBRARY_ENTRY)
-                .where(LIBRARY_ENTRY.EDITION_ID.eq(published.editionId()), LIBRARY_ENTRY.LIST.in("reading", "planned"))
-                .fetch(LIBRARY_ENTRY.ACCOUNT_ID);
+        List<Long> readers = db.select(EDITION_SUBSCRIPTION.ACCOUNT_ID).from(EDITION_SUBSCRIPTION)
+                .where(EDITION_SUBSCRIPTION.EDITION_ID.eq(published.editionId()))
+                .fetch(EDITION_SUBSCRIPTION.ACCOUNT_ID);
         for (long reader : readers) {
             inbox.addGrouped(reader, "new_chapters", "chapters:" + published.editionId(), base, published.first(), published.last());
         }

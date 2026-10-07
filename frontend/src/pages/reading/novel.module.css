@@ -371,3 +371,8 @@
     color: var(--text);
     font: 15px var(--font-ui);
 }
+
+/* After .libraryButton: the bell that rings takes the accent colour. */
+.bellOn {
+    color: var(--accent);
+}

@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
-import { ArrowDownUp, BookmarkPlus, Check, MessageCircle } from 'lucide-react';
+import { ArrowDownUp, Bell, BellRing, BookmarkPlus, Check, MessageCircle } from 'lucide-react';
 import { Fragment, useLayoutEffect, useRef, useState } from 'react';
-import { Button as AriaButton, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
+import { Button as AriaButton, Menu, MenuItem, MenuTrigger, Popover, ToggleButton } from 'react-aria-components';
 import { ApiError } from '../../api/client';
 import { useMe } from '../../auth/me';
 import { Discussion, useCommentCount } from '../../community/Discussion';
@@ -21,6 +21,7 @@ import { Button } from '../../ui/Button';
 import { Pager } from '../../ui/Pager';
 import { LinkButton } from '../../ui/LinkButton';
 import { Notice } from '../../ui/Notice';
+import { showInfo } from '../../ui/toast';
 import styles from './novel.module.css';
 import { askText } from '../../ui/ask';
 
@@ -85,6 +86,7 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                         {resume ? resumeLabel : 'Почати читати'}
                     </LinkButton>
                     <LibraryButton novel={novel} />
+                    <BellButton novel={novel} />
                 </div>
 
                 {novel.editions.length > 1 && (
@@ -293,6 +295,37 @@ function LibraryButton({ novel }: { novel: Novel }) {
                 </Menu>
             </Popover>
         </MenuTrigger>
+    );
+}
+
+/** Subscribe to the translation's new chapters: only those who rang it hear about them. */
+function BellButton({ novel }: { novel: Novel }) {
+    const me = useMe();
+    const navigate = useNavigate();
+    const client = useQueryClient();
+    const on = novel.viewer?.subscribed ?? false;
+    const ring = useMutation({ meta: { errorToast: true },
+        mutationFn: (next: boolean) => readingApi.subscribe(novel.edition.editionId, next),
+        onSuccess: (_, next) => {
+            showInfo(next ? 'Сповіщатимемо про нові глави.' : 'Більше не сповіщатимемо про нові глави.');
+            void client.invalidateQueries({ queryKey: ['novel', novel.slug] });
+        },
+    });
+    const label = on ? 'Ви отримуєте сповіщення про нові глави. Відписатися' : 'Підписатися на нові глави';
+    const icon = on ? <BellRing size={20} aria-hidden fill="currentColor" /> : <Bell size={20} aria-hidden />;
+    if (!me) {
+        return (
+            <AriaButton className={styles.libraryButton} aria-label={label}
+                onPress={() => void navigate({ to: '/login', search: { next: window.location.pathname + window.location.search } })}>
+                {icon}
+            </AriaButton>
+        );
+    }
+    return (
+        <ToggleButton className={on ? `${styles.libraryButton} ${styles.bellOn}` : styles.libraryButton} aria-label={label}
+            isSelected={on} isDisabled={ring.isPending} onChange={(next) => ring.mutate(next)}>
+            {icon}
+        </ToggleButton>
     );
 }
 

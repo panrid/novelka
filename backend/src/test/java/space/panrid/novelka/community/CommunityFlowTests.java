@@ -192,8 +192,13 @@ class CommunityFlowTests {
     }
 
     @Test
-    void newChaptersReachReadersWhoKeepTheTranslationInOneRow() {
+    void newChaptersReachReadersWhoRangTheBellInOneRow() {
         assertThat(reader.browser().put("/api/library/" + edition, json("list", "reading")).status()).isEqualTo(204);
+        assertThat(read(reader.browser().get("/api/novels/" + slug)).path("viewer").path("subscribed").asBoolean())
+                .as("the library alone is not a subscription").isFalse();
+        assertThat(reader.browser().put("/api/library/" + edition + "/subscription", "{}").status()).isEqualTo(204);
+        assertThat(reader.browser().put("/api/library/" + edition + "/subscription", "{}").status()).as("twice is fine").isEqualTo(204);
+        assertThat(read(reader.browser().get("/api/novels/" + slug)).path("viewer").path("subscribed").asBoolean()).isTrue();
         publish(2);
         publish(3);
         JsonNode items = eventually(() -> inbox(reader),
@@ -213,6 +218,11 @@ class CommunityFlowTests {
         assertThat(single).hasSize(2);
         assertThat(single.path(0).path("payload").path("chapterTitle").asString()).as("a single chapter is named").isNotBlank();
         assertThat(inbox(translator).path("items")).as("the translator is not told about their own chapters").isEmpty();
+
+        assertThat(reader.browser().delete("/api/library/" + edition + "/subscription").status()).isEqualTo(204);
+        assertThat(read(reader.browser().get("/api/novels/" + slug)).path("viewer").path("subscribed").asBoolean()).isFalse();
+        assertThat(read(reader.browser().get("/api/novels/" + slug)).path("viewer").path("list").asString())
+                .as("the library stays as it was").isEqualTo("reading");
     }
 
     private static JsonNode read(Response response) {

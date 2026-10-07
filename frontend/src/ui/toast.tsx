@@ -7,14 +7,20 @@ import styles from './ui.module.css';
  * meta: { errorToast: true }; the query client shows their errors here.
  */
 
-type Toast = { id: number; text: string };
+type Toast = { id: number; text: string; error: boolean };
 
 let current: Toast | null = null;
 let shown = 0;
 const listeners = new Set<() => void>();
 
 export function showError(text: string) {
-    current = { id: ++shown, text };
+    current = { id: ++shown, text, error: true };
+    listeners.forEach((listener) => listener());
+}
+
+/** A word that an action worked when the button alone does not say it («Сповіщатимемо про нові глави»). */
+export function showInfo(text: string) {
+    current = { id: ++shown, text, error: false };
     listeners.forEach((listener) => listener());
 }
 
@@ -39,7 +45,7 @@ export function ToastHost() {
     }, [toast]);
     if (!toast) return null;
     return (
-        <div className={styles.toast} role="alert">
+        <div className={toast.error ? styles.toast : `${styles.toast} ${styles.toastInfo}`} role={toast.error ? 'alert' : 'status'}>
             <span>{toast.text}</span>
             <button type="button" aria-label="Закрити" onClick={() => hide(toast.id)}>✕</button>
         </div>

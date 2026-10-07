@@ -69,7 +69,7 @@ export type NovelPage = {
     editions: EditionSummary[];
     adult: boolean;
     lastPublishedAt: string | null;
-    viewer: { list: ListName | null; chapterNumber: number | null; position: number | null; teamRole: 'owner' | 'translator' | 'editor' | null; myRating: number | null; chapterLabel?: string | null; relayAsked?: boolean } | null;
+    viewer: { list: ListName | null; chapterNumber: number | null; position: number | null; teamRole: 'owner' | 'translator' | 'editor' | null; myRating: number | null; chapterLabel?: string | null; relayAsked?: boolean; subscribed?: boolean } | null;
     relay: { free: boolean; reason: 'abandoned' | 'inactive' | 'unanswered' | null; lastNumber: number; continuations: Continuation[] };
 };
 
@@ -150,6 +150,9 @@ export const readingApi = {
             `/api/library?list=${list}`),
     setList: (editionId: number, list: ListName | null) =>
         api<void>(`/api/library/${editionId}`, { method: 'PUT', body: JSON.stringify({ list }) }),
+    /** The bell: new chapters of this translation come to the inbox while it rings. */
+    subscribe: (editionId: number, on: boolean) =>
+        api<void>(`/api/library/${editionId}/subscription`, { method: on ? 'PUT' : 'DELETE' }),
 };
 
 export const LIST_LABELS: Record<ListName, string> = {

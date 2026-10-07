@@ -53,8 +53,9 @@ final class Views {
     /** {@code teamRole}: owner, translator or editor when the viewer works on this edition. */
     /** @param chapterLabel the number readers see for {@code chapterNumber} (null: the position itself) */
     /** {@code relayAsked}: a team of the viewer's already asked to continue this translation and waits. */
+    /** @param subscribed the bell rings: new chapters of this translation come to the reader's inbox */
     record ViewerState(String list, Integer chapterNumber, Float position, String teamRole, Integer myRating, String chapterLabel,
-            boolean relayAsked) {
+            boolean relayAsked, boolean subscribed) {
     }
 
     /** @param language the original's language (ja, en…), or null when the site does not know it */

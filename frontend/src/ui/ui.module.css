@@ -273,6 +273,10 @@ textarea.input {
     box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
 }
 
+.toastInfo {
+    border-color: var(--line);
+}
+
 .toast button {
     flex: none;
     padding: 4px;

@@ -212,6 +212,27 @@ describe('chapters 20 to a page', () => {
     });
 });
 
+describe('new chapters bell', () => {
+    it('subscribes a reader to the translation and tells them so', async () => {
+        let subscribed = false;
+        const { calls } = await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': () => ({ body: { ...NOVEL, viewer: { list: 'reading', chapterNumber: null, position: null, teamRole: null,
+                myRating: null, chapterLabel: null, relayAsked: false, subscribed } } }),
+            'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
+            'GET /api/editions/7/comments/count': { body: { count: 0 } },
+            'PUT /api/library/7/subscription': () => { subscribed = true; return { status: 204 }; },
+        });
+        await screen.findByRole('button', { name: 'У бібліотеці: Читаю' });
+        const bell = screen.getByRole('button', { name: 'Підписатися на нові глави' });
+        expect(bell).toHaveAttribute('aria-pressed', 'false');
+        await userEvent.click(bell);
+        expect(await screen.findByRole('status')).toHaveTextContent('Сповіщатимемо про нові глави.');
+        expect(calls.some((call) => call.method === 'PUT' && call.path === '/api/library/7/subscription')).toBe(true);
+        expect(await screen.findByRole('button', { name: /Ви отримуєте сповіщення/ })).toHaveAttribute('aria-pressed', 'true');
+    });
+});
+
 describe('catalog', () => {
     it('counts the novels, offers popular tags and hints at novels and tags while typing', async () => {
         const { router, calls } = await renderAt('/catalog', {

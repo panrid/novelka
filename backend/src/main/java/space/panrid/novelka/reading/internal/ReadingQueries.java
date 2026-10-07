@@ -4,6 +4,7 @@ import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITION_RATING;
+import static space.panrid.novelka.jooq.Tables.EDITION_SUBSCRIPTION;
 import static space.panrid.novelka.jooq.Tables.LIBRARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.NOVEL_SLUG_ALIAS;
@@ -466,7 +467,9 @@ class ReadingQueries {
                         .fetchOne(CHAPTER.LABEL),
                 db.fetchExists(TAKEOVER_REQUEST, TAKEOVER_REQUEST.EDITION_ID.eq(editionId), TAKEOVER_REQUEST.STATE.eq("open"),
                         TAKEOVER_REQUEST.TEAM_ID.in(DSL.select(TEAM.ID).from(TEAM).where(TEAM.OWNER_ID.eq(accountId))
-                                .union(DSL.select(TEAM_MEMBER.TEAM_ID).from(TEAM_MEMBER).where(TEAM_MEMBER.ACCOUNT_ID.eq(accountId))))));
+                                .union(DSL.select(TEAM_MEMBER.TEAM_ID).from(TEAM_MEMBER).where(TEAM_MEMBER.ACCOUNT_ID.eq(accountId))))),
+                db.fetchExists(EDITION_SUBSCRIPTION, EDITION_SUBSCRIPTION.ACCOUNT_ID.eq(accountId),
+                        EDITION_SUBSCRIPTION.EDITION_ID.eq(editionId)));
     }
 
     // ---- library --------------------------------------------------------------------------
