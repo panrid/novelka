@@ -26,7 +26,8 @@ export type Balance = { shah: number; usd: number };
 export type JobState = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
 export type Job = {
     id: number; kind: JobKind; state: JobState; from: number; to: number; done: number; quoteShah: number; spentUsd: number; spentShah: number;
-    current: { number: number; stage: string; state: string; error: string | null } | null;
+    /** The chapter at work: part of parts done in its stage (0 parts until cut) and its progress, 0 to 1. */
+    current: { number: number; stage: string; state: string; error: string | null; part: number; parts: number; progress: number } | null;
     error: string | null; createdAt: string; finishedAt: string | null;
     /** Paid from the person's шаги: quoteShah is then what it holds, chargedShah what a finished run cost. */
     personal: boolean; chargedShah: number;

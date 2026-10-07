@@ -26,7 +26,7 @@ const quote = (over: object = {}) => ({
 });
 const FAILED_JOB = {
     id: 9, kind: 'translate', state: 'failed', from: 1, to: 3, done: 1, quoteShah: 3, spentUsd: 0.012, spentShah: 1,
-    current: { number: 2, stage: 'translate', state: 'failed', error: 'Відповідь моделі загубилася дорогою.' },
+    current: { number: 2, stage: 'translate', state: 'failed', error: 'Відповідь моделі загубилася дорогою.', part: 0, parts: 0, progress: 0.1 },
     error: 'Відповідь моделі загубилася дорогою. Перевірте баланс і натисніть «Продовжити».', createdAt: '2026-09-25T08:00:00Z', finishedAt: null,
 };
 
@@ -122,6 +122,19 @@ describe('autotranslate', () => {
         await screen.findByText(/набір «Швидкий\+»/, {}, { timeout: 2000 });
         await userEvent.click(screen.getByRole('button', { name: 'Почати переклад' }));
         expect(calls.find((call) => call.path.endsWith('/jobs'))?.body).toEqual({ kind: 'translate', to: 3, preset: 5 });
+    });
+
+    it('fills the bar part by part while a long chapter is translated and turns once per refresh', async () => {
+        const running = { ...FAILED_JOB, id: 10, state: 'running', from: 51, to: 60, done: 0, error: null,
+            current: { number: 51, stage: 'translate', state: 'running', error: null, part: 2, parts: 7, progress: 0.27 } };
+        await renderAt('/studio/4/translate', {
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/4/autotranslate': { body: { ...OVERVIEW, jobs: [running] } },
+        });
+        const bar = await screen.findByRole('progressbar');
+        expect(bar).toHaveAttribute('aria-valuenow', '3');
+        expect(screen.getByText(/глава 51: переклад, частина 3 з 7/)).toBeInTheDocument();
+        expect(screen.getByRole('img', { name: 'Оновлюється' })).toBeInTheDocument();
     });
 
     it('says under the field that earlier chapters are done, without asking the server', async () => {

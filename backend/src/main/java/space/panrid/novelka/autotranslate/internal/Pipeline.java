@@ -161,6 +161,10 @@ class Pipeline {
             checkpoint.linesPerPart = checkpoint.draft.isEmpty() ? LINES_PER_PART : Integer.MAX_VALUE;
         }
         List<List<Block>> parts = parts(text, settings.segmentChars(), checkpoint.linesPerPart);
+        if (checkpoint.parts == null || checkpoint.parts != parts.size()) {
+            checkpoint.parts = parts.size();
+            save(step, "translate", checkpoint);
+        }
         String previousSummary = previousChapterSummary(editionId, number);
         for (int part = 0; part < parts.size(); part++) {
             String key = String.valueOf(part);

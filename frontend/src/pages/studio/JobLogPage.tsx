@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { JOB_LABELS, autotranslateApi, type JobEvent } from '../../studio/autotranslate';
 import { studioApi } from '../../studio/api';
 import { Notice } from '../../ui/Notice';
+import { RefreshTick } from '../../ui/RefreshTick';
 import { messageTime } from '../../lib/dates';
 import styles from './jobLog.module.css';
 
@@ -27,7 +28,12 @@ export function JobLogPage() {
     return (
         <section className={styles.page}>
             <Link to="/studio/$editionId/translate" params={{ editionId }} className={styles.muted}>‹ Автопереклад</Link>
-            <h1 className={styles.title}>Журнал запуску</h1>
+            <div className={styles.head}>
+                <h1 className={styles.title}>Журнал запуску</h1>
+                {['queued', 'running'].includes(log.data?.job.state ?? '') && (
+                    <RefreshTick at={Math.max(log.dataUpdatedAt, log.errorUpdatedAt)} failed={log.isRefetchError} />
+                )}
+            </div>
             {log.isError && <Notice tone="error">{log.error.message}</Notice>}
             {log.data && (
                 <p className={styles.muted}>

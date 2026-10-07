@@ -29,6 +29,8 @@ class Checkpoint {
      * limit existed were cut by size alone (null there): a resumed step keeps its own cuts.
      */
     public Integer linesPerPart;
+    /** How many parts the chapter is translated in, once they are cut: the run's progress counts them. */
+    public Integer parts;
     /** Chapter summary for the next chapter's context. */
     public String summary;
     public Long revisionId;

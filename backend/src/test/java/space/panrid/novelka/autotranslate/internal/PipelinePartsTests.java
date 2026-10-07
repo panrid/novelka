@@ -102,6 +102,23 @@ class PipelinePartsTests {
     }
 
     @Test
+    void aChapterShowsItsProgressPartByPart() {
+        Checkpoint checkpoint = new Checkpoint();
+        checkpoint.parts = 7;
+        checkpoint.draft.put("0", List.of());
+        checkpoint.draft.put("1", List.of());
+        Jobs.StepView translating = Jobs.step(51, "translate", "running", null, checkpoint, false, true);
+        assertThat(translating.part()).isEqualTo(2);
+        assertThat(translating.parts()).isEqualTo(7);
+        assertThat(translating.progress()).isBetween(0.27, 0.28);
+        assertThat(Jobs.step(51, "translate", "running", null, checkpoint, false, false).progress())
+                .as("without proofreading translation is nearly all of it").isGreaterThan(translating.progress());
+        assertThat(Jobs.step(51, "analyze", "running", null, new Checkpoint(), false, true).progress()).isPositive();
+        assertThat(Jobs.step(51, "translate", "running", null, new Checkpoint(), false, true).parts())
+                .as("parts not cut yet").isZero();
+    }
+
+    @Test
     void japaneseOrAMarkerLeftInTheTranslationIsNotAccepted() {
         assertThat(Pipeline.leftover("s1", "Повернемося до перевірки водяної магії [term].")).isNotNull();
         assertThat(Pipeline.leftover("s1", "Він сказав: まあいいか.")).isNotNull();

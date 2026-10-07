@@ -399,7 +399,34 @@ class Jobs {
 
     // ---- what the owner sees -------------------------------------------------------------------
 
-    record StepView(int number, String stage, String state, String error) {
+    /**
+     * @param part     parts of the chapter its stage has done (translation or proofreading)
+     * @param parts    parts the chapter is translated in; 0 until they are cut
+     * @param progress how much of the chapter is done, 0 to 1, for the run's progress bar
+     */
+    record StepView(int number, String stage, String state, String error, int part, int parts, double progress) {
+    }
+
+    /**
+     * A chapter's progress by its stage and parts: analysis is a short first step, translation
+     * the bulk, proofreading (when on) the rest.
+     */
+    static StepView step(int number, String stage, String state, String error, Checkpoint checkpoint, boolean analysisOnly,
+            boolean proofreading) {
+        int parts = checkpoint.parts == null ? 0 : checkpoint.parts;
+        int translated = Math.min(parts, checkpoint.draft.size());
+        int proofread = Math.min(parts, checkpoint.revised.size());
+        double share = parts == 0 ? 0 : 1.0 / parts;
+        double progress = analysisOnly ? ("analyze".equals(stage) ? 0.3 : 0)
+                : switch (stage) {
+                    case "analyze" -> 0.05;
+                    case "translate" -> 0.1 + (proofreading ? 0.6 : 0.85) * translated * share;
+                    case "proofread" -> 0.7 + 0.25 * proofread * share;
+                    case "publish" -> 0.95;
+                    default -> 0;
+                };
+        int part = "proofread".equals(stage) ? proofread : "translate".equals(stage) ? translated : 0;
+        return new StepView(number, stage, state, error, part, parts, Math.min(1, progress));
     }
 
     /**
@@ -420,13 +447,15 @@ class Jobs {
 
     JobView view(JobRecord job) {
         int done = db.fetchCount(JOB_STEP, JOB_STEP.JOB_ID.eq(job.getId()).and(JOB_STEP.STATE.eq("done")));
+        Settings settings = json.readValue(job.getSettings().data(), Settings.class);
         StepView current = db.selectFrom(JOB_STEP)
                 .where(JOB_STEP.JOB_ID.eq(job.getId()), JOB_STEP.STATE.ne("done"))
                 .orderBy(JOB_STEP.CHAPTER_NUMBER).limit(1)
-                .fetchOptional(step -> new StepView(step.getChapterNumber(), step.getStage(), step.getState(), step.getError()))
+                .fetchOptional(step -> step(step.getChapterNumber(), step.getStage(), step.getState(), step.getError(),
+                        json.readValue(step.getCheckpoint().data(), Checkpoint.class), "analyze".equals(job.getKind()),
+                        settings.proofread().enabled()))
                 .orElse(null);
         long spent = ai.spentMicroUsd(job.getId());
-        Settings settings = json.readValue(job.getSettings().data(), Settings.class);
         int spentShah = (int) Math.ceil((double) spent / settings.microUsdPerShah());
         return new JobView(job.getId(), job.getKind(), job.getState(), job.getFirstNumber(), job.getLastNumber(), done, job.getQuoteShah(),
                 Settings.usdOfMicro(spent), spentShah, current, job.getError(), job.getCreatedAt(), job.getFinishedAt(),

@@ -12,6 +12,7 @@ import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
 import { TextInput } from '../../ui/TextInput';
+import { RefreshTick } from '../../ui/RefreshTick';
 import { Toggle } from '../../ui/Toggle';
 import { useEditionId } from './EditionPage';
 import styles from './studio.module.css';
@@ -27,7 +28,7 @@ export function AutotranslatePage() {
         queryKey: ['autotranslate', id],
         queryFn: () => autotranslateApi.overview(id),
         // Live events refresh it at once; the slow poll only covers a lost connection.
-        refetchInterval: (query) => (active(query.state.data?.jobs[0]) ? 20_000 : false),
+        refetchInterval: (query) => (active(query.state.data?.jobs[0]) ? 5_000 : false),
     });
     const [kind, setKind] = useState<JobKind>('analyze');
     const [to, setTo] = useState('');
@@ -106,6 +107,7 @@ export function AutotranslatePage() {
             {!data.configured && <Notice tone="error">Ключ OpenRouter не налаштовано на сервері.</Notice>}
 
             {job && <JobCard job={job} editionId={id} showShah={show} usdPerShah={data.usdPerShah}
+                refreshed={{ at: Math.max(overview.dataUpdatedAt, overview.errorUpdatedAt), failed: overview.isRefetchError }}
                 onCancel={() => cancel.mutate(job.id)} onResume={() => resume.mutate(job.id)}
                 pending={cancel.isPending || resume.isPending} />}
             {(cancel.isError || resume.isError) && <Notice tone="error">{(cancel.error ?? resume.error)!.message}</Notice>}
@@ -243,12 +245,18 @@ export function AutotranslatePage() {
 /** «глава 3» or «глави 3–5». */
 const range = (job: Pick<Job, 'from' | 'to'>) => (job.from === job.to ? `глава ${job.from}` : `глави ${job.from}–${job.to}`);
 
-export function JobCard({ job, editionId, showShah, usdPerShah, onCancel, onResume, pending, title }: {
+/**
+ * @param refreshed when the card's data last came (or failed to): a live run shows a turn per refresh
+ */
+export function JobCard({ job, editionId, showShah, usdPerShah, onCancel, onResume, pending, title, refreshed }: {
     job: Job; editionId: number; showShah: boolean; usdPerShah: number; onCancel: () => void; onResume: () => void; pending: boolean;
-    title?: React.ReactNode;
+    title?: React.ReactNode; refreshed?: { at: number; failed: boolean };
 }) {
     const total = Math.max(1, job.to - job.from + 1);
-    const percent = Math.min(100, Math.round((job.done / total) * 100));
+    // The chapter at work counts by its parts, so a long chapter does not leave the bar empty.
+    const working = active(job) && job.current ? job.current.progress : 0;
+    const percent = Math.min(100, Math.round(((job.done + working) / total) * 100));
+    const step = job.current;
     return (
         <div className={styles.jobCard} aria-live="polite">
             {title}
@@ -257,15 +265,20 @@ export function JobCard({ job, editionId, showShah, usdPerShah, onCancel, onResu
                 className={styles.jobLink} aria-label={`Журнал запуску: ${job.kind === 'analyze' ? 'аналіз' : 'переклад'} ${range(job)}`}>
             <div className={styles.jobHead}>
                 <b>{job.kind === 'analyze' ? 'Аналіз' : 'Переклад'}: {range(job)}</b>
-                <span className={styles.badge}>{JOB_LABELS[job.state]}</span>
+                <span className={styles.jobState}>
+                    {refreshed && active(job) && <RefreshTick at={refreshed.at} failed={refreshed.failed} />}
+                    <span className={styles.badge}>{JOB_LABELS[job.state]}</span>
+                </span>
             </div>
-            <div className={styles.progress} role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={job.done}
-                aria-label="Опрацьовано глав">
+            <div className={styles.progress} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}
+                aria-label="Зроблено, відсотків">
                 <span style={{ width: `${percent}%` }} />
             </div>
             <div className={styles.muted}>
                 Готово {job.done}
-                {job.current && active(job) && <> · глава {job.current.number}: {STAGE_LABELS[job.current.stage] ?? job.current.stage}</>}
+                {step && active(job) && <> · глава {step.number}: {STAGE_LABELS[step.stage] ?? step.stage}
+                    {step.parts > 0 && (step.stage === 'translate' || step.stage === 'proofread')
+                        && `, частина ${Math.min(step.part + 1, step.parts)} з ${step.parts}`}</>}
                 {job.personal && !active(job) && job.state !== 'failed'
                     ? <>{' · '}списано {job.chargedShah} {shahWord(job.chargedShah)}</>
                     : <>{' · '}витрачено {money(job.spentShah, job.spentUsd, showShah)} · {job.personal ? 'резерв' : 'кошторис'}{' '}
