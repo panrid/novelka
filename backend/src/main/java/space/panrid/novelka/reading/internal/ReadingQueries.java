@@ -316,21 +316,26 @@ class ReadingQueries {
 
     // ---- one novel ------------------------------------------------------------------------
 
-    /** @param language the original's language (ja, en…), or null when not known (a translation entered by hand) */
-    record NovelRow(long id, String slug, String title, String author, String source, JSONB description, String language) {
+    /**
+     * @param language the original's language (ja, en…), or null when not known (a translation entered by hand)
+     * @param url      the original's page, when the site knows it
+     */
+    record NovelRow(long id, String slug, String title, String author, String source, JSONB description, String language, String url) {
     }
 
     /** The novel by its address, or by an address it had before (the row then carries the current one). */
     Optional<NovelRow> novel(String slug) {
-        var current = db.select(NOVEL.ID, NOVEL.SLUG, NOVEL.TITLE, NOVEL.AUTHOR, NOVEL.SOURCE, NOVEL.DESCRIPTION, NOVEL.SOURCE_LANGUAGE)
+        var current = db.select(NOVEL.ID, NOVEL.SLUG, NOVEL.TITLE, NOVEL.AUTHOR, NOVEL.SOURCE, NOVEL.DESCRIPTION, NOVEL.SOURCE_LANGUAGE,
+                        NOVEL.SOURCE_URL)
                 .from(NOVEL).where(NOVEL.SLUG.eq(slug))
-                .fetchOptional(r -> new NovelRow(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(), r.value6(), r.value7()));
+                .fetchOptional(r -> new NovelRow(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(), r.value6(), r.value7(), r.value8()));
         if (current.isPresent()) {
             return current;
         }
-        return db.select(NOVEL.ID, NOVEL.SLUG, NOVEL.TITLE, NOVEL.AUTHOR, NOVEL.SOURCE, NOVEL.DESCRIPTION, NOVEL.SOURCE_LANGUAGE)
+        return db.select(NOVEL.ID, NOVEL.SLUG, NOVEL.TITLE, NOVEL.AUTHOR, NOVEL.SOURCE, NOVEL.DESCRIPTION, NOVEL.SOURCE_LANGUAGE,
+                        NOVEL.SOURCE_URL)
                 .from(NOVEL_SLUG_ALIAS).join(NOVEL).on(NOVEL.ID.eq(NOVEL_SLUG_ALIAS.NOVEL_ID)).where(NOVEL_SLUG_ALIAS.SLUG.eq(slug))
-                .fetchOptional(r -> new NovelRow(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(), r.value6(), r.value7()));
+                .fetchOptional(r -> new NovelRow(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(), r.value6(), r.value7(), r.value8()));
     }
 
     record EditionRow(long id, String teamHandle, String teamName, String title, String kind, String status,

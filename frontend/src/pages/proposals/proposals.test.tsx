@@ -10,6 +10,7 @@ const ME = {
 const PROPOSAL = {
     id: 5, title: 'Доглядач маяка', author: 'Сакура Юкі', description: ['Перший абзац.'], chapters: 12, adult: false, site: 'Syosetu',
     proposedBy: 'oleh', createdAt: '2026-10-05T10:00:00Z', state: 'open', votes: 3, voted: false, mine: false, taken: null,
+    link: 'https://ncode.syosetu.com/n1234ab/', comment: '', automatic: true,
 };
 const page = (items: unknown[]) => ({ items, total: items.length, page: 1, hasMore: false });
 
@@ -26,15 +27,35 @@ describe('what to translate', () => {
         });
 
         expect(await screen.findByRole('heading', { name: 'Доглядач маяка' })).toBeInTheDocument();
-        expect(screen.getByText(/Syosetu · 12 глав/)).toBeInTheDocument();
+        expect(screen.getByText(/12 глав/)).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Syosetu ↗' })).toHaveAttribute('href', 'https://ncode.syosetu.com/n1234ab/');
         await userEvent.click(screen.getByRole('button', { name: 'Голосувати за «Доглядач маяка»' }));
         await waitFor(() => expect(screen.getByRole('button', { name: 'Забрати голос за «Доглядач маяка»' })).toHaveTextContent('4'));
 
-        await userEvent.type(screen.getByLabelText('Посилання на новелу'), 'https://ncode.syosetu.com/n1234ab/');
+        await userEvent.type(screen.getByLabelText('Посилання на новелу (необовʼязково)'), 'https://ncode.syosetu.com/n1234ab/');
+        expect(screen.queryByLabelText('Назва новели')).not.toBeInTheDocument();
         await userEvent.click(screen.getByRole('button', { name: 'Запропонувати' }));
         expect(await screen.findByText('Новелу додано, ваш голос уже за неї.')).toBeInTheDocument();
         expect(calls.find((call) => call.path === '/api/proposals' && call.method === 'POST')?.body)
-            .toEqual({ url: 'https://ncode.syosetu.com/n1234ab/' });
+            .toEqual({ url: 'https://ncode.syosetu.com/n1234ab/', title: '', author: '', description: '', comment: '' });
+    });
+
+    it('proposes a novel from any site, or with no link, by its name', async () => {
+        const { calls } = await renderAt('/proposals', {
+            'GET /api/me': { body: ME },
+            'GET /api/proposals': { body: page([{ ...PROPOSAL, id: 7, title: 'Крамниця', site: 'example.com', chapters: null,
+                link: 'https://example.com/n/1', comment: 'Дуже раджу', automatic: false }]) },
+            'POST /api/proposals': { status: 201, body: { id: 8, created: true } },
+        });
+        expect(await screen.findByText('«Дуже раджу»')).toBeInTheDocument();
+        expect(screen.getByText(/без автоперекладу/)).toBeInTheDocument();
+        const submit = screen.getByRole('button', { name: 'Запропонувати' });
+        expect(submit).toBeDisabled();
+        await userEvent.type(screen.getByLabelText('Назва новели'), 'Мій улюблений роман');
+        await userEvent.type(screen.getByLabelText('Коментар (необовʼязково)'), 'Варто');
+        await userEvent.click(submit);
+        await waitFor(() => expect(calls.find((call) => call.path === '/api/proposals' && call.method === 'POST')?.body)
+            .toEqual({ url: '', title: 'Мій улюблений роман', author: '', description: '', comment: 'Варто' }));
     });
 
     it('takes a proposal to translate with the chosen team', async () => {

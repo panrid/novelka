@@ -83,6 +83,14 @@
     margin-top: 6px;
 }
 
+.comment {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 14px;
+    font-style: italic;
+    overflow-wrap: anywhere;
+}
+
 .clamped {
     display: -webkit-box;
     -webkit-line-clamp: 3;

@@ -142,6 +142,47 @@ class ProposalFlowTests {
         assertThat(other.browser().post("/api/proposals", json("url", "https://example.com/novel")).status()).isEqualTo(400);
     }
 
+    @Test
+    void aNovelFromAnySiteOrWithNoLinkIsProposedByItsNameAndTranslatedByHand() {
+        Person proposer = Accounts.signedIn(port, mailbox);
+        Person voter = Accounts.signedIn(port, mailbox);
+        Person translator = Accounts.signedIn(port, mailbox);
+        String site = "https://Example.com/novels/" + code + "/?ref=top";
+        assertThat(proposer.browser().post("/api/proposals", json("url", site)).status())
+                .as("a site the site cannot read needs the name").isEqualTo(400);
+        long id = read(proposer.browser().post("/api/proposals", json("url", site, "title", "Чарівна крамниця " + code,
+                "description", "Про крамницю.", "comment", "Дуже раджу"))).path("id").asLong();
+        assertThat(model.calls).as("nothing to read, nothing to pay for").isEmpty();
+        JsonNode seen = find(proposer.browser(), "open", id);
+        assertThat(seen.path("site").asString()).isEqualTo("example.com");
+        assertThat(seen.path("link").asString()).isEqualTo(site);
+        assertThat(seen.path("chapters").isNull()).isTrue();
+        assertThat(seen.path("automatic").asBoolean()).isFalse();
+        assertThat(seen.path("comment").asString()).isEqualTo("Дуже раджу");
+
+        JsonNode same = read(voter.browser().post("/api/proposals", json("url", "http://www.example.com/novels/" + code)));
+        assertThat(same.path("id").asLong()).as("the same page, written another way").isEqualTo(id);
+        assertThat(same.path("created").asBoolean()).isFalse();
+
+        long bare = read(proposer.browser().post("/api/proposals", json("title", "Без посилання " + code))).path("id").asLong();
+        JsonNode plain = find(proposer.browser(), "open", bare);
+        assertThat(plain.path("site").isNull()).isTrue();
+        assertThat(plain.path("link").isNull()).isTrue();
+        assertThat(proposer.browser().post("/api/proposals", "{}").status()).isEqualTo(400);
+        assertThat(proposer.browser().post("/api/proposals", json("url", "ftp://example.com/x", "title", "Х")).status()).isEqualTo(400);
+
+        JsonNode taken = read(translator.browser().post("/api/proposals/" + id + "/take", json("team", "")));
+        JsonNode about = read(translator.browser().get("/api/studio/editions/" + taken.path("editionId").asLong()));
+        assertThat(about.path("kind").asString()).as("translated by hand").isEqualTo("human");
+        assertThat(about.path("title").asString()).isEqualTo("Чарівна крамниця " + code);
+        String chapters = "/api/studio/editions/" + taken.path("editionId").asLong() + "/chapters";
+        translator.browser().post(chapters, "{}");
+        read(translator.browser().post(chapters + "/1/publish", """
+                {"title":"Глава","blocks":[{"id":"b1","type":"paragraph","content":[{"text":"Текст.","marks":[]}]}]}"""));
+        JsonNode page = read(translator.browser().get("/api/novels/" + taken.path("novelSlug").asString()));
+        assertThat(page.path("originalUrl").asString()).as("the original stays one tap away").isEqualTo(site);
+    }
+
     private static JsonNode read(Response response) {
         assertThat(response.status()).as(response.body()).isBetween(200, 299);
         return JSON.readTree(response.body());

@@ -67,6 +67,7 @@ class CatalogService implements Catalog {
                 .set(NOVEL.AUTHOR, novel.author() == null ? "" : novel.author().strip())
                 .set(NOVEL.AUTHOR_ACCOUNT_ID, novel.authorAccountId())
                 .set(NOVEL.DESCRIPTION, JSONB.valueOf(json.writeValueAsString(novel.description())))
+                .set(NOVEL.SOURCE_URL, novel.sourceUrl())
                 .set(NOVEL.SLUG, slug)
                 .returning(NOVEL.ID)
                 .fetchOne(NOVEL.ID);

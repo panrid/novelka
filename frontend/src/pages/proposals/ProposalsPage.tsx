@@ -5,7 +5,7 @@ import { useState, type FormEvent } from 'react';
 import { useMe } from '../../auth/me';
 import { useCanRun } from '../../ledger/api';
 import { plural } from '../../lib/plural';
-import { proposalApi, type Proposal, type ProposalSort } from '../../proposals/api';
+import { proposalApi, type NewProposal, type Proposal, type ProposalSort } from '../../proposals/api';
 import { teamApi } from '../../studio/api';
 import { askConfirm } from '../../ui/ask';
 import { Button } from '../../ui/Button';
@@ -28,14 +28,16 @@ export function ProposalsPage() {
     const navigate = useNavigate();
     const [sort, setSort] = useState<ProposalSort>('votes');
     const [page, setPage] = usePage();
-    const [link, setLink] = useState('');
+    const empty: NewProposal = { url: '', title: '', author: '', description: '', comment: '' };
+    const [draft, setDraft] = useState<NewProposal>(empty);
+    const field = (key: keyof NewProposal) => (value: string) => setDraft({ ...draft, [key]: value });
     const [notice, setNotice] = useState<string | null>(null);
     const list = useQuery({ queryKey: ['proposals', sort, page], queryFn: () => proposalApi.list(sort, page), placeholderData: (previous) => previous });
     const refresh = () => void client.invalidateQueries({ queryKey: ['proposals'] });
     const propose = useMutation({
-        mutationFn: () => proposalApi.propose(link.trim()),
+        mutationFn: () => proposalApi.propose(draft),
         onSuccess: ({ created }) => {
-            setLink('');
+            setDraft(empty);
             setNotice(created ? 'Новелу додано, ваш голос уже за неї.' : 'Цю новелу вже пропонували — ваш голос додано до неї.');
             setSort('new');
             setPage(1);
@@ -45,8 +47,10 @@ export function ProposalsPage() {
     const submit = (event: FormEvent) => {
         event.preventDefault();
         setNotice(null);
-        if (link.trim()) propose.mutate();
+        if (draft.url.trim() || draft.title.trim()) propose.mutate();
     };
+    // Syosetu fills in the name by itself; any other link (or none) needs it.
+    const readable = /syosetu\.com/i.test(draft.url);
     const [taking, setTaking] = useState<Proposal | null>(null);
     const canRun = useCanRun();
     const [editing, setEditing] = useState<Proposal | null>(null);
@@ -55,15 +59,25 @@ export function ProposalsPage() {
         <section className={styles.page}>
             <h1 className={styles.title}>Що перекласти</h1>
             <p className={styles.lead}>
-                Запропонуйте новелу посиланням — сайт сам перекладе назву й опис. Голосуйте за ті, які хочете читати:
-                перекладачі бачать, чого чекають найбільше.
+                Запропонуйте новелу: посиланням із Syosetu сайт сам перекладе назву й опис, з будь-якого іншого сайту або без
+                посилання — напишіть назву самі. Голосуйте за ті, які хочете читати: перекладачі бачать, чого чекають найбільше.
             </p>
 
             {me ? (
                 <form className={styles.propose} onSubmit={submit}>
-                    <TextInput label="Посилання на новелу" value={link} onChange={setLink} placeholder="https://ncode.syosetu.com/…"
-                        hint="Поки що з Syosetu." error={propose.isError ? propose.error.message : undefined} />
-                    <Button type="submit" pending={propose.isPending} pendingLabel="Перекладаємо назву…" isDisabled={!link.trim()}>
+                    <TextInput label="Посилання на новелу (необовʼязково)" value={draft.url} onChange={field('url')} placeholder="https://…"
+                        hint={readable ? 'Syosetu: назву, автора й опис сайт перекладе сам.' : 'Будь-який сайт. З Syosetu все заповниться само й буде автопереклад.'} />
+                    {!readable && (
+                        <>
+                            <TextInput label="Назва новели" value={draft.title} onChange={field('title')} />
+                            <TextInput label="Автор (необовʼязково)" value={draft.author} onChange={field('author')} />
+                            <TextInput label="Опис (необовʼязково)" value={draft.description} onChange={field('description')} multiline />
+                        </>
+                    )}
+                    <TextInput label="Коментар (необовʼязково)" value={draft.comment} onChange={field('comment')} multiline
+                        hint="Чому варто перекласти, що це за новела." error={propose.isError ? propose.error.message : undefined} />
+                    <Button type="submit" pending={propose.isPending} pendingLabel={readable ? 'Перекладаємо назву…' : 'Додаємо…'}
+                        isDisabled={readable ? false : !draft.title.trim()}>
                         Запропонувати
                     </Button>
                 </form>
@@ -95,10 +109,10 @@ export function ProposalsPage() {
             {list.data && <Pager page={page} total={list.data.total} size={PAGE_SIZE} onPage={setPage} />}
 
             {taking && (
-                <TakeSheet proposal={taking} auto={canRun} onClose={() => setTaking(null)}
+                <TakeSheet proposal={taking} auto={canRun && taking.automatic} onClose={() => setTaking(null)}
                     onTaken={(editionId) => {
                         refresh();
-                        void navigate(canRun
+                        void navigate(canRun && taking.automatic
                             ? { to: '/studio/$editionId/translate', params: { editionId: String(editionId) } }
                             : { to: '/studio/$editionId', params: { editionId: String(editionId) } });
                     }} />
@@ -130,14 +144,18 @@ function ProposalCard({ item, signedIn, staff, onChanged, onTake, onEdit }: {
             <div>
                 <h2 className={styles.name}>{item.title}</h2>
                 <div className={styles.muted}>
-                    {[item.author, `${item.site} · ${plural(item.chapters, 'глава', 'глави', 'глав')}`, item.adult ? '18+' : null]
+                    {[item.author, item.chapters !== null ? plural(item.chapters, 'глава', 'глави', 'глав') : null, item.adult ? '18+' : null]
                         .filter(Boolean).join(' · ')}
+                    {item.link && <>{item.author || item.chapters !== null ? ' · ' : ''}<a href={item.link} target="_blank" rel="noopener noreferrer nofollow">
+                        {item.site ?? 'оригінал'} ↗</a></>}
+                    {!item.automatic && <span title="Новелка поки не вміє читати цей сайт: перекладати доведеться вручну"> · без автоперекладу</span>}
                 </div>
                 {item.description.length > 0 && (
                     <div className={`${styles.description} ${expanded ? '' : styles.clamped}`}>
                         {item.description.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
                     </div>
                 )}
+                {item.comment && <p className={styles.comment}>«{item.comment}»</p>}
                 <div className={styles.actions}>
                     {long && (
                         <button type="button" className={styles.link} onClick={() => setExpanded(!expanded)}>
@@ -179,7 +197,8 @@ function TakeSheet({ proposal, auto, onClose, onTaken }: { proposal: Proposal; a
             <div className={styles.sheetForm}>
                 <p className={styles.muted}>
                     У Студії з'явиться переклад із назвою й описом, як тут. Глави можна перекладати {auto ? 'вручну або автоперекладом' : 'в редакторі'}.
-                    Ті, хто голосував, отримають сповіщення.
+                    {!proposal.automatic && ' Автопереклад для цієї новели з’явиться, щойно Новелка навчиться читати її сайт.'}
+                    {' '}Ті, хто голосував, отримають сповіщення.
                 </p>
                 {translating.length > 1 && (
                     <label className={styles.sheetForm} style={{ gap: 6 }}>
@@ -204,13 +223,15 @@ function EditSheet({ proposal, onClose, onSaved }: { proposal: Proposal; onClose
     const [title, setTitle] = useState(proposal.title);
     const [author, setAuthor] = useState(proposal.author);
     const [description, setDescription] = useState(proposal.description.join('\n\n'));
-    const save = useMutation({ mutationFn: () => proposalApi.update(proposal.id, { title, author, description }), onSuccess: onSaved });
+    const [comment, setComment] = useState(proposal.comment);
+    const save = useMutation({ mutationFn: () => proposalApi.update(proposal.id, { title, author, description, comment }), onSuccess: onSaved });
     return (
         <Sheet open onClose={onClose} title="Виправити пропозицію" tall>
             <form className={styles.sheetForm} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
                 <TextInput label="Назва" value={title} onChange={setTitle} />
                 <TextInput label="Автор" value={author} onChange={setAuthor} />
                 <TextInput label="Опис" value={description} onChange={setDescription} multiline hint="Абзаци — з нового рядка." />
+                <TextInput label="Коментар" value={comment} onChange={setComment} multiline hint="Чому варто перекласти, що це за новела." />
                 {save.isError && <Notice tone="error">{save.error.message}</Notice>}
                 <Button type="submit" pending={save.isPending} pendingLabel="Зберігаємо…" isDisabled={!title.trim()}>Зберегти</Button>
                 <Button variant="secondary" onPress={onClose}>Скасувати</Button>

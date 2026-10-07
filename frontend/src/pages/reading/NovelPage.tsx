@@ -116,7 +116,10 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
             <div className={styles.content}>
                 <div className={styles.headText}>
                     <h1 className={styles.title}>{novel.title}</h1>
-                    <p className={styles.muted}>{novel.origin === 'original' ? 'оригінальний твір' : translatedFrom(novel.language)}</p>
+                    <p className={styles.muted}>
+                        {novel.origin === 'original' ? 'оригінальний твір' : translatedFrom(novel.language)}
+                        {novel.originalUrl && <> · <a href={novel.originalUrl} target="_blank" rel="noopener noreferrer nofollow">оригінал ↗</a></>}
+                    </p>
                     <div className={styles.chips}>
                         {novel.author && <span className={styles.chip}>✎ {novel.author}</span>}
                         <span className={`${styles.chip} ${styles.team}`} title={edition.teamName}>${edition.teamHandle}</span>

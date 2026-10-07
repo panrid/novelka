@@ -42,21 +42,20 @@ class ProposalController {
         return proposals.page(currentUser.viewer().map(Viewer::accountId).orElse(null), sort, state, page);
     }
 
-    record ProposeRequest(String url) {
-    }
-
+    /** A link, or a name, or both; a description and a comment if the person likes. */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    Proposals.Proposed propose(@RequestBody ProposeRequest body) {
-        return proposals.propose(currentUser.requireSignedIn(), body.url());
+    Proposals.Proposed propose(@RequestBody Proposals.Proposal body) {
+        return proposals.propose(currentUser.requireSignedIn(), body);
     }
 
-    record Change(String title, String author, String description) {
+    /** @param comment null keeps the comment as it was */
+    record Change(String title, String author, String description, String comment) {
     }
 
     @PutMapping("/{id}")
     void update(@PathVariable long id, @RequestBody Change body) {
-        proposals.update(currentUser.requireSignedIn(), id, body.title(), body.author(), body.description());
+        proposals.update(currentUser.requireSignedIn(), id, body.title(), body.author(), body.description(), body.comment());
     }
 
     @DeleteMapping("/{id}")
