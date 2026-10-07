@@ -4,7 +4,17 @@ export type JobKind = 'analyze' | 'translate';
 export type Stage = { model: string; inputPerMillion: number; outputPerMillion: number; enabled: boolean };
 export type Plan = {
     kind: JobKind; from?: number; to: number; redo?: boolean;
+    /** A ready set of models; models given too change single steps of it. */
+    preset?: number;
     models?: { analyze?: string; translate?: string; proofread?: string; proofreadEnabled?: boolean };
+};
+/**
+ * A ready set of models with a judged result (1–5, by halves). analysisUsd: its analysis of
+ * an average chapter of this novel; chapterUsd: the whole chapter. No proofread: none.
+ */
+export type Preset = {
+    id: number; name: string; summary: string; rating: number; analyze: string; translate: string; proofread: string | null;
+    analysisUsd: number; chapterUsd: number;
 };
 export type Quote = {
     kind: JobKind; from: number; to: number; chapters: number; skipped: number; shah: number; usd: number; expectedUsd: number;
@@ -27,6 +37,8 @@ export type AutotranslateOverview = {
     settings: Settings; jobs: Job[];
     /** Runs are paid from the viewer's шаги: balance is theirs, reserved is what their runs hold. */
     personal: boolean; reserved: number;
+    /** Ready sets of models: only the site owner picks models, so others get none. */
+    presets: Preset[];
 };
 /** One step of a run as the journal tells it; the payload depends on the kind. */
 export type JobEvent = { id: number; chapter: number; kind: string; payload: Record<string, unknown>; at: string };

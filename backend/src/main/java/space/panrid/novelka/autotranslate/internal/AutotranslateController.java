@@ -52,10 +52,12 @@ class AutotranslateController {
     private final space.panrid.novelka.suggestion.Suggestions suggestions;
     private final Agreement agreement;
     private final JobLog journal;
+    private final Presets presets;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
             Teams teams, Analyses analyses, Ledger ledger, Sources sources, space.panrid.novelka.suggestion.Suggestions suggestions,
-            Agreement agreement, JobLog journal) {
+            Agreement agreement, JobLog journal, Presets presets) {
+        this.presets = presets;
         this.journal = journal;
         this.agreement = agreement;
         this.suggestions = suggestions;
@@ -112,10 +114,28 @@ class AutotranslateController {
     /**
      * @param personal runs are paid from the viewer's шаги: {@code balance} is theirs and
      *                 {@code reserved} is what their runs hold; otherwise the balance is OpenRouter's
+     * @param presets  ready sets of models; only the site owner picks models, so others get none
      */
     record Overview(boolean configured, boolean showShah, int sourceChapters, int nextNumber, int publishedChapters,
             int lastAnalyzed, int nextToAnalyze, int averageChars, Jobs.Balance balance, BigDecimal usdPerShah, Settings settings,
-            List<Jobs.JobView> jobs, boolean personal, int reserved) {
+            List<Jobs.JobView> jobs, boolean personal, int reserved, List<PresetView> presets) {
+    }
+
+    /**
+     * A preset as the menu shows it: {@code analysisUsd} is its analysis of an average chapter of
+     * this novel, {@code chapterUsd} the whole chapter (analysis, translation and proofreading).
+     */
+    record PresetView(long id, String name, String summary, BigDecimal rating, String analyze, String translate, String proofread,
+            BigDecimal analysisUsd, BigDecimal chapterUsd) {
+    }
+
+    private List<PresetView> presets(int averageChars) {
+        double thousands = averageChars / 1000.0;
+        return presets.list().stream().map(preset -> new PresetView(preset.id(), preset.name(), preset.summary(), preset.rating(),
+                preset.analyze(), preset.translate(), preset.proofread(),
+                Settings.usdOfMicro(Math.round(thousands * preset.analyzeMicroUsdPerThousand())),
+                Settings.usdOfMicro(Math.round(thousands * (preset.analyzeMicroUsdPerThousand() + preset.translateMicroUsdPerThousand()
+                        + preset.proofreadMicroUsdPerThousand()))))).toList();
     }
 
     @GetMapping("/editions/{editionId}/autotranslate")
@@ -129,11 +149,13 @@ class AutotranslateController {
             return new Overview(ai.configured(), true, novel.sourceChapters(), novel.nextNumber(), novel.publishedChapters(),
                     novel.lastAnalyzed(), novel.nextToAnalyze(), jobs.averageChars(editionId),
                     new Jobs.Balance(mine.available(), Settings.usdOfMicro(mine.available() * price)), Settings.usdOfMicro(price),
-                    settings.paidBy(price), jobs.jobs(editionId), true, mine.reserved());
+                    settings.paidBy(price), jobs.jobs(editionId), true, mine.reserved(), List.of());
         }
+        int averageChars = jobs.averageChars(editionId);
         return new Overview(ai.configured(), showShah(viewer), novel.sourceChapters(), novel.nextNumber(), novel.publishedChapters(),
-                novel.lastAnalyzed(), novel.nextToAnalyze(), jobs.averageChars(editionId),
-                jobs.balance().orElse(null), Settings.usdOfMicro(settings.microUsdPerShah()), settings, jobs.jobs(editionId), false, 0);
+                novel.lastAnalyzed(), novel.nextToAnalyze(), averageChars,
+                jobs.balance().orElse(null), Settings.usdOfMicro(settings.microUsdPerShah()), settings, jobs.jobs(editionId), false, 0,
+                presets(averageChars));
     }
 
     @PostMapping("/editions/{editionId}/autotranslate/quote")

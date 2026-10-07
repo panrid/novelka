@@ -49,10 +49,12 @@ class Jobs {
     private final JsonMapper json;
     private final Ledger ledger;
     private final AuditLog audit;
+    private final Presets presets;
     /** A person's run holds this much more than the quote: chapters vary and answers get asked again. */
     static final double RESERVE_MARGIN = 1.5;
 
-    Jobs(DSLContext db, Ai ai, SiteSettings siteSettings, JsonMapper json, Ledger ledger, AuditLog audit) {
+    Jobs(DSLContext db, Ai ai, SiteSettings siteSettings, JsonMapper json, Ledger ledger, AuditLog audit, Presets presets) {
+        this.presets = presets;
         this.audit = audit;
         this.ledger = ledger;
         this.db = db;
@@ -124,9 +126,10 @@ class Jobs {
     /**
      * What to run. {@code from} absent: the first chapter not done yet. {@code redo}: chapters
      * already done are done again (new answers, not the saved ones); otherwise they are skipped.
-     * {@code models} replace the site's models for this run only.
+     * {@code models} replace the site's models for this run only; {@code preset} picks a ready
+     * set of them, and {@code models} given too change single steps of it.
      */
-    record Plan(String kind, Integer from, Integer to, Boolean redo, Models models) {
+    record Plan(String kind, Integer from, Integer to, Boolean redo, Models models, Long preset) {
 
         boolean analyze() {
             return "analyze".equals(kind);
@@ -176,10 +179,12 @@ class Jobs {
     }
 
     private Prepared prepare(long editionId, Plan plan, boolean personal) {
-        if (personal && plan.models() != null && (plan.models().analyze() != null || plan.models().translate() != null
-                || plan.models().proofread() != null || plan.models().proofreadEnabled() != null)) {
+        if (personal && (plan.preset() != null || plan.models() != null && (plan.models().analyze() != null
+                || plan.models().translate() != null || plan.models().proofread() != null || plan.models().proofreadEnabled() != null))) {
             throw UserFacingException.badRequest("Моделі для автоперекладу обирає сайт.");
         }
+        Presets.Preset preset = plan.preset() == null ? null
+                : presets.find(plan.preset()).orElseThrow(() -> UserFacingException.notFound("Такого набору моделей немає."));
         Novel novel = novel(editionId);
         boolean analyze = plan.analyze();
         int from = plan.from() != null ? plan.from() : analyze ? novel.nextToAnalyze() : novel.nextNumber();
@@ -207,7 +212,7 @@ class Jobs {
                     + " Щоб зробити їх заново, увімкніть «Зробити заново» в розширених налаштуваннях.");
         }
         Settings site = settings();
-        Settings settings = withModels(site, plan.models());
+        Settings settings = withModels(site, preset == null ? plan.models() : over(preset.models(), plan.models()));
         Map<Integer, Integer> known = db.select(SOURCE_CHAPTER.NUMBER, SOURCE_CHAPTER.CHARS).from(SOURCE_CHAPTER)
                 .where(SOURCE_CHAPTER.NOVEL_ID.eq(novel.novelId())).fetchMap(SOURCE_CHAPTER.NUMBER, SOURCE_CHAPTER.CHARS);
         int guess = known.isEmpty() ? UNKNOWN_CHAPTER_CHARS
@@ -224,7 +229,8 @@ class Jobs {
             int size = chars == null ? guess : chars;
             boolean needsAnalysis = analyze || !analyzed.contains(number);
             unanalyzed += !analyze && !analyzed.contains(number) ? 1 : 0;
-            long chosen = settings.expectedMicroUsd(size, needsAnalysis, !analyze);
+            long chosen = preset == null ? settings.expectedMicroUsd(size, needsAnalysis, !analyze)
+                    : preset.expectedMicroUsd(size, needsAnalysis, !analyze, settings);
             expected += chosen;
             shah += shahFor(size, chosen, site.expectedMicroUsd(size, needsAnalysis, !analyze));
         }
@@ -254,6 +260,17 @@ class Jobs {
             return base;
         }
         return (int) Math.ceil(base * (double) chosenMicroUsd / siteMicroUsd);
+    }
+
+    /** The preset's models with the steps changed by hand. */
+    private static Models over(Models preset, Models hand) {
+        if (hand == null) {
+            return preset;
+        }
+        return new Models(hand.analyze() != null ? hand.analyze() : preset.analyze(),
+                hand.translate() != null ? hand.translate() : preset.translate(),
+                hand.proofread() != null ? hand.proofread() : preset.proofread(),
+                hand.proofreadEnabled() != null ? hand.proofreadEnabled() : preset.proofreadEnabled());
     }
 
     /** The site's models with this run's choices, each priced from OpenRouter's catalogue. */

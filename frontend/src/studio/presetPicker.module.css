@@ -1,0 +1,98 @@
+.picker {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.current {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    font-size: 15px;
+}
+
+.grow {
+    flex: 1;
+    min-width: 0;
+}
+
+.label {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.change {
+    flex: none;
+    min-height: 44px;
+    padding: 0 4px;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    cursor: pointer;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.option {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.option[data-selected] {
+    border-color: var(--accent);
+    background: var(--surface-2);
+}
+
+.option[data-focus-visible] {
+    outline: 2px solid var(--focus);
+}
+
+.head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    font-size: 15px;
+}
+
+.stars {
+    color: var(--accent);
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
+.price {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.muted {
+    color: var(--muted);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}

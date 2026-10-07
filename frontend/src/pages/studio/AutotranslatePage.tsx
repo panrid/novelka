@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { chaptersWord } from '../../reading/api';
 import { JOB_LABELS, STAGE_LABELS, autotranslateApi, dollars, money, shahWord, type Job, type JobKind, type ModelShow, type Plan } from '../../studio/autotranslate';
 import { ModelPicker } from '../../studio/ModelPicker';
+import { PresetPicker } from '../../studio/PresetPicker';
 import pickerStyles from '../../studio/modelPicker.module.css';
 import { useDebounced } from '../../lib/useDebounced';
 import { relativeTime } from '../../lib/dates';
@@ -34,6 +35,7 @@ export function AutotranslatePage() {
     const [from, setFrom] = useState('');
     const [redo, setRedo] = useState(false);
     const [models, setModels] = useState<NonNullable<Plan['models']>>({});
+    const [preset, setPreset] = useState<number | null>(null);
     const [onlyRecommended, setOnlyRecommended] = useState(true);
     const [withWeak, setWithWeak] = useState(false);
     const modelShow: ModelShow = onlyRecommended ? 'recommended' : withWeak ? 'weak' : 'usual';
@@ -44,6 +46,7 @@ export function AutotranslatePage() {
         kind, to: number(to)!,
         ...(advanced && number(from) !== undefined ? { from: number(from)! } : {}),
         ...(advanced && redo ? { redo: true } : {}),
+        ...(preset !== null ? { preset } : {}),
         ...(advanced && Object.keys(models).length > 0 ? { models } : {}),
     };
     // Checked only once typing stops: «3» on the way to «30» is not an error.
@@ -82,7 +85,12 @@ export function AutotranslatePage() {
     const busy = job && (active(job) || job.state === 'failed');
     const ready = quote.data && !typing && !problem && JSON.stringify(plan) === settledPlan;
     const fieldError = problem ?? (quote.isError && !typing ? quote.error.message : undefined);
-    const model = (stage: 'analyze' | 'translate' | 'proofread') => models[stage] ?? data.settings[stage].model;
+    const chosen = data.presets.find((item) => item.id === preset);
+    const model = (stage: 'analyze' | 'translate' | 'proofread') => models[stage] ?? chosen?.[stage] ?? data.settings[stage].model;
+    const proofreading = models.proofreadEnabled ?? (chosen ? chosen.proofread !== null : data.settings.proofread.enabled);
+    const short = (id: string) => id.slice(id.indexOf('/') + 1);
+    const siteModels = kind === 'analyze' ? short(data.settings.analyze.model)
+        : `${short(data.settings.translate.model)}, ${data.settings.proofread.enabled ? `вичитка ${short(data.settings.proofread.model)}` : 'без вичитки'}`;
 
     return (
         <section className={styles.page}>
@@ -114,6 +122,10 @@ export function AutotranslatePage() {
                             він візьме готовий аналіз і не платитиме за нього вдруге.
                         </p>
                     )}
+                    {!data.personal && data.presets.length > 0 && (
+                        <PresetPicker presets={data.presets} value={preset} kind={kind} siteModels={siteModels}
+                            onChange={(next) => { setPreset(next); setModels({}); }} />
+                    )}
                     <TextInput label={`${kind === 'analyze' ? 'Аналізувати' : 'Перекласти'} ${advanced && number(from) ? `з глави ${number(from)}` : `з глави ${firstOpen}`} до глави…`}
                         value={to} onChange={setTo} inputMode="numeric" error={fieldError}
                         hint={`Щонайбільше ${data.sourceChapters}.`} />
@@ -144,17 +156,17 @@ export function AutotranslatePage() {
                                     <span>Показати й слабкі</span>
                                 </label>
                             </div>
-                            <ModelPicker label="Модель аналізу" show={modelShow} stage="analyze" value={model('analyze')} chars={data.averageChars}
+                            <ModelPicker key={`analyze-${preset}`} label="Модель аналізу" show={modelShow} stage="analyze" value={model('analyze')} chars={data.averageChars}
                                 onChange={(analyze) => setModels({ ...models, analyze })}
                                 hint={kind === 'translate' ? 'Для глав, які ще не проаналізовано.' : undefined} />
                             {kind === 'translate' && (
                                 <>
-                                    <ModelPicker label="Модель перекладу" show={modelShow} stage="translate" value={model('translate')} chars={data.averageChars}
+                                    <ModelPicker key={`translate-${preset}`} label="Модель перекладу" show={modelShow} stage="translate" value={model('translate')} chars={data.averageChars}
                                         onChange={(translate) => setModels({ ...models, translate })} />
-                                    <Toggle label="Вичитка" isSelected={models.proofreadEnabled ?? data.settings.proofread.enabled}
+                                    <Toggle label="Вичитка" isSelected={proofreading}
                                         onChange={(proofreadEnabled) => setModels({ ...models, proofreadEnabled })} />
-                                    {(models.proofreadEnabled ?? data.settings.proofread.enabled) && (
-                                        <ModelPicker label="Модель вичитки" show={modelShow} stage="proofread" value={model('proofread')} chars={data.averageChars}
+                                    {proofreading && (
+                                        <ModelPicker key={`proofread-${preset}`} label="Модель вичитки" show={modelShow} stage="proofread" value={model('proofread')} chars={data.averageChars}
                                             onChange={(proofread) => setModels({ ...models, proofread })} />
                                     )}
                                 </>
@@ -182,6 +194,7 @@ export function AutotranslatePage() {
                             ) : (
                                 <div className={styles.muted}>
                                     Очікувана собівартість ≈ {dollars(quote.data.expectedUsd, 3)} ·{' '}
+                                    {chosen && <>набір «{chosen.name}»: </>}
                                     {kind === 'analyze' ? quote.data.analyzeModel.model
                                         : `${quote.data.translateModel.model}${quote.data.proofreadModel.enabled ? `, вичитка ${quote.data.proofreadModel.model}` : ', без вичитки'}`}
                                 </div>

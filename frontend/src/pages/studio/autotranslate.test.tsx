@@ -12,7 +12,13 @@ const SETTINGS = { analyze: stage('openai/gpt-4.1-mini'), translate: stage('open
     segmentChars: 4000, microUsdPerShah: 36000, capFactor: 3 };
 const OVERVIEW = {
     configured: true, showShah: true, sourceChapters: 50, nextNumber: 1, publishedChapters: 0, lastAnalyzed: 20, nextToAnalyze: 21,
-    averageChars: 6000, balance: { shah: 208, usd: 7.5 }, usdPerShah: 0.036, settings: SETTINGS, jobs: [],
+    averageChars: 6000, balance: { shah: 208, usd: 7.5 }, usdPerShah: 0.036, settings: SETTINGS, jobs: [], personal: false, reserved: 0,
+    presets: [
+        { id: 1, name: 'Копійка', summary: 'Найдешевше.', rating: 3.5, analyze: 'deepseek/deepseek-v4-pro', translate: 'deepseek/deepseek-v4-flash',
+            proofread: null, analysisUsd: 0.002, chapterUsd: 0.0074 },
+        { id: 5, name: 'Швидкий+', summary: 'Найкращий з дешевих.', rating: 4, analyze: 'anthropic/claude-sonnet-5.5', translate: 'x-ai/grok-4.3',
+            proofread: 'deepseek/deepseek-v4-flash', analysisUsd: 0.027, chapterUsd: 0.089 },
+    ],
 };
 const quote = (over: object = {}) => ({
     kind: 'translate', from: 1, to: 3, chapters: 3, skipped: 0, shah: 3, usd: 0.11, expectedUsd: 0.105, estimated: true, unanalyzed: 0,
@@ -88,6 +94,34 @@ describe('autotranslate', () => {
 
         await userEvent.click(screen.getByRole('button', { name: 'Почати переклад' }));
         expect(calls.find((call) => call.path.endsWith('/jobs'))?.body).toEqual({ kind: 'translate', to: 30 });
+    });
+
+    it('picks a ready set of models by its judged result and price', async () => {
+        const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/4/autotranslate': { body: OVERVIEW },
+            'POST /api/studio/editions/4/autotranslate/quote': { body: quote() },
+            'POST /api/studio/editions/4/autotranslate/jobs': { status: 201, body: {} },
+        });
+        await userEvent.click(await screen.findByRole('radio', { name: 'Переклад' }));
+        expect(screen.getByText(/Як у налаштуваннях/)).toHaveTextContent('gpt-4.1-mini, вичитка gpt-4.1-mini');
+        await userEvent.click(screen.getByRole('button', { name: 'Змінити' }));
+        const option = screen.getByRole('radio', { name: /Швидкий\+/ });
+        expect(option.closest('label')).toHaveTextContent('★★★★☆');
+        expect(option.closest('label')).toHaveTextContent('≈ $0,089 за главу');
+        expect(option.closest('label')).toHaveTextContent('переклад: grok-4.3 · вичитка: deepseek-v4-flash');
+        expect(screen.getByRole('radio', { name: /Копійка/ }).closest('label')).toHaveTextContent('★★★½☆');
+        await userEvent.click(option);
+        expect(screen.queryByRole('radio', { name: /Копійка/ })).not.toBeInTheDocument();
+        expect(screen.getByText('Швидкий+')).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: /Розширені налаштування/ }));
+        expect(screen.getByRole('combobox', { name: 'Модель перекладу' })).toHaveValue('x-ai/grok-4.3');
+        expect(screen.getByRole('combobox', { name: 'Модель вичитки' })).toHaveValue('deepseek/deepseek-v4-flash');
+        await userEvent.type(screen.getByLabelText('Перекласти з глави 1 до глави…'), '3');
+        await screen.findByText(/набір «Швидкий\+»/, {}, { timeout: 2000 });
+        await userEvent.click(screen.getByRole('button', { name: 'Почати переклад' }));
+        expect(calls.find((call) => call.path.endsWith('/jobs'))?.body).toEqual({ kind: 'translate', to: 3, preset: 5 });
     });
 
     it('says under the field that earlier chapters are done, without asking the server', async () => {

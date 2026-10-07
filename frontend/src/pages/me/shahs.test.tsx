@@ -56,7 +56,7 @@ describe('шаги without payments', () => {
             'GET /api/me/shahs': { body: MINE },
             'GET /api/studio/editions/4/autotranslate': { body: {
                 configured: true, showShah: true, sourceChapters: 50, nextNumber: 1, publishedChapters: 0, lastAnalyzed: 0, nextToAnalyze: 1,
-                averageChars: 6000, balance: { shah: 9, usd: 0.63 }, usdPerShah: 0.07, settings: SETTINGS, jobs: [], personal: true, reserved: 2,
+                averageChars: 6000, balance: { shah: 9, usd: 0.63 }, usdPerShah: 0.07, settings: SETTINGS, jobs: [], personal: true, reserved: 2, presets: [],
             } },
             'POST /api/studio/editions/4/autotranslate/quote': { body: {
                 kind: 'analyze', from: 1, to: 3, chapters: 3, skipped: 0, shah: 1, usd: 0.07, expectedUsd: 0.012, estimated: true, unanalyzed: 0,

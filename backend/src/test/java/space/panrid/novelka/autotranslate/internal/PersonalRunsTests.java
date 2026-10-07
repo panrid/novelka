@@ -108,6 +108,9 @@ class PersonalRunsTests {
         assertThat(overview.path("balance").path("shah").asInt()).isEqualTo(10);
         assertThat(reader.browser().post(base + "/quote", """
                 {"to":3,"models":{"translate":"fake/better"}}""").status()).as("the site picks the models").isEqualTo(400);
+        assertThat(overview.path("presets")).as("ready sets of models are the owner's too").isEmpty();
+        assertThat(reader.browser().post(base + "/quote", """
+                {"to":3,"preset":1}""").status()).isEqualTo(400);
         JsonNode quote = read(reader.browser().post(base + "/quote", json("to", 3)));
         int reserve = quote.path("reserveShah").asInt();
         assertThat(quote.path("shah").asInt()).isPositive();

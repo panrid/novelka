@@ -296,7 +296,9 @@ class AiService implements Ai {
             body.put("response_format", Map.of("type", "json_schema", "json_schema",
                     Map.of("name", request.schemaName(), "strict", true, "schema", request.schema())));
             // Venice serves some open models but ignores the schema (seen 2026-10-06 with DeepSeek V3.2).
-            body.put("provider", Map.of("require_parameters", true, "ignore", List.of("Venice")));
+            // The cheapest provider first: an open model costs from 0.21 to 1.91 $ per million tokens
+            // depending on who serves it (DeepSeek V4 Pro, 2026-10-07), and quotes count on the low end.
+            body.put("provider", Map.of("require_parameters", true, "ignore", List.of("Venice"), "sort", "price"));
         }
         return body;
     }

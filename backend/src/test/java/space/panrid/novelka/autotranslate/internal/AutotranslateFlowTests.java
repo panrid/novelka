@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.AI_CALL;
+import static space.panrid.novelka.jooq.Tables.AUTOTRANSLATE_PRESET;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.JOB;
@@ -466,6 +467,32 @@ class AutotranslateFlowTests {
                 {"to":2,"from":1,"redo":true,"models":{"translate":"fake/plain"}}""").status())
                 .as("a model without structured answers is refused before it costs anything").isEqualTo(400);
         assertThat(read(owner.browser().get("/api/studio/autotranslate/models?q=plain"))).as("and not offered").isEmpty();
+
+        // A preset: models at once, each step priced from what it really cost, not from token prices.
+        long preset = db.insertInto(AUTOTRANSLATE_PRESET).set(AUTOTRANSLATE_PRESET.POSITION, 0)
+                .set(AUTOTRANSLATE_PRESET.NAME, "Тестовий").set(AUTOTRANSLATE_PRESET.SUMMARY, "Fake Better без вичитки.")
+                .set(AUTOTRANSLATE_PRESET.RATING, new java.math.BigDecimal("3.5"))
+                .set(AUTOTRANSLATE_PRESET.ANALYZE_MODEL, "openai/gpt-4.1-mini").set(AUTOTRANSLATE_PRESET.TRANSLATE_MODEL, "fake/better")
+                .set(AUTOTRANSLATE_PRESET.ANALYZE_MUSD_PER_KCHAR, 1_000L).set(AUTOTRANSLATE_PRESET.TRANSLATE_MUSD_PER_KCHAR, 50_000L)
+                .returning(AUTOTRANSLATE_PRESET.ID).fetchOne(AUTOTRANSLATE_PRESET.ID);
+        JsonNode offered = read(owner.browser().get(base + "/autotranslate")).path("presets");
+        assertThat(offered).anySatisfy(item -> {
+            assertThat(item.path("name").asString()).isEqualTo("Тестовий");
+            assertThat(item.path("rating").decimalValue()).isEqualByComparingTo("3.5");
+            assertThat(item.path("proofread").isNull()).isTrue();
+            assertThat(item.path("chapterUsd").decimalValue()).as("its own measured price").isGreaterThan(item.path("analysisUsd").decimalValue());
+        });
+        JsonNode picked = read(owner.browser().post(base + "/autotranslate/quote", """
+                {"kind":"translate","from":1,"to":2,"redo":true,"preset":%d}""".formatted(preset)));
+        assertThat(picked.path("translateModel").path("model").asString()).isEqualTo("fake/better");
+        assertThat(picked.path("proofreadModel").path("enabled").asBoolean()).as("the preset has no proofreading").isFalse();
+        assertThat(picked.path("expectedUsd").decimalValue()).as("measured, higher than the token prices promise")
+                .isGreaterThan(quote.path("expectedUsd").decimalValue());
+        JsonNode changed = read(owner.browser().post(base + "/autotranslate/quote", """
+                {"kind":"translate","from":1,"to":2,"redo":true,"preset":%d,"models":{"proofreadEnabled":true}}""".formatted(preset)));
+        assertThat(changed.path("proofreadModel").path("enabled").asBoolean()).as("a step changed by hand").isTrue();
+        assertThat(owner.browser().post(base + "/autotranslate/quote", """
+                {"kind":"translate","from":1,"to":2,"redo":true,"preset":999999}""").status()).isEqualTo(404);
 
         model.reset();
         assertThat(owner.browser().post(base + "/autotranslate/jobs", plan).status()).isEqualTo(201);
