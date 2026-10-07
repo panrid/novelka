@@ -76,7 +76,7 @@ export const messagingApi = {
     blocked: () => api<string[]>('/api/me/blocks'),
     block: (nick: string) => api<void>(`/api/me/blocks/${encodeURIComponent(nick)}`, { method: 'PUT' }),
     unblock: (nick: string) => api<void>(`/api/me/blocks/${encodeURIComponent(nick)}`, { method: 'DELETE' }),
-    report: (target: 'comment' | 'chat' | 'message', targetId: number, reason: string) =>
+    report: (target: 'comment' | 'chat' | 'message' | 'edition', targetId: number, reason: string) =>
         api<void>('/api/reports', json('POST', { target, targetId, reason })),
 };
 

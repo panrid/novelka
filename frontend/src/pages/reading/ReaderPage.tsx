@@ -14,6 +14,7 @@ import { useReaderSize, useTheme, type Theme } from '../../reading/theme';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Sheet } from '../../ui/Sheet';
+import { ReportEdition } from '../../reading/ReportEdition';
 import { EditSheet, ReplaceSheet, ReviewCard, SelectionBar, useMySuggestions, useReview } from './Suggestions';
 import suggestionStyles from './suggestions.module.css';
 import { Segmented } from '../../ui/Segmented';
@@ -287,6 +288,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                         <p className={styles.finished}>Це остання перекладена глава. Нові зʼявляться на головній і у «Вхідних».</p>
                     )}
                 </nav>
+                {!chapter.teamRole && <ReportEdition editionId={chapter.edition.editionId} chapterLabel={chapter.label ?? String(chapter.number)} />}
             </article>
 
             {me && !reviewing && (

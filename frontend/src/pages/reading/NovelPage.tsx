@@ -22,6 +22,7 @@ import { Pager } from '../../ui/Pager';
 import { LinkButton } from '../../ui/LinkButton';
 import { Notice } from '../../ui/Notice';
 import { showInfo } from '../../ui/toast';
+import { ReportEdition } from '../../reading/ReportEdition';
 import styles from './novel.module.css';
 import { askText } from '../../ui/ask';
 
@@ -160,6 +161,7 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                 ))}
                 {novel.origin === 'translation' && !novel.viewer?.teamRole && <RelayOffer novel={novel} />}
             {novel.origin === 'translation' && <OwnTranslation novel={novel} />}
+                {!novel.viewer?.teamRole && <ReportEdition editionId={edition.editionId} />}
                 <HideEdition editionId={edition.editionId} />
                 <DiscussionButton editionId={edition.editionId} />
             </div>

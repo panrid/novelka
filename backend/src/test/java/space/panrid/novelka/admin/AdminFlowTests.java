@@ -142,6 +142,21 @@ class AdminFlowTests {
     }
 
     @Test
+    void aReaderReportsATranslationAndAnAdministratorHidesIt() {
+        read(reader.browser().post("/api/reports", json("target", "edition", "targetId", edition, "reason", "Глава 1: чужий переклад")));
+        JsonNode report = read(moderator.browser().get("/api/admin/reports")).path(0);
+        assertThat(report.path("target").asString()).isEqualTo("edition");
+        assertThat(report.path("reasons").path(0).asString()).isEqualTo("Глава 1: чужий переклад");
+        assertThat(report.path("preview").path("slug").asString()).isEqualTo(slug);
+        assertThat(moderator.browser().post("/api/admin/reports/edition/" + edition, json("action", "hide")).status())
+                .as("only administrators hide translations").isEqualTo(403);
+        read(admin.browser().post("/api/admin/reports/edition/" + edition, json("action", "hide", "reason", "порушення")));
+        assertThat(new Browser(port).get("/api/novels/" + slug).status()).isEqualTo(404);
+        assertThat(reader.browser().post("/api/reports", json("target", "edition", "targetId", edition, "reason", "ще раз")).status())
+                .as("a hidden translation is not reported again").isEqualTo(404);
+    }
+
+    @Test
     void whoMayGiveWhichRole() {
         assertThat(moderator.browser().get("/api/admin/users").status()).isEqualTo(403);
         JsonNode found = read(admin.browser().get("/api/admin/users?q=" + reader.nick())).path("items");

@@ -43,7 +43,7 @@ import space.panrid.novelka.platform.web.UserFacingException;
 @Service
 class Moderation {
 
-    static final Set<String> TARGETS = Set.of("comment", "chat", "message", "image");
+    static final Set<String> TARGETS = Set.of("comment", "chat", "message", "image", "edition");
 
     private final DSLContext db;
     private final CommunityModeration community;
@@ -261,6 +261,7 @@ class Moderation {
             case "comment" -> db.fetchExists(COMMENT, COMMENT.ID.eq(id));
             case "chat" -> db.fetchExists(CHAT_MESSAGE, CHAT_MESSAGE.ID.eq(id));
             case "message" -> db.fetchExists(MESSAGE, MESSAGE.ID.eq(id));
+            case "edition" -> db.fetchExists(EDITION, EDITION.ID.eq(id), EDITION.HIDDEN_AT.isNull());
             default -> db.fetchExists(IMAGE, IMAGE.ID.eq(id));
         };
     }

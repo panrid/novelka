@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderAt } from '../../test/render';
@@ -242,6 +242,24 @@ describe('new chapters bell', () => {
         expect(await screen.findByRole('status')).toHaveTextContent('Сповіщатимемо про нові глави.');
         expect(calls.some((call) => call.method === 'PUT' && call.path === '/api/library/7/subscription')).toBe(true);
         expect(await screen.findByRole('button', { name: /Ви отримуєте сповіщення/ })).toHaveAttribute('aria-pressed', 'true');
+    });
+});
+
+describe('reporting a translation', () => {
+    it('sends the reason with the chapter from the reader', async () => {
+        const { calls } = await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody/chapters/12': { body: { ...CHAPTER, number: 12, label: '11' } },
+            'GET /api/editions/7/comments/count': { body: { count: 0 } },
+            'POST /api/reports': { status: 201, body: { received: true } },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: /Поскаржитися на главу/ }));
+        const dialog = await screen.findByRole('dialog', { name: 'Поскаржитися на главу 11' });
+        await userEvent.type(within(dialog).getByLabelText('Що не так?'), 'Чужий переклад');
+        await userEvent.click(within(dialog).getByRole('button', { name: 'Надіслати скаргу' }));
+        await vi.waitFor(() => expect(calls.find((call) => call.path === '/api/reports')?.body)
+            .toEqual({ target: 'edition', targetId: 7, reason: 'Глава 11: Чужий переклад' }));
+        expect(await screen.findByRole('status')).toHaveTextContent('Скаргу надіслано');
     });
 });
 
