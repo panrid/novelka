@@ -17,6 +17,7 @@ import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Sheet } from '../../ui/Sheet';
 import { ReportEdition } from '../../reading/ReportEdition';
+import { usePages } from './usePages';
 import { EditSheet, ReplaceSheet, ReviewCard, SelectionBar, useMySuggestions, useReview } from './Suggestions';
 import suggestionStyles from './suggestions.module.css';
 import styles from './reader.module.css';
@@ -180,18 +181,6 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
         };
     }, [save]);
 
-    useEffect(() => {
-        const onKey = (event: KeyboardEvent) => {
-            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-            if (event.key === 'ArrowLeft' && chapter.previous) {
-                void navigate({ to: '/n/$slug/$number', params: { slug: chapter.novelSlug, number: String(chapter.previous) }, search });
-            } else if (event.key === 'ArrowRight' && chapter.next) {
-                void navigate({ to: '/n/$slug/$number', params: { slug: chapter.novelSlug, number: String(chapter.next) }, search });
-            }
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    });
 
     const mine = useMySuggestions(chapter, me !== null);
     const review = useReview(chapter);
@@ -219,11 +208,50 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
             setEditing(block.getAttribute('data-block-id'));
             return;
         }
+        // Pages turn with a tap at the left or right edge; the middle shows the controls.
+        if (paged) {
+            const x = event.clientX / window.innerWidth;
+            if (x < 0.3) return pages.turn(-1);
+            if (x > 0.7) return pages.turn(1);
+        }
         if (view.hideBars) setBarsVisible((visible) => !visible);
     }
 
     const chapterLink = (target: number) => ({
         to: '/n/$slug/$number' as const, params: { slug: chapter.novelSlug, number: String(target) }, search,
+    });
+
+    // Pages like a book (етап 18); while making or checking suggestions the chapter scrolls as usual.
+    const paged = view.mode === 'pages' && !editMode && !reviewing && !find;
+    const frame = useRef<HTMLDivElement>(null);
+    const textRef = useRef<HTMLElement>(null);
+    const pages = usePages({
+        enabled: paged, frame, text: textRef, turnStyle: view.pageAnim, position: () => place.current,
+        layoutKey: [view.font, view.size, view.lineHeight, view.margin, view.width, view.align, view.paragraphs,
+            chapter.blocks.length, mine.drafts, review.items.length].join(':'),
+        onPage: (position) => {
+            place.current = position;
+            setProgress(position);
+            save(false);
+            if (hideBars.current) setBarsVisible(false);
+        },
+        onBeforeStart: () => { if (chapter.previous) void navigate(chapterLink(chapter.previous)); },
+        onAfterEnd: () => { if (chapter.next) void navigate(chapterLink(chapter.next)); },
+    });
+
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+            if (paged && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+                pages.turn(event.key === 'ArrowLeft' ? -1 : 1);
+            } else if (event.key === 'ArrowLeft' && chapter.previous) {
+                void navigate({ to: '/n/$slug/$number', params: { slug: chapter.novelSlug, number: String(chapter.previous) }, search });
+            } else if (event.key === 'ArrowRight' && chapter.next) {
+                void navigate({ to: '/n/$slug/$number', params: { slug: chapter.novelSlug, number: String(chapter.next) }, search });
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
     });
 
     return (
@@ -244,9 +272,17 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                 </Link>
             </header>
 
-            <article className={styles.text} lang="uk" data-paragraphs={view.paragraphs} onClick={toggleBars} style={{
+            {paged ? (
+                <div className={styles.pages} style={{ maxWidth: READER_WIDTHS[view.width], paddingInline: view.margin }}>
+                    <div ref={frame} className={styles.pageWindow}>
+            <article ref={textRef} className={`${styles.text} ${paged ? styles.pagedText : ''}`} lang="uk" data-paragraphs={view.paragraphs}
+                onClick={toggleBars} style={{
                 fontSize: view.size, fontFamily: FONT_STACKS[view.font], lineHeight: view.lineHeight, textAlign: view.align,
-                hyphens: view.align === 'justify' ? 'auto' : 'manual', maxWidth: READER_WIDTHS[view.width], paddingInline: view.margin,
+                hyphens: view.align === 'justify' ? 'auto' : 'manual',
+                ...(paged ? {
+                    columnWidth: pages.width || undefined, columnGap: Math.max(24, view.margin * 2), transform: `translateX(${-pages.page * pages.step}px)`,
+                    transition: pages.animated ? 'transform 0.3s ease, opacity 0.15s' : 'opacity 0.15s', opacity: pages.effect === 'fadeOut' ? 0 : 1,
+                } : { maxWidth: READER_WIDTHS[view.width], paddingInline: view.margin }),
             }}>
                 {chapter.volume && volumeTitle(chapter.volume) !== chapterHeading(chapter) && <p className={styles.volumeLine}>{volumeTitle(chapter.volume)}</p>}
                 <h1 className={styles.chapterTitle}>{chapterHeading(chapter)}</h1>
@@ -306,6 +342,78 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                 </nav>
                 {!chapter.teamRole && <ReportEdition editionId={chapter.edition.editionId} chapterLabel={chapter.label ?? String(chapter.number)} />}
             </article>
+                    </div>
+                    {pages.effect.startsWith('curl') && <div className={`${styles.curl} ${pages.effect === 'curlNext' ? styles.curlNext : styles.curlBack}`} aria-hidden />}
+                </div>
+            ) : (
+            <article ref={textRef} className={`${styles.text} ${paged ? styles.pagedText : ''}`} lang="uk" data-paragraphs={view.paragraphs}
+                onClick={toggleBars} style={{
+                fontSize: view.size, fontFamily: FONT_STACKS[view.font], lineHeight: view.lineHeight, textAlign: view.align,
+                hyphens: view.align === 'justify' ? 'auto' : 'manual',
+                ...(paged ? {
+                    columnWidth: pages.width || undefined, columnGap: Math.max(24, view.margin * 2), transform: `translateX(${-pages.page * pages.step}px)`,
+                    transition: pages.animated ? 'transform 0.3s ease, opacity 0.15s' : 'opacity 0.15s', opacity: pages.effect === 'fadeOut' ? 0 : 1,
+                } : { maxWidth: READER_WIDTHS[view.width], paddingInline: view.margin }),
+            }}>
+                {chapter.volume && volumeTitle(chapter.volume) !== chapterHeading(chapter) && <p className={styles.volumeLine}>{volumeTitle(chapter.volume)}</p>}
+                <h1 className={styles.chapterTitle}>{chapterHeading(chapter)}</h1>
+                {review.items.length > 0 && !reviewing && (
+                    <div className={suggestionStyles.banner}>
+                        <span>Правок на перевірку: {review.items.length}</span>
+                        <Button variant="secondary" onPress={() => setReviewing(true)}>Перевірити</Button>
+                    </div>
+                )}
+                {reviewing && <div className={styles.diffMode}><DiffModeSwitch /></div>}
+                {reviewing && review.items.filter((item) => item.kind !== 'block').map((item) => (
+                    <ReviewCard key={item.id} item={item} verdict={review.verdicts[item.id]} currentBlocks={chapter.blocks}
+                        onDecide={(verdict) => review.decide(item.id, verdict)} />
+                ))}
+                {editMode && <p className={suggestionStyles.banner}>Режим правок: торкніться абзацу, щоб його виправити.</p>}
+                <Blocks blocks={chapter.blocks} highlight={find} overlay={mine.overlay}
+                    after={reviewing ? (blockId) => review.items.filter((item) => item.kind === 'block' && item.blockId === blockId).map((item) => (
+                        <ReviewCard key={item.id} item={item} verdict={review.verdicts[item.id]} onDecide={(verdict) => review.decide(item.id, verdict)} />
+                    )) : undefined} />
+                {mine.drafts > 0 && (
+                    <div className={suggestionStyles.banner}>
+                        <span>Ненадісланих правок: {mine.drafts}</span>
+                        <Button onPress={() => mine.submit.mutate()} pending={mine.submit.isPending}>Надіслати</Button>
+                    </div>
+                )}
+                {mine.submit.isSuccess && mine.drafts === 0 && <Notice tone="success">Правки надіслано команді. Дякуємо!</Notice>}
+                {!me && (
+                    <p className={styles.finished}>
+                        <Link to="/login" search={{ next: `/n/${chapter.novelSlug}/${chapter.number}` }}>Увійдіть</Link>, щоб запропонувати правку.
+                    </p>
+                )}
+                {me && !chapter.teamRole && (
+                    <p className={styles.finished}>
+                        <Link to="/n/$slug/$number/propose" params={{ slug: chapter.novelSlug, number: String(chapter.number) }} search={search}>
+                            Запропонувати зміни в усій главі
+                        </Link>
+                    </p>
+                )}
+                {chapter.teamRole && (
+                    <p className={styles.finished}>
+                        <Link to="/studio/$editionId/chapters/$number" params={{ editionId: String(chapter.edition.editionId), number: String(chapter.number) }}>
+                            Редагувати главу
+                        </Link>
+                    </p>
+                )}
+                <nav className={styles.end} aria-label="Інші глави">
+                    {chapter.next ? (
+                        <Link {...chapterLink(chapter.next)} className={styles.nextButton}>Наступна глава →</Link>
+                    ) : chapter.continuation ? (
+                        <Link to="/n/$slug/$number" params={{ slug: chapter.novelSlug, number: String(chapter.continuation.firstNumber) }}
+                            search={{ t: chapter.continuation.teamHandle }} className={styles.nextButton}>
+                            Продовження від ${chapter.continuation.teamHandle} — глава {chapter.continuation.firstNumber} →
+                        </Link>
+                    ) : (
+                        <p className={styles.finished}>Це остання перекладена глава. Нові зʼявляться на головній і у «Вхідних».</p>
+                    )}
+                </nav>
+                {!chapter.teamRole && <ReportEdition editionId={chapter.edition.editionId} chapterLabel={chapter.label ?? String(chapter.number)} />}
+            </article>
+            )}
 
             {me && !reviewing && (
                 <SelectionBar onEdit={setEditing} onReplace={setReplacing}
@@ -343,7 +451,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
             ) : (
             <footer className={`${styles.bottom} ${barsVisible ? '' : styles.hiddenBottom}`}>
                 <div className={styles.percent}>
-                    {[view.clock && <Clock key="clock" />, view.percent && `${Math.round(progress * 100)}%`].filter(Boolean).reduce<React.ReactNode[]>(
+                    {[view.clock && <Clock key="clock" />, paged ? `сторінка ${pages.page + 1} з ${pages.pages}` : view.percent && `${Math.round(progress * 100)}%`].filter(Boolean).reduce<React.ReactNode[]>(
                         (parts, part, index) => (index > 0 ? [...parts, ' · ', part] : [part]), [])}
                 </div>
                 <div className={styles.buttons}>

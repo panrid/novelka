@@ -52,4 +52,17 @@ describe('the look of the site and of the reader', () => {
         expect(document.documentElement.dataset.reader).toBeUndefined();
         expect(document.documentElement.dataset.theme).toBe('light');
     });
+
+    it('turns pages like a book and goes on to the next chapter after the last page', async () => {
+        localStorage.setItem('novelka:appearance', JSON.stringify({ reader: { preset: 'book', mode: 'pages', pageAnim: 'none' } }));
+        const { router } = await renderAt('/n/mah-vody/12', {
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'GET /api/novels/mah-vody/chapters/13': { body: { ...CHAPTER, number: 13, title: 'Далі', previous: 12, next: null } },
+        });
+        await screen.findByRole('heading', { name: '12. Спокійне життя' });
+        // jsdom lays nothing out, so the whole chapter is one page.
+        expect(await screen.findByText('сторінка 1 з 1')).toBeInTheDocument();
+        await userEvent.keyboard('{ArrowRight}');
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody/13'));
+    });
 });

@@ -19,6 +19,16 @@ export function ReaderLookForm() {
                 options={READER_PRESETS.map(({ value, label }) => ({ value, label }))} />
             {look.custom && <p className={styles.note}>Свій стиль на основі «{READER_PRESETS.find((p) => p.value === look.preset)?.label}». Готовий стиль вище поверне все як було.</p>}
 
+            <Choice label="Гортання" value={look.mode} onPick={(mode) => setReader({ mode })}
+                options={[{ value: 'scroll', label: 'Прокрутка вниз' }, { value: 'pages', label: 'Сторінки' }]} />
+            {look.mode === 'pages' && (
+                <>
+                    <Choice label="Анімація сторінок" value={look.pageAnim} onPick={(pageAnim) => setReader({ pageAnim })}
+                        options={[{ value: 'none', label: 'Без анімації' }, { value: 'slide', label: 'Зсув' }, { value: 'fade', label: 'Згасання' }, { value: 'curl', label: 'Аркуш' }]} />
+                    <p className={styles.note}>Гортайте торканням лівого чи правого краю, свайпом або стрілками. Якщо телефон не встигає — «Без анімації».</p>
+                </>
+            )}
+
             <label className={styles.row}>
                 <span className={styles.label}>Шрифт</span>
                 <select className={styles.select} value={look.font} style={{ fontFamily: FONT_STACKS[look.font] }}

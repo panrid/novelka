@@ -255,3 +255,72 @@
     justify-content: flex-end;
     margin-bottom: 12px;
 }
+
+/*
+ * Pages (етап 18): the chapter flows into columns as wide as the window, and a page is one
+ * column. The window sits between the bars, so the text never hides under them.
+ */
+.pages {
+    position: fixed;
+    top: calc(var(--topbar-height) + 14px);
+    bottom: calc(78px + var(--safe-bottom));
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+.pageWindow {
+    height: 100%;
+    overflow: hidden;
+}
+
+.text.pagedText {
+    height: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    column-fill: auto;
+    will-change: transform;
+}
+
+.pagedText figure,
+.pagedText img {
+    break-inside: avoid;
+    max-height: 100%;
+}
+
+.curl {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    background: var(--bg);
+    transform-origin: left center;
+    box-shadow: inset -24px 0 36px rgb(0 0 0 / 22%);
+}
+
+.curlNext {
+    animation: curl-next 0.45s ease-in forwards;
+}
+
+.curlBack {
+    animation: curl-back 0.45s ease-out forwards;
+}
+
+@keyframes curl-next {
+    0% { opacity: 1; transform: perspective(1400px) rotateY(0deg); }
+    100% { opacity: 1; transform: perspective(1400px) rotateY(-100deg); }
+}
+
+@keyframes curl-back {
+    0% { opacity: 1; transform: perspective(1400px) rotateY(-100deg); }
+    100% { opacity: 0; transform: perspective(1400px) rotateY(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .curlNext,
+    .curlBack {
+        animation-duration: 0.01s;
+    }
+}

@@ -16,6 +16,10 @@ export type ReaderLook = {
     preset: ReaderPreset;
     /** Changed after choosing the preset: «Свій стиль». */
     custom: boolean;
+    /** Scrolling down, or turning pages like a book. */
+    mode: 'scroll' | 'pages';
+    /** How a page turns; «none» for phones that do not keep up. */
+    pageAnim: 'none' | 'slide' | 'fade' | 'curl';
     font: FontId;
     size: number;
     lineHeight: number;
@@ -72,7 +76,7 @@ export const READER_LINE_HEIGHT = { min: 1.3, max: 2.1 } as const;
 export const READER_MARGIN = { min: 0, max: 48 } as const;
 
 const READER_DEFAULTS: ReaderLook = {
-    preset: 'site', custom: false, font: 'literata', size: 18, lineHeight: 1.75, align: 'left', paragraphs: 'gap',
+    preset: 'site', custom: false, mode: 'scroll', pageAnim: 'slide', font: 'literata', size: 18, lineHeight: 1.75, align: 'left', paragraphs: 'gap',
     width: 'medium', margin: 16, colors: 'site', accent: null, hideBars: true, clock: false, percent: true, awake: false,
 };
 
@@ -83,7 +87,7 @@ export const READER_PRESETS: { value: ReaderPreset; label: string; look: Partial
     { value: 'gray', label: 'Сірий', look: { colors: 'gray', font: 'lora' } },
     { value: 'night', label: 'Ніч', look: { colors: 'night' } },
     { value: 'black', label: 'Чорний', look: { colors: 'black' } },
-    { value: 'book', label: 'Книжка', look: { colors: 'sepia', font: 'ptserif', align: 'justify', paragraphs: 'indent', lineHeight: 1.55, width: 'wide' } },
+    { value: 'book', label: 'Книжка', look: { colors: 'sepia', font: 'ptserif', align: 'justify', paragraphs: 'indent', lineHeight: 1.55, width: 'wide', mode: 'pages', pageAnim: 'curl' } },
     { value: 'dyslexia', label: 'Для дислексії', look: { colors: 'paper', font: 'rubik', size: 20, lineHeight: 2, width: 'narrow' } },
 ];
 
@@ -114,6 +118,8 @@ export const READER_WIDTHS: Record<ReaderLook['width'], string> = { narrow: '30e
 
 const ONE_OF: { [K in keyof ReaderLook]?: readonly unknown[] } = {
     preset: READER_PRESETS.map((item) => item.value),
+    mode: ['scroll', 'pages'],
+    pageAnim: ['none', 'slide', 'fade', 'curl'],
     font: READER_FONTS.map((item) => item.value),
     align: ['left', 'justify'],
     paragraphs: ['gap', 'indent'],
