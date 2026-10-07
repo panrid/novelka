@@ -19,6 +19,9 @@ const stage = (model: string) => ({ model, inputPerMillion: 0.4, outputPerMillio
 const SETTINGS = { analyze: stage('openai/gpt-4.1-mini'), translate: stage('openai/gpt-4.1-mini'), proofread: stage('openai/gpt-4.1-mini'),
     segmentChars: 4000, microUsdPerShah: 70000, capFactor: 1 };
 
+const EDITION4 = { editionId: 4, novelSlug: 'mah-vody', title: 'Маг води', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 3, ownNovel: false, teamHandle: 'panrid', teamName: 'panrid', role: 'owner',
+    sourceChapters: 50, pendingSuggestions: 0, drafts: 0, newWords: 0, originalUrl: null };
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe('шаги without payments', () => {
@@ -53,6 +56,7 @@ describe('шаги without payments', () => {
 
     it('a person runs autotranslation for шаги at the site’s models', async () => {
         await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'GET /api/me': { body: person('reader') },
             'GET /api/me/shahs': { body: MINE },
             'GET /api/studio/editions/4/autotranslate': { body: {

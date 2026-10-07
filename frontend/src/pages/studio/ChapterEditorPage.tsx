@@ -121,7 +121,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
     return (
         <div className={`${styles.page} ${showOriginal && wide ? styles.pageWide : ''}`}>
             <header className={styles.top}>
-                <Link to="/studio/$editionId" params={params} className={styles.icon} aria-label="До публікації"><ArrowLeft size={22} aria-hidden /></Link>
+                <Link to="/studio/$editionId/chapters" params={params} className={styles.icon} aria-label="До глав"><ArrowLeft size={22} aria-hidden /></Link>
                 <div className={styles.where}>
                     {/* The number readers see; a chapter without one (a prologue) goes by its title. */}
                     <b>{view.label === '' ? (title.trim() || 'Без номера') : `Гл. ${view.label ?? view.number}`}</b>

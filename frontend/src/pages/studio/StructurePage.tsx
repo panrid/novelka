@@ -119,7 +119,7 @@ function Editor({ id, saved }: { id: number; saved: Structure }) {
 
     return (
         <section className={styles.page}>
-            <Link to="/studio/$editionId" params={{ editionId: String(id) }} className={styles.muted}>‹ До перекладу</Link>
+            <Link to="/studio/$editionId/chapters" params={{ editionId: String(id) }} className={styles.muted}>‹ Глави</Link>
             <h1 className={styles.title}>Структура й томи</h1>
             <p className={styles.muted}>
                 Позначте глави й виберіть дію. Адреси глав не змінюються — закладки й «Продовжити» в читачів лишаться.

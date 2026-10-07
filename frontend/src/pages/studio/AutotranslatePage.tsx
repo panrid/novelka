@@ -10,6 +10,7 @@ import { useDebounced } from '../../lib/useDebounced';
 import { relativeTime } from '../../lib/dates';
 import { askConfirm } from '../../ui/ask';
 import { Collapsible } from '../../ui/Collapsible';
+import { EditionShell } from './EditionShell';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
@@ -22,8 +23,17 @@ import styles from './studio.module.css';
 const active = (job: Job | undefined) => job?.state === 'queued' || job?.state === 'running';
 const number = (text: string) => (/^\s*\d{1,5}\s*$/.test(text) ? Number(text) : undefined);
 
-/** «Перекласти до глави N»: the price first, then progress, all in шаги or dollars. */
+/** «Автопереклад» of a translation: what runs now, a new run with its price, and the runs before. */
 export function AutotranslatePage() {
+    return (
+        <EditionShell tab="translate">
+            <AutotranslateTab />
+        </EditionShell>
+    );
+}
+
+/** «Перекласти до глави N»: the price first, then progress, all in шаги or dollars. */
+function AutotranslateTab() {
     const id = useEditionId();
     const client = useQueryClient();
     const overview = useQuery({
@@ -96,9 +106,7 @@ export function AutotranslatePage() {
         : `${short(data.settings.translate.model)}, ${data.settings.proofread.enabled ? `вичитка ${short(data.settings.proofread.model)}` : 'без вичитки'}`;
 
     return (
-        <section className={styles.page}>
-            <Link to="/studio/$editionId" params={{ editionId: String(id) }} className={styles.muted}>‹ До перекладу</Link>
-            <h1 className={styles.title}>Автопереклад</h1>
+        <>
             <p className={styles.muted}>
                 В оригіналі {data.sourceChapters} {chaptersWord(data.sourceChapters)}, перекладено {data.publishedChapters}
                 {data.lastAnalyzed > 0 && <>, проаналізовано до {data.lastAnalyzed}</>}.
@@ -108,12 +116,14 @@ export function AutotranslatePage() {
             </p>
             {!data.configured && <Notice tone="error">Ключ OpenRouter не налаштовано на сервері.</Notice>}
 
+            {job && <h2 className={styles.sectionTitle}>{busy ? 'Зараз іде' : 'Останній запуск'}</h2>}
             {job && <JobCard job={job} editionId={id} showShah={show} usdPerShah={data.usdPerShah}
                 refreshed={{ at: Math.max(overview.dataUpdatedAt, overview.errorUpdatedAt), failed: overview.isRefetchError }}
                 onCancel={() => cancel.mutate(job.id)} onResume={() => resume.mutate(job.id)} restorable
                 pending={cancel.isPending || resume.isPending} />}
             {(cancel.isError || resume.isError) && <Notice tone="error">{(cancel.error ?? resume.error)!.message}</Notice>}
 
+            {!busy && <h2 className={styles.sectionTitle}>Новий запуск</h2>}
             {!busy && (
                 <form className={styles.form} onSubmit={(event) => { event.preventDefault(); if (ready) startJob.mutate(); }}>
                     <Segmented label="Що робимо" value={kind} onChange={(next) => { setKind(next); setModels({}); }} options={[
@@ -219,8 +229,6 @@ export function AutotranslatePage() {
             )}
 
             <nav className={styles.menu} aria-label="Ще">
-                <Link to="/studio/$editionId/titles" params={{ editionId: String(id) }} className={styles.menuItem}>Назви глав після аналізу</Link>
-                <Link to="/studio/$editionId/glossary" params={{ editionId: String(id) }} className={styles.menuItem}>Словник імен і термінів</Link>
                 <Link to="/studio/processes" className={styles.menuItem}>Усі процеси</Link>
                 {data.personal
                     ? <Link to="/me/shahs" className={styles.menuItem}>Мої шаги</Link>
@@ -228,7 +236,7 @@ export function AutotranslatePage() {
             </nav>
 
             {data.jobs.length > 1 && (
-                <Collapsible id="autotranslate-earlier" title="Раніше" count={data.jobs.length - 1}>
+                <Collapsible id="autotranslate-earlier" title="Історія запусків" count={data.jobs.length - 1}>
                     {data.jobs.slice(1).map((old) => (
                         <div key={old.id} className={styles.row}>
                             <div className={styles.grow}>{old.kind === 'analyze' ? 'Аналіз' : 'Переклад'} {range(old)} · {JOB_LABELS[old.state]}</div>
@@ -239,7 +247,7 @@ export function AutotranslatePage() {
                     ))}
                 </Collapsible>
             )}
-        </section>
+        </>
     );
 }
 

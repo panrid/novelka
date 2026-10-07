@@ -20,8 +20,12 @@ public final class EditorModels {
             boolean published, Draft draft, String label) {
     }
 
+    /** @param pending readers' suggestions waiting for the team */
     public record StudioChapter(int number, String title, boolean published, boolean hasMyDraft,
-            OffsetDateTime updatedAt, String label) {
+            OffsetDateTime updatedAt, String label, int pending) {
+    }
+
+    public record StudioChapters(java.util.List<StudioChapter> items, int total, int page, boolean hasMore) {
     }
 
     public record RevisionInfo(long id, String authorNick, String origin, OffsetDateTime createdAt,

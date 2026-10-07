@@ -431,3 +431,76 @@
     color: var(--accent);
     font-size: 13px;
 }
+
+/* «Огляд» of a translation */
+.overview {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    gap: 8px;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    padding: 12px;
+    border-radius: 14px;
+    background: var(--surface);
+}
+
+.stat b {
+    font: 600 24px/1 var(--font-reading);
+}
+
+.stat span {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.attention {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px;
+    border-radius: 14px;
+    background: var(--surface);
+}
+
+.listHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.menuHint {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.cardBadges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.cardBadges:empty {
+    display: none;
+}
+
+.badgeRun {
+    color: var(--accent);
+}

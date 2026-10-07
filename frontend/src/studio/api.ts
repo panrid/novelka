@@ -17,15 +17,27 @@ export type MyEdition = {
     chapterCount: number; teamHandle: string; teamName: string; role: TeamRole; drafts: number;
     /** Readers' suggestions waiting for the team. */
     pendingSuggestions: number;
+    /** Glossary entries nobody checked yet. */
+    newWords: number;
+    /** The unfinished autotranslation run and the chapter it is at, if any. */
+    jobState: 'queued' | 'running' | 'failed' | null; jobChapter: number | null;
 };
 
 export type Overview = {
     editionId: number; novelSlug: string; title: string; author: string; description: StudioBlock[]; tags: string[];
     kind: string; status: string; adult: boolean; coverUrl: string | null; chapterCount: number; ownNovel: boolean;
     teamHandle: string; teamName: string; role: TeamRole;
+    /** Chapters of the original when the site reads it; null otherwise. */
+    sourceChapters: number | null;
+    pendingSuggestions: number; drafts: number; newWords: number; originalUrl: string | null;
 };
 
-export type StudioChapter = { number: number; title: string; published: boolean; hasMyDraft: boolean; updatedAt: string; label: string | null };
+export type StudioChapter = {
+    number: number; title: string; published: boolean; hasMyDraft: boolean; updatedAt: string; label: string | null;
+    /** Readers' suggestions waiting. */
+    pending: number;
+};
+export type ChapterFilter = '' | 'suggestions' | 'drafts' | 'unpublished';
 
 export type EditorView = {
     number: number; title: string; blocks: StudioBlock[]; revisionId: number | null; published: boolean;
@@ -86,7 +98,9 @@ export const studioApi = {
     /** The novel's address (/n/…); the old one keeps working. */
     setSlug: (id: number, slug: string) => api<{ slug: string }>(`${edition(id)}/slug`, json('PUT', { slug })),
     setCover: (id: number, imageId: number | null) => api<Overview>(`${edition(id)}/cover`, json('PUT', { imageId })),
-    chapters: (id: number, page = 1) => api<StudioChapter[]>(`${edition(id)}/chapters?page=${page}`),
+    chapters: (id: number, filter: { filter?: ChapterFilter; order?: 'asc' | 'desc'; page: number }) =>
+        api<{ items: StudioChapter[]; total: number; page: number; hasMore: boolean }>(
+            `${edition(id)}/chapters?${new URLSearchParams({ page: String(filter.page), order: filter.order ?? 'desc', filter: filter.filter ?? '' })}`),
     deleteChapter: (id: number, number: number) => api<void>(chapter(id, number), { method: 'DELETE' }),
     newChapter: (id: number) => api<{ number: number }>(`${edition(id)}/chapters`, json('POST', {})),
     editor: (id: number, number: number) => api<EditorView>(chapter(id, number)),

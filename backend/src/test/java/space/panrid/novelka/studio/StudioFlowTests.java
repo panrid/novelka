@@ -177,7 +177,7 @@ class StudioFlowTests {
         assertThat(imported.path("numbers")).extracting(JsonNode::asInt).containsExactly(2, 3);
         JsonNode overview = read(owner.browser().get("/api/studio/editions/" + edition));
         assertThat(overview.path("chapterCount").asInt()).isEqualTo(3);
-        JsonNode third = read(owner.browser().get("/api/studio/editions/" + edition + "/chapters")).path(0);
+        JsonNode third = read(owner.browser().get("/api/studio/editions/" + edition + "/chapters")).path("items").path(0);
         assertThat(third.path("label").asString()).as("the number from the file is kept").isEqualTo("31.1");
         assertThat(third.path("title").asString()).isEqualTo("Третя");
         assertThat(overview.path("author").asString()).as("an original work is signed by its author").isEqualTo(owner.nick());
@@ -196,6 +196,35 @@ class StudioFlowTests {
     }
 
     @Test
+    void theChaptersTabFiltersByWhatNeedsDoingAndCountsIt() {
+        long edition = createPublication(owner, "Вкладки", "original");
+        for (int n = 1; n <= 2; n++) {
+            owner.browser().post("/api/studio/editions/" + edition + "/chapters", "{}");
+            owner.browser().post(chapter(edition, n) + "/publish", text("Глава " + n, null, "Текст."));
+        }
+        owner.browser().post("/api/studio/editions/" + edition + "/chapters", "{}");
+        String chapters = "/api/studio/editions/" + edition + "/chapters";
+
+        JsonNode all = read(owner.browser().get(chapters));
+        assertThat(all.path("total").asInt()).isEqualTo(3);
+        assertThat(all.path("items")).as("the newest first by default").extracting(c -> c.path("number").asInt()).containsExactly(3, 2, 1);
+        assertThat(read(owner.browser().get(chapters + "?order=asc")).path("items")).extracting(c -> c.path("number").asInt())
+                .containsExactly(1, 2, 3);
+        JsonNode unpublished = read(owner.browser().get(chapters + "?filter=unpublished"));
+        assertThat(unpublished.path("items")).extracting(c -> c.path("number").asInt()).containsExactly(3);
+        assertThat(unpublished.path("total").asInt()).isEqualTo(1);
+        assertThat(read(owner.browser().get(chapters + "?filter=suggestions")).path("total").asInt()).isZero();
+
+        JsonNode overview = read(owner.browser().get("/api/studio/editions/" + edition));
+        assertThat(overview.path("pendingSuggestions").asInt()).isZero();
+        assertThat(overview.path("sourceChapters").isNull()).as("no original to count").isTrue();
+        JsonNode card = read(owner.browser().get("/api/studio")).valueStream()
+                .filter(item -> item.path("editionId").asLong() == edition).findFirst().orElseThrow();
+        assertThat(card.path("jobState").isNull()).isTrue();
+        assertThat(card.path("newWords").asInt()).isZero();
+    }
+
+    @Test
     void anEmptyChapterGoesAnyTimeAPublishedOneOnlyIfLast() {
         long edition = createPublication(owner, "Видалення", "original");
         for (int n = 1; n <= 2; n++) {
@@ -208,7 +237,7 @@ class StudioFlowTests {
         assertThat(owner.browser().delete(chapter(edition, 2)).status()).isEqualTo(200);
         JsonNode overview = read(owner.browser().get("/api/studio/editions/" + edition));
         assertThat(overview.path("chapterCount").asInt()).isEqualTo(1);
-        assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/chapters"))).extracting(c -> c.path("number").asInt())
+        assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/chapters")).path("items")).extracting(c -> c.path("number").asInt())
                 .containsExactly(1);
     }
 

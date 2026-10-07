@@ -20,7 +20,7 @@ export function RelayPage() {
 
     return (
         <section className={styles.page}>
-            <Link to="/studio/$editionId" params={{ editionId: String(id) }} className={styles.muted}>‹ До публікації</Link>
+            <Link to="/studio/$editionId/settings" params={{ editionId: String(id) }} className={styles.muted}>‹ Налаштування</Link>
             <h1 className={styles.title}>Естафета</h1>
             <p className={styles.muted}>
                 Інші команди можуть попросити продовжити ваш переклад. Якщо ви дозволите, вони почнуть з наступної глави,

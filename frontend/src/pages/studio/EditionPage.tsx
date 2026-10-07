@@ -1,139 +1,91 @@
-import { useCanRun } from '../../ledger/api';
-import { NewChapterSheet } from './NewChapterSheet';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
-import { Cover } from '../../reading/Cover';
-import { STATUS_LABELS, chapterHeading, chaptersWord, type Status } from '../../reading/api';
-import { ROLE_LABELS, studioApi } from '../../studio/api';
-import { suggestionApi } from '../../reading/suggestions';
+import { useCanRun } from '../../ledger/api';
+import { autotranslateApi } from '../../studio/autotranslate';
 import { Button } from '../../ui/Button';
 import { LinkButton } from '../../ui/LinkButton';
-import { Notice } from '../../ui/Notice';
-import { relativeTime } from '../../lib/dates';
-import { changes, characters, paragraphs } from '../../lib/plural';
-import { Collapsible } from '../../ui/Collapsible';
+import { JobCard } from './AutotranslatePage';
+import { EditionShell, editionTabs, useEditionOverview } from './EditionShell';
+import { NewChapterSheet } from './NewChapterSheet';
+import shell from './editionShell.module.css';
 import styles from './studio.module.css';
-import { askConfirm } from '../../ui/ask';
 
 export function useEditionId() {
     const { editionId } = useParams({ strict: false }) as { editionId: string };
     return Number(editionId);
 }
 
+/** «Огляд»: where the translation stands and what waits for the team, with the next steps at hand. */
 export function EditionPage() {
+    return (
+        <EditionShell tab="overview">
+            <OverviewTab />
+        </EditionShell>
+    );
+}
+
+function OverviewTab() {
     const id = useEditionId();
     const client = useQueryClient();
-    const overview = useQuery({ queryKey: ['studio-edition', id], queryFn: () => studioApi.overview(id) });
-    const [page, setPage] = useState(1);
-    const [adding, setAdding] = useState(false);
-    // Autotranslation and its glossary show only to those who can run it (шаги or the site owner).
+    const edition = useEditionOverview(id).data!;
     const canRun = useCanRun();
-    const chapters = useQuery({ meta: { errorToast: true }, queryKey: ['studio-chapters', id, page], queryFn: () => studioApi.chapters(id, page), placeholderData: (p) => p });
-    const remove = useMutation({
-        mutationFn: (number: number) => studioApi.deleteChapter(id, number),
-        onSuccess: () => {
-            void client.invalidateQueries({ queryKey: ['studio-chapters', id] });
-            void client.invalidateQueries({ queryKey: ['studio-edition', id] });
-        },
-    });
-    const contributions = useQuery({ queryKey: ['studio-contributions', id], queryFn: () => studioApi.contributions(id) });
-    const queue = useQuery({ queryKey: ['suggestion-queue', id], queryFn: () => suggestionApi.queue(id) });
-
-    if (overview.isError) return <Notice tone="error">{overview.error.message}</Notice>;
-    if (!overview.data) return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
-    const edition = overview.data;
+    const tabs = editionTabs(edition, canRun);
+    const [adding, setAdding] = useState(false);
     const translator = edition.role !== 'editor';
-    const owner = edition.role === 'owner';
+    const run = useQuery({
+        queryKey: ['autotranslate', id],
+        queryFn: () => autotranslateApi.overview(id),
+        enabled: tabs.translate,
+        refetchInterval: (query) => (['queued', 'running'].includes(query.state.data?.jobs[0]?.state ?? '') ? 5_000 : false),
+    });
+    const job = run.data?.jobs[0];
+    const working = job && (job.state === 'queued' || job.state === 'running' || job.state === 'failed');
     const params = { editionId: String(id) };
+    const attention = [
+        { count: edition.pendingSuggestions, label: 'Правки на перевірку', to: '/studio/$editionId/suggestions', hot: true },
+        ...(tabs.words ? [{ count: edition.newWords, label: 'Нові слова в словнику', to: '/studio/$editionId/glossary', hot: false }] : []),
+        { count: edition.drafts, label: 'Ваші чернетки глав', to: '/studio/$editionId/chapters', hot: false },
+    ].filter((row) => row.count > 0);
 
     return (
-        <section className={styles.page}>
-            <div className={styles.head}>
-                <Cover url={edition.coverUrl} title={edition.title} seed={edition.novelSlug} width={72} />
-                <div className={styles.grow}>
-                    <h1 className={styles.title}>{edition.title}</h1>
-                    <p className={styles.muted}>
-                        ${edition.teamHandle} · ви {ROLE_LABELS[edition.role]} · {STATUS_LABELS[edition.status as Status]}
-                    </p>
-                    <p className={styles.muted}>{edition.chapterCount} {chaptersWord(edition.chapterCount)} опубліковано</p>
-                </div>
+        <div className={styles.overview}>
+            <div className={styles.stats}>
+                <div className={styles.stat}><b>{edition.chapterCount}</b><span>опубліковано</span></div>
+                {edition.sourceChapters !== null && <div className={styles.stat}><b>{edition.sourceChapters}</b><span>в оригіналі</span></div>}
+                <div className={styles.stat}><b>{edition.pendingSuggestions}</b><span>правок</span></div>
+            </div>
+
+            {working && run.data && (
+                <JobCard job={job} editionId={id} showShah={run.data.showShah} usdPerShah={run.data.usdPerShah}
+                    title={<Link to="/studio/$editionId/translate" params={params} className={styles.processTitle}>Автопереклад</Link>}
+                    refreshed={{ at: Math.max(run.dataUpdatedAt, run.errorUpdatedAt), failed: run.isRefetchError }}
+                    onCancel={() => void autotranslateApi.cancel(id, job.id).then(() => client.invalidateQueries({ queryKey: ['autotranslate', id] }))}
+                    onResume={() => void autotranslateApi.resume(id, job.id).then(() => client.invalidateQueries({ queryKey: ['autotranslate', id] }))}
+                    pending={false} />
+            )}
+
+            <div className={styles.attention}>
+                <h2 className={styles.sectionTitle} style={{ margin: 0 }}>Потребує уваги</h2>
+                {attention.length === 0 && <p className={shell.muted}>Усе переглянуто.</p>}
+                {attention.map((row) => (
+                    <Link key={row.label} to={row.to} params={params} className={styles.menuItem}>
+                        <span>{row.label}</span>
+                        <span className={`${styles.badge} ${row.hot ? styles.badgeOn : ''}`}>{row.count}</span>
+                    </Link>
+                ))}
             </div>
 
             <div className={styles.actions}>
-                {translator && <Button onPress={() => setAdding(true)}>Нова глава</Button>}
-                {edition.chapterCount > 0 && <LinkButton to="/n/$slug" params={{ slug: edition.novelSlug }} search={{ t: edition.teamHandle }} variant="secondary">Як бачать читачі</LinkButton>}
+                {translator && <Button onPress={() => setAdding(true)}><Plus size={18} aria-hidden />Нова глава</Button>}
+                {edition.chapterCount > 0 && (
+                    <LinkButton to="/n/$slug" params={{ slug: edition.novelSlug }} search={{ t: edition.teamHandle }} variant="secondary">
+                        Як бачать читачі
+                    </LinkButton>
+                )}
             </div>
-            {adding && <NewChapterSheet editionId={id} machine={canRun && (edition.kind === 'machine' || edition.kind === 'mixed')} onClose={() => setAdding(false)} />}
-
-            <nav className={`${styles.menu} ${styles.editionMenu}`} aria-label="Керування">
-                {owner && <Link to="/studio/$editionId/about" params={params} className={styles.menuItem}>Дані й обкладинка</Link>}
-                <Link to="/team/$handle" params={{ handle: edition.teamHandle }} className={styles.menuItem}>Команда ${edition.teamHandle}</Link>
-                {canRun && translator && edition.kind === 'machine' && <Link to="/studio/$editionId/translate" params={params} className={styles.menuItem}>Автопереклад</Link>}
-                {translator && <Link to="/studio/$editionId/structure" params={params} className={styles.menuItem}>Структура й томи</Link>}
-                {canRun && edition.kind === 'machine' && <Link to="/studio/$editionId/glossary" params={params} className={styles.menuItem}>Словник</Link>}
-                {canRun && edition.kind === 'machine' && <Link to="/studio/$editionId/titles" params={params} className={styles.menuItem}>Назви глав</Link>}
-                {owner && edition.kind !== 'original' && <Link to="/studio/$editionId/relay" params={params} className={styles.menuItem}>Естафета</Link>}
-            </nav>
-
-            {(queue.data?.length ?? 0) > 0 && (
-                <>
-                    <h2 className={styles.sectionTitle}>Правки на перевірку</h2>
-                    {queue.data!.map((row) => (
-                        <Link key={row.number} className={styles.row} to="/n/$slug/$number"
-                            params={{ slug: edition.novelSlug, number: String(row.number) }} search={{ t: edition.teamHandle, look: true }}>
-                            <div className={styles.grow}>{chapterHeading(row)}</div>
-                            <span className={`${styles.badge} ${styles.badgeOn}`}>{row.pending}</span>
-                        </Link>
-                    ))}
-                </>
-            )}
-
-            <Collapsible id="studio-chapters" title="Останні глави">
-            {chapters.data?.length === 0 && <p className={styles.muted}>Глав ще немає.</p>}
-            {remove.isError && <Notice tone="error">{remove.error.message}</Notice>}
-            {chapters.data?.map((chapter) => (
-                <div key={chapter.number} className={styles.row}>
-                    <Link className={`${styles.grow} ${styles.rowLink}`}
-                        to="/studio/$editionId/chapters/$number" params={{ editionId: String(id), number: String(chapter.number) }}>
-                        <div className={styles.ellipsis}>{chapterHeading(chapter)}</div>
-                        <div className={styles.muted}>{relativeTime(new Date(chapter.updatedAt))}</div>
-                    </Link>
-                    {!chapter.published && <span className={styles.badge}>не опубліковано</span>}
-                    {chapter.hasMyDraft && <span className={`${styles.badge} ${styles.badgeOn}`}>чернетка</span>}
-                    {translator && !chapter.published && (
-                        <button type="button" className={styles.iconButton} aria-label={`Видалити главу ${chapter.number}`}
-                            onClick={() => void askConfirm({ title: 'Видалити главу?', text: 'Вона ще не опублікована.', confirmLabel: 'Видалити', danger: true })
-                                .then((yes) => { if (yes) remove.mutate(chapter.number); })}>
-                            <Trash2 size={18} aria-hidden />
-                        </button>
-                    )}
-                </div>
-            ))}
-            {(page > 1 || chapters.data?.length === 20) && (
-                <div className={styles.actions}>
-                    {page > 1 && <Button variant="secondary" onPress={() => setPage(page - 1)}>← Новіші</Button>}
-                    {chapters.data?.length === 20 && <Button variant="secondary" onPress={() => setPage(page + 1)}>Давніші →</Button>}
-                </div>
-            )}
-            </Collapsible>
-
-            {(contributions.data?.length ?? 0) > 0 && (
-                <>
-                    <h2 className={styles.sectionTitle}>Внесок</h2>
-                    <table className={styles.table}>
-                        <tbody>
-                            {contributions.data!.map((row) => (
-                                <tr key={row.nick}>
-                                    <td>{row.nick}</td>
-                                    <td>{changes(row.revisions)} · {paragraphs(row.blocksChanged)} · {characters(row.charsChanged)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </>
-            )}
-        </section>
+            {adding && <NewChapterSheet editionId={id} machine={tabs.translate} onClose={() => setAdding(false)} />}
+        </div>
     );
 }

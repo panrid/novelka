@@ -30,11 +30,15 @@ const FAILED_JOB = {
     error: 'Відповідь моделі загубилася дорогою. Перевірте баланс і натисніть «Продовжити».', createdAt: '2026-09-25T08:00:00Z', finishedAt: null,
 };
 
+const EDITION4 = { editionId: 4, novelSlug: 'mah-vody', title: 'Маг води', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 3, ownNovel: false, teamHandle: 'panrid', teamName: 'panrid', role: 'owner',
+    sourceChapters: 50, pendingSuggestions: 0, drafts: 0, newWords: 0, originalUrl: null };
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe('glossary word in the chapters', () => {
     it('offers to change the old form in the translated chapters after an edit', async () => {
         const { calls } = await renderAt('/studio/4/glossary', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/4/glossary': { body: { items: [{ id: 2, ukrainian: 'Рьо', kind: 'character', gender: 'male', note: null, chapter: 1, manual: false, status: 'approved' }],
                 total: 1, page: 1, hasMore: false, chapters: [1], labels: { 1: '0' }, counts: { new: 0, approved: 1, rejected: 0 } } },
@@ -63,7 +67,7 @@ describe('a character\'s gender changed', () => {
                 total: 1, page: 1, hasMore: false, chapters: [1], labels: { 1: '1' }, counts: { new: 0, approved: 1, rejected: 0 } } },
             'PUT /api/studio/editions/4/glossary/2': { status: 200 },
             'GET /api/studio/editions/4/glossary/2/occurrences': { body: { form: 'Сашко', total: 2, chapters: [{ number: 1, label: '1', title: 'Сніг', count: 2, snippets: ['Сашко пішов…'] }] } },
-            'GET /api/studio/editions/4': { body: { editionId: 4, novelSlug: 'mah-vody', title: 'Маг води', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 3, ownNovel: false, teamHandle: 'panrid', teamName: 'panrid', role: 'owner' } },
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'POST /api/studio/editions/4/glossary/2/regender': { body: { paragraphs: 1, chapters: 1 } },
         });
         await userEvent.click(await screen.findByRole('button', { name: /^Сашко/ }));
@@ -80,6 +84,7 @@ describe('a character\'s gender changed', () => {
 describe('autotranslate', () => {
     it('waits until the number is typed, then shows the price and starts', async () => {
         const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/4/autotranslate': { body: OVERVIEW },
             'POST /api/studio/editions/4/autotranslate/quote': (body) => ({ body: quote({ to: (body as { to: number }).to }) }),
@@ -98,6 +103,7 @@ describe('autotranslate', () => {
 
     it('picks a ready set of models by its judged result and price', async () => {
         const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/4/autotranslate': { body: OVERVIEW },
             'POST /api/studio/editions/4/autotranslate/quote': { body: quote() },
@@ -128,6 +134,7 @@ describe('autotranslate', () => {
         const running = { ...FAILED_JOB, id: 10, state: 'running', from: 51, to: 60, done: 0, error: null,
             current: { number: 51, stage: 'translate', state: 'running', error: null, part: 2, parts: 7, progress: 0.27 } };
         await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/4/autotranslate': { body: { ...OVERVIEW, jobs: [running] } },
         });
@@ -139,6 +146,7 @@ describe('autotranslate', () => {
 
     it('says under the field that earlier chapters are done, without asking the server', async () => {
         const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/4/autotranslate': { body: OVERVIEW },
         });
@@ -152,6 +160,7 @@ describe('autotranslate', () => {
 
     it('redoes chapters with another model from the advanced settings', async () => {
         const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/4/autotranslate': { body: OVERVIEW },
             'GET /api/studio/autotranslate/models': { body: [{ id: 'fake/better', name: 'Better', inputPerMillion: 2, outputPerMillion: 8, chapterUsd: 0.21, rating: 'recommended' }] },
@@ -185,6 +194,7 @@ describe('autotranslate', () => {
 
     it('speaks dollars when the owner switched шаги off', async () => {
         await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'GET /api/me': { body: { ...OWNER, showShah: false } },
             'GET /api/studio/editions/4/autotranslate': { body: { ...OVERVIEW, showShah: false } },
             'POST /api/studio/editions/4/autotranslate/quote': { body: quote({ kind: 'analyze', from: 21, to: 23 }) },
@@ -196,6 +206,7 @@ describe('autotranslate', () => {
 
     it('explains a stopped job and lets the owner continue it', async () => {
         const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/4/autotranslate': { body: { ...OVERVIEW, jobs: [FAILED_JOB] } },
             'POST /api/studio/editions/4/autotranslate/jobs/9/resume': { status: 204 },
@@ -213,6 +224,7 @@ describe('autotranslate', () => {
         const running = { ...FAILED_JOB, state: 'running', error: null,
             current: { number: 2, stage: 'translate', state: 'running', error: null, part: 1, parts: 4, progress: 0.3 } };
         const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/4/autotranslate': { body: { ...OVERVIEW, jobs: [running] } },
             'POST /api/studio/editions/4/autotranslate/jobs/9/cancel': { status: 204 },
@@ -226,6 +238,7 @@ describe('autotranslate', () => {
 
     it('offers to take up the novel\'s last cancelled run again', async () => {
         const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/4/autotranslate': { body: { ...OVERVIEW, jobs: [{ ...FAILED_JOB, state: 'cancelled', error: null }] } },
             'POST /api/studio/editions/4/autotranslate/jobs/9/resume': { status: 204 },
@@ -240,11 +253,12 @@ describe('autotranslate', () => {
             'GET /api/me/teams': { body: [{ handle: 'mavka', name: 'Мавка', role: 'owner' }] },
             'POST /api/studio/autotranslate/prepare': { body: { editionId: 12, novelSlug: 'likhtarnyk' } },
             'GET /api/studio/editions/12/autotranslate': { body: OVERVIEW },
+            'GET /api/studio/editions/12': { body: { ...EDITION4, editionId: 12, novelSlug: 'likhtarnyk' } },
         });
         await userEvent.click(await screen.findByRole('button', { name: /Автопереклад із Syosetu/ }));
         await userEvent.type(screen.getByLabelText('Посилання на новелу'), 'https://ncode.syosetu.com/n0022gd/');
         await userEvent.click(screen.getByRole('button', { name: 'Підготувати' }));
-        expect(await screen.findByRole('heading', { name: 'Автопереклад' })).toBeInTheDocument();
+        expect(await screen.findByRole('link', { name: 'Автопереклад' })).toHaveAttribute('aria-current', 'page');
         expect(router.state.location.pathname).toBe('/studio/12/translate');
     });
 });
@@ -259,6 +273,7 @@ describe('glossary', () => {
 
     it('filters by chapter and approves the selected entries', async () => {
         const { calls } = await renderAt('/studio/4/glossary', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/4/glossary': { body: page([entry(1, 'Абель'), entry(2, 'Рьо')]) },
             'POST /api/studio/editions/4/glossary/status': { body: { changed: 1 } },
@@ -285,7 +300,7 @@ describe('glossary', () => {
                 { number: 1, label: '0', title: 'Пролог', count: 2, snippets: ['…Рьо прокинувся…'] },
                 { number: 3, label: '2', title: 'Ліс', count: 1, snippets: [] },
             ] } },
-            'GET /api/studio/editions/4': { body: { editionId: 4, novelSlug: 'mah-vody', title: 'Маг води', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 3, ownNovel: false, teamHandle: 'panrid', teamName: 'panrid', role: 'owner' } },
+            'GET /api/studio/editions/4': { body: EDITION4 },
             'GET /api/studio/editions/4/glossary/2/original': { body: {
                 language: 'ja', original: 'リョウ', reading: 'りょう', aliases: [], others: [{ language: 'en', original: 'Ryo' }],
                 sourceChapter: 1, snippet: '…リョウは目を開けた…',

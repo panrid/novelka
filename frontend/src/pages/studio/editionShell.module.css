@@ -1,0 +1,133 @@
+.page {
+    max-width: 920px;
+    padding-top: 12px;
+}
+
+.head {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.back {
+    align-self: flex-start;
+    color: var(--muted);
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.name {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.grow {
+    flex: 1;
+    min-width: 0;
+}
+
+.title {
+    margin: 0;
+    font: 600 22px/1.2 var(--font-reading);
+    overflow-wrap: anywhere;
+}
+
+.muted {
+    margin: 2px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+/* One row that scrolls sideways on a phone instead of wrapping into a second menu. */
+.tabs {
+    display: flex;
+    gap: 6px;
+    margin: 12px calc(-1 * var(--gutter)) 0;
+    padding: 0 var(--gutter) 10px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--line);
+    scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.tab,
+.tabOn {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 14px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.tabOn {
+    background: var(--surface-2);
+    color: var(--text);
+    font-weight: 600;
+}
+
+.tab:focus-visible,
+.tabOn:focus-visible {
+    outline: 2px solid var(--focus);
+}
+
+.count {
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.tabOn .count {
+    background: var(--surface);
+}
+
+.body {
+    padding-top: 14px;
+}
+
+@media (min-width: 768px) {
+    .tabs {
+        margin: 14px 0 0;
+        padding: 0 0 12px;
+        flex-wrap: wrap;
+    }
+}
+
+.switch {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.switchItem,
+.switchOn {
+    flex: 1;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.switchOn {
+    border-color: var(--surface-2);
+    background: var(--surface-2);
+    color: var(--text);
+    font-weight: 600;
+}

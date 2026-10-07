@@ -24,6 +24,9 @@ import { chapterQuery, novelQuery } from '../reading/queries';
 import { AboutPage } from '../pages/studio/AboutPage';
 import { ChapterEditorPage } from '../pages/studio/ChapterEditorPage';
 import { EditionPage } from '../pages/studio/EditionPage';
+import { ChaptersPage } from '../pages/studio/ChaptersPage';
+import { SuggestionQueuePage } from '../pages/studio/SuggestionQueuePage';
+import { EditionSettingsPage } from '../pages/studio/EditionSettingsPage';
 import { HistoryPage } from '../pages/studio/HistoryPage';
 import { ImportPage } from '../pages/studio/ImportPage';
 import { NewPublication } from '../pages/studio/NewPublication';
@@ -153,6 +156,9 @@ const routeTree = rootRoute.addChildren([
     studio('/studio/new', NewPublication, 'Нова публікація'),
     studio('/studio/teams', MyTeamsPage, 'Мої команди'),
     studio('/studio/$editionId', EditionPage, 'Студія'),
+    studio('/studio/$editionId/chapters', ChaptersPage, 'Глави'),
+    studio('/studio/$editionId/suggestions', SuggestionQueuePage, 'Правки'),
+    studio('/studio/$editionId/settings', EditionSettingsPage, 'Налаштування перекладу'),
     studio('/studio/$editionId/about', AboutPage, 'Дані й обкладинка'),
     studio('/studio/$editionId/import', ImportPage, 'Глави з файлу'),
     studio('/studio/$editionId/relay', RelayPage, 'Естафета'),

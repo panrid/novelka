@@ -66,7 +66,13 @@ public interface Chapters {
     long publishFromSuggestions(long editionId, int number, String title, List<Block> blocks, long baseRevisionId,
             long reviewerId, java.util.Map<Long, ChangeStats> credits);
 
-    List<StudioChapter> studioChapters(long editionId, long accountId, int page, int size);
+    /**
+     * The team's chapters, a page at a time.
+     *
+     * @param filter «suggestions» (with readers' suggestions waiting), «drafts» (the person's drafts),
+     *               «unpublished»; anything else: all
+     */
+    EditorModels.StudioChapters studioChapters(long editionId, long accountId, String filter, boolean oldestFirst, int page, int size);
 
     List<RevisionInfo> revisions(long editionId, int number);
 

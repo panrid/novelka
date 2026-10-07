@@ -13,6 +13,9 @@ const EDITOR = {
     blocks: [{ id: 'b1', type: 'paragraph', content: [{ text: 'Ліхтарі спалахнули.', marks: [] }], imageId: null, imageUrl: null }],
 };
 
+const COUNTS = { sourceChapters: null, pendingSuggestions: 0, drafts: 0, newWords: 0, originalUrl: null };
+const NO_CHAPTERS = { items: [], total: 0, page: 1, hasMore: false };
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe('chapter editor', () => {
@@ -112,8 +115,8 @@ describe('new publication', () => {
             'GET /api/me': { body: ME },
             'GET /api/me/teams': { body: [{ handle: 'mika', name: 'mika', role: 'owner' }] },
             'POST /api/studio/editions': { status: 201, body: { editionId: 12, novelSlug: 'sto-nochei' } },
-            'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'sto-nochei', title: 'Сто ночей', author: '', description: [], tags: [], kind: 'human', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: true, teamHandle: 'mika', teamName: 'mika', role: 'owner' } },
-            'GET /api/studio/editions/12/chapters': { body: [] },
+            'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'sto-nochei', title: 'Сто ночей', author: '', description: [], tags: [], kind: 'human', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: true, teamHandle: 'mika', teamName: 'mika', role: 'owner', ...COUNTS } },
+            'GET /api/studio/editions/12/chapters': { body: NO_CHAPTERS },
             'GET /api/studio/editions/12/contributions': { body: [] },
             'GET /api/tags/groups': { body: [
                 { name: 'Жанр', tags: [{ name: 'Фентезі', slug: 'фентезі', novels: 3 }, { name: 'Жахи', slug: 'жахи', novels: 0 }] },
@@ -141,8 +144,8 @@ describe('machine translation', () => {
         await renderAt('/studio/12', {
             'GET /api/me': { body: ME },
             'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
-            'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner' } },
-            'GET /api/studio/editions/12/chapters': { body: [] },
+            'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner', ...COUNTS } },
+            'GET /api/studio/editions/12/chapters': { body: NO_CHAPTERS },
             'GET /api/studio/editions/12/contributions': { body: [] },
         });
 
@@ -156,8 +159,8 @@ describe('without шаги', () => {
         await renderAt('/studio/12', {
             'GET /api/me': { body: ME },
             'GET /api/me/shahs': { body: { available: 0, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
-            'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner' } },
-            'GET /api/studio/editions/12/chapters': { body: [] },
+            'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner', ...COUNTS } },
+            'GET /api/studio/editions/12/chapters': { body: NO_CHAPTERS },
             'GET /api/studio/editions/12/contributions': { body: [] },
         });
         await userEvent.click(await screen.findByRole('button', { name: 'Нова глава' }));
@@ -169,35 +172,37 @@ describe('without шаги', () => {
 });
 
 describe('studio side menu', () => {
-    it('lists the translations and the open one\'s sections', async () => {
+    it('lists the translations, and the open one has its sections as tabs', async () => {
         await renderAt('/studio/12', {
             'GET /api/me': { body: ME },
             'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
             'GET /api/studio': { body: [
                 { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', coverUrl: null, kind: 'machine', status: 'ongoing', chapterCount: 2,
-                    teamHandle: 'mika', teamName: 'mika', role: 'owner', drafts: 0, pendingSuggestions: 3 },
+                    teamHandle: 'mika', teamName: 'mika', role: 'owner', drafts: 0, pendingSuggestions: 3, newWords: 0, jobState: null, jobChapter: null },
                 { editionId: 14, novelSlug: 'sto-nochei', title: 'Сто ночей', coverUrl: null, kind: 'human', status: 'ongoing', chapterCount: 1,
-                    teamHandle: 'mika', teamName: 'mika', role: 'owner', drafts: 0, pendingSuggestions: 0 },
+                    teamHandle: 'mika', teamName: 'mika', role: 'owner', drafts: 0, pendingSuggestions: 0, newWords: 0, jobState: 'running', jobChapter: 2 },
             ] },
-            'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 2, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner' } },
-            'GET /api/studio/editions/12/chapters': { body: [] },
-            'GET /api/studio/editions/12/contributions': { body: [] },
+            'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 2, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner', ...COUNTS, pendingSuggestions: 3, newWords: 4 } },
+            'GET /api/studio/editions/12/autotranslate': { body: { jobs: [] } },
         });
         const rail = await screen.findByRole('navigation', { name: 'Студія' });
         expect(await within(rail).findByRole('link', { name: /Сто ночей/ })).toHaveAttribute('href', '/studio/14');
         expect(within(rail).getByRole('link', { name: /Лиходійка/ })).toHaveTextContent('3');
-        expect(within(rail).getByRole('link', { name: 'Словник' })).toHaveAttribute('href', '/studio/12/glossary');
-        expect(within(rail).getByRole('link', { name: 'Глави' })).toHaveAttribute('href', '/studio/12');
+        const tabs = screen.getByRole('navigation', { name: 'Розділи перекладу' });
+        expect(within(tabs).getByRole('link', { name: 'Словник4' })).toHaveAttribute('href', '/studio/12/glossary');
+        expect(within(tabs).getByRole('link', { name: 'Глави' })).toHaveAttribute('href', '/studio/12/chapters');
+        expect(within(tabs).getByRole('link', { name: 'Огляд' })).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByRole('link', { name: /Правки на перевірку/ })).toHaveAttribute('href', '/studio/12/suggestions');
     });
 });
 
 describe('new chapter', () => {
-    const EDITION = (kind: string) => ({ editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind, status: 'ongoing', adult: false, coverUrl: null, chapterCount: 2, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner' });
+    const EDITION = (kind: string) => ({ editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind, status: 'ongoing', adult: false, coverUrl: null, chapterCount: 2, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner', ...COUNTS });
     const base = (kind: string) => ({
         'GET /api/me': { body: ME },
         'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
         'GET /api/studio/editions/12': { body: EDITION(kind) },
-        'GET /api/studio/editions/12/chapters': { body: [] },
+        'GET /api/studio/editions/12/chapters': { body: NO_CHAPTERS },
         'GET /api/studio/editions/12/contributions': { body: [] },
     });
 
@@ -206,7 +211,8 @@ describe('new chapter', () => {
             ...base('machine'),
             'GET /api/studio/editions/12/autotranslate': { body: {
                 configured: true, showShah: true, sourceChapters: 10, nextNumber: 3, publishedChapters: 2, lastAnalyzed: 2, nextToAnalyze: 3,
-                averageChars: 5000, balance: null, usdPerShah: 0.07, settings: {}, jobs: [], personal: true, reserved: 0,
+                averageChars: 5000, balance: null, usdPerShah: 0.07, jobs: [], personal: true, reserved: 0, presets: [],
+                settings: Object.fromEntries(['analyze', 'translate', 'proofread'].map((stage) => [stage, { model: 'a/b', inputPerMillion: 1, outputPerMillion: 1, enabled: true }])),
             } },
             'POST /api/studio/editions/12/autotranslate/quote': { body: {
                 kind: 'translate', from: 3, to: 5, chapters: 3, skipped: 0, shah: 3, usd: 0.2, expectedUsd: 0.1, estimated: true, unanalyzed: 3,
@@ -216,6 +222,7 @@ describe('new chapter', () => {
         await userEvent.click(await screen.findByRole('button', { name: 'Нова глава' }));
         expect(screen.getByRole('radio', { name: /Автопереклад/ })).toHaveAttribute('aria-checked', 'true');
         await userEvent.type(await screen.findByLabelText('Перекласти з глави 3 до глави…'), '5');
+        await waitFor(() => expect(calls.some((call) => call.path.endsWith('/quote') && (call.body as { to: number }).to === 5)).toBe(true));
         await userEvent.click(await screen.findByRole('button', { name: 'Перекласти глави 3–5' }));
         await waitFor(() => expect(router.state.location.pathname).toBe('/studio/12/translate'));
         expect(calls.find((call) => call.path.endsWith('/autotranslate/jobs'))?.body).toEqual({ kind: 'translate', to: 5 });

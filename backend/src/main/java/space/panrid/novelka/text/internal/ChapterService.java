@@ -326,17 +326,31 @@ class ChapterService implements Chapters {
     }
 
     @Override
-    public List<StudioChapter> studioChapters(long editionId, long accountId, int page, int size) {
+    public EditorModels.StudioChapters studioChapters(long editionId, long accountId, String filter, boolean oldestFirst, int page,
+            int size) {
         var hasDraft = DSL.exists(DSL.selectOne().from(EDITOR_DRAFT)
                 .where(EDITOR_DRAFT.CHAPTER_ID.eq(CHAPTER.ID).and(EDITOR_DRAFT.ACCOUNT_ID.eq(accountId))));
-        return db.select(CHAPTER.NUMBER, REVISION.TITLE, CHAPTER.PUBLISHED_REVISION_ID, DSL.field(hasDraft), CHAPTER.UPDATED_AT,
-                        CHAPTER.LABEL)
+        var pending = DSL.field(DSL.selectCount().from(SUGGESTION)
+                .where(SUGGESTION.CHAPTER_ID.eq(CHAPTER.ID), SUGGESTION.STATE.eq("pending")));
+        org.jooq.Condition where = CHAPTER.EDITION_ID.eq(editionId);
+        where = switch (filter == null ? "" : filter) {
+            case "suggestions" -> where.and(DSL.exists(DSL.selectOne().from(SUGGESTION)
+                    .where(SUGGESTION.CHAPTER_ID.eq(CHAPTER.ID), SUGGESTION.STATE.eq("pending"))));
+            case "drafts" -> where.and(hasDraft);
+            case "unpublished" -> where.and(CHAPTER.PUBLISHED_REVISION_ID.isNull());
+            default -> where;
+        };
+        int at = Math.max(1, page);
+        int total = db.fetchCount(CHAPTER, where);
+        List<StudioChapter> items = db.select(CHAPTER.NUMBER, REVISION.TITLE, CHAPTER.PUBLISHED_REVISION_ID, DSL.field(hasDraft),
+                        CHAPTER.UPDATED_AT, CHAPTER.LABEL, pending)
                 .from(CHAPTER).leftJoin(REVISION).on(REVISION.ID.eq(CHAPTER.PUBLISHED_REVISION_ID))
-                .where(CHAPTER.EDITION_ID.eq(editionId))
-                .orderBy(CHAPTER.NUMBER.desc())
-                .limit(size).offset((page - 1) * size)
+                .where(where)
+                .orderBy(oldestFirst ? CHAPTER.NUMBER.asc() : CHAPTER.NUMBER.desc())
+                .limit(size).offset((at - 1) * size)
                 .fetch(r -> new StudioChapter(r.value1(), r.value2() == null ? "" : r.value2(), r.value3() != null,
-                        r.value4(), r.value5(), r.value6()));
+                        r.value4(), r.value5(), r.value6(), r.value7()));
+        return new EditorModels.StudioChapters(items, total, at, at * size < total);
     }
 
     @Override

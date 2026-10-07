@@ -3,7 +3,10 @@ package space.panrid.novelka.studio.internal;
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITOR_DRAFT;
+import static space.panrid.novelka.jooq.Tables.GLOSSARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.IMAGE;
+import static space.panrid.novelka.jooq.Tables.JOB;
+import static space.panrid.novelka.jooq.Tables.JOB_STEP;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.SOURCE_CHAPTER;
 import static space.panrid.novelka.jooq.Tables.SUGGESTION;
@@ -67,8 +70,14 @@ class StudioController {
 
     // ---- request and response shapes -------------------------------------------------------
 
+    /**
+     * @param newWords   glossary entries analysis added and nobody checked yet
+     * @param jobState   the translation's unfinished autotranslation run (queued, running, failed), or null
+     * @param jobChapter the chapter that run is at
+     */
     record MyEdition(long editionId, String novelSlug, String title, String coverUrl, String kind, String status,
-            int chapterCount, String teamHandle, String teamName, String role, int drafts, int pendingSuggestions) {
+            int chapterCount, String teamHandle, String teamName, String role, int drafts, int pendingSuggestions,
+            int newWords, String jobState, Integer jobChapter) {
     }
 
     record CreateRequest(String kind, String title, String author, List<Block> description, List<String> tags,
@@ -78,9 +87,17 @@ class StudioController {
     record Created(long editionId, String novelSlug) {
     }
 
+    /**
+     * What the translation's page shows at the top: its data, and what waits for the team.
+     *
+     * @param sourceChapters chapters the original has, when the site reads it; null otherwise
+     * @param drafts         the viewer's own drafts
+     * @param originalUrl    the original's page, when known
+     */
     record Overview(long editionId, String novelSlug, String title, String author, List<StudioBlock> description,
             List<String> tags, String kind, String status, boolean adult, String coverUrl, int chapterCount,
-            boolean ownNovel, String teamHandle, String teamName, String role) {
+            boolean ownNovel, String teamHandle, String teamName, String role, Integer sourceChapters, int pendingSuggestions,
+            int drafts, int newWords, String originalUrl) {
     }
 
     record UpdateRequest(String title, String author, List<Block> description, List<String> tags, String status,
@@ -168,18 +185,38 @@ class StudioController {
         // Readers' suggestions waiting for the team: shown on the Studio tab and next to the translation.
         var pending = DSL.select(DSL.count()).from(SUGGESTION).join(CHAPTER).on(CHAPTER.ID.eq(SUGGESTION.CHAPTER_ID))
                 .where(CHAPTER.EDITION_ID.eq(EDITION.ID).and(SUGGESTION.STATE.eq("pending"))).<Integer>asField("pending");
+        var words = DSL.select(DSL.count()).from(GLOSSARY_ENTRY)
+                .where(GLOSSARY_ENTRY.NOVEL_ID.eq(NOVEL.ID).and(GLOSSARY_ENTRY.STATUS.eq("new"))).<Integer>asField("words");
         var rows = db.select(EDITION.ID, NOVEL.SLUG, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), EDITION.COVER_IMAGE_ID,
-                        EDITION.KIND, EDITION.STATUS, EDITION.CHAPTER_COUNT, TEAM.ID, drafts, pending)
+                        EDITION.KIND, EDITION.STATUS, EDITION.CHAPTER_COUNT, TEAM.ID, drafts, pending, words)
                 .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
                 .where(TEAM.OWNER_ID.eq(viewer.accountId()).or(TEAM.ID.in(member)))
                 .orderBy(DSL.greatest(EDITION.CREATED_AT, DSL.coalesce(EDITION.LAST_PUBLISHED_AT, EDITION.CREATED_AT)).desc())
                 .fetch();
         Map<Long, StoredImage> covers = images.findAll(rows.map(r -> r.value4()));
+        // Unfinished autotranslation runs: the newest per translation, and the chapter it is at.
+        record Run(long id, String state) {
+        }
+        Map<Long, Run> jobs = new java.util.HashMap<>();
+        db.select(JOB.EDITION_ID, JOB.STATE, JOB.ID).from(JOB)
+                .where(JOB.EDITION_ID.in(rows.map(r -> r.value1())), JOB.STATE.in("queued", "running", "failed"))
+                .orderBy(JOB.ID.desc())
+                .forEach(r -> jobs.putIfAbsent(r.value1(), new Run(r.value3(), r.value2())));
+        Map<Long, Integer> at = new java.util.HashMap<>();
+        for (var job : jobs.entrySet()) {
+            Integer chapter = db.select(DSL.min(JOB_STEP.CHAPTER_NUMBER)).from(JOB_STEP)
+                    .where(JOB_STEP.JOB_ID.eq(job.getValue().id()), JOB_STEP.STATE.ne("done")).fetchOne(0, Integer.class);
+            if (chapter != null) {
+                at.put(job.getKey(), chapter);
+            }
+        }
         return rows.map(r -> {
             TeamInfo team = teams.find(r.value8()).orElseThrow();
             TeamRole role = teams.roleOf(r.value8(), viewer.accountId()).orElseThrow();
+            var job = jobs.get(r.value1());
             return new MyEdition(r.value1(), r.value2(), r.value3(), cover(covers, r.value4()), r.value5(), r.value6(),
-                    r.value7(), team.handle(), team.name(), role.code(), r.value9(), r.value10());
+                    r.value7(), team.handle(), team.name(), role.code(), r.value9(), r.value10(), r.value11(),
+                    job == null ? null : job.state(), at.get(r.value1()));
         });
     }
 
@@ -209,10 +246,19 @@ class StudioController {
         EditionAccess who = access.requireTextEditor(editionId);
         EditionData data = catalog.edition(editionId).orElseThrow();
         TeamInfo team = teams.find(data.teamId()).orElseThrow();
+        var novel = db.select(NOVEL.ID, NOVEL.SOURCE_URL).from(NOVEL).join(EDITION).on(EDITION.NOVEL_ID.eq(NOVEL.ID))
+                .where(EDITION.ID.eq(editionId)).fetchSingle();
+        int sources = db.fetchCount(SOURCE_CHAPTER, SOURCE_CHAPTER.NOVEL_ID.eq(novel.value1()));
+        int pending = db.fetchCount(SUGGESTION.join(CHAPTER).on(CHAPTER.ID.eq(SUGGESTION.CHAPTER_ID)),
+                CHAPTER.EDITION_ID.eq(editionId).and(SUGGESTION.STATE.eq("pending")));
+        int drafts = db.fetchCount(EDITOR_DRAFT.join(CHAPTER).on(CHAPTER.ID.eq(EDITOR_DRAFT.CHAPTER_ID)),
+                CHAPTER.EDITION_ID.eq(editionId).and(EDITOR_DRAFT.ACCOUNT_ID.eq(who.viewer().accountId())));
+        int words = db.fetchCount(GLOSSARY_ENTRY, GLOSSARY_ENTRY.NOVEL_ID.eq(novel.value1()).and(GLOSSARY_ENTRY.STATUS.eq("new")));
         return new Overview(editionId, data.novelSlug(), data.title(), data.author(), studioBlocks(data.description()),
                 data.tags(), data.kind(), data.status(), data.adult(),
                 data.coverImageId() == null ? null : images.find(data.coverImageId()).map(image -> image.url(480)).orElse(null),
-                data.chapterCount(), data.ownNovel(), team.handle(), team.name(), who.role().code());
+                data.chapterCount(), data.ownNovel(), team.handle(), team.name(), who.role().code(), sources == 0 ? null : sources,
+                pending, drafts, words, novel.value2());
     }
 
     @PatchMapping("/editions/{editionId}")
@@ -262,9 +308,10 @@ class StudioController {
     // ---- chapters and the editor -------------------------------------------------------------
 
     @GetMapping("/editions/{editionId}/chapters")
-    List<EditorModels.StudioChapter> chapterList(@PathVariable long editionId, @RequestParam(defaultValue = "1") int page) {
+    EditorModels.StudioChapters chapterList(@PathVariable long editionId, @RequestParam(defaultValue = "") String filter,
+            @RequestParam(defaultValue = "desc") String order, @RequestParam(defaultValue = "1") int page) {
         EditionAccess who = access.requireTextEditor(editionId);
-        return chapters.studioChapters(editionId, who.viewer().accountId(), Math.max(1, page), STUDIO_CHAPTERS);
+        return chapters.studioChapters(editionId, who.viewer().accountId(), filter, "asc".equals(order), Math.max(1, page), STUDIO_CHAPTERS);
     }
 
     @PostMapping("/editions/{editionId}/chapters")

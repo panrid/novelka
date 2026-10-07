@@ -16,6 +16,8 @@ import { Notice } from '../../ui/Notice';
 import { Pager } from '../../ui/Pager';
 import { Segmented } from '../../ui/Segmented';
 import { TextInput } from '../../ui/TextInput';
+import { EditionShell } from './EditionShell';
+import { WordsSwitch } from './WordsSwitch';
 import { PAGE_SIZE, usePage } from '../../lib/usePage';
 import { useEditionId } from './EditionPage';
 import styles from './studio.module.css';
@@ -78,9 +80,8 @@ export function GlossaryPage() {
     });
 
     return (
-        <section className={styles.page}>
-            <Link to="/studio/$editionId/translate" params={{ editionId: String(id) }} className={styles.muted}>‹ Автопереклад</Link>
-            <h1 className={styles.title}>Словник</h1>
+        <EditionShell tab="words">
+            <WordsSwitch editionId={id} at="glossary" />
             <p className={styles.muted} style={{ marginBottom: 12 }}>
                 Імена й терміни, які автопереклад пише однаково в усіх главах. Словник спільний для всіх перекладів цієї новели.
                 Відхилені до перекладу не потрапляють; виправлення діє з наступної перекладеної глави.
@@ -162,7 +163,7 @@ export function GlossaryPage() {
                     {change.isError && <Notice tone="error">{change.error.message}</Notice>}
                 </div>
             )}
-        </section>
+        </EditionShell>
     );
 }
 
