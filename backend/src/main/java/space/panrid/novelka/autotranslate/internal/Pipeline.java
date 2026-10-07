@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 import org.jooq.DSLContext;
@@ -204,6 +205,7 @@ class Pipeline {
                 lines.forEach(line -> translated.put(line.id(), line.text()));
             }
             List<Block> blocks = new ArrayList<>();
+            Set<String> spoken = spoken(source.blocks());
             for (Block block : source.blocks()) {
                 switch (block.type()) {
                     case "separator" -> blocks.add(block);
@@ -211,7 +213,8 @@ class Pipeline {
                     default -> {
                         String line = translated.get(block.id());
                         if (line != null && !line.isBlank()) {
-                            blocks.add(new Block(block.id(), block.type(), List.of(Span.plain(line.strip())), null, null));
+                            String shown = spoken.contains(block.id()) ? withDash(line.strip()) : line.strip();
+                            blocks.add(new Block(block.id(), block.type(), List.of(Span.plain(shown)), null, null));
                         }
                     }
                 }
@@ -515,6 +518,40 @@ class Pipeline {
             }
         }
         return out;
+    }
+
+    /**
+     * Lines of a speech in 「」, the whole chapter read from its start: those that open one and
+     * those inside one that began in an earlier line. Models often leave the dash off the latter
+     * (the most common correction in proofreading, 2026-10-07), so publishing puts it there.
+     */
+    static Set<String> spoken(List<Block> blocks) {
+        Set<String> out = new java.util.HashSet<>();
+        int depth = 0;
+        for (Block block : blocks) {
+            String text = block.text().strip();
+            if (text.isEmpty()) {
+                continue;
+            }
+            if (text.startsWith("「") || depth > 0) {
+                out.add(block.id());
+            }
+            int opens = (int) text.chars().filter(c -> c == '「').count();
+            int closes = (int) text.chars().filter(c -> c == '」').count();
+            depth = Math.max(0, depth + opens - closes);
+        }
+        return out;
+    }
+
+    /** A line of speech opens with a dash, unless the translation set it in quotes. */
+    static String withDash(String line) {
+        if (line.startsWith("—") || line.startsWith("«") || line.startsWith("„") || line.startsWith("\"")) {
+            return line;
+        }
+        if (line.startsWith("–") || line.startsWith("- ")) {
+            return "—" + line.substring(1);
+        }
+        return "— " + line;
     }
 
     /** Whether the translation opens as its original does: a speech with a dash or a quote, narration without a dash. */

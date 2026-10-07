@@ -123,6 +123,22 @@ class PipelinePartsTests {
     }
 
     @Test
+    void everyLineOfASpeechGetsItsDash() {
+        // «Меджик Мейкер», chapter 51: the duke's speech over four lines, the dash only on the first.
+        List<Block> blocks = List.of(
+                line(1, "「もうやだああっ！　なんなの！？"),
+                line(2, "なんで儂がイストリア領を統治することになってからこんなことになっとるの！？"),
+                line(3, "儂はもうイストリア領主やめる！」"),
+                line(4, "バルフ公爵は駄々っ子のようにばたばたと手足を動かした。"),
+                line(5, "彼は「はい」と言った。"));
+        assertThat(Pipeline.spoken(blocks)).containsExactlyInAnyOrder("s1", "s2", "s3");
+        assertThat(Pipeline.withDash("Чому відтоді, як я став правити?")).isEqualTo("— Чому відтоді, як я став правити?");
+        assertThat(Pipeline.withDash("— Усе, не можу більше!")).isEqualTo("— Усе, не можу більше!");
+        assertThat(Pipeline.withDash("– Годі!")).isEqualTo("— Годі!");
+        assertThat(Pipeline.withDash("«Годі!»")).as("a speech set in quotes stays so").isEqualTo("«Годі!»");
+    }
+
+    @Test
     void japaneseOrAMarkerLeftInTheTranslationIsNotAccepted() {
         assertThat(Pipeline.leftover("s1", "Повернемося до перевірки водяної магії [term].")).isNotNull();
         assertThat(Pipeline.leftover("s1", "Він сказав: まあいいか.")).isNotNull();
