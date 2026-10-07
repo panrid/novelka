@@ -52,6 +52,10 @@ novelka:
     dir: ${NOVELKA_MEDIA_DIR:data/media}
   public-url: ${NOVELKA_PUBLIC_URL:http://127.0.0.1:5173}
   mail-from: ${NOVELKA_MAIL_FROM:Новелка <no-reply@novelka.panrid.space>}
+  # Sign-in with Google; without the client id the button does not show.
+  google:
+    client-id: ${NOVELKA_GOOGLE_CLIENT_ID:}
+    client-secret: ${NOVELKA_GOOGLE_CLIENT_SECRET:}
   owner:
     nick: ${NOVELKA_OWNER_NICK:}
     email: ${NOVELKA_OWNER_EMAIL:}

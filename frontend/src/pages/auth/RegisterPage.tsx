@@ -1,14 +1,17 @@
 import { useMutation } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { Link, useSearch } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../../api/client';
 import { authApi } from '../../auth/api';
+import { GoogleButton } from '../../auth/GoogleButton';
+import { safeNext } from '../../auth/me';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
 import styles from '../pages.module.css';
 
 export function RegisterPage() {
+    const search: { next?: string } = useSearch({ strict: false });
     const [nick, setNick] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -43,6 +46,7 @@ export function RegisterPage() {
         <section className={styles.narrow}>
             <h1 className={styles.title}>Реєстрація</h1>
             <p className={styles.lead}>Нік бачать усі. Пошту — лише ви: вона для входу й відновлення пароля.</p>
+            <GoogleButton next={safeNext(search.next)} label="Зареєструватися через Google" />
             <form className={styles.form} onSubmit={submit}>
                 <TextInput label="Нік" value={nick} onChange={setNick} autoComplete="username" isRequired
                     hint="3–30 символів: латиниця або кирилиця, цифри, «_» і «-»." />

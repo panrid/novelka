@@ -115,3 +115,65 @@ describe('public profile', () => {
         await waitFor(() => expect(calls.some((call) => call.method === 'PUT' && decodeURIComponent(call.path) === '/api/me/blocks/Мавка')).toBe(true));
     });
 });
+
+describe('sign-in with Google', () => {
+    it('offers Google when the site has it, and says what went wrong on the way back', async () => {
+        await renderAt('/login?next=%2Fn%2Fmah-vody&google_error=Google%20%D0%BD%D0%B5%20%D0%B2%D1%96%D0%B4%D0%BF%D0%BE%D0%B2%D1%96%D0%B2.', {
+            'GET /api/auth/providers': { body: { google: true } },
+        });
+        expect(await screen.findByRole('link', { name: 'Увійти через Google' })).toHaveAttribute('href', '/api/auth/google?next=%2Fn%2Fmah-vody');
+        expect(screen.getByText('Google не відповів.')).toBeInTheDocument();
+    });
+
+    it('hides Google while the site has no Google client', async () => {
+        await renderAt('/register', { 'GET /api/auth/providers': { body: { google: false } } });
+        expect(await screen.findByRole('heading', { name: 'Реєстрація' })).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /через Google/ })).not.toBeInTheDocument();
+    });
+
+    it('lets a newcomer from Google pick a nick and goes where they were heading', async () => {
+        const { calls, router } = await renderAt('/login/google', {
+            'GET /api/auth/google/newcomer': { body: { email: 'marta@gmail.com', nick: 'marta', next: '/library' } },
+            'POST /api/auth/google/newcomer': { body: { ...ME, nick: 'marta_k', google: true, hasPassword: false } },
+        });
+        const field = await screen.findByLabelText('Нік');
+        expect(field).toHaveValue('marta');
+        expect(screen.getByText('marta@gmail.com')).toBeInTheDocument();
+        await userEvent.clear(field);
+        await userEvent.type(field, 'marta_k');
+        await userEvent.click(screen.getByRole('button', { name: 'Створити акаунт' }));
+        await waitFor(() => expect(router.state.location.pathname).toBe('/library'));
+        expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ nick: 'marta_k' });
+    });
+
+    it('asks a Google-only account to set a password before untying Google', async () => {
+        const { calls } = await renderAt('/me/settings', {
+            'GET /api/me': { body: { ...ME, google: true, hasPassword: false } },
+            'GET /api/auth/providers': { body: { google: true } },
+            'POST /api/auth/password-reset': { status: 202 },
+        });
+        expect(await screen.findByText(/Відв’язати можна, коли задасте пароль/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Відв’язати Google' })).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Поточний пароль')).not.toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Задати пароль через лист' }));
+        expect(await screen.findByText(/Надіслали лист на mika@example.com/)).toBeInTheDocument();
+        expect(calls.find((call) => call.path === '/api/auth/password-reset')?.body).toEqual({ email: 'mika@example.com' });
+    });
+
+    it('ties Google from the settings', async () => {
+        await renderAt('/me/settings?google=linked', {
+            'GET /api/me': { body: { ...ME, google: true, hasPassword: true } },
+            'GET /api/auth/providers': { body: { google: true } },
+        });
+        expect(await screen.findByText(/Google прив’язано/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Відв’язати Google' })).toBeInTheDocument();
+    });
+
+    it('offers to tie Google to an account without it', async () => {
+        await renderAt('/me/settings', {
+            'GET /api/me': { body: { ...ME, google: false, hasPassword: true } },
+            'GET /api/auth/providers': { body: { google: true } },
+        });
+        expect(await screen.findByRole('link', { name: 'Прив’язати Google' })).toHaveAttribute('href', '/api/auth/google?next=%2Fme%2Fsettings&link=true');
+    });
+});

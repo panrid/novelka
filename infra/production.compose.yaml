@@ -46,6 +46,8 @@ services:
       NOVELKA_MAIL_AUTH: "true"
       NOVELKA_MAIL_STARTTLS: "true"
       NOVELKA_MAIL_FROM: ${MAIL_FROM:-Новелка <no-reply@novelka.panrid.space>}
+      NOVELKA_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      NOVELKA_GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     volumes:
       - media:/data/media
     depends_on:

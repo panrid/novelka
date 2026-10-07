@@ -12,7 +12,17 @@ export const authApi = {
     requestReset: (email: string) => post<void>('/api/auth/password-reset', { email }),
     confirmReset: (token: string, password: string) => post<Me>('/api/auth/password-reset/confirm', { token, password }),
     confirmEmail: (token: string) => post<Me>('/api/auth/confirm-email', { token }),
+    providers: () => api<{ google: boolean }>('/api/auth/providers'),
+    googleNewcomer: () => api<{ email: string; nick: string; next: string }>('/api/auth/google/newcomer'),
+    googleRegister: (nick: string) => post<Me>('/api/auth/google/newcomer', { nick }),
 };
+
+/** Where the browser goes to sign in with Google (or, with `link`, to tie Google to the account). */
+export function googleUrl(next: string, link = false) {
+    const params = new URLSearchParams({ next });
+    if (link) params.set('link', 'true');
+    return `/api/auth/google?${params}`;
+}
 
 export type SettingsPatch = Partial<Pick<Me, 'bio' | 'dmPolicy' | 'showReading' | 'showShah' | 'studioInMenu'>> & { adultConfirmed?: boolean };
 
@@ -28,6 +38,7 @@ export const meApi = {
         return api<Me>('/api/me/avatar', { method: 'POST', body: form });
     },
     removeAvatar: () => api<Me>('/api/me/avatar', { method: 'DELETE' }),
+    unlinkGoogle: () => api<Me>('/api/me/google', { method: 'DELETE' }),
 };
 
 export type PublicProfile = { nick: string; avatarUrl: string | null; bio: string; memberSince: string };

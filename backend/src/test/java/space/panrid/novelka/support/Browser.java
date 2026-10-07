@@ -35,6 +35,17 @@ public class Browser {
         return send(HttpRequest.newBuilder(URI.create(base + path)).GET());
     }
 
+    /** Where a GET sends the browser: the Location of the redirect, or null if it does not redirect. */
+    public String redirectOf(String path) {
+        try {
+            HttpResponse<String> response = http.send(HttpRequest.newBuilder(URI.create(base + path)).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            return response.statusCode() / 100 == 3 ? response.headers().firstValue("Location").orElse(null) : null;
+        } catch (IOException | InterruptedException error) {
+            throw new IllegalStateException(error);
+        }
+    }
+
     /** Lines of a server-sent event stream as they arrive; the stream stays open in the background. */
     public java.util.concurrent.BlockingQueue<String> stream(String path) {
         java.util.concurrent.BlockingQueue<String> lines = new java.util.concurrent.LinkedBlockingQueue<>();

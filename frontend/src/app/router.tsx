@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext, createRoute, createRouter, notFound, redirect, type RouterHistory } from '@tanstack/react-router';
 import { authApi } from '../auth/api';
 import { meQuery } from '../auth/me';
+import { GoogleNewcomerPage } from '../pages/auth/GoogleNewcomerPage';
 import { LoginPage } from '../pages/auth/LoginPage';
 import { RegisterPage } from '../pages/auth/RegisterPage';
 import { ResetPage } from '../pages/auth/ResetPage';
@@ -72,6 +73,11 @@ async function requireSignedIn({ context, location }: { context: RouterContext; 
 
 const nextSearch = (search: Record<string, unknown>): { next?: string } =>
     typeof search.next === 'string' ? { next: search.next } : {};
+/** The login page also shows what went wrong on the way back from Google. */
+const loginSearch = (search: Record<string, unknown>): { next?: string; google_error?: string } => ({
+    ...nextSearch(search),
+    ...(typeof search.google_error === 'string' ? { google_error: search.google_error } : {}),
+});
 const tokenSearch = (search: Record<string, unknown>): { token?: string } =>
     typeof search.token === 'string' ? { token: search.token } : {};
 const teamSearch = (search: Record<string, unknown>): { t?: string } =>
@@ -186,7 +192,8 @@ const routeTree = rootRoute.addChildren([
         beforeLoad: requireSignedIn, head: title('Ласкаво просимо'),
     }),
     createRoute({ getParentRoute: () => rootRoute, path: '/u/$nick', component: UserPage, head: ({ params }) => ({ meta: [{ title: `${params.nick} — Новелка` }] }) }),
-    createRoute({ getParentRoute: () => rootRoute, path: '/login', component: LoginPage, validateSearch: nextSearch, head: title('Вхід') }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/login', component: LoginPage, validateSearch: loginSearch, head: title('Вхід') }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/login/google', component: GoogleNewcomerPage, head: title('Вхід через Google') }),
     createRoute({ getParentRoute: () => rootRoute, path: '/register', component: RegisterPage, validateSearch: nextSearch, head: title('Реєстрація') }),
     createRoute({ getParentRoute: () => rootRoute, path: '/reset', component: ResetPage, validateSearch: tokenSearch, head: title('Відновлення пароля') }),
     createRoute({

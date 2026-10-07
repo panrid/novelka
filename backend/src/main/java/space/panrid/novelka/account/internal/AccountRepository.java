@@ -81,7 +81,23 @@ public class AccountRepository {
     }
 
     void updatePassword(long id, String passwordHash) {
-        db.update(ACCOUNT).set(ACCOUNT.PASSWORD_HASH, passwordHash).where(ACCOUNT.ID.eq(id)).execute();
+        db.update(ACCOUNT).set(ACCOUNT.PASSWORD_HASH, passwordHash).set(ACCOUNT.PASSWORD_SET, true)
+                .where(ACCOUNT.ID.eq(id)).execute();
+    }
+
+    /** A password nobody knows: the account is entered through Google until one is chosen. */
+    void unknownPassword(long id, String passwordHash) {
+        db.update(ACCOUNT).set(ACCOUNT.PASSWORD_HASH, passwordHash).set(ACCOUNT.PASSWORD_SET, false)
+                .where(ACCOUNT.ID.eq(id)).execute();
+    }
+
+    Optional<AccountRow> byGoogle(String subject) {
+        return db.selectFrom(ACCOUNT).where(ACCOUNT.GOOGLE_SUB.eq(subject)).fetchOptional(AccountRepository::row);
+    }
+
+    /** {@code null} unties the Google account. */
+    void setGoogle(long id, String subject) {
+        db.update(ACCOUNT).set(ACCOUNT.GOOGLE_SUB, subject).where(ACCOUNT.ID.eq(id)).execute();
     }
 
     /** Only called with an address already confirmed from the letter. */
@@ -160,6 +176,7 @@ public class AccountRepository {
     private static AccountRow row(Record r) {
         return new AccountRow(r.get(ACCOUNT.ID), r.get(ACCOUNT.NICK), r.get(ACCOUNT.EMAIL),
                 r.get(ACCOUNT.EMAIL_VERIFIED_AT), r.get(ACCOUNT.PASSWORD_HASH),
-                SiteRole.fromCode(r.get(ACCOUNT.SITE_ROLE)), r.get(ACCOUNT.NICK_CHANGED_AT));
+                SiteRole.fromCode(r.get(ACCOUNT.SITE_ROLE)), r.get(ACCOUNT.NICK_CHANGED_AT),
+                r.get(ACCOUNT.GOOGLE_SUB), r.get(ACCOUNT.PASSWORD_SET));
     }
 }

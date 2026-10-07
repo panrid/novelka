@@ -32,7 +32,8 @@ class MeQuery {
                 r.getId(), r.getNick(), r.getEmail(), r.getEmailVerifiedAt() != null, r.getSiteRole(), r.getBio(),
                 avatar(r.getAvatarImageId()), r.getDmPolicy(), r.getShowReading(), r.getAdultConfirmedAt() != null,
                 // Shags-or-dollars only matters to the site owner (рішення 21).
-                SiteRole.fromCode(r.getSiteRole()) == SiteRole.OWNER ? r.getShowShah() : true, r.getStudioInMenu()));
+                SiteRole.fromCode(r.getSiteRole()) == SiteRole.OWNER ? r.getShowShah() : true, r.getStudioInMenu(),
+                r.getGoogleSub() != null, r.getPasswordSet()));
     }
 
     Optional<PublicProfile> publicProfile(long id) {

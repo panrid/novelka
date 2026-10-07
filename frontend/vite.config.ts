@@ -11,6 +11,8 @@ export default defineConfig({
             '/api': 'http://127.0.0.1:8080',
             // Uploaded and drawn pictures are served by the backend too.
             '/media': 'http://127.0.0.1:8080',
+            // Google sends the browser back here after «Увійти через Google».
+            '/login/oauth2': 'http://127.0.0.1:8080',
         },
     },
     build: {

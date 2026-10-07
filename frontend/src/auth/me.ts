@@ -18,6 +18,10 @@ export type Me = {
     showShah: boolean;
     /** «Студія» as a tab of the main menu, not only under «Я». */
     studioInMenu?: boolean;
+    /** A Google account is tied for signing in. */
+    google?: boolean;
+    /** False for an account made through Google until a password is chosen. */
+    hasPassword?: boolean;
 };
 
 export const meQuery = queryOptions({

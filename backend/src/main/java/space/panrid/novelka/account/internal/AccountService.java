@@ -1,9 +1,11 @@
 package space.panrid.novelka.account.internal;
 
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Base64;
 import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
@@ -11,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import space.panrid.novelka.account.GoogleSignIn;
 import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.account.internal.EmailTokens.Purpose;
 import space.panrid.novelka.platform.mail.Mailer;
@@ -25,6 +28,7 @@ class AccountService {
     static final String EMAIL_NOT_VERIFIED = "email-not-verified";
     static final Duration NICK_CHANGE_INTERVAL = Duration.ofDays(30);
 
+    private static final SecureRandom RANDOM = new SecureRandom();
     private static final String BAD_CREDENTIALS = "Неправильний нік, пошта або пароль.";
 
     private final AccountRepository accounts;
@@ -58,13 +62,7 @@ class AccountService {
     /** Creates an unconfirmed account and sends the confirmation letter. */
     @Transactional
     void register(String rawNick, String rawEmail, String rawPassword, String clientAddress) {
-        if (!settings.flag(SiteSettings.REGISTRATION_OPEN, true)) {
-            throw new UserFacingException(org.springframework.http.HttpStatus.FORBIDDEN,
-                    "Реєстрацію тимчасово закрито. Спробуйте пізніше.", "registration-closed");
-        }
-        if (!registrationsByAddress.tryAcquire(clientAddress)) {
-            throw UserFacingException.tooManyRequests();
-        }
+        requireRegistrationOpen(clientAddress);
         String nick = AccountRules.nick(rawNick);
         String email = AccountRules.email(rawEmail);
         String password = AccountRules.password(rawPassword);
@@ -213,7 +211,97 @@ class AccountService {
         AfterCommit.run(() -> mailer.send(mails.passwordChanged(account.email(), account.nick())));
     }
 
+    /** The account a Google sign-in opens, if there is one already. */
+    record GoogleMatch(long accountId, boolean tookOver) {
+    }
+
+    /**
+     * Finds the account of whoever signed in with Google: the one tied to that Google account,
+     * or the one with the same address, which gets tied now. Empty when the person is new.
+     */
+    @Transactional
+    Optional<GoogleMatch> matchGoogle(GoogleSignIn.Identity identity) {
+        Optional<AccountRow> tied = accounts.byGoogle(identity.subject());
+        if (tied.isPresent()) {
+            return Optional.of(new GoogleMatch(tied.get().id(), false));
+        }
+        if (!identity.emailVerified() || identity.email().isBlank()) {
+            throw UserFacingException.badRequest("Google не підтвердив цю пошту, тож увійти через нього не вийде.");
+        }
+        Optional<AccountRow> same = accounts.byEmail(identity.email());
+        if (same.isEmpty()) {
+            return Optional.empty();
+        }
+        AccountRow account = same.get();
+        if (account.googleSub() != null) {
+            throw UserFacingException.conflict("Акаунт із цією поштою вже прив’язаний до іншого облікового запису Google.");
+        }
+        accounts.setGoogle(account.id(), identity.subject());
+        if (account.emailVerified()) {
+            return Optional.of(new GoogleMatch(account.id(), false));
+        }
+        // Somebody registered the address and never confirmed it. Google proves whose it is,
+        // and the password chosen back then must not open the account any more.
+        accounts.markEmailVerified(account.id(), now());
+        accounts.unknownPassword(account.id(), passwords.encode(randomSecret()));
+        return Optional.of(new GoogleMatch(account.id(), true));
+    }
+
+    /** A new account for a person Google vouched for: the address is confirmed, the password unknown. */
+    @Transactional
+    long registerWithGoogle(GoogleSignIn.Identity identity, String rawNick, String clientAddress) {
+        requireRegistrationOpen(clientAddress);
+        String nick = AccountRules.nick(rawNick);
+        String email = AccountRules.email(identity.email());
+        if (accounts.nickTaken(nick)) {
+            throw UserFacingException.conflict("Цей нік уже зайнятий. Оберіть інший.");
+        }
+        if (accounts.byGoogle(identity.subject()).isPresent() || accounts.emailTaken(email)) {
+            throw UserFacingException.conflict("Акаунт із цією поштою вже є. Увійдіть через Google ще раз.");
+        }
+        String hash = passwords.encode(randomSecret());
+        long id = accounts.insert(nick, email, hash, SiteRole.READER, now());
+        accounts.unknownPassword(id, hash);
+        accounts.setGoogle(id, identity.subject());
+        return id;
+    }
+
+    @Transactional
+    void linkGoogle(long id, GoogleSignIn.Identity identity) {
+        accounts.byGoogle(identity.subject()).filter(other -> other.id() != id).ifPresent(other -> {
+            throw UserFacingException.conflict("Цей обліковий запис Google уже прив’язаний до іншого акаунта на Новелці.");
+        });
+        accounts.setGoogle(id, identity.subject());
+    }
+
+    @Transactional
+    void unlinkGoogle(long id) {
+        if (!accounts.byId(id).orElseThrow().passwordSet()) {
+            throw UserFacingException.badRequest("Спершу задайте пароль, інакше в акаунт не буде як увійти.");
+        }
+        accounts.setGoogle(id, null);
+    }
+
+    private void requireRegistrationOpen(String clientAddress) {
+        if (!settings.flag(SiteSettings.REGISTRATION_OPEN, true)) {
+            throw new UserFacingException(HttpStatus.FORBIDDEN,
+                    "Реєстрацію тимчасово закрито. Спробуйте пізніше.", "registration-closed");
+        }
+        if (!registrationsByAddress.tryAcquire(clientAddress)) {
+            throw UserFacingException.tooManyRequests();
+        }
+    }
+
+    private static String randomSecret() {
+        byte[] bytes = new byte[32];
+        RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
     private void requirePassword(AccountRow account, String password) {
+        if (!account.passwordSet()) {
+            throw UserFacingException.badRequest("Пароля ще немає: задайте його листом у розділі «Пароль».");
+        }
         if (password == null || !passwords.matches(password, account.passwordHash())) {
             throw UserFacingException.badRequest("Поточний пароль неправильний.");
         }

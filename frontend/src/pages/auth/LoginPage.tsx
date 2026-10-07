@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../../api/client';
 import { authApi } from '../../auth/api';
+import { GoogleButton } from '../../auth/GoogleButton';
 import { safeNext, useSetMe } from '../../auth/me';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
@@ -10,7 +11,7 @@ import { TextInput } from '../../ui/TextInput';
 import styles from '../pages.module.css';
 
 export function LoginPage() {
-    const search: { next?: string } = useSearch({ strict: false });
+    const search: { next?: string; google_error?: string } = useSearch({ strict: false });
     const navigate = useNavigate();
     const setMe = useSetMe();
     const [login, setLogin] = useState('');
@@ -41,6 +42,7 @@ export function LoginPage() {
         <section className={styles.narrow}>
             <h1 className={styles.title}>Вхід</h1>
             <p className={styles.lead}>Щоб читати, достатньо просто відкрити новелу. Акаунт потрібен для бібліотеки, коментарів і правок.</p>
+            <GoogleButton next={safeNext(search.next)} error={search.google_error} />
             <form className={styles.form} onSubmit={submit}>
                 <TextInput label="Нік або пошта" value={login} onChange={setLogin} autoComplete="username" isRequired />
                 <TextInput label="Пароль" type="password" value={password} onChange={setPassword} autoComplete="current-password" isRequired />

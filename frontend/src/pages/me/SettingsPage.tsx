@@ -1,6 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { meApi } from '../../auth/api';
+import { useSearch } from '@tanstack/react-router';
+import { authApi, googleUrl, meApi } from '../../auth/api';
+import { GoogleMark, useProviders } from '../../auth/GoogleButton';
 import { useMe, useSetMe, type Me } from '../../auth/me';
 import { Avatar } from '../../ui/Avatar';
 import { AvatarPicker } from '../../ui/AvatarPicker';
@@ -8,6 +10,7 @@ import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
+import ui from '../../ui/ui.module.css';
 import styles from '../pages.module.css';
 
 export function SettingsPage() {
@@ -21,7 +24,8 @@ export function SettingsPage() {
             <ProfileSection me={me} />
             <NickSection me={me} />
             <EmailSection me={me} />
-            <PasswordSection />
+            <PasswordSection me={me} />
+            <GoogleSection me={me} />
             <MenuSection me={me} />
         </section>
     );
@@ -113,7 +117,9 @@ function EmailSection({ me }: { me: Me }) {
         <form className={styles.section} onSubmit={submit}>
             <h2 className={styles.sectionTitle}>Пошта</h2>
             <p className={styles.muted} style={{ marginBottom: 12 }}>Зараз: {me.email}</p>
-            {change.isSuccess ? (
+            {me.hasPassword === false ? (
+                <p className={styles.muted}>Щоб змінити пошту, спершу задайте пароль — нижче.</p>
+            ) : change.isSuccess ? (
                 <Notice tone="success">
                     Надіслали лист на {email.trim()}. Відкрийте посилання з нього — доти лишається чинною стара пошта.
                 </Notice>
@@ -129,7 +135,7 @@ function EmailSection({ me }: { me: Me }) {
     );
 }
 
-function PasswordSection() {
+function PasswordSection({ me }: { me: Me }) {
     const setMe = useSetMe();
     const [current, setCurrent] = useState('');
     const [next, setNext] = useState('');
@@ -147,6 +153,9 @@ function PasswordSection() {
         change.mutate();
     }
 
+    if (me.hasPassword === false) {
+        return <FirstPassword email={me.email} />;
+    }
     return (
         <form className={styles.section} onSubmit={submit}>
             <h2 className={styles.sectionTitle}>Пароль</h2>
@@ -158,5 +167,66 @@ function PasswordSection() {
                 <Button type="submit" pending={change.isPending} pendingLabel="Змінюємо…">Змінити пароль</Button>
             </div>
         </form>
+    );
+}
+
+/** An account made through Google has no password; one comes from the same letter as a reset. */
+function FirstPassword({ email }: { email: string }) {
+    const send = useMutation({ mutationFn: () => authApi.requestReset(email) });
+    return (
+        <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Пароль</h2>
+            <p className={styles.muted} style={{ marginBottom: 12 }}>
+                Пароля ще немає: ви входите через Google. Пароль знадобиться, щоб входити без Google чи змінити пошту.
+            </p>
+            {send.isSuccess ? (
+                <Notice tone="success">Надіслали лист на {email}. Відкрийте посилання з нього й задайте пароль.</Notice>
+            ) : (
+                <>
+                    {send.isError && <Notice tone="error">{send.error.message}</Notice>}
+                    <Button variant="secondary" onPress={() => send.mutate()} pending={send.isPending} pendingLabel="Надсилаємо…">
+                        Задати пароль через лист
+                    </Button>
+                </>
+            )}
+        </div>
+    );
+}
+
+/** Signing in with Google: tie it here, untie it while a password remains to get in. */
+function GoogleSection({ me }: { me: Me }) {
+    const providers = useProviders();
+    const search: { google?: string; google_error?: string } = useSearch({ strict: false });
+    const setMe = useSetMe();
+    const unlink = useMutation({ mutationFn: meApi.unlinkGoogle, onSuccess: setMe });
+    if (!providers.data?.google && !me.google) {
+        return null;
+    }
+    return (
+        <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Вхід через Google</h2>
+            {search.google_error && <Notice tone="error">{search.google_error}</Notice>}
+            {search.google === 'linked' && me.google && <Notice tone="success">Google прив’язано: тепер можна входити й через нього.</Notice>}
+            {me.google ? (
+                <div className={styles.form}>
+                    <p className={styles.muted}>Прив’язано. Можна входити кнопкою «Увійти через Google».</p>
+                    {unlink.isError && <Notice tone="error">{unlink.error.message}</Notice>}
+                    {me.hasPassword === false ? (
+                        <p className={styles.muted}>Відв’язати можна, коли задасте пароль: інакше в акаунт не буде як увійти.</p>
+                    ) : (
+                        <Button variant="secondary" onPress={() => unlink.mutate()} pending={unlink.isPending} pendingLabel="Відв’язуємо…">
+                            Відв’язати Google
+                        </Button>
+                    )}
+                </div>
+            ) : (
+                <div className={styles.form}>
+                    <p className={styles.muted}>Входьте одним натиском, без пароля. Пошта в Google може бути й іншою.</p>
+                    <a href={googleUrl('/me/settings', true)} className={[ui.button, ui.secondary].join(' ')}>
+                        <GoogleMark /> Прив’язати Google
+                    </a>
+                </div>
+            )}
+        </div>
     );
 }
