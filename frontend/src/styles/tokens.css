@@ -63,6 +63,58 @@
     --chart-violet: #b393d6;
 }
 
+/*
+ * The reader's own palettes (етап 18): while a chapter is open they replace the site's colours.
+ * Папір, Ніч and Чорний are the light, dark and black themes above.
+ */
+:root[data-reader='sepia'] {
+    --bg: #f1e4c8;
+    --surface: #f8eedb;
+    --surface-2: #e8d9b8;
+    --line: #dccdaf;
+    --text: #3b2f22;
+    --text-reading: #3b2f22;
+    --muted: #7a6a55;
+    --faint: #9a8a72;
+    --accent: #8a5a22;
+}
+
+:root[data-reader='gray'] {
+    --bg: #d9dbd6;
+    --surface: #e4e6e1;
+    --surface-2: #cdd0ca;
+    --line: #c2c5bf;
+    --text: #232521;
+    --text-reading: #232521;
+    --muted: #575b54;
+    --faint: #7a7e76;
+    --accent: #3f6f9e;
+}
+
+:root[data-reader='tea'] {
+    --bg: #e6efe3;
+    --surface: #eef5ec;
+    --surface-2: #d8e5d3;
+    --line: #cad8c4;
+    --text: #1f2a1c;
+    --text-reading: #1f2a1c;
+    --muted: #55624f;
+    --faint: #7b8775;
+    --accent: #4f7a40;
+}
+
+:root[data-reader='dusk'] {
+    --bg: #1a2230;
+    --surface: #212b3b;
+    --surface-2: #283345;
+    --line: #2c3850;
+    --text: #cfd8e6;
+    --text-reading: #c3cddc;
+    --muted: #8793a6;
+    --faint: #66728a;
+    --accent: #8fb4e0;
+}
+
 :root {
     --font-ui: 'Inter Variable', -apple-system, 'Segoe UI', Roboto, sans-serif;
     --font-reading: 'Literata Variable', Georgia, 'Times New Roman', serif;

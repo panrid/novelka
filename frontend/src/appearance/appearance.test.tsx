@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderAt } from '../test/render';
@@ -27,15 +27,29 @@ describe('the look of the site and of the reader', () => {
 
         await userEvent.click(await screen.findByRole('radio', { name: 'Світлий' }));
         expect(document.documentElement.dataset.theme).toBe('light');
-        await userEvent.click(screen.getByRole('radio', { name: 'Чорний' }));
+        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Кольори' })).getByRole('radio', { name: 'Чорний' }));
         expect(document.documentElement.dataset.theme).toBe('light'); // the reader's colours stay in the reader
-        await waitFor(() => expect(saved.at(-1)).toEqual({ site: { preset: 'light' }, reader: { colors: 'black' } }), { timeout: 2000 });
-        expect(JSON.parse(localStorage.getItem('novelka:appearance')!)).toEqual({ site: { preset: 'light' }, reader: { colors: 'black' } });
+        const look = { site: { preset: 'light' }, reader: { colors: 'black', custom: true } };
+        await waitFor(() => expect(saved.at(-1)).toEqual(look), { timeout: 2000 });
+        expect(JSON.parse(localStorage.getItem('novelka:appearance')!)).toEqual(look);
 
         await act(() => router.navigate({ to: '/n/$slug/$number', params: { slug: 'mah-vody', number: '12' } }));
         await screen.findByRole('heading', { name: '12. Спокійне життя' });
         expect(document.documentElement.dataset.theme).toBe('black');
+
+        // «Аа» in the reader: a ready style, then one's own change; the text follows at once.
+        await userEvent.click(screen.getByRole('button', { name: 'Вигляд читалки' }));
+        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Готовий стиль' })).getByRole('radio', { name: 'Книжка' }));
+        const text = document.querySelector('article')!;
+        expect(text.style.textAlign).toBe('justify');
+        expect(text.dataset.paragraphs).toBe('indent');
+        expect(document.documentElement.dataset.reader).toBe('sepia');
+        await userEvent.click(screen.getByRole('button', { name: 'Більший текст' }));
+        expect(text.style.fontSize).toBe('19px');
+        expect(screen.getByText(/Свій стиль на основі «Книжка»/)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Готово' }));
         await act(() => router.navigate({ to: '/' }));
+        expect(document.documentElement.dataset.reader).toBeUndefined();
         expect(document.documentElement.dataset.theme).toBe('light');
     });
 });

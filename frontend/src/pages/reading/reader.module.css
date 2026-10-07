@@ -104,6 +104,12 @@
     margin: 0 0 0.9em;
 }
 
+/* «Відступ першого рядка», як у книжці: абзаци без пропусків між ними. */
+.text[data-paragraphs='indent'] p[data-block-id] {
+    margin: 0;
+    text-indent: 1.6em;
+}
+
 .volumeLine {
     margin: 0 0 0.3em;
     color: var(--muted);

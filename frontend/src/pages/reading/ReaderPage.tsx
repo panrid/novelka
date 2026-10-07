@@ -3,22 +3,22 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
 import { ArrowLeft, ChevronLeft, ChevronRight, List, MessageCircle, Type } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
-import { Dialog, DialogTrigger, Button as AriaButton, Popover } from 'react-aria-components';
 import { useMe } from '../../auth/me';
 import { Discussion, useCommentCount } from '../../community/Discussion';
 import { Blocks } from '../../reading/Blocks';
 import { chapterHeading, volumeTitle, readingApi, type NovelPage, type ReaderChapter } from '../../reading/api';
 import { localProgress, movesPlace, saveLocalProgress } from '../../reading/progress';
 import { chapterQuery } from '../../reading/queries';
-import { READER_COLORS, READER_SIZE, readerColors, readerSize, type ReaderColors } from '../../appearance/model';
-import { readerOpened, setReader, useAppearance } from '../../appearance/store';
+import { FONT_STACKS } from '../../appearance/fonts';
+import { READER_WIDTHS, readerLook } from '../../appearance/model';
+import { ReaderLookForm } from '../../appearance/ReaderLookForm';
+import { readerOpened, useAppearance } from '../../appearance/store';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Sheet } from '../../ui/Sheet';
 import { ReportEdition } from '../../reading/ReportEdition';
 import { EditSheet, ReplaceSheet, ReviewCard, SelectionBar, useMySuggestions, useReview } from './Suggestions';
 import suggestionStyles from './suggestions.module.css';
-import { Segmented } from '../../ui/Segmented';
 import styles from './reader.module.css';
 
 const SAVE_EVERY_MS = 15_000;
@@ -66,7 +66,13 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     const client = useQueryClient();
     const navigate = useNavigate();
     const appearance = useAppearance();
-    const size = readerSize(appearance);
+    const view = readerLook(appearance);
+    // The scroll listener lives as long as the chapter; it reads the latest choice from here.
+    const hideBars = useRef(view.hideBars);
+    useEffect(() => {
+        hideBars.current = view.hideBars;
+    }, [view.hideBars]);
+    useWakeLock(view.awake);
     // The reader's own colours while it is open; the site's style comes back on leaving.
     useEffect(() => {
         readerOpened(true);
@@ -154,7 +160,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
             const travelled = Math.abs(y - runStart.current.y);
             if (y < 60 || position > 0.985) {
                 setBarsVisible(true);
-            } else if (down && travelled > 8) {
+            } else if (down && travelled > 8 && hideBars.current) {
                 setBarsVisible(false); // reading on: give the text the whole screen
             } else if (!down && travelled > 24) {
                 setBarsVisible(true); // a deliberate swipe back up brings the controls
@@ -213,7 +219,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
             setEditing(block.getAttribute('data-block-id'));
             return;
         }
-        setBarsVisible((visible) => !visible);
+        if (view.hideBars) setBarsVisible((visible) => !visible);
     }
 
     const chapterLink = (target: number) => ({
@@ -238,7 +244,10 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                 </Link>
             </header>
 
-            <article className={styles.text} style={{ fontSize: size }} onClick={toggleBars}>
+            <article className={styles.text} lang="uk" data-paragraphs={view.paragraphs} onClick={toggleBars} style={{
+                fontSize: view.size, fontFamily: FONT_STACKS[view.font], lineHeight: view.lineHeight, textAlign: view.align,
+                hyphens: view.align === 'justify' ? 'auto' : 'manual', maxWidth: READER_WIDTHS[view.width], paddingInline: view.margin,
+            }}>
                 {chapter.volume && volumeTitle(chapter.volume) !== chapterHeading(chapter) && <p className={styles.volumeLine}>{volumeTitle(chapter.volume)}</p>}
                 <h1 className={styles.chapterTitle}>{chapterHeading(chapter)}</h1>
                 {review.items.length > 0 && !reviewing && (
@@ -333,7 +342,10 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                 </footer>
             ) : (
             <footer className={`${styles.bottom} ${barsVisible ? '' : styles.hiddenBottom}`}>
-                <div className={styles.percent}>{Math.round(progress * 100)}%</div>
+                <div className={styles.percent}>
+                    {[view.clock && <Clock key="clock" />, view.percent && `${Math.round(progress * 100)}%`].filter(Boolean).reduce<React.ReactNode[]>(
+                        (parts, part, index) => (index > 0 ? [...parts, ' · ', part] : [part]), [])}
+                </div>
                 <div className={styles.buttons}>
                     {chapter.previous ? (
                         <Link {...chapterLink(chapter.previous)} className={styles.navButton} aria-label="Попередня глава"><ChevronLeft size={18} aria-hidden /></Link>
@@ -358,26 +370,51 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     );
 }
 
-/** «Аа»: the reader's own look, kept with the account and also in «Налаштування». */
+/** «Аа»: the reader's own look — the same form as in «Налаштування», every change shows at once. */
 function TextSettings() {
-    const appearance = useAppearance();
-    const size = readerSize(appearance);
+    const [open, setOpen] = useState(false);
     return (
-        <DialogTrigger>
-            <AriaButton className={styles.icon} aria-label="Вигляд читалки"><Type size={22} aria-hidden /></AriaButton>
-            <Popover className={styles.settings} placement="bottom end">
-                <Dialog className={styles.settingsDialog} aria-label="Вигляд читалки">
-                    <div className={styles.sizeRow}>
-                        <AriaButton className={styles.sizeButton} onPress={() => setReader({ size: size - 1 })} isDisabled={size <= READER_SIZE.min} aria-label="Менший текст">А−</AriaButton>
-                        <span aria-live="polite">{size}</span>
-                        <AriaButton className={styles.sizeButton} onPress={() => setReader({ size: size + 1 })} isDisabled={size >= READER_SIZE.max} aria-label="Більший текст">А+</AriaButton>
-                    </div>
-                    <Segmented<ReaderColors> label="Кольори" value={readerColors(appearance).value} onChange={(colors) => setReader({ colors })}
-                        options={READER_COLORS.map(({ value, label }) => ({ value, label }))} />
-                </Dialog>
-            </Popover>
-        </DialogTrigger>
+        <>
+            <button type="button" className={styles.icon} aria-label="Вигляд читалки" onClick={() => setOpen(true)}><Type size={22} aria-hidden /></button>
+            <Sheet open={open} onClose={() => setOpen(false)} title="Вигляд читалки" peek>
+                <ReaderLookForm />
+                <Button variant="secondary" wide onPress={() => setOpen(false)}>Готово</Button>
+            </Sheet>
+        </>
     );
+}
+
+/** The time in the bar, for those who read late. */
+function Clock() {
+    const [now, setNow] = useState(() => new Date());
+    useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 20_000);
+        return () => clearInterval(timer);
+    }, []);
+    return <span>{now.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}</span>;
+}
+
+/** Keeps the screen on while the chapter is open, where the browser allows it. */
+function useWakeLock(on: boolean) {
+    useEffect(() => {
+        if (!on || !('wakeLock' in navigator)) return;
+        let lock: WakeLockSentinel | null = null;
+        let gone = false;
+        const take = () => {
+            if (document.visibilityState !== 'visible') return;
+            navigator.wakeLock.request('screen').then((sentinel) => {
+                if (gone) void sentinel.release();
+                else lock = sentinel;
+            }, () => { /* Refused (battery saver): the screen dims as usual. */ });
+        };
+        take();
+        document.addEventListener('visibilitychange', take);
+        return () => {
+            gone = true;
+            document.removeEventListener('visibilitychange', take);
+            void lock?.release();
+        };
+    }, [on]);
 }
 
 function scrollable() {

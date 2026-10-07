@@ -1,8 +1,9 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { useSearch } from '@tanstack/react-router';
-import { READER_COLORS, READER_SIZE, SITE_STYLES, readerColors, readerSize, siteStyle, type ReaderColors, type SiteStyle } from '../../appearance/model';
-import { setReader, setSite, useAppearance } from '../../appearance/store';
+import { SITE_STYLES, siteStyle, type SiteStyle } from '../../appearance/model';
+import { ReaderLookForm } from '../../appearance/ReaderLookForm';
+import { setSite, useAppearance } from '../../appearance/store';
 import { authApi, googleUrl, meApi } from '../../auth/api';
 import { GoogleMark, useProviders } from '../../auth/GoogleButton';
 import { useMe, useSetMe, type Me } from '../../auth/me';
@@ -41,18 +42,14 @@ export function SettingsPage() {
  */
 function AppearanceSection() {
     const appearance = useAppearance();
-    const size = readerSize(appearance);
     return (
         <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>Вигляд</h2>
+            <h2 className={styles.sectionTitle}>Вигляд сайту</h2>
             <Segmented<SiteStyle> label="Стиль сайту" value={siteStyle(appearance).value} onChange={(preset) => setSite({ preset })}
                 options={SITE_STYLES.map(({ value, label }) => ({ value, label }))} />
-            <Segmented<ReaderColors> label="Кольори читалки" value={readerColors(appearance).value} onChange={(colors) => setReader({ colors })}
-                options={READER_COLORS.map(({ value, label }) => ({ value, label }))} />
-            <label className={styles.muted} htmlFor="reader-size">Розмір тексту в читалці: {size}</label>
-            <input id="reader-size" type="range" min={READER_SIZE.min} max={READER_SIZE.max} value={size}
-                onChange={(event) => setReader({ size: Number(event.target.value) })} style={{ width: "100%", accentColor: "var(--accent)" }} />
-            <p className={styles.muted}>Однаково на всіх пристроях, де ви увійшли. Кольори й розмір читалки можна змінити й у самій читалці — кнопка «Аа».</p>
+            <h2 className={styles.sectionTitle}>Вигляд читалки</h2>
+            <p className={styles.muted}>Окремо від сайту. Те саме можна змінити й у самій читалці — кнопка «Аа». Однаково на всіх пристроях, де ви увійшли.</p>
+            <ReaderLookForm />
         </div>
     );
 }

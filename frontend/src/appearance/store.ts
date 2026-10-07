@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { api } from '../api/client';
-import { clean, readerColors, siteStyle, type Appearance, type ReaderAppearance, type SiteAppearance } from './model';
+import { clean, presetLook, readerColors, readerLook, siteStyle, type Appearance, type ReaderAppearance, type ReaderPreset, type SiteAppearance } from './model';
+import { loadFont } from './fonts';
 
 /**
  * The person's appearance settings: in this browser at once (so the page opens in its style,
@@ -53,9 +54,16 @@ export function apply() {
     const root = document.documentElement;
     const site = siteStyle(current);
     const reader = readerColors(current);
-    const theme = readerOpen && reader.theme ? reader.theme : site.theme;
+    const own = readerOpen && reader.theme !== null;
+    const theme = own && reader.theme ? reader.theme : site.theme;
     root.dataset.style = site.value;
     root.dataset.theme = theme;
+    if (own) root.dataset.reader = reader.value;
+    else delete root.dataset.reader;
+    const accent = readerOpen ? readerLook(current).accent : null;
+    if (accent) root.style.setProperty('--accent', accent);
+    else root.style.removeProperty('--accent');
+    if (readerOpen) void loadFont(readerLook(current).font);
     const color = { dark: '#121412', light: '#f7f5ef', black: '#000000' }[theme];
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
 }
@@ -85,8 +93,14 @@ export function setSite(patch: SiteAppearance) {
     changed({ ...current, site: { ...current.site, ...patch } });
 }
 
+/** A change to the reader's look: from now on it is one's own («Свій стиль»). */
 export function setReader(patch: ReaderAppearance) {
-    changed({ ...current, reader: { ...current.reader, ...patch } });
+    changed({ ...current, reader: { ...current.reader, ...patch, custom: true } });
+}
+
+/** A ready reader style replaces whatever was changed before. */
+export function setReaderPreset(preset: ReaderPreset) {
+    changed({ ...current, reader: presetLook(preset) });
 }
 
 /**
