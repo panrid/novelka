@@ -12,10 +12,12 @@ export function Segmented<T extends string>({
     options: readonly { value: T; label: string }[];
     onChange: (value: T) => void;
 }) {
+    // Long words in four or more choices do not fit one row of a phone; they go two by two there.
+    const crowded = options.length > 3 && options.reduce((sum, option) => sum + option.label.length, 0) > 32;
     return (
         <RadioGroup className={styles.field} value={value} onChange={(next) => onChange(next as T)} orientation="horizontal">
             <Label className={styles.label}>{label}</Label>
-            <div className={styles.segmented}>
+            <div className={crowded ? `${styles.segmented} ${styles.segmentedMany}` : styles.segmented}>
                 {options.map((option) => (
                     <Radio key={option.value} value={option.value} className={styles.segment}>
                         {option.label}

@@ -133,6 +133,34 @@
     font-size: 13px;
 }
 
+/* English, original and other names under the title. */
+.names {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+.original {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 360px;
+}
+
+.progressBar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--surface-2);
+    overflow: hidden;
+}
+
+.progressBar span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+}
+
 .chips {
     display: flex;
     flex-wrap: wrap;

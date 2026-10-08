@@ -60,7 +60,7 @@ describe('novel page', () => {
 
         const button = await screen.findByRole('link', { name: 'Продовжити · гл. 12' });
         expect(button).toHaveAttribute('href', '/n/mah-vody/12');
-        expect(screen.getByText('44 глави · триває')).toBeInTheDocument();
+        expect(screen.getByText('44 глави · в роботі')).toBeInTheDocument();
         expect(await screen.findByText('тут зупинились')).toBeInTheDocument();
     });
 
@@ -292,5 +292,32 @@ describe('catalog', () => {
 
         await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}');
         await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody'));
+    });
+});
+
+describe('the novel’s other names and the original', () => {
+    it('shows the names under the title and how much of the original is translated', async () => {
+        await renderAt('/n/mah-vody', {
+            'GET /api/novels/mah-vody': { body: {
+                ...NOVEL, edition: { ...EDITION, status: 'paused', pausedUntil: '2031-03-01' },
+                facts: { titleOriginal: '水属性の魔法使い', titleEnglish: 'Water Magician', altTitles: ['Mizu Zokusei', 'Маг води'],
+                    sourceStatus: 'ongoing', sourceChapterCount: 822 },
+            } },
+            'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
+        });
+        expect(await screen.findByText('Water Magician · 水属性の魔法使い · Mizu Zokusei')).toBeInTheDocument();
+        expect(screen.getByText(/44 глави · призупинено до 1 березня 2031/)).toBeInTheDocument();
+        expect(screen.getByText('Оригінал: виходить · 822 глави')).toBeInTheDocument();
+        expect(screen.getByText('Перекладено 44 з 822')).toBeInTheDocument();
+        expect(screen.getByRole('progressbar', { name: 'Перекладено' })).toHaveAttribute('aria-valuenow', '44');
+    });
+
+    it('shows nothing extra when the team said nothing', async () => {
+        await renderAt('/n/mah-vody', {
+            'GET /api/novels/mah-vody': { body: NOVEL },
+            'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
+        });
+        expect(await screen.findByText('44 глави · в роботі')).toBeInTheDocument();
+        expect(screen.queryByText(/Оригінал:/)).not.toBeInTheDocument();
     });
 });

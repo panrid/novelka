@@ -115,7 +115,7 @@ export function CardRow({ card }: { card: Card }) {
                 <div className={styles.ellipsis} style={{ fontWeight: 500 }}>{card.title}</div>
                 <div className={`${styles.small} ${styles.ellipsis}`}>{[...new Set([card.author, card.teamName].filter(Boolean))].join(' · ')}</div>
                 <div className={styles.small}>
-                    {card.chapterCount} {chaptersWord(card.chapterCount)}
+                    {card.sourceChapters ? `${card.chapterCount} / ${card.sourceChapters} ${chaptersWord(card.sourceChapters)}` : `${card.chapterCount} ${chaptersWord(card.chapterCount)}`}
                     {card.kind === 'machine' || card.kind === 'mixed' ? ' · ШІ' : card.kind === 'original' ? ' · оригінальний твір' : ''}
                     {card.adult ? ' · 18+' : ''}
                 </div>

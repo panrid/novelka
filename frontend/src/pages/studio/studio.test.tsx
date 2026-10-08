@@ -261,3 +261,32 @@ describe('team page', () => {
         expect(screen.queryByLabelText('Додати людину за ніком')).not.toBeInTheDocument();
     });
 });
+
+describe('the novel’s data', () => {
+    const FACTS = { titleOriginal: null, titleEnglish: null, altTitles: [], sourceStatus: null, sourceChapterCount: null };
+    const ABOUT = { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'human',
+        status: 'ongoing', adult: false, coverUrl: null, chapterCount: 2, ownNovel: false, teamHandle: 'mika', teamName: 'mika',
+        role: 'owner', ...COUNTS, pausedUntil: null, source: 'manual', facts: FACTS };
+
+    it('saves the other names, the original’s state and until when the translation rests', async () => {
+        const { calls } = await renderAt('/studio/12/about', {
+            'GET /api/me': { body: ME },
+            'GET /api/studio/editions/12': { body: ABOUT },
+            'GET /api/tags/groups': { body: [] },
+            'PATCH /api/studio/editions/12': { body: ABOUT },
+        });
+        await userEvent.type(await screen.findByLabelText('Англійська назва'), 'The Villainess');
+        await userEvent.type(screen.getByLabelText('Назва оригіналу'), '悪役令嬢');
+        await userEvent.type(screen.getByLabelText('Альтернативні назви'), 'Akuyaku{Enter}{Enter}Лиходійка-2');
+        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Стан оригіналу' })).getByRole('radio', { name: 'Виходить' }));
+        await userEvent.type(screen.getByLabelText('Глав в оригіналі'), '822');
+        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Стан перекладу' })).getByRole('radio', { name: 'Призупинено' }));
+        await userEvent.type(screen.getByLabelText('Призупинено до'), '2026-12-01');
+        await userEvent.click(screen.getByRole('button', { name: 'Зберегти' }));
+        await waitFor(() => expect(calls.find((call) => call.method === 'PATCH')?.body).toMatchObject({
+            status: 'paused', pausedUntil: '2026-12-01',
+            facts: { titleEnglish: 'The Villainess', titleOriginal: '悪役令嬢', altTitles: ['Akuyaku', 'Лиходійка-2'],
+                sourceStatus: 'ongoing', sourceChapterCount: 822 },
+        }));
+    });
+});

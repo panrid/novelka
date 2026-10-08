@@ -30,12 +30,25 @@ function AboutForm({ edition }: { edition: Overview }) {
     const [tags, setTags] = useState<string[]>(edition.tags);
     const [status, setStatus] = useState(edition.status);
     const [adult, setAdult] = useState(edition.adult);
+    const [pausedUntil, setPausedUntil] = useState(edition.pausedUntil ?? '');
+    const [titleOriginal, setTitleOriginal] = useState(edition.facts.titleOriginal ?? '');
+    const [titleEnglish, setTitleEnglish] = useState(edition.facts.titleEnglish ?? '');
+    const [altTitles, setAltTitles] = useState(edition.facts.altTitles.join('\n'));
+    const [sourceStatus, setSourceStatus] = useState<string>(edition.facts.sourceStatus ?? '');
+    const [sourceChapters, setSourceChapters] = useState(edition.facts.sourceChapterCount ? String(edition.facts.sourceChapterCount) : '');
+    const translation = edition.kind !== 'original';
     const refresh = (updated: Overview) => client.setQueryData(['studio-edition', edition.editionId], updated);
 
     const editor = useRef<EditorHandle>(null);
     const save = useMutation({
         mutationFn: () => studioApi.update(edition.editionId, {
             title, author, description: editor.current?.read() ?? description, status, adult, tags,
+            pausedUntil: status === 'paused' ? pausedUntil : '',
+            facts: {
+                titleOriginal, titleEnglish,
+                altTitles: altTitles.split('\n').map((name) => name.trim()).filter(Boolean),
+                ...(translation ? { sourceStatus, sourceChapterCount: Number(sourceChapters.replace(/\D/g, '')) || 0 } : {}),
+            },
         }),
         onSuccess: refresh,
     });
@@ -71,10 +84,36 @@ function AboutForm({ edition }: { edition: Overview }) {
                     <TextEditor handle={editor} mode="description" blocks={description} onChange={setDescription} label="Опис" />
                 </div>
                 <TagPicker value={tags} onChange={setTags} />
-                <Segmented label="Стан" value={status} onChange={setStatus}
-                    options={[{ value: 'ongoing', label: 'Триває' }, { value: 'paused', label: 'Пауза' }, { value: 'completed', label: 'Завершено' }, { value: 'abandoned', label: 'Покинуто' }]} />
-                {status === 'abandoned' && edition.kind !== 'original' && (
-                    <Notice tone="info">«Покинуто» відкриває естафету: інша команда зможе продовжити з наступної глави.</Notice>
+                <Segmented label={translation ? 'Стан перекладу' : 'Стан'} value={status} onChange={setStatus}
+                    options={[{ value: 'ongoing', label: 'В роботі' }, { value: 'paused', label: 'Призупинено' }, { value: 'completed', label: 'Завершено' }, { value: 'abandoned', label: 'Закинуто' }]} />
+                {status === 'paused' && (
+                    <TextInput label="Призупинено до" type="date" value={pausedUntil} onChange={setPausedUntil}
+                        hint="Необов’язково: читачі побачать «призупинено до …»." />
+                )}
+                {status === 'abandoned' && translation && (
+                    <Notice tone="info">«Закинуто» відкриває естафету: інша команда зможе продовжити з наступної глави.</Notice>
+                )}
+
+                <h2 className={styles.sectionTitle} style={{ margin: '8px 0 0' }}>Інші назви</h2>
+                <p className={styles.muted} style={{ marginTop: -8 }}>
+                    Необов’язково. За ними новелу шукають на сайті й у Google. Вони спільні для всіх перекладів цієї новели.
+                </p>
+                {translation && <TextInput label="Назва оригіналу" value={titleOriginal} onChange={setTitleOriginal} placeholder="水属性の魔法使い" />}
+                <TextInput label="Англійська назва" value={titleEnglish} onChange={setTitleEnglish} placeholder="Water Magician" />
+                <TextInput label="Альтернативні назви" multiline value={altTitles} onChange={setAltTitles}
+                    hint="Кожна з нового рядка, до 10." />
+
+                {translation && (
+                    <>
+                        <h2 className={styles.sectionTitle} style={{ margin: '8px 0 0' }}>Оригінал</h2>
+                        {edition.source === 'syosetu' && (
+                            <p className={styles.muted} style={{ marginTop: -8 }}>Стан і кількість глав оновлюються з Syosetu самі.</p>
+                        )}
+                        <Segmented label="Стан оригіналу" value={sourceStatus} onChange={setSourceStatus}
+                            options={[{ value: '', label: 'Невідомо' }, { value: 'ongoing', label: 'Виходить' }, { value: 'paused', label: 'Призупинено' }, { value: 'completed', label: 'Завершено' }]} />
+                        <TextInput label="Глав в оригіналі" value={sourceChapters} onChange={setSourceChapters} inputMode="numeric"
+                            hint="Скільки вийшло на зараз. Читачі побачать «Перекладено 55 з 822»." />
+                    </>
                 )}
                 <Toggle label="Для дорослих (18+)" isSelected={adult} onChange={setAdult} />
                 {save.isError && <Notice tone="error">{save.error.message}</Notice>}

@@ -29,6 +29,7 @@ import space.panrid.novelka.catalog.EditionChanges;
 import space.panrid.novelka.catalog.EditionData;
 import space.panrid.novelka.catalog.EditionRef;
 import space.panrid.novelka.catalog.ImportedNovel;
+import space.panrid.novelka.catalog.NovelFacts;
 import space.panrid.novelka.catalog.NewNovel;
 import space.panrid.novelka.platform.text.Block;
 import space.panrid.novelka.platform.text.Slugs;
@@ -101,11 +102,15 @@ class CatalogService implements Catalog {
                     .set(NOVEL.AUTHOR, novel.author() == null ? "" : novel.author().strip())
                     .set(NOVEL.DESCRIPTION, JSONB.valueOf(json.writeValueAsString(novel.description())))
                     .set(NOVEL.SOURCE_CHAPTER_COUNT, novel.sourceChapterCount())
+                    .set(NOVEL.SOURCE_STATUS, novel.completed() ? "completed" : "ongoing")
                     .set(NOVEL.SLUG, slug)
                     .returning(NOVEL.ID)
                     .fetchOne(NOVEL.ID);
         } else {
+            // The source site knows best how far the original went; a pause set by hand stays until it ends.
             db.update(NOVEL).set(NOVEL.SOURCE_CHAPTER_COUNT, novel.sourceChapterCount())
+                    .set(NOVEL.SOURCE_STATUS, novel.completed() ? DSL.val("completed")
+                            : DSL.when(NOVEL.SOURCE_STATUS.eq("paused"), NOVEL.SOURCE_STATUS).otherwise("ongoing"))
                     .set(NOVEL.SOURCE_LANGUAGE, novel.sourceLanguage()).where(NOVEL.ID.eq(novelId)).execute();
             slug = db.select(NOVEL.SLUG).from(NOVEL).where(NOVEL.ID.eq(novelId)).fetchOne(NOVEL.SLUG);
         }
@@ -142,7 +147,8 @@ class CatalogService implements Catalog {
     public Optional<EditionData> edition(long editionId) {
         Record row = db.select(EDITION.ID, NOVEL.ID, NOVEL.SLUG, EDITION.TEAM_ID, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE),
                         NOVEL.AUTHOR, DSL.coalesce(EDITION.DESCRIPTION, NOVEL.DESCRIPTION), EDITION.KIND, EDITION.STATUS,
-                        EDITION.ADULT, EDITION.COVER_IMAGE_ID, EDITION.CHAPTER_COUNT, NOVEL.SOURCE)
+                        EDITION.ADULT, EDITION.COVER_IMAGE_ID, EDITION.CHAPTER_COUNT, NOVEL.SOURCE, EDITION.PAUSED_UNTIL,
+                        NOVEL.TITLE_ORIGINAL, NOVEL.TITLE_ENGLISH, NOVEL.ALT_TITLES, NOVEL.SOURCE_STATUS, NOVEL.SOURCE_CHAPTER_COUNT)
                 .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
                 .where(EDITION.ID.eq(editionId))
                 .fetchOne();
@@ -156,7 +162,64 @@ class CatalogService implements Catalog {
                 row.get(4, String.class), row.get(NOVEL.AUTHOR),
                 json.readValue(row.get(6, JSONB.class).data(), BLOCKS), tags, row.get(EDITION.KIND),
                 row.get(EDITION.STATUS), row.get(EDITION.ADULT), row.get(EDITION.COVER_IMAGE_ID),
-                row.get(EDITION.CHAPTER_COUNT), ownNovel(novelId, row.get(NOVEL.SOURCE))));
+                row.get(EDITION.CHAPTER_COUNT), ownNovel(novelId, row.get(NOVEL.SOURCE)), row.get(EDITION.PAUSED_UNTIL),
+                row.get(NOVEL.SOURCE), new NovelFacts(row.get(NOVEL.TITLE_ORIGINAL), row.get(NOVEL.TITLE_ENGLISH),
+                        List.of(row.get(NOVEL.ALT_TITLES)), row.get(NOVEL.SOURCE_STATUS), row.get(NOVEL.SOURCE_CHAPTER_COUNT))));
+    }
+
+    private static final java.util.Set<String> SOURCE_STATUSES = java.util.Set.of("ongoing", "completed", "paused");
+    private static final int NAME_MAX = 300;
+    private static final int ALT_TITLES_MAX = 10;
+
+    /** The novel's other names and the original's state; shared by all its translations. */
+    private void setFacts(long novelId, NovelFacts facts) {
+        Map<Field<?>, Object> novel = new HashMap<>();
+        if (facts.titleOriginal() != null) {
+            novel.put(NOVEL.TITLE_ORIGINAL, name(facts.titleOriginal()));
+        }
+        if (facts.titleEnglish() != null) {
+            novel.put(NOVEL.TITLE_ENGLISH, name(facts.titleEnglish()));
+        }
+        if (facts.altTitles() != null) {
+            List<String> names = facts.altTitles().stream().map(CatalogService::name).filter(java.util.Objects::nonNull)
+                    .distinct().toList();
+            if (names.size() > ALT_TITLES_MAX) {
+                throw UserFacingException.badRequest("Інших назв — до %d.".formatted(ALT_TITLES_MAX));
+            }
+            novel.put(NOVEL.ALT_TITLES, names.toArray(String[]::new));
+        }
+        if (facts.sourceStatus() != null) {
+            if (!facts.sourceStatus().isEmpty() && !SOURCE_STATUSES.contains(facts.sourceStatus())) {
+                throw UserFacingException.badRequest("Невідомий стан оригіналу.");
+            }
+            novel.put(NOVEL.SOURCE_STATUS, facts.sourceStatus().isEmpty() ? null : facts.sourceStatus());
+        }
+        if (facts.sourceChapterCount() != null) {
+            if (facts.sourceChapterCount() < 0 || facts.sourceChapterCount() > 100_000) {
+                throw UserFacingException.badRequest("Кількість глав в оригіналі — від 1 до 100 000.");
+            }
+            novel.put(NOVEL.SOURCE_CHAPTER_COUNT, facts.sourceChapterCount() == 0 ? null : facts.sourceChapterCount());
+        }
+        if (!novel.isEmpty()) {
+            db.update(NOVEL).set(novel).where(NOVEL.ID.eq(novelId)).execute();
+        }
+    }
+
+    /** A name as typed, or null when it was cleared. */
+    private static String name(String raw) {
+        String name = raw.strip().replaceAll("\\s+", " ");
+        if (name.length() > NAME_MAX) {
+            throw UserFacingException.badRequest("Назва задовга: до %d знаків.".formatted(NAME_MAX));
+        }
+        return name.isEmpty() ? null : name;
+    }
+
+    private static java.time.LocalDate pausedUntil(String raw) {
+        try {
+            return java.time.LocalDate.parse(raw.strip());
+        } catch (java.time.format.DateTimeParseException error) {
+            throw UserFacingException.badRequest("Не вийшло прочитати дату, до якої переклад на паузі.");
+        }
     }
 
     @Override
@@ -165,6 +228,9 @@ class CatalogService implements Catalog {
         EditionData current = edition(editionId).orElseThrow(() -> UserFacingException.notFound("Такої новели немає."));
         if (changes.status() != null && !STATUSES.contains(changes.status())) {
             throw UserFacingException.badRequest("Невідомий стан перекладу.");
+        }
+        if (changes.facts() != null) {
+            setFacts(current.novelId(), changes.facts());
         }
         String title = changes.title() == null ? null : title(changes.title());
         String description = changes.description() == null ? null : json.writeValueAsString(changes.description());
@@ -197,6 +263,12 @@ class CatalogService implements Catalog {
         }
         if (changes.status() != null) {
             edition.put(EDITION.STATUS, changes.status());
+        }
+        String status = changes.status() != null ? changes.status() : current.status();
+        if (!"paused".equals(status)) {
+            edition.put(EDITION.PAUSED_UNTIL, null);
+        } else if (changes.pausedUntil() != null) {
+            edition.put(EDITION.PAUSED_UNTIL, changes.pausedUntil().isBlank() ? null : pausedUntil(changes.pausedUntil()));
         }
         if (changes.adult() != null) {
             edition.put(EDITION.ADULT, changes.adult());

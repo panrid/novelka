@@ -106,7 +106,8 @@ class ReadingController {
                 novel.author(), origin(novel.source()), novel.language(),
                 queries.readerBlocks(edition.description() != null ? edition.description() : novel.description()),
                 queries.allTags(novel.id()), chosen, summaries, edition.adult(), edition.lastPublishedAt(),
-                viewer.map(v -> queries.viewer(v.accountId(), edition.id())).orElse(null), relay(edition.id()), novel.url());
+                viewer.map(v -> queries.viewer(v.accountId(), edition.id())).orElse(null), relay(edition.id()), novel.url(),
+                novel.facts());
     }
 
     @GetMapping("/novels/{slug}/chapters")

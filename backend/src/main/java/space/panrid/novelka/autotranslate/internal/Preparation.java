@@ -53,7 +53,8 @@ class Preparation {
         SourceNovel novel = sources.novel(link);
         if (known) {
             EditionRef ref = catalog.importNovel(new ImportedNovel(link.provider(), novel.language(), link.key(), link.url(),
-                    novel.title(), novel.author(), novel.title(), novel.author(), List.of(), novel.lastAvailable(), link.adult(), teamId));
+                    novel.title(), novel.author(), novel.title(), novel.author(), List.of(), novel.lastAvailable(), novel.completed(),
+                    link.adult(), teamId));
             sources.keep(ref.novelId(), novel);
             return ref;
         }
@@ -101,7 +102,7 @@ class Preparation {
         SourceLink link = novel.link();
         EditionRef ref = catalog.importNovel(new ImportedNovel(link.provider(), novel.language(), link.key(), link.url(),
                 novel.title(), novel.author(), metadata.title(), metadata.author(), metadata.description(),
-                novel.lastAvailable(), link.adult(), teamId));
+                novel.lastAvailable(), novel.completed(), link.adult(), teamId));
         sources.keep(ref.novelId(), novel);
         // Authors mention their own book in notes; the translation must call it by the site's title.
         glossary.addFromAnalysis(ref.editionId(), 0, List.of(

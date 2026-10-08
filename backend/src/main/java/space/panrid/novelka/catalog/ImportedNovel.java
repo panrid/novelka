@@ -11,7 +11,9 @@ import space.panrid.novelka.platform.text.Block;
  * @param source             the site's provider id, such as {@code syosetu}
  * @param sourceLanguage     the original's language, such as {@code ja} or {@code en}
  * @param sourceChapterCount the last chapter that can be taken from the site
+ * @param completed          the author finished the original
  */
 public record ImportedNovel(String source, String sourceLanguage, String sourceKey, String sourceUrl, String titleOriginal,
-        String authorOriginal, String title, String author, List<Block> description, int sourceChapterCount, boolean adult, long teamId) {
+        String authorOriginal, String title, String author, List<Block> description, int sourceChapterCount, boolean completed,
+        boolean adult, long teamId) {
 }

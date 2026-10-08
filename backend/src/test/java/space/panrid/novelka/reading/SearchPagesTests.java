@@ -3,6 +3,10 @@ package space.panrid.novelka.reading;
 import static org.assertj.core.api.Assertions.assertThat;
 import static space.panrid.novelka.support.Browser.json;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -40,6 +44,49 @@ class SearchPagesTests {
                     .formatted(number)));
         }
         return read(translator.browser().get("/api/studio/editions/" + edition)).path("novelSlug").asString();
+    }
+
+    @Test
+    void otherNamesAndTheOriginalsStateShowAndAreSearchedByEverywhere() {
+        Person translator = Accounts.signedIn(port, mailbox);
+        String suffix = translator.nick().substring(translator.nick().length() - 6);
+        String slug = publish(translator, "Маг води " + suffix, false);
+        long edition = read(translator.browser().get("/api/studio")).valueStream()
+                .filter(item -> item.path("novelSlug").asString().equals(slug)).findFirst().orElseThrow().path("editionId").asLong();
+        String english = "Water Magician " + suffix;
+        JsonNode saved = read(translator.browser().patch("/api/studio/editions/" + edition, """
+                {"status":"paused","pausedUntil":"2026-12-01","facts":{"titleEnglish":"%s","titleOriginal":"水属性の魔法使い",
+                 "altTitles":["Mizu Zokusei %s","  ","Водяний маг"],"sourceStatus":"ongoing","sourceChapterCount":822}}"""
+                .formatted(english, suffix)));
+        assertThat(saved.path("pausedUntil").asString()).isEqualTo("2026-12-01");
+        assertThat(saved.path("facts").path("altTitles")).extracting(JsonNode::asString)
+                .containsExactly("Mizu Zokusei " + suffix, "Водяний маг");
+
+        Browser guest = new Browser(port);
+        JsonNode page = read(guest.get("/api/novels/" + slug));
+        assertThat(page.path("facts").path("titleEnglish").asString()).isEqualTo(english);
+        assertThat(page.path("facts").path("sourceChapterCount").asInt()).isEqualTo(822);
+        assertThat(page.path("edition").path("status").asString()).isEqualTo("paused");
+        assertThat(page.path("edition").path("pausedUntil").asString()).isEqualTo("2026-12-01");
+        for (String query : List.of("water magician " + suffix, "Mizu Zokusei " + suffix)) {
+            assertThat(read(guest.get("/api/catalog?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8))).path("items"))
+                    .as(query).extracting(card -> card.path("novelSlug").asString()).containsExactly(slug);
+        }
+        assertThat(read(guest.get("/api/catalog?q=" + URLEncoder.encode("Маг води " + suffix, StandardCharsets.UTF_8)))
+                .path("items").path(0).path("sourceChapters").asInt()).isEqualTo(822);
+
+        String html = guest.get("/n/" + slug).body();
+        assertThat(html).contains("<title>Маг води " + suffix + " (" + english + ") — читати українською | Новелка</title>")
+                .contains("\"alternateName\":[\"" + english + "\",\"水属性の魔法使い\"")
+                .contains("Інші назви: " + english + " · 水属性の魔法使い");
+
+        JsonNode resumed = read(translator.browser().patch("/api/studio/editions/" + edition, """
+                {"status":"ongoing","facts":{"titleEnglish":"","sourceChapterCount":0}}"""));
+        assertThat(resumed.path("pausedUntil").isNull()).as("the date belongs to the pause").isTrue();
+        assertThat(resumed.path("facts").path("titleEnglish").isNull()).isTrue();
+        assertThat(resumed.path("facts").path("sourceChapterCount").isNull()).isTrue();
+        assertThat(translator.browser().patch("/api/studio/editions/" + edition, """
+                {"facts":{"sourceStatus":"maybe"}}""").status()).isEqualTo(400);
     }
 
     @Test

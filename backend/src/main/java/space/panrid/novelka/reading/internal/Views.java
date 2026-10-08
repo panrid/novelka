@@ -11,10 +11,10 @@ final class Views {
     private Views() {
     }
 
-    /** A novel in a list: shelf, catalog row, library row. */
+    /** A novel in a list: shelf, catalog row, library row. {@code sourceChapters}: in the original, if known. */
     record Card(long editionId, String novelSlug, String teamHandle, String teamName, String title, String author,
             String coverUrl, String kind, String status, boolean adult, int chapterCount, List<String> tags,
-            OffsetDateTime lastPublishedAt) {
+            OffsetDateTime lastPublishedAt, Integer sourceChapters) {
     }
 
     /** {@code chapterLabel}: the number readers see (see ChapterLabels); null shows the position. */
@@ -47,7 +47,7 @@ final class Views {
 
     /** @param rating average stars, null until someone rates */
     record EditionSummary(long editionId, String teamHandle, String teamName, String kind, String status,
-            int chapterCount, String coverUrl, Double rating, int ratings) {
+            int chapterCount, String coverUrl, Double rating, int ratings, java.time.LocalDate pausedUntil) {
     }
 
     /** {@code teamRole}: owner, translator or editor when the viewer works on this edition. */
@@ -64,7 +64,8 @@ final class Views {
      */
     record NovelPage(String slug, String title, String author, String origin, String language, List<ReaderBlock> description,
             List<String> tags, EditionSummary edition, List<EditionSummary> editions, boolean adult,
-            OffsetDateTime lastPublishedAt, ViewerState viewer, Relay relay, String originalUrl) {
+            OffsetDateTime lastPublishedAt, ViewerState viewer, Relay relay, String originalUrl,
+            space.panrid.novelka.catalog.NovelFacts facts) {
     }
 
     /** «Естафета» on the novel page: free to continue and who continues already. */

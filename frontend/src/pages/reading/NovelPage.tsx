@@ -12,7 +12,7 @@ import { adminApi } from '../../admin/api';
 import { Sheet } from '../../ui/Sheet';
 import { Blocks } from '../../reading/Blocks';
 import { Cover } from '../../reading/Cover';
-import { LIST_LABELS, STATUS_LABELS, chapterHeading, chaptersWord, readingApi, volumeTitle, type ListName, type NovelPage as Novel } from '../../reading/api';
+import { LIST_LABELS, SOURCE_STATUS_LABELS, chapterHeading, chaptersWord, otherNames, readingApi, translationStatus, volumeTitle, type ListName, type NovelPage as Novel } from '../../reading/api';
 import { relayApi, teamApi } from '../../studio/api';
 import { Segmented } from '../../ui/Segmented';
 import { localProgress } from '../../reading/progress';
@@ -116,6 +116,9 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
             <div className={styles.content}>
                 <div className={styles.headText}>
                     <h1 className={styles.title}>{novel.title}</h1>
+                    {otherNames(novel.title, novel.facts).length > 0 && (
+                        <p className={styles.names}>{otherNames(novel.title, novel.facts).join(' · ')}</p>
+                    )}
                     <p className={styles.muted}>
                         {novel.origin === 'original' ? 'оригінальний твір' : translatedFrom(novel.language)}
                         {novel.originalUrl && <> · <a href={novel.originalUrl} target="_blank" rel="noopener noreferrer nofollow">оригінал ↗</a></>}
@@ -127,8 +130,9 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                         {novel.adult && <span className={`${styles.chip} ${styles.ghost}`}>18+</span>}
                     </div>
                     <p className={styles.muted}>
-                        {edition.chapterCount} {chaptersWord(edition.chapterCount)} · {STATUS_LABELS[edition.status]}
+                        {edition.chapterCount} {chaptersWord(edition.chapterCount)} · {translationStatus(edition.status, edition.pausedUntil)}
                     </p>
+                    {novel.origin !== 'original' && <OriginalProgress novel={novel} />}
                     <Stars novel={novel} />
                 </div>
                 {novel.tags.length > 0 && (
@@ -458,4 +462,29 @@ const FROM: Record<string, string> = {
 /** «переклад з японської», or just «переклад» when the site does not know the original's language. */
 function translatedFrom(language: string | null | undefined): string {
     return language && FROM[language] ? `переклад з ${FROM[language]}` : 'переклад';
+}
+
+/** «Оригінал: виходить · 822 глави» and how much of it this translation covers. */
+function OriginalProgress({ novel }: { novel: Novel }) {
+    const facts = novel.facts;
+    if (!facts?.sourceStatus && !facts?.sourceChapterCount) return null;
+    const total = facts.sourceChapterCount;
+    const done = novel.edition.chapterCount;
+    return (
+        <div className={styles.original}>
+            <div className={styles.muted}>
+                Оригінал: {[facts.sourceStatus && SOURCE_STATUS_LABELS[facts.sourceStatus], total && `${total} ${chaptersWord(total)}`]
+                    .filter(Boolean).join(' · ')}
+            </div>
+            {total ? (
+                <>
+                    <div className={styles.progressBar} role="progressbar" aria-label="Перекладено" aria-valuemin={0}
+                        aria-valuemax={total} aria-valuenow={Math.min(done, total)}>
+                        <span style={{ width: `${Math.min(100, (done / total) * 100)}%` }} />
+                    </div>
+                    <div className={styles.muted}>Перекладено {done} з {total}</div>
+                </>
+            ) : null}
+        </div>
+    );
 }

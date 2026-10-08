@@ -150,6 +150,13 @@ textarea.input {
     background: var(--surface);
 }
 
+@media (max-width: 479px) {
+    .segmentedMany {
+        grid-auto-flow: row;
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 .segment {
     padding: 9px 6px;
     border-radius: var(--radius-sm);

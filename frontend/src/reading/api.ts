@@ -18,6 +18,8 @@ export type Card = {
     chapterCount: number;
     tags: string[];
     lastPublishedAt: string | null;
+    /** Chapters in the original, when known: «55 / 822 глав». */
+    sourceChapters?: number | null;
 };
 
 export type Span = { text: string; marks: ('bold' | 'italic' | 'underline' | 'strike')[] };
@@ -54,6 +56,19 @@ export type EditionSummary = {
     /** Average stars, null until someone rates. */
     rating: number | null;
     ratings: number;
+    /** The day a paused translation means to go on (ISO date). */
+    pausedUntil?: string | null;
+};
+
+export type SourceStatus = 'ongoing' | 'completed' | 'paused';
+
+/** The novel beyond its Ukrainian title: other names and how the original stands. All optional. */
+export type NovelFacts = {
+    titleOriginal: string | null;
+    titleEnglish: string | null;
+    altTitles: string[];
+    sourceStatus: SourceStatus | null;
+    sourceChapterCount: number | null;
 };
 
 export type NovelPage = {
@@ -73,6 +88,7 @@ export type NovelPage = {
     relay: { free: boolean; reason: 'abandoned' | 'inactive' | 'unanswered' | null; lastNumber: number; continuations: Continuation[] };
     /** The original's page, when the site knows it. */
     originalUrl?: string | null;
+    facts?: NovelFacts;
 };
 
 export type Continuation = { teamHandle: string; teamName: string; firstNumber: number };
@@ -165,12 +181,35 @@ export const LIST_LABELS: Record<ListName, string> = {
     dropped: 'Кинуто',
 };
 
+/** The translation's state. */
 export const STATUS_LABELS: Record<Status, string> = {
-    ongoing: 'триває',
+    ongoing: 'в роботі',
     completed: 'завершено',
-    paused: 'пауза',
-    abandoned: 'покинуто',
+    paused: 'призупинено',
+    abandoned: 'закинуто',
 };
+
+/** The original's state. */
+export const SOURCE_STATUS_LABELS: Record<SourceStatus, string> = {
+    ongoing: 'виходить',
+    completed: 'завершено',
+    paused: 'призупинено',
+};
+
+/** «призупинено до 1 грудня» (with the year when it is not this one). */
+export function translationStatus(status: Status, pausedUntil?: string | null): string {
+    if (status !== 'paused' || !pausedUntil) return STATUS_LABELS[status];
+    const day = new Date(`${pausedUntil}T00:00:00`);
+    const sameYear = day.getFullYear() === new Date().getFullYear();
+    return `призупинено до ${day.toLocaleDateString('uk-UA', sameYear ? { day: 'numeric', month: 'long' } : { day: 'numeric', month: 'long', year: 'numeric' })}`;
+}
+
+/** The novel's names besides the Ukrainian one: English, original, the rest. */
+export function otherNames(title: string, facts: NovelFacts | undefined): string[] {
+    if (!facts) return [];
+    const names = [facts.titleEnglish, facts.titleOriginal, ...facts.altTitles].filter((name): name is string => Boolean(name?.trim()));
+    return [...new Set(names)].filter((name) => name.toLowerCase() !== title.toLowerCase());
+}
 
 /** Numbers of chapters in Ukrainian: 1 глава, 2 глави, 5 глав. */
 export function novelsWord(count: number): string {

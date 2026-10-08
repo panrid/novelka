@@ -1,5 +1,5 @@
 import { api } from '../api/client';
-import type { Span } from '../reading/api';
+import type { NovelFacts, Span } from '../reading/api';
 
 export type TeamRole = 'owner' | 'translator' | 'editor';
 
@@ -30,6 +30,11 @@ export type Overview = {
     /** Chapters of the original when the site reads it; null otherwise. */
     sourceChapters: number | null;
     pendingSuggestions: number; drafts: number; newWords: number; originalUrl: string | null;
+    /** The day a paused translation means to go on (ISO date). */
+    pausedUntil: string | null;
+    /** syosetu, manual or original. */
+    source: string;
+    facts: NovelFacts;
 };
 
 export type StudioChapter = {
@@ -93,7 +98,8 @@ export const studioApi = {
     create: (body: { kind: 'human' | 'original'; title: string; author: string; description: StudioBlock[]; tags: string[]; adult: boolean; team: string }) =>
         api<{ editionId: number; novelSlug: string }>('/api/studio/editions', json('POST', body)),
     overview: (id: number) => api<Overview>(edition(id)),
-    update: (id: number, patch: Partial<{ title: string; author: string; description: StudioBlock[]; tags: string[]; status: string; adult: boolean }>) =>
+    update: (id: number, patch: Partial<{ title: string; author: string; description: StudioBlock[]; tags: string[]; status: string; adult: boolean;
+        pausedUntil: string; facts: Partial<{ titleOriginal: string; titleEnglish: string; altTitles: string[]; sourceStatus: string; sourceChapterCount: number }> }>) =>
         api<Overview>(edition(id), json('PATCH', patch)),
     /** The novel's address (/n/…); the old one keeps working. */
     setSlug: (id: number, slug: string) => api<{ slug: string }>(`${edition(id)}/slug`, json('PUT', { slug })),

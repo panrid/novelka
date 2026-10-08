@@ -104,6 +104,10 @@ class SearchPages {
         String about = text(it.description());
         String cover = cover(it);
         StringBuilder body = new StringBuilder("<article class=\"prerendered\"><h1>").append(escape(it.title())).append("</h1>");
+        List<String> names = otherNames(it);
+        if (!names.isEmpty()) {
+            body.append("<p>Інші назви: ").append(escape(String.join(" · ", names))).append("</p>");
+        }
         if (!it.novel().author().isBlank()) {
             body.append("<p>").append(escape(it.novel().author())).append("</p>");
         }
@@ -114,13 +118,20 @@ class SearchPages {
                     .append(escape(heading(row.number(), row.label(), row.title()))).append("</a></li>");
         }
         body.append("</ol></article>");
-        String ld = json.writeValueAsString(java.util.Map.of(
+        java.util.Map<String, Object> book = new java.util.LinkedHashMap<>(java.util.Map.of(
                 "@context", "https://schema.org", "@type", "Book", "name", it.title(),
                 "author", java.util.Map.of("@type", "Person", "name", it.novel().author().isBlank() ? SITE : it.novel().author()),
                 "inLanguage", "uk", "url", base + it.path(), "image", cover == null ? base + "/favicon.svg" : cover,
                 "description", cut(about, 500)));
-        return page(new Head(it.title() + " — читати українською | " + SITE, cut(about, DESCRIPTION_CHARS), it.path(), cover, true, ld),
-                body.toString(), HttpStatus.OK);
+        if (!names.isEmpty()) {
+            book.put("alternateName", names);
+        }
+        // «Маг води (Water Magician)»: people often search by the English name.
+        String english = it.novel().facts().titleEnglish();
+        String shown = english == null || english.equalsIgnoreCase(it.title()) ? it.title() : it.title() + " (" + english + ")";
+        String description = names.isEmpty() ? about : "Також: " + String.join(", ", names) + ". " + about;
+        return page(new Head(shown + " — читати українською | " + SITE, cut(description, DESCRIPTION_CHARS), it.path(), cover, true,
+                json.writeValueAsString(book)), body.toString(), HttpStatus.OK);
     }
 
     @GetMapping("/n/{slug}/{number}")
@@ -232,6 +243,21 @@ class SearchPages {
                     .append("</lastmod>");
         }
         xml.append("</url>\n");
+    }
+
+    /** The novel's names besides the Ukrainian one shown: English, original, the rest. */
+    private static List<String> otherNames(Found it) {
+        var facts = it.novel().facts();
+        java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
+        if (facts.titleEnglish() != null) {
+            names.add(facts.titleEnglish());
+        }
+        if (facts.titleOriginal() != null) {
+            names.add(facts.titleOriginal());
+        }
+        names.addAll(facts.altTitles());
+        names.removeIf(name -> name.isBlank() || name.equalsIgnoreCase(it.title()));
+        return List.copyOf(names);
     }
 
     // ---- the translation a link points at ------------------------------------------------------

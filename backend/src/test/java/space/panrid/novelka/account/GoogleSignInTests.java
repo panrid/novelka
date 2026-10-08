@@ -41,12 +41,12 @@ class GoogleSignInTests {
         assertThat(read(browser.get("/api/auth/providers")).path("google").asBoolean()).isTrue();
 
         String landed = returnFromGoogle(browser, "/api/auth/google?next=/library",
-                new GoogleSignIn.Identity("sub-" + suffix, email, true, "Марта " + suffix));
+                new GoogleSignIn.Identity("sub-" + suffix, email, true, "Marta " + suffix));
         assertThat(landed).isEqualTo("/login/google");
         JsonNode newcomer = read(browser.get("/api/auth/google/newcomer"));
         assertThat(newcomer.path("email").asString()).isEqualTo(email);
         assertThat(newcomer.path("next").asString()).isEqualTo("/library");
-        assertThat(newcomer.path("nick").asString()).as("the Google name made into a nick").isEqualTo("g" + suffix);
+        assertThat(newcomer.path("nick").asString()).as("the Google name made into a nick").isEqualTo("Marta_" + suffix);
 
         String nick = "marta_" + suffix;
         JsonNode me = read(browser.post("/api/auth/google/newcomer", json("nick", nick)));

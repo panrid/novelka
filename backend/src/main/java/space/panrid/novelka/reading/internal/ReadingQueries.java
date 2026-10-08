@@ -42,6 +42,7 @@ import org.jooq.SortField;
 import org.jooq.impl.DSL;
 import org.springframework.stereotype.Component;
 
+import space.panrid.novelka.catalog.NovelFacts;
 import space.panrid.novelka.media.Images;
 import space.panrid.novelka.media.StoredImage;
 import space.panrid.novelka.platform.text.Block;
@@ -106,7 +107,7 @@ class ReadingQueries {
     private SelectJoinStep<Record> cards(SelectField<?>... extra) {
         List<SelectField<?>> fields = new ArrayList<>(List.of(EDITION.ID, NOVEL.ID, NOVEL.SLUG, TEAM.HANDLE,
                 teamName(), title(), NOVEL.AUTHOR, EDITION.COVER_IMAGE_ID, EDITION.KIND, EDITION.STATUS,
-                EDITION.ADULT, EDITION.CHAPTER_COUNT, EDITION.LAST_PUBLISHED_AT));
+                EDITION.ADULT, EDITION.CHAPTER_COUNT, EDITION.LAST_PUBLISHED_AT, NOVEL.SOURCE_CHAPTER_COUNT));
         fields.addAll(List.of(extra));
         return db.select(fields)
                 .from(EDITION)
@@ -124,7 +125,7 @@ class ReadingQueries {
             return new Card(r.get(EDITION.ID), r.get(NOVEL.SLUG), r.get(TEAM.HANDLE), r.get("team_name", String.class),
                     r.get("title", String.class), r.get(NOVEL.AUTHOR), cover == null ? null : cover.url(COVER_WIDTH),
                     r.get(EDITION.KIND), r.get(EDITION.STATUS), r.get(EDITION.ADULT), r.get(EDITION.CHAPTER_COUNT),
-                    tags.getOrDefault(r.get(NOVEL.ID), List.of()), r.get(EDITION.LAST_PUBLISHED_AT));
+                    tags.getOrDefault(r.get(NOVEL.ID), List.of()), r.get(EDITION.LAST_PUBLISHED_AT), r.get(NOVEL.SOURCE_CHAPTER_COUNT));
         }).toList();
     }
 
@@ -233,6 +234,9 @@ class ReadingQueries {
             String like = "%" + escaped + "%";
             where = where.and(NOVEL.TITLE.likeIgnoreCase(like).or(EDITION.TITLE.likeIgnoreCase(like))
                     .or(NOVEL.AUTHOR.likeIgnoreCase(like))
+                    // The novel's other names: English, original, and any others readers know it by.
+                    .or(NOVEL.TITLE_ENGLISH.likeIgnoreCase(like)).or(NOVEL.TITLE_ORIGINAL.likeIgnoreCase(like))
+                    .or(DSL.condition("array_to_string({0}, ' ') ILIKE {1}", NOVEL.ALT_TITLES, DSL.val(like)))
                     .or(DSL.exists(DSL.selectOne().from(NOVEL_TAG).join(TAG).on(TAG.ID.eq(NOVEL_TAG.TAG_ID))
                             .where(NOVEL_TAG.NOVEL_ID.eq(NOVEL.ID).and(TAG.NAME.likeIgnoreCase(like))))));
         }
@@ -255,7 +259,9 @@ class ReadingQueries {
             case "new" -> List.of(EDITION.CREATED_AT.desc());
             case "title" -> List.of(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).asc());
             case "relevance" -> List.of(DSL.when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase(escapeLike(words) + "%"), 0)
-                    .when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase("%" + escapeLike(words) + "%"), 1).otherwise(2).asc(),
+                    .when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase("%" + escapeLike(words) + "%"), 1)
+                    .when(NOVEL.TITLE_ENGLISH.likeIgnoreCase(escapeLike(words) + "%"), 1)
+                    .otherwise(2).asc(),
                     popularity().desc());
             default -> List.of(popularity().desc(), EDITION.LAST_PUBLISHED_AT.desc().nullsLast());
         };
@@ -320,27 +326,37 @@ class ReadingQueries {
      * @param language the original's language (ja, en…), or null when not known (a translation entered by hand)
      * @param url      the original's page, when the site knows it
      */
-    record NovelRow(long id, String slug, String title, String author, String source, JSONB description, String language, String url) {
+    record NovelRow(long id, String slug, String title, String author, String source, JSONB description, String language, String url,
+            NovelFacts facts) {
+    }
+
+    private static NovelRow novelRow(Record r) {
+        return new NovelRow(r.get(NOVEL.ID), r.get(NOVEL.SLUG), r.get(NOVEL.TITLE), r.get(NOVEL.AUTHOR), r.get(NOVEL.SOURCE),
+                r.get(NOVEL.DESCRIPTION), r.get(NOVEL.SOURCE_LANGUAGE), r.get(NOVEL.SOURCE_URL),
+                new NovelFacts(r.get(NOVEL.TITLE_ORIGINAL), r.get(NOVEL.TITLE_ENGLISH), List.of(r.get(NOVEL.ALT_TITLES)),
+                        r.get(NOVEL.SOURCE_STATUS), r.get(NOVEL.SOURCE_CHAPTER_COUNT)));
     }
 
     /** The novel by its address, or by an address it had before (the row then carries the current one). */
     Optional<NovelRow> novel(String slug) {
         var current = db.select(NOVEL.ID, NOVEL.SLUG, NOVEL.TITLE, NOVEL.AUTHOR, NOVEL.SOURCE, NOVEL.DESCRIPTION, NOVEL.SOURCE_LANGUAGE,
-                        NOVEL.SOURCE_URL)
+                        NOVEL.SOURCE_URL, NOVEL.TITLE_ORIGINAL, NOVEL.TITLE_ENGLISH, NOVEL.ALT_TITLES, NOVEL.SOURCE_STATUS,
+                        NOVEL.SOURCE_CHAPTER_COUNT)
                 .from(NOVEL).where(NOVEL.SLUG.eq(slug))
-                .fetchOptional(r -> new NovelRow(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(), r.value6(), r.value7(), r.value8()));
+                .fetchOptional(ReadingQueries::novelRow);
         if (current.isPresent()) {
             return current;
         }
         return db.select(NOVEL.ID, NOVEL.SLUG, NOVEL.TITLE, NOVEL.AUTHOR, NOVEL.SOURCE, NOVEL.DESCRIPTION, NOVEL.SOURCE_LANGUAGE,
-                        NOVEL.SOURCE_URL)
+                        NOVEL.SOURCE_URL, NOVEL.TITLE_ORIGINAL, NOVEL.TITLE_ENGLISH, NOVEL.ALT_TITLES, NOVEL.SOURCE_STATUS,
+                        NOVEL.SOURCE_CHAPTER_COUNT)
                 .from(NOVEL_SLUG_ALIAS).join(NOVEL).on(NOVEL.ID.eq(NOVEL_SLUG_ALIAS.NOVEL_ID)).where(NOVEL_SLUG_ALIAS.SLUG.eq(slug))
-                .fetchOptional(r -> new NovelRow(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(), r.value6(), r.value7(), r.value8()));
+                .fetchOptional(ReadingQueries::novelRow);
     }
 
     record EditionRow(long id, String teamHandle, String teamName, String title, String kind, String status,
             boolean adult, int chapterCount, Long coverImageId, JSONB description, OffsetDateTime lastPublishedAt,
-            int popularity, boolean hidden) {
+            int popularity, boolean hidden, java.time.LocalDate pausedUntil) {
     }
 
     /** All editions of a novel, the most popular first. */
@@ -348,7 +364,7 @@ class ReadingQueries {
         Field<Integer> popularity = popularity().as("popularity");
         return db.select(EDITION.ID, TEAM.HANDLE, teamName(), EDITION.TITLE, EDITION.KIND, EDITION.STATUS,
                         EDITION.ADULT, EDITION.CHAPTER_COUNT, EDITION.COVER_IMAGE_ID, EDITION.DESCRIPTION,
-                        EDITION.LAST_PUBLISHED_AT, popularity, EDITION.HIDDEN_AT)
+                        EDITION.LAST_PUBLISHED_AT, popularity, EDITION.HIDDEN_AT, EDITION.PAUSED_UNTIL)
                 .from(EDITION)
                 .join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
                 .join(ACCOUNT).on(ACCOUNT.ID.eq(TEAM.OWNER_ID))
@@ -357,7 +373,8 @@ class ReadingQueries {
                 .fetch(r -> new EditionRow(r.get(EDITION.ID), r.get(TEAM.HANDLE), r.get("team_name", String.class),
                         r.get(EDITION.TITLE), r.get(EDITION.KIND), r.get(EDITION.STATUS), r.get(EDITION.ADULT),
                         r.get(EDITION.CHAPTER_COUNT), r.get(EDITION.COVER_IMAGE_ID), r.get(EDITION.DESCRIPTION),
-                        r.get(EDITION.LAST_PUBLISHED_AT), r.get(popularity), r.get(EDITION.HIDDEN_AT) != null));
+                        r.get(EDITION.LAST_PUBLISHED_AT), r.get(popularity), r.get(EDITION.HIDDEN_AT) != null,
+                        r.get(EDITION.PAUSED_UNTIL)));
     }
 
     List<EditionSummary> summaries(List<EditionRow> editions) {
@@ -375,7 +392,7 @@ class ReadingQueries {
         return new EditionSummary(e.id(), e.teamHandle(), e.teamName(), e.kind(), e.status(), e.chapterCount(),
                 cover == null ? null : cover.url(COVER_WIDTH),
                 average == null ? null : average.setScale(1, java.math.RoundingMode.HALF_UP).doubleValue(),
-                rating == null ? 0 : rating.get(2, Integer.class));
+                rating == null ? 0 : rating.get(2, Integer.class), e.pausedUntil());
     }
 
     List<String> allTags(long novelId) {

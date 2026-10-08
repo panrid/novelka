@@ -169,7 +169,10 @@ class AutotranslateFlowTests {
     void theOwnerPastesALinkSeesThePriceAndGetsPublishedChapters() {
         long edition = prepare();
         JsonNode about = read(owner.browser().get("/api/studio/editions/" + edition));
-        assertThat(about.toString()).as("only Ukrainian reaches the site").doesNotContain("灯台").contains("Ліхтарник із туману");
+        assertThat(about.path("facts").path("titleOriginal").asString()).as("the original's name, shown as such").contains("灯台");
+        assertThat(about.path("facts").path("sourceStatus").asString()).isEqualTo("ongoing");
+        ((tools.jackson.databind.node.ObjectNode) about).remove("facts");
+        assertThat(about.toString()).as("otherwise only Ukrainian reaches the site").doesNotContain("灯台").contains("Ліхтарник із туману");
         assertThat(prepare()).as("the same link again reuses the edition").isEqualTo(edition);
 
         JsonNode overview = read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate"));
