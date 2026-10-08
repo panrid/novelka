@@ -115,6 +115,8 @@ function Line({ event, slug, team }: { event: JobEvent; slug: string | undefined
         }
         case 'retry':
             return <span className={styles.warn}>Повтор ({STAGES[String(p.stage)] ?? String(p.stage)}{part}): {String(p.reason)}.</span>;
+        case 'accepted':
+            return <span className={styles.warn}>Прийнято з третьої спроби ({STAGES[String(p.stage)] ?? String(p.stage)}{part}): {String(p.reason)}. Абзаци від своїх оригіналів, тире розставлено за оригіналом — варто глянути при вичитці.</span>;
         case 'split':
             return <span className={styles.warn}>Частину поділено навпіл ({String(p.lines)} рядків): {String(p.reason)}.</span>;
         case 'missing':

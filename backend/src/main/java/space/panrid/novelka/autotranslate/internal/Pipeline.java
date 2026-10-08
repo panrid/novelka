@@ -206,6 +206,7 @@ class Pipeline {
             }
             List<Block> blocks = new ArrayList<>();
             Set<String> spoken = spoken(source.blocks());
+            Set<String> narration = narration(source.blocks());
             for (Block block : source.blocks()) {
                 switch (block.type()) {
                     case "separator" -> blocks.add(block);
@@ -213,7 +214,8 @@ class Pipeline {
                     default -> {
                         String line = translated.get(block.id());
                         if (line != null && !line.isBlank()) {
-                            String shown = spoken.contains(block.id()) ? withDash(line.strip()) : line.strip();
+                            String shown = spoken.contains(block.id()) ? withDash(line.strip())
+                                    : narration.contains(block.id()) ? withoutDash(line.strip()) : line.strip();
                             blocks.add(new Block(block.id(), block.type(), List.of(Span.plain(shown)), null, null));
                         }
                     }
@@ -336,6 +338,9 @@ class Pipeline {
      * Null when the answer is the given blocks in order, each at most once and with text,
      * possibly with a few left out; otherwise what is wrong.
      */
+    /** Speech and narration in each other's places: usually a slip by a line, sometimes a narrator answering in thought. */
+    static final String MISPLACED = "репліки й оповідь не на своїх місцях";
+
     static String usable(JsonNode answer, List<Block> blocks) {
         JsonNode lines = answer.path("blocks");
         List<Boolean> speech = speech(blocks);
@@ -361,7 +366,7 @@ class Pipeline {
             }
             boolean off = !fitsSpeech(speech.get(at), line.path("text").asString(""));
             if (off && previousOff != null) {
-                return "репліки й оповідь не на своїх місцях (абзаци %s і %s): переклади зсунулися".formatted(previousOff, id);
+                return MISPLACED + " (абзаци %s і %s): переклади зсунулися".formatted(previousOff, id);
             }
             previousOff = off ? id : null;
             at++;
@@ -402,7 +407,7 @@ class Pipeline {
             // Only neighbours tell a slip: two changed lines far apart may each be odd on their own.
             boolean off = !fitsSpeech(speech.get(at), text);
             if (off && previousOff == at - 1) {
-                return "репліки й оповідь не на своїх місцях (абзаци %s і %s): переклади зсунулися".formatted(blocks.get(at - 1).id(), id);
+                return MISPLACED + " (абзаци %s і %s): переклади зсунулися".formatted(blocks.get(at - 1).id(), id);
             }
             previousOff = off ? at : -2;
             at++;
@@ -543,6 +548,27 @@ class Pipeline {
         return out;
     }
 
+    /** Lines that are plainly narration in the original: no 「」 around them and nothing that may be speech. */
+    static Set<String> narration(List<Block> blocks) {
+        Set<String> out = new java.util.HashSet<>();
+        List<Boolean> speech = speech(blocks);
+        for (int i = 0; i < blocks.size(); i++) {
+            if (Boolean.FALSE.equals(speech.get(i))) {
+                out.add(blocks.get(i).id());
+            }
+        }
+        return out;
+    }
+
+    /** Narration has no dash in front, whatever the model made of it. */
+    static String withoutDash(String line) {
+        if (line.startsWith("—") || line.startsWith("–") || line.startsWith("- ")) {
+            String rest = line.substring(1).strip();
+            return rest.isEmpty() ? line : rest;
+        }
+        return line;
+    }
+
     /** A line of speech opens with a dash, unless the translation set it in quotes. */
     static String withDash(String line) {
         if (line.startsWith("—") || line.startsWith("«") || line.startsWith("„") || line.startsWith("\"")) {
@@ -608,6 +634,14 @@ class Pipeline {
                 }
                 String wrong = problem.apply(parsed);
                 if (wrong == null) {
+                    return parsed;
+                }
+                if (wrong.startsWith(MISPLACED) && attempt == ATTEMPTS - 1) {
+                    // The same answer a third time, every line from its own original by «start»: a narrator
+                    // answering in thought (chapter 95: «お済みです。») reads like a reply. Publishing puts the
+                    // dashes where the original has speech, so this is taken instead of failing the job.
+                    log.info("Job {} chapter {} {} part {}: taken despite {}", job.getId(), number, stage, part, wrong);
+                    journal.add(job.getId(), number, "accepted", Map.of("stage", stage, "part", part, "reason", wrong));
                     return parsed;
                 }
                 last = wrong;

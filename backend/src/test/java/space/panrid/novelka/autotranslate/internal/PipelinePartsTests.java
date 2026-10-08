@@ -74,6 +74,21 @@ class PipelinePartsTests {
                 .as("a part may begin inside a speech; 『』 is a quote, not dialogue").containsExactly(null, null);
     }
 
+    @Test
+    void narrationKeepsNoDashWhateverTheModelMadeOfIt() {
+        // «Меджик Мейкер», chapter 95: the narrator answers a question in thought, and every model put a dash.
+        List<Block> blocks = List.of(
+                line(1, "「ま、ま、まさか、ま、まだお済みでないとか！？」"),
+                line(2, "お済みです。"),
+                line(3, "もうすでに十三歳なので、完全にお済みでございます。"),
+                line(4, "「いやそういう意味じゃないんだけど」"));
+        assertThat(Pipeline.narration(blocks)).containsExactlyInAnyOrder("s2", "s3");
+        assertThat(Pipeline.withoutDash("— Уже.")).isEqualTo("Уже.");
+        assertThat(Pipeline.withoutDash("Уже.")).isEqualTo("Уже.");
+        assertThat(Pipeline.usable(answer(blocks, "— Невже ви ще не?..", "— Уже.", "— Мені тринадцять, тож цілком уже.",
+                "— Я не про те."), blocks)).startsWith(Pipeline.MISPLACED);
+    }
+
     private static tools.jackson.databind.JsonNode changes(List<Block> blocks, int[] at, String... texts) {
         tools.jackson.databind.json.JsonMapper json = tools.jackson.databind.json.JsonMapper.builder().build();
         var lines = json.createArrayNode();
