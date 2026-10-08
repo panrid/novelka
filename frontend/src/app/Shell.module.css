@@ -135,6 +135,8 @@
 
 .slot {
     min-width: 0;
+    /* «Розмір сторінок» of the site's look; the reader sets its own text size and keeps 1. */
+    zoom: var(--ui-scale, 1);
 }
 
 /* A section on a wide screen (the Studio, «Я», «Вхідні»): its side menu beside the page. */

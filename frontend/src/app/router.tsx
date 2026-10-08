@@ -11,6 +11,7 @@ import { ErrorPage, NotFoundPage, PendingPage } from '../pages/ErrorPages';
 import { MePage } from '../pages/me/MePage';
 import { MySuggestionsPage } from '../pages/me/MySuggestionsPage';
 import { PrivacyPage } from '../pages/me/PrivacyPage';
+import { NotificationSettingsPage } from '../pages/me/NotificationSettingsPage';
 import { ReaderAppearancePage, SiteAppearancePage } from '../pages/me/AppearancePages';
 import { SettingsPage } from '../pages/me/SettingsPage';
 import { WelcomePage } from '../pages/me/WelcomePage';
@@ -185,8 +186,12 @@ const routeTree = rootRoute.addChildren([
         beforeLoad: requireSignedIn, head: title('Налаштування'),
     }),
     // The look of the site and of the reader: guests choose too, kept in their browser.
-    createRoute({ getParentRoute: () => rootRoute, path: '/me/settings/appearance', component: SiteAppearancePage, head: title('Вигляд сайту') }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/me/settings/appearance', component: SiteAppearancePage, head: title('Вигляд') }),
     createRoute({ getParentRoute: () => rootRoute, path: '/me/settings/reader', component: ReaderAppearancePage, head: title('Вигляд читалки') }),
+    createRoute({
+        getParentRoute: () => rootRoute, path: '/me/settings/notifications', component: NotificationSettingsPage,
+        beforeLoad: requireSignedIn, head: title('Сповіщення'),
+    }),
     createRoute({
         getParentRoute: () => rootRoute, path: '/me/settings/privacy', component: PrivacyPage,
         beforeLoad: requireSignedIn, head: title('Приватність'),

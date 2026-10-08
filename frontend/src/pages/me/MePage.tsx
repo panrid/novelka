@@ -45,6 +45,11 @@ export function MePage() {
                     <LinkButton to="/login" wide>Увійти</LinkButton>
                     <LinkButton to="/register" wide variant="secondary">Зареєструватися</LinkButton>
                 </div>
+                <nav className={styles.menu} aria-label="Вигляд" style={{ marginTop: 24 }}>
+                    <Link to="/me/settings/appearance" className={styles.menuItem}>Вигляд сайту</Link>
+                    <Link to="/me/settings/reader" className={styles.menuItem}>Вигляд читалки</Link>
+                </nav>
+                <p className={styles.muted}>Без входу вигляд зберігається лише в цьому браузері.</p>
             </section>
         );
     }
@@ -66,6 +71,8 @@ export function MePage() {
                 {me.role !== 'reader' && <Link to="/admin" className={styles.menuItem}>Адміністрування</Link>}
                 <Link to="/me/suggestions" className={styles.menuItem}>Мої правки</Link>
                 <Link to="/me/settings" className={styles.menuItem}>Налаштування</Link>
+                <Link to="/me/settings/appearance" className={styles.menuItem}>Вигляд</Link>
+                <Link to="/me/settings/notifications" className={styles.menuItem}>Сповіщення</Link>
                 <Link to="/me/settings/privacy" className={styles.menuItem}>Приватність</Link>
             </nav>
             <div style={{ marginTop: 24 }}>

@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderAt } from '../test/render';
+import { tapAt } from './model';
 import { setReader, setReaderPreset } from './store';
 
 const ME = {
@@ -74,5 +75,40 @@ describe('the look of the site and of the reader', () => {
         expect(await screen.findByText('сторінка 1 з 1')).toBeInTheDocument();
         await userEvent.keyboard('{ArrowRight}');
         await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody/13'));
+    });
+
+    it('mixes «Свої» colours of the reader and lets the studio tab be put in the menu', async () => {
+        const { calls, router } = await renderAt('/me/settings/reader', {
+            'GET /api/me': { body: ME },
+            'PUT /api/me/appearance': (body) => ({ body: { ...ME, appearance: body } }),
+            'PATCH /api/me': (body) => ({ body: { ...ME, ...(body as object) } }),
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+        });
+        await userEvent.click(within(await screen.findByRole('radiogroup', { name: 'Кольори' })).getByRole('radio', { name: 'Свої' }));
+        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Тло сторінки' })).getByRole('radio', { name: '#1a2230' }));
+        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Колір тексту' })).getByRole('radio', { name: '#3b2f22' }));
+        expect(screen.getByText(/читати важко/)).toBeInTheDocument();
+        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Колір тексту' })).getByRole('radio', { name: '#e8d9b8' }));
+        expect(screen.queryByText(/читати важко/)).not.toBeInTheDocument();
+
+        await act(() => router.navigate({ to: '/n/$slug/$number', params: { slug: 'mah-vody', number: '12' } }));
+        await screen.findByRole('heading', { name: '12. Спокійне життя' });
+        expect(document.documentElement.dataset.theme).toBe('dark');
+        expect(document.documentElement.style.getPropertyValue('--bg')).toBe('#1a2230');
+        expect(document.documentElement.style.getPropertyValue('--text')).toBe('#e8d9b8');
+
+        await act(() => router.navigate({ to: '/me/settings/appearance' }));
+        await userEvent.click(await screen.findByRole('switch', { name: 'Студія в головному меню' }));
+        await waitFor(() => expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ studioInMenu: true }));
+    });
+
+    it('turns pages where the person chose to tap', () => {
+        expect(tapAt('sides', 0.1, 0.5)).toBe('back');
+        expect(tapAt('sides', 0.5, 0.5)).toBe('bars');
+        expect(tapAt('forward', 0.5, 0.5)).toBe('next');
+        expect(tapAt('forward', 0.5, 0.1)).toBe('bars');
+        expect(tapAt('vertical', 0.5, 0.9)).toBe('next');
+        expect(tapAt('vertical', 0.5, 0.1)).toBe('back');
+        expect(tapAt('none', 0.9, 0.5)).toBe('bars');
     });
 });

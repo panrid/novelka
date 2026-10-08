@@ -49,7 +49,8 @@ class ProfileSettingsTests {
         assertThat(read(person.browser().get("/api/me")).path("appearance").isEmpty()).as("defaults at first").isTrue();
         String look = """
                 {"site": {"preset": "light", "accent": "#4f7a40", "radius": 8},
-                 "reader": {"preset": "paper", "size": 20, "lineHeight": 1.7, "align": "justify", "hideBars": true}}""";
+                 "reader": {"preset": "paper", "size": 20, "lineHeight": 1.7, "align": "justify", "hideBars": true,
+                            "colors": "own", "bg": "#1a2230", "text": "#e8d9b8", "taps": "forward"}}""";
         JsonNode me = read(person.browser().put("/api/me/appearance", look));
         assertThat(me.path("appearance").path("site").path("preset").asString()).isEqualTo("light");
         assertThat(me.path("appearance").path("reader").path("size").asInt()).isEqualTo(20);
@@ -61,6 +62,7 @@ class ProfileSettingsTests {
         assertThat(person.browser().put("/api/me/appearance", "{\"site\": {\"iconsUrl\": \"https://x\"}}").status())
                 .as("nothing of one's own").isEqualTo(400);
         assertThat(person.browser().put("/api/me/appearance", "{\"reader\": {\"size\": 99}}").status()).isEqualTo(400);
+        assertThat(person.browser().put("/api/me/appearance", "{\"reader\": {\"taps\": \"everywhere\"}}").status()).isEqualTo(400);
         assertThat(person.browser().put("/api/me/appearance", "{\"site\": {\"accent\": \"red\"}}").status()).isEqualTo(400);
         assertThat(new Browser(port).put("/api/me/appearance", look).status()).isEqualTo(401);
     }

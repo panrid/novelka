@@ -24,7 +24,10 @@
         }
         var readerThemes = { paper: 'light', sepia: 'light', gray: 'light', tea: 'light', night: 'dark', dusk: 'dark', black: 'black' };
         var reading = /^\/n\/[^/]+\/\d+\/?$/.test(location.pathname);
-        var colors = look.reader && readerThemes[look.reader.colors];
+        // «Свої» colours of the reader: the app keeps their variables and light or dark base.
+        var colors = look.reader && (look.reader.colors === 'own'
+            ? saved && saved.readerVars && saved.readerTheme
+            : readerThemes[look.reader.colors]);
         var ownColors = reading && colors;
         var colorVars = ['--bg', '--surface', '--surface-2', '--line', '--text', '--text-reading', '--muted', '--faint',
             '--accent', '--accent-ink', '--focus', '--card-border', '--card-shadow'];
@@ -33,6 +36,10 @@
                 if (ownColors && colorVars.indexOf(name) >= 0) continue;
                 root.style.setProperty(name, saved.vars[name]);
             }
+        }
+        if (reading) root.style.setProperty('--ui-scale', '1');
+        if (ownColors && look.reader.colors === 'own') {
+            for (var own in saved.readerVars) root.style.setProperty(own, saved.readerVars[own]);
         }
         if (ownColors) {
             theme = colors;

@@ -10,7 +10,7 @@ import { chapterHeading, volumeTitle, readingApi, type NovelPage, type ReaderCha
 import { localProgress, movesPlace, saveLocalProgress } from '../../reading/progress';
 import { chapterQuery } from '../../reading/queries';
 import { FONT_STACKS } from '../../appearance/fonts';
-import { READER_WIDTHS, readerLook } from '../../appearance/model';
+import { READER_WIDTHS, readerLook, tapAt } from '../../appearance/model';
 import { ReaderLookForm } from '../../appearance/ReaderLookForm';
 import { readerOpened, useAppearance } from '../../appearance/store';
 import { Button } from '../../ui/Button';
@@ -208,11 +208,11 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
             setEditing(block.getAttribute('data-block-id'));
             return;
         }
-        // Pages turn with a tap at the left or right edge; the middle shows the controls.
+        // Pages turn with a tap where the person chose (the edges by default); the rest shows the controls.
         if (paged) {
-            const x = event.clientX / window.innerWidth;
-            if (x < 0.3) return pages.turn(-1);
-            if (x > 0.7) return pages.turn(1);
+            const zone = tapAt(view.taps, event.clientX / window.innerWidth, event.clientY / window.innerHeight);
+            if (zone === 'back') return pages.turn(-1);
+            if (zone === 'next') return pages.turn(1);
         }
         if (view.hideBars) setBarsVisible((visible) => !visible);
     }

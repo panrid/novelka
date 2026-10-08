@@ -17,6 +17,8 @@ export type SiteLook = {
     accent: string;
     ui: FontId;
     head: FontId;
+    /** Pages' content larger or smaller than the default, 0.9–1.2. */
+    scale: number;
     radius: number;
     density: 'compact' | 'normal' | 'airy';
     cards: 'flat' | 'border' | 'shadow';
@@ -36,7 +38,7 @@ export type SiteLook = {
 export type SiteAppearance = Partial<SiteLook>;
 
 export type ReaderPreset = 'site' | 'paper' | 'sepia' | 'gray' | 'night' | 'black' | 'book' | 'dyslexia';
-export type ReaderColors = 'site' | 'paper' | 'sepia' | 'gray' | 'night' | 'black' | 'tea' | 'dusk';
+export type ReaderColors = 'site' | 'paper' | 'sepia' | 'gray' | 'night' | 'black' | 'tea' | 'dusk' | 'own';
 export type FontId = 'literata' | 'ptserif' | 'lora' | 'merriweather' | 'playfair' | 'inter' | 'nunito' | 'rubik' | 'plex'
     | 'comfortaa' | 'jetbrains';
 
@@ -57,6 +59,11 @@ export type ReaderLook = {
     width: 'narrow' | 'medium' | 'wide' | 'full';
     margin: number;
     colors: ReaderColors;
+    /** «Свої» colours: the page and the text, from READER_BACKGROUNDS and READER_INKS. */
+    bg: string;
+    text: string;
+    /** Where a tap turns a page: the side edges, everywhere but the left edge, top and bottom, or nowhere. */
+    taps: 'sides' | 'forward' | 'vertical' | 'none';
     /** Links and marks in the text; null keeps the palette's own. */
     accent: string | null;
     hideBars: boolean;
@@ -93,7 +100,7 @@ export const SITE_ACCENTS = ['#8fb07f', '#4f7a40', '#2f4a6b', '#4fb3d9', '#6c7ae
     '#d9776b', '#e07b39', '#d8b45a', '#ffd400', '#7a5a2b', '#2a9d8f', '#8cff9c', '#111111'];
 
 const SITE_DEFAULTS: SiteLook = {
-    preset: 'default', custom: false, base: 'dark', bg: 0, accent: '#8fb07f', ui: 'inter', head: 'literata',
+    preset: 'default', custom: false, base: 'dark', bg: 0, accent: '#8fb07f', ui: 'inter', head: 'literata', scale: 1,
     radius: 12, density: 'normal', cards: 'flat', anim: 'system', icons: 'lucide', iconWeight: 1.75, iconColor: 'text', iconFill: false,
     nav: 'top', catalog: 'rows',
 };
@@ -120,6 +127,8 @@ export const SITE_PRESETS: { value: SiteStyle; label: string; look: Partial<Site
     { value: 'neon', label: 'Неон', look: { base: 'dark', bg: 4, accent: '#ff3ea5', ui: 'rubik', head: 'rubik', radius: 10, cards: 'shadow', anim: 'full', iconWeight: 2, iconColor: 'accent', catalog: 'grid' } },
     { value: 'terminal', label: 'Ретро-термінал', look: { base: 'dark', bg: 5, accent: '#8cff9c', ui: 'jetbrains', head: 'jetbrains', radius: 0, cards: 'border', density: 'compact', anim: 'off', icons: 'tabler', iconWeight: 2, iconColor: 'accent', nav: 'side' } },
 ];
+
+export const SITE_SCALES = [0.9, 1, 1.1, 1.2];
 
 export const SITE_FONTS: { value: FontId; label: string }[] = [
     { value: 'inter', label: 'Інтер' }, { value: 'rubik', label: 'Рубік' }, { value: 'nunito', label: 'Нуніто' },
@@ -165,6 +174,47 @@ export const READER_COLORS: { value: ReaderColors; label: string; theme: 'dark' 
     { value: 'black', label: 'Чорний', theme: 'black', bg: '#000000', text: '#cfcdc5' },
 ];
 
+export type TapZone = { what: 'back' | 'next' | 'bars'; x: [number, number]; y: [number, number] };
+
+/** Where a tap turns a page back, forward, or shows the controls; the first zone that holds the point wins. */
+export function tapZones(taps: ReaderLook['taps']): TapZone[] {
+    switch (taps) {
+        case 'forward':
+            return [{ what: 'bars', x: [0, 1], y: [0, 0.2] }, { what: 'back', x: [0, 0.25], y: [0, 1] }, { what: 'next', x: [0.25, 1], y: [0, 1] }];
+        case 'vertical':
+            return [{ what: 'back', x: [0, 1], y: [0, 0.33] }, { what: 'next', x: [0, 1], y: [0.67, 1] }, { what: 'bars', x: [0, 1], y: [0.33, 0.67] }];
+        case 'none':
+            return [{ what: 'bars', x: [0, 1], y: [0, 1] }];
+        default:
+            return [{ what: 'back', x: [0, 0.3], y: [0, 1] }, { what: 'next', x: [0.7, 1], y: [0, 1] }, { what: 'bars', x: [0.3, 0.7], y: [0, 1] }];
+    }
+}
+
+/** Which zone a tap at (x, y), as shares of the screen, falls in. */
+export function tapAt(taps: ReaderLook['taps'], x: number, y: number): TapZone['what'] {
+    return tapZones(taps).find((zone) => x >= zone.x[0] && x <= zone.x[1] && y >= zone.y[0] && y <= zone.y[1])?.what ?? 'bars';
+}
+
+/** «Свої» colours: pages and inks the reader offers to combine. */
+export const READER_BACKGROUNDS = ['#ffffff', '#f7f5ef', '#f4ecd8', '#e9dcc0', '#e6efe3', '#e3ecf3', '#f6e4e8', '#d9dbd6',
+    '#3a3632', '#2b2b2b', '#1a2230', '#1b261d', '#121412', '#000000'];
+export const READER_INKS = ['#000000', '#262823', '#3b2f22', '#5a4632', '#1f2a1c', '#17232a', '#3a2a4a',
+    '#ffffff', '#e8e4da', '#dcdad1', '#c3cddc', '#e8d9b8', '#a6e8ae', '#ffb86b'];
+
+/** How readable text is on a background (WCAG contrast ratio, 1–21). */
+export function contrast(a: string, b: string): number {
+    const lum = (hex: string) => {
+        const n = parseInt(hex.slice(1), 16);
+        const [r, g, bl] = [n >> 16, (n >> 8) & 255, n & 255].map((c) => {
+            const v = c / 255;
+            return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * r! + 0.7152 * g! + 0.0722 * bl!;
+    };
+    const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+    return (x! + 0.05) / (y! + 0.05);
+}
+
 /** Marks and links: picked so they read on both light and dark palettes. */
 export const READER_ACCENTS = ['#4f7a40', '#8fb07f', '#3f6f9e', '#8a5a22', '#b5476b', '#8b6fd1', '#c49a3a'];
 
@@ -185,7 +235,7 @@ export const READER_MARGIN = { min: 0, max: 48 } as const;
 
 const READER_DEFAULTS: ReaderLook = {
     preset: 'site', custom: false, mode: 'scroll', pageAnim: 'slide', font: 'literata', size: 18, lineHeight: 1.75, align: 'left', paragraphs: 'gap',
-    width: 'medium', margin: 16, colors: 'site', accent: null, hideBars: true, clock: false, percent: true, awake: false,
+    width: 'medium', margin: 16, colors: 'site', bg: '#f4ecd8', text: '#3b2f22', taps: 'sides', accent: null, hideBars: true, clock: false, percent: true, awake: false,
 };
 
 export const READER_PRESETS: { value: ReaderPreset; label: string; look: Partial<ReaderLook> }[] = [
@@ -210,8 +260,23 @@ export function presetLook(preset: ReaderPreset): ReaderAppearance {
     return { ...READER_DEFAULTS, ...found.look, preset: found.value, custom: false };
 }
 
-export function readerColors(appearance: Appearance) {
-    return READER_COLORS.find((colors) => colors.value === readerLook(appearance).colors) ?? READER_COLORS[0]!;
+export function readerColors(appearance: Appearance): typeof READER_COLORS[number] {
+    const look = readerLook(appearance);
+    if (look.colors === 'own') {
+        return { value: 'own', label: 'Свої', theme: inkOn(look.bg) === '#ffffff' ? 'dark' : 'light', bg: look.bg, text: look.text };
+    }
+    return READER_COLORS.find((colors) => colors.value === look.colors) ?? READER_COLORS[0]!;
+}
+
+/** The variables of «Свої» colours: the rest of the reader's palette is mixed from the two. */
+export function ownReaderVars(look: ReaderLook): Record<string, string> {
+    const mix = (share: number) => `color-mix(in srgb, ${look.text} ${share}%, ${look.bg})`;
+    const accent = look.accent ?? (inkOn(look.bg) === '#ffffff' ? '#8fb07f' : '#4f7a40');
+    return {
+        '--bg': look.bg, '--surface': mix(5), '--surface-2': mix(10), '--line': mix(18), '--text': look.text,
+        '--text-reading': look.text, '--muted': mix(65), '--faint': mix(45), '--accent': accent, '--accent-ink': inkOn(accent),
+        '--focus': accent, '--card-border': '1px solid transparent', '--card-shadow': 'none', '--icon-color': 'currentColor',
+    };
 }
 
 export function readerSize(appearance: Appearance): number {
@@ -228,7 +293,10 @@ const ONE_OF: { [K in keyof ReaderLook]?: readonly unknown[] } = {
     align: ['left', 'justify'],
     paragraphs: ['gap', 'indent'],
     width: ['narrow', 'medium', 'wide', 'full'],
-    colors: READER_COLORS.map((item) => item.value),
+    colors: [...READER_COLORS.map((item) => item.value), 'own'],
+    bg: READER_BACKGROUNDS,
+    text: READER_INKS,
+    taps: ['sides', 'forward', 'vertical', 'none'],
 };
 const RANGE: { [K in keyof ReaderLook]?: [number, number, boolean] } = {
     size: [READER_SIZE.min, READER_SIZE.max, true],
@@ -247,6 +315,7 @@ const SITE_ONE_OF: { [K in keyof SiteLook]?: readonly unknown[] } = {
     iconColor: ['text', 'accent', 'muted'],
     nav: ['top', 'side'],
     catalog: ['rows', 'grid', 'shelf'],
+    scale: SITE_SCALES,
 };
 const SITE_RANGE: { [K in keyof SiteLook]?: [number, number] } = { bg: [0, 5], radius: [0, 24] };
 const FLAGS: (keyof ReaderLook)[] = ['custom', 'hideBars', 'clock', 'percent', 'awake'];

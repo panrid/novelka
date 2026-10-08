@@ -9,8 +9,6 @@ import { AvatarPicker } from '../../ui/AvatarPicker';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
-import { Toggle } from '../../ui/Toggle';
-import { TelegramSection } from './TelegramSection';
 import ui from '../../ui/ui.module.css';
 import styles from '../pages.module.css';
 
@@ -22,45 +20,24 @@ export function SettingsPage() {
     return (
         <section className={styles.narrow}>
             <h1 className={styles.title}>Налаштування</h1>
+            <SettingsMenu />
             <ProfileSection me={me} />
             <NickSection me={me} />
             <EmailSection me={me} />
             <PasswordSection me={me} />
             <GoogleSection me={me} />
-            <TelegramSection />
-            <AppearanceSection />
-            <MenuSection me={me} />
         </section>
     );
 }
 
-/**
- * The site's style and the reader's own look (етап 18). Both are kept with the account; the
- * reader's can also be changed in the reader itself («Аа»).
- */
-function AppearanceSection() {
+/** The other parts of the settings, each on its own page; this page keeps the profile and signing in. */
+function SettingsMenu() {
     return (
-        <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>Вигляд</h2>
-            <nav className={styles.menu} aria-label="Вигляд">
-                <Link to="/me/settings/appearance" className={styles.menuItem}>Вигляд сайту — стилі, кольори, шрифти</Link>
-                <Link to="/me/settings/reader" className={styles.menuItem}>Вигляд читалки — шрифт, сторінки, кольори</Link>
-            </nav>
-        </div>
-    );
-}
-
-/** «Студія» among the main tabs, for people who translate every day. */
-function MenuSection({ me }: { me: Me }) {
-    const setMe = useSetMe();
-    const save = useMutation({ mutationFn: (studioInMenu: boolean) => meApi.update({ studioInMenu }), onSuccess: setMe });
-    return (
-        <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>Меню</h2>
-            <Toggle label="Студія в головному меню" isSelected={Boolean(me.studioInMenu)} onChange={(value) => save.mutate(value)} />
-            <p className={styles.muted}>Вкладка «Студія» поруч із «Бібліотекою», а не лише в «Я».</p>
-            {save.isError && <Notice tone="error">{save.error.message}</Notice>}
-        </div>
+        <nav className={styles.menu} aria-label="Розділи налаштувань">
+            <Link to="/me/settings/appearance" className={styles.menuItem}>Вигляд — стилі сайту й читалки, меню</Link>
+            <Link to="/me/settings/notifications" className={styles.menuItem}>Сповіщення — Telegram</Link>
+            <Link to="/me/settings/privacy" className={styles.menuItem}>Приватність — хто може писати, 18+</Link>
+        </nav>
     );
 }
 

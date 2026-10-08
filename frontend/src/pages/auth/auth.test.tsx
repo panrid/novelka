@@ -178,11 +178,11 @@ describe('sign-in with Google', () => {
     });
 });
 
-describe('Telegram in the settings', () => {
+describe('Telegram in «Сповіщення»', () => {
     const STATUS = { available: true, linked: false, username: null, botUsername: 'novelka_bot', notifyInbox: true, notifyChapters: true, notifyMessages: true };
 
     it('hands out the one-time link and waits for «Start»', async () => {
-        const { calls } = await renderAt('/me/settings', {
+        const { calls } = await renderAt('/me/settings/notifications', {
             'GET /api/me': { body: { ...ME, google: false, hasPassword: true } },
             'GET /api/me/telegram': { body: STATUS },
             'POST /api/me/telegram/link': { body: { url: 'https://t.me/novelka_bot?start=abc' } },
@@ -193,7 +193,7 @@ describe('Telegram in the settings', () => {
     });
 
     it('lets a tied chat choose what comes there', async () => {
-        const { calls } = await renderAt('/me/settings', {
+        const { calls } = await renderAt('/me/settings/notifications', {
             'GET /api/me': { body: { ...ME, google: false, hasPassword: true } },
             'GET /api/me/telegram': { body: { ...STATUS, linked: true, username: 'mika_tg' } },
             'PATCH /api/me/telegram': { body: { ...STATUS, linked: true, username: 'mika_tg', notifyChapters: false } },
@@ -205,11 +205,12 @@ describe('Telegram in the settings', () => {
     });
 
     it('stays hidden while the site has no bot', async () => {
-        await renderAt('/me/settings', {
+        const { calls } = await renderAt('/me/settings/notifications', {
             'GET /api/me': { body: { ...ME, google: false, hasPassword: true } },
             'GET /api/me/telegram': { body: { ...STATUS, available: false } },
         });
-        expect(await screen.findByRole('heading', { name: 'Пароль' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Сповіщення' })).toBeInTheDocument();
+        await waitFor(() => expect(calls.some((call) => call.path === '/api/me/telegram')).toBe(true));
         expect(screen.queryByRole('heading', { name: 'Telegram' })).not.toBeInTheDocument();
     });
 });

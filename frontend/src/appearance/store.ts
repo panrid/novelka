@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { api } from '../api/client';
 import { loadFont } from './fonts';
 import {
-    clean, presetLook, readerColors, readerLook, siteLook, sitePresetLook, siteStyle,
+    clean, ownReaderVars, presetLook, readerColors, readerLook, siteLook, sitePresetLook, siteStyle,
     type Appearance, type ReaderAppearance, type ReaderPreset, type SiteAppearance, type SiteStyle,
 } from './model';
 import { COLOR_VARS, siteVars } from './siteVars';
@@ -66,10 +66,16 @@ export function apply() {
     const own = readerOpen && reader.theme !== null;
     const theme = own && reader.theme ? reader.theme : style.theme;
     const vars = siteVars(site);
+    // «Свої» colours of the reader are not in the stylesheet: they go on the page like the site's.
+    const readerVars = reader.value === 'own' ? ownReaderVars(readerLook(current)) : null;
     for (const [name, value] of Object.entries(vars)) {
-        if (own && COLOR_VARS.includes(name)) root.style.removeProperty(name);
-        else root.style.setProperty(name, value);
+        if (own && COLOR_VARS.includes(name)) {
+            if (readerVars?.[name]) root.style.setProperty(name, readerVars[name]);
+            else root.style.removeProperty(name);
+        } else root.style.setProperty(name, value);
     }
+    // The reader has its own text size; the scale is for the rest of the site.
+    root.style.setProperty('--ui-scale', readerOpen ? '1' : String(site.scale));
     const accent = readerOpen ? readerLook(current).accent : null;
     if (accent) root.style.setProperty('--accent', accent);
     root.dataset.style = site.preset;
@@ -85,7 +91,7 @@ export function apply() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', own ? reader.bg : style.color);
     try {
         // The next visit starts in this look before the app loads (public/appearance-boot.js).
-        localStorage.setItem(VARS_KEY, JSON.stringify({ vars, theme: style.theme, preset: site.preset, motion: site.anim, nav: site.nav, catalog: site.catalog }));
+        localStorage.setItem(VARS_KEY, JSON.stringify({ vars: { ...vars, '--ui-scale': String(site.scale) }, readerVars, readerTheme: readerVars ? reader.theme : null, theme: style.theme, preset: site.preset, motion: site.anim, nav: site.nav, catalog: site.catalog }));
     } catch {
         // Private mode: the default look until the app loads.
     }

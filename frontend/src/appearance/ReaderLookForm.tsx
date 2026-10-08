@@ -1,7 +1,7 @@
 import { FONT_STACKS, loadFont } from './fonts';
 import {
-    READER_ACCENTS, READER_COLORS, READER_FONTS, READER_LINE_HEIGHT, READER_MARGIN, READER_PRESETS, READER_SIZE,
-    readerLook, type ReaderLook,
+    READER_ACCENTS, READER_BACKGROUNDS, READER_COLORS, READER_INKS, READER_FONTS, READER_LINE_HEIGHT, READER_MARGIN, READER_PRESETS, READER_SIZE,
+    contrast, readerLook, tapZones, type ReaderLook,
 } from './model';
 import { setReader, setReaderPreset, useAppearance } from './store';
 import { Toggle } from '../ui/Toggle';
@@ -25,7 +25,10 @@ export function ReaderLookForm() {
                 <>
                     <Choice label="Анімація сторінок" value={look.pageAnim} onPick={(pageAnim) => setReader({ pageAnim })}
                         options={[{ value: 'none', label: 'Без анімації' }, { value: 'slide', label: 'Зсув' }, { value: 'fade', label: 'Згасання' }, { value: 'curl', label: 'Аркуш' }]} />
-                    <p className={styles.note}>Гортайте торканням лівого чи правого краю, свайпом або стрілками. Якщо телефон не встигає — «Без анімації».</p>
+                    <Choice label="Куди торкатися" value={look.taps} onPick={(taps) => setReader({ taps })}
+                        options={TAPS.map(({ value, label }) => ({ value, label }))} />
+                    <TapMap taps={look.taps} />
+                    <p className={styles.note}>Гортати можна й свайпом або стрілками. Якщо телефон не встигає — «Без анімації».</p>
                 </>
             )}
 
@@ -67,8 +70,20 @@ export function ReaderLookForm() {
                             aria-label={colors.label} className={styles.pair} style={{ background: colors.bg, color: colors.text }}
                             onClick={() => setReader({ colors: colors.value })}>Аа</button>
                     ))}
+                    <button type="button" role="radio" aria-checked={look.colors === 'own'} title="Свої" aria-label="Свої"
+                        className={`${styles.pair} ${styles.own}`} style={{ background: look.bg, color: look.text }}
+                        onClick={() => setReader({ colors: 'own' })}>Аа</button>
                 </div>
             </div>
+            {look.colors === 'own' && (
+                <>
+                    <Swatches label="Тло сторінки" values={READER_BACKGROUNDS} value={look.bg} onPick={(bg) => setReader({ bg })} />
+                    <Swatches label="Колір тексту" values={READER_INKS} value={look.text} onPick={(text) => setReader({ text })} />
+                    {contrast(look.bg, look.text) < 4.5 && (
+                        <p className={styles.note}>Текст на такому тлі читати важко — візьміть темніший чи світліший.</p>
+                    )}
+                </>
+            )}
             <div className={styles.row}>
                 <span className={styles.label}>Позначки й посилання</span>
                 <div className={styles.swatches} role="radiogroup" aria-label="Колір позначок">
@@ -85,6 +100,45 @@ export function ReaderLookForm() {
             <Toggle label="Відсоток прочитаного" isSelected={look.percent} onChange={(percent) => setReader({ percent })} />
             <Toggle label="Годинник" isSelected={look.clock} onChange={(clock) => setReader({ clock })} />
             <Toggle label="Не гасити екран, поки читаю" isSelected={look.awake} onChange={(awake) => setReader({ awake })} />
+        </div>
+    );
+}
+
+const TAPS: { value: ReaderLook['taps']; label: string; hint: string }[] = [
+    { value: 'sides', label: 'Краї', hint: 'лівий край — назад, правий — далі, середина — панелі' },
+    { value: 'forward', label: 'Одною рукою', hint: 'лівий край — назад, решта — далі, верх — панелі' },
+    { value: 'vertical', label: 'Верх і низ', hint: 'верх — назад, низ — далі, середина — панелі' },
+    { value: 'none', label: 'Лише свайп', hint: 'торкання показує панелі, гортання — свайпом' },
+];
+
+/** Where a tap goes, drawn on a small phone: back, forward and the controls. */
+function TapMap({ taps }: { taps: ReaderLook['taps'] }) {
+    const zones = tapZones(taps);
+    return (
+        <div className={styles.tapRow}>
+            <div className={styles.tapMap} aria-hidden>
+                {zones.map((zone) => (
+                    <span key={zone.what} data-what={zone.what} style={{ left: `${zone.x[0] * 100}%`, width: `${(zone.x[1] - zone.x[0]) * 100}%`,
+                        top: `${zone.y[0] * 100}%`, height: `${(zone.y[1] - zone.y[0]) * 100}%` }}>
+                        {zone.what === 'back' ? '‹' : zone.what === 'next' ? '›' : '☰'}
+                    </span>
+                ))}
+            </div>
+            <p className={styles.note}>{TAPS.find((item) => item.value === taps)?.hint}</p>
+        </div>
+    );
+}
+
+function Swatches({ label, values, value, onPick }: { label: string; values: string[]; value: string; onPick: (value: string) => void }) {
+    return (
+        <div className={styles.row}>
+            <span className={styles.label}>{label}</span>
+            <div className={styles.swatches} role="radiogroup" aria-label={label}>
+                {values.map((item) => (
+                    <button key={item} type="button" role="radio" aria-checked={value === item} aria-label={item} title={item}
+                        className={styles.swatch} style={{ background: item }} onClick={() => onPick(item)} />
+                ))}
+            </div>
         </div>
     );
 }

@@ -1,12 +1,16 @@
+import { useMutation } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { meApi } from '../../auth/api';
+import { useMe, useSetMe } from '../../auth/me';
 import { FONT_STACKS, loadFont } from '../../appearance/fonts';
 import {
-    ICON_SETS, READER_COLORS, READER_WIDTHS, SITE_ACCENTS, SITE_FONTS, SITE_PRESETS, SITE_TONES, inkOn, readerLook, siteLook, sitePresetLook,
+    ICON_SETS, SITE_SCALES, READER_WIDTHS, SITE_ACCENTS, SITE_FONTS, SITE_PRESETS, SITE_TONES, inkOn, readerColors, readerLook, siteLook, sitePresetLook,
     type FontId, type SiteLook,
 } from '../../appearance/model';
 import { ReaderLookForm } from '../../appearance/ReaderLookForm';
 import { setSite, setSitePreset, useAppearance } from '../../appearance/store';
 import form from '../../appearance/ReaderLookForm.module.css';
+import { Notice } from '../../ui/Notice';
 import { Toggle } from '../../ui/Toggle';
 import { Bell, BookOpen, Home, Inbox, Search, User } from '../../ui/icons';
 import styles from './appearance.module.css';
@@ -20,9 +24,8 @@ export function SiteAppearancePage() {
     const base = SITE_PRESETS.find((item) => item.value === look.preset)!;
     return (
         <section className={styles.page}>
-            <Link to="/me/settings" className={styles.back}>‹ Налаштування</Link>
-            <h1 className={styles.title}>Вигляд сайту</h1>
-            <p className={styles.lead}>Готовий стиль або свій: змініть будь-що нижче, і стиль стане вашим. Читалка налаштовується окремо — <Link to="/me/settings/reader">вигляд читалки</Link>.</p>
+            <Heading at="site" />
+            <p className={styles.lead}>Готовий стиль або свій: змініть будь-що нижче, і стиль стане вашим. Читалка має свій вигляд — вкладка «Читалка».</p>
 
             <div className={styles.presets} role="radiogroup" aria-label="Готовий стиль">
                 {SITE_PRESETS.map((preset) => {
@@ -81,6 +84,9 @@ export function SiteAppearancePage() {
                 <h2 className={styles.groupTitle}>Шрифти</h2>
                 <FontSelect label="Меню, кнопки, підписи" value={look.ui} onPick={(ui) => setSite({ ui })} />
                 <FontSelect label="Заголовки й назви" value={look.head} onPick={(head) => setSite({ head })} />
+                <Choice label="Розмір сторінок" value={String(look.scale)} onPick={(scale) => setSite({ scale: Number(scale) })}
+                    options={SITE_SCALES.map((scale) => ({ value: String(scale), label: `${Math.round(scale * 100)} %` }))} />
+                <p className={form.note}>Більше чи менше все на сторінках сайту; текст у читалці має свій розмір.</p>
             </div>
 
             <div className={styles.group}>
@@ -130,6 +136,7 @@ export function SiteAppearancePage() {
                 <Choice label="Новели в каталозі" value={look.catalog} onPick={(catalog) => setSite({ catalog })}
                     options={[{ value: 'rows', label: 'Рядками' }, { value: 'grid', label: 'Сіткою' }, { value: 'shelf', label: 'Полицею' }]} />
                 <p className={form.note}>Меню збоку — лише на широкому екрані; на телефоні вкладки завжди внизу.</p>
+                <StudioInMenu />
             </div>
         </section>
     );
@@ -137,12 +144,12 @@ export function SiteAppearancePage() {
 
 /** «Вигляд читалки»: the same form as behind «Аа», with a page of text to see it on. */
 export function ReaderAppearancePage() {
-    const look = readerLook(useAppearance());
-    const colors = READER_COLORS.find((item) => item.value === look.colors)!;
+    const appearance = useAppearance();
+    const look = readerLook(appearance);
+    const colors = readerColors(appearance);
     return (
         <section className={styles.page}>
-            <Link to="/me/settings" className={styles.back}>‹ Налаштування</Link>
-            <h1 className={styles.title}>Вигляд читалки</h1>
+            <Heading at="reader" />
             <p className={styles.lead}>Окремо від вигляду сайту. Те саме можна змінити просто в читалці — кнопка «Аа».</p>
             <div className={styles.sample} lang="uk" data-paragraphs={look.paragraphs} style={{
                 background: colors.bg, color: colors.text, fontFamily: FONT_STACKS[look.font], fontSize: look.size,
@@ -156,6 +163,36 @@ export function ReaderAppearancePage() {
             </div>
             <ReaderLookForm />
         </section>
+    );
+}
+
+/** One «Вигляд» in the settings: the site and the reader are its two tabs. */
+function Heading({ at }: { at: 'site' | 'reader' }) {
+    const me = useMe();
+    return (
+        <>
+            <Link to={me ? '/me/settings' : '/me'} className={styles.back}>‹ {me ? 'Налаштування' : 'Я'}</Link>
+            <h1 className={styles.title}>Вигляд</h1>
+            <nav className={styles.tabs} aria-label="Що налаштовуємо">
+                <Link to="/me/settings/appearance" className={styles.tab} aria-current={at === 'site' ? 'page' : undefined}>Сайт</Link>
+                <Link to="/me/settings/reader" className={styles.tab} aria-current={at === 'reader' ? 'page' : undefined}>Читалка</Link>
+            </nav>
+        </>
+    );
+}
+
+/** «Студія» among the main tabs, for people who translate every day; kept with the account. */
+function StudioInMenu() {
+    const me = useMe();
+    const setMe = useSetMe();
+    const save = useMutation({ mutationFn: (studioInMenu: boolean) => meApi.update({ studioInMenu }), onSuccess: setMe });
+    if (!me) return null;
+    return (
+        <div>
+            <Toggle label="Студія в головному меню" isSelected={Boolean(me.studioInMenu)} onChange={(value) => save.mutate(value)} />
+            <p className={form.note}>Вкладка «Студія» поруч із «Бібліотекою», а не лише в «Я».</p>
+            {save.isError && <Notice tone="error">{save.error.message}</Notice>}
+        </div>
     );
 }
 

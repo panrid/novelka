@@ -22,8 +22,10 @@ export function MeRail() {
     if (!me) return <nav className={styles.rail} aria-label="Особисте" />;
     const rank = RANK[me.role];
     const hasShahs = Boolean(shahs.data && (shahs.data.available > 0 || shahs.data.reserved > 0 || shahs.data.history.length > 0));
+    // «Вигляд» covers both the site's look and the reader's.
+    const at = path === '/me/settings/reader' ? '/me/settings/appearance' : path;
     const item = (to: string, label: string) => (
-        <Link to={to} className={`${styles.item} ${path === to ? styles.on : ''}`}>{label}</Link>
+        <Link to={to} className={`${styles.item} ${at === to ? styles.on : ''}`}>{label}</Link>
     );
     return (
         <nav className={styles.rail} aria-label="Особисте">
@@ -38,9 +40,9 @@ export function MeRail() {
             {me.role !== 'owner' && hasShahs && item('/me/shahs', `Шаги · ${shahs.data!.available} ${shahWord(shahs.data!.available)}`)}
             {item('/me/suggestions', 'Мої правки')}
             {item('/me/settings', 'Налаштування')}
+            {item('/me/settings/appearance', 'Вигляд')}
+            {item('/me/settings/notifications', 'Сповіщення')}
             {item('/me/settings/privacy', 'Приватність')}
-            {item('/me/settings/appearance', 'Вигляд сайту')}
-            {item('/me/settings/reader', 'Вигляд читалки')}
             {rank >= RANK.moderator && (
                 <>
                     <div className={styles.label}>Адміністрування</div>

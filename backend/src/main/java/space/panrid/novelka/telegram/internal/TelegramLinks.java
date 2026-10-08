@@ -142,7 +142,7 @@ class TelegramLinks {
             return;
         }
         reply(update.chatId(), "Це бот сповіщень Новелки. Щоб отримувати їх тут, відкрийте на сайті «Налаштування → Telegram» "
-                + "і натисніть «Прив’язати».\n" + texts.link("/me/settings") + "\n\nВідв’язати: /stop");
+                + "і натисніть «Прив’язати».\n" + texts.link("/me/settings/notifications") + "\n\nВідв’язати: /stop");
     }
 
     private void tie(long accountId, TelegramApi.Update update) {
@@ -158,7 +158,7 @@ class TelegramLinks {
                 .execute();
         String nick = db.select(ACCOUNT.NICK).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).fetchSingle(ACCOUNT.NICK);
         reply(update.chatId(), "Готово! Сповіщення Новелки для " + nick + " тепер приходитимуть сюди. "
-                + "Що саме надсилати, можна вибрати в налаштуваннях:\n" + texts.link("/me/settings") + "\n\nВідв’язати: /stop");
+                + "Що саме надсилати, можна вибрати в налаштуваннях:\n" + texts.link("/me/settings/notifications") + "\n\nВідв’язати: /stop");
         nudge(accountId);
     }
 
