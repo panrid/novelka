@@ -2,7 +2,7 @@
 // Loaded only when someone picks the set; see ui/icons.tsx.
 
 import type { ComponentType, ReactElement } from 'react';
-import { ArrowClockwise, ArrowCounterClockwise, ArrowLeft, ArrowsClockwise, ArrowsDownUp, ArrowsLeftRight, Bell, BellRinging, BookOpen, BookmarkSimple, CaretDown, CaretLeft, CaretRight, CaretUp, ChatCircle, Check, ClockCounterClockwise, FileArrowUp, Flag, House, ImageSquare, Info, Link, List, MagnifyingGlass, Medal, Minus, PaperPlaneRight, PencilSimple, Plus, SlidersHorizontal, Sparkle, TextAa, Translate, Trash, Tray, User, Users, X } from '@phosphor-icons/react';
+import { ArrowClockwise, ArrowCounterClockwise, ArrowLeft, ArrowsClockwise, ArrowsDownUp, ArrowsLeftRight, Bell, BellRinging, BookOpen, BookmarkSimple, CaretDown, CaretLeft, CaretRight, CaretUp, ChatCircle, Check, ClockCounterClockwise, DotsThree, FileArrowUp, Flag, House, ImageSquare, Info, Link, List, MagnifyingGlass, Medal, Minus, PaperPlaneRight, PencilSimple, Plus, SlidersHorizontal, Sparkle, TextAa, Translate, Trash, Tray, User, Users, X } from '@phosphor-icons/react';
 import type { SetIconProps } from '../icons';
 
 /** Phosphor has weights instead of a line width: the closest one to the chosen width. */
@@ -26,6 +26,7 @@ const ICONS: Record<string, ComponentType<Record<string, unknown>>> = {
     ChevronRight: CaretRight,
     ChevronUp: CaretUp,
     FileUp: FileArrowUp,
+    Ellipsis: DotsThree,
     Flag: Flag,
     History: ClockCounterClockwise,
     Home: House,

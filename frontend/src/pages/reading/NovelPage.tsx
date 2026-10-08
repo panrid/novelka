@@ -1,12 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
-import { ArrowDownUp, Bell, BellRing, BookmarkPlus, Check, MessageCircle } from '../../ui/icons';
-import { Fragment, useLayoutEffect, useRef, useState } from 'react';
-import { Button as AriaButton, Menu, MenuItem, MenuTrigger, Popover, ToggleButton } from 'react-aria-components';
+import { ArrowDownUp, Bell, BellRing, BookmarkPlus, Check, Ellipsis } from '../../ui/icons';
+import { Fragment, useRef, useState } from 'react';
+import { Button as AriaButton, Menu, MenuItem, MenuTrigger, Popover, Tab, TabList, TabPanel, Tabs, ToggleButton } from 'react-aria-components';
 import { ApiError } from '../../api/client';
 import { useMe } from '../../auth/me';
 import { Discussion, useCommentCount } from '../../community/Discussion';
-import discussionStyles from '../../community/discussion.module.css';
 import { commentApi } from '../../community/api';
 import { adminApi } from '../../admin/api';
 import { Sheet } from '../../ui/Sheet';
@@ -22,7 +21,7 @@ import { Pager } from '../../ui/Pager';
 import { LinkButton } from '../../ui/LinkButton';
 import { Notice } from '../../ui/Notice';
 import { showInfo } from '../../ui/toast';
-import { ReportEdition } from '../../reading/ReportEdition';
+import { useReportEdition } from '../../reading/ReportEdition';
 import styles from './novel.module.css';
 import { askConfirm, askText } from '../../ui/ask';
 
@@ -54,18 +53,20 @@ export function NovelPage() {
     return <NovelView novel={novel.data} team={t} />;
 }
 
+type NovelTab = 'about' | 'chapters' | 'talk';
+
 function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) {
-    const [expanded, setExpanded] = useState(false);
-    const [overflows, setOverflows] = useState(false);
-    const description = useRef<HTMLDivElement>(null);
-    // «читати повністю» only when three lines really hide something.
-    useLayoutEffect(() => {
-        const element = description.current;
-        if (element && !expanded) {
-            setOverflows(element.scrollHeight > element.clientHeight + 2);
-        }
-    }, [expanded, novel.description]);
     const edition = novel.edition;
+    // A link to a comment (#c40 from the inbox) opens the discussion at it; «Зміст» from the reader, the chapters.
+    const hash = useRouterState({ select: (state) => state.location.hash });
+    const focus = /^c(\d+)$/.exec(hash)?.[1];
+    const [tab, setTab] = useState<NovelTab>(focus ? 'talk' : 'chapters');
+    const [shownFocus, setShownFocus] = useState(focus);
+    if (focus !== shownFocus) {
+        setShownFocus(focus);
+        if (focus) setTab('talk');
+    }
+    const comments = useCommentCount(edition.editionId);
     // The place kept in this browser is a guest's: a signed-in reader (viewer is theirs) has their own on the
     // server, and a new account must not take up where someone else stopped in the same browser.
     const local = novel.viewer ? null : localProgress(novel.slug, edition.teamHandle);
@@ -76,6 +77,13 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
         : local ? (local.label ?? String(local.number)) : null;
     const resumeLabel = shown ? `Продовжити · гл. ${shown}` : 'Продовжити';
     const machine = edition.kind === 'machine' || edition.kind === 'mixed';
+    const meta = [
+        novel.author,
+        novel.origin === 'original' ? 'оригінальний твір' : translatedFrom(novel.language).replace(/^переклад /, ''),
+        `$${edition.teamHandle}`,
+        machine && 'ШІ',
+        novel.adult && '18+',
+    ].filter(Boolean).join(' · ');
 
     return (
         <section className={`${styles.page} ${styles.novel}`}>
@@ -90,91 +98,181 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                     </LinkButton>
                     <LibraryButton novel={novel} />
                     <BellButton novel={novel} />
+                    <MoreButton novel={novel} />
                 </div>
-
-                {novel.editions.length > 1 && (
-                    <div className={styles.editions} role="group" aria-label="Переклади">
-                        <span className={styles.muted}>Переклади:</span>
-                        {novel.editions.map((other) => (
-                            <Link key={other.editionId} to="/n/$slug" params={{ slug: novel.slug }} search={{ t: other.teamHandle }}
-                                className={`${styles.chip} ${other.editionId === edition.editionId ? styles.on : styles.ghost}`}
-                                aria-current={other.editionId === edition.editionId ? 'true' : undefined}>
-                                {other.teamName} · {other.chapterCount}
-                            </Link>
-                        ))}
-                    </div>
-                )}
-
-                {novel.viewer?.teamRole && (
-                    <div className={`${styles.actions} ${styles.manage}`}>
-                        <LinkButton to="/studio/$editionId" params={{ editionId: String(edition.editionId) }} variant="secondary" wide>
-                            Керувати
-                        </LinkButton>
-                    </div>
-                )}
             </div>
             <div className={styles.content}>
                 <div className={styles.headText}>
                     <h1 className={styles.title}>{novel.title}</h1>
-                    {otherNames(novel.title, novel.facts).length > 0 && (
-                        <p className={styles.names}>{otherNames(novel.title, novel.facts).join(' · ')}</p>
-                    )}
-                    <p className={styles.muted}>
-                        {novel.origin === 'original' ? 'оригінальний твір' : translatedFrom(novel.language)}
-                        {novel.originalUrl && <> · <a href={novel.originalUrl} target="_blank" rel="noopener noreferrer nofollow">оригінал ↗</a></>}
-                    </p>
-                    <div className={styles.chips}>
-                        {novel.author && <span className={styles.chip}>✎ {novel.author}</span>}
-                        <span className={`${styles.chip} ${styles.team}`} title={edition.teamName}>${edition.teamHandle}</span>
-                        {machine && <span className={`${styles.chip} ${styles.ghost}`} title="Машинний переклад">ШІ</span>}
-                        {novel.adult && <span className={`${styles.chip} ${styles.ghost}`}>18+</span>}
-                    </div>
+                    <p className={styles.meta} title={edition.teamName}>{meta}</p>
                     <p className={styles.muted}>
                         {edition.chapterCount} {chaptersWord(edition.chapterCount)} · {translationStatus(edition.status, edition.pausedUntil)}
                     </p>
                     {novel.origin !== 'original' && <OriginalProgress novel={novel} />}
-                    <Stars novel={novel} />
+                    <p className={styles.muted}>
+                        {edition.rating != null
+                            ? <><span className={styles.starOn} aria-hidden>★</span> {edition.rating.toFixed(1).replace('.', ',')} · оцінок: {edition.ratings ?? 0}</>
+                            : 'ще без оцінок'}
+                    </p>
                 </div>
-                {novel.tags.length > 0 && (
-                    <div className={`${styles.chips} ${styles.tags}`} style={{ marginTop: 14 }}>
-                        {novel.tags.map((tag) => (
-                            <Link key={tag} to="/catalog" search={{ tags: [tag.toLowerCase()] }} className={`${styles.chip} ${styles.ghost}`}>
-                                {tag}
+                <Tabs selectedKey={tab} onSelectionChange={(key) => setTab(key as NovelTab)} className={styles.tabsBox}>
+                    <TabList aria-label="Розділи новели" className={styles.tabs}>
+                        <Tab id="about" className={styles.tab}>Про новелу</Tab>
+                        <Tab id="chapters" className={styles.tab}>Глави · {edition.chapterCount}</Tab>
+                        <Tab id="talk" className={styles.tab}>Обговорення{comments > 0 ? ` · ${comments}` : ''}</Tab>
+                    </TabList>
+                    <TabPanel id="about" className={styles.panel}>
+                        <About novel={novel} />
+                    </TabPanel>
+                    <TabPanel id="chapters" className={styles.panel}>
+                        {novel.viewer && <Skipped novel={novel} />}
+                        <ChapterList slug={novel.slug} team={team} current={resume} total={edition.chapterCount}
+                            editionId={novel.viewer ? edition.editionId : null} />
+                        {novel.relay.continuations.map((next) => (
+                            <Link key={next.teamHandle} to="/n/$slug/$number" params={{ slug: novel.slug, number: String(next.firstNumber) }}
+                                search={{ t: next.teamHandle }} className={styles.continuation}>
+                                Продовження від ${next.teamHandle} — з глави {next.firstNumber} →
                             </Link>
                         ))}
-                    </div>
-                )}
-
-                {novel.description.length > 0 && (
-                    <div className={styles.description}>
-                        <div ref={description} className={expanded ? undefined : styles.clamped}>
-                            <Blocks blocks={novel.description} />
-                        </div>
-                        {(overflows || expanded) && (
-                            <button type="button" className={styles.more} onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
-                                {expanded ? 'згорнути' : 'читати опис повністю'}
-                            </button>
-                        )}
-                    </div>
-                )}
-
-                {novel.viewer && <Skipped novel={novel} />}
-                <ChapterList slug={novel.slug} team={team} current={resume} total={edition.chapterCount}
-                    editionId={novel.viewer ? edition.editionId : null} />
-
-                {novel.relay.continuations.map((next) => (
-                    <Link key={next.teamHandle} to="/n/$slug/$number" params={{ slug: novel.slug, number: String(next.firstNumber) }}
-                        search={{ t: next.teamHandle }} className={styles.continuation}>
-                        Продовження від ${next.teamHandle} — з глави {next.firstNumber} →
-                    </Link>
-                ))}
-                {novel.origin === 'translation' && !novel.viewer?.teamRole && <RelayOffer novel={novel} />}
-            {novel.origin === 'translation' && <OwnTranslation novel={novel} />}
-                {!novel.viewer?.teamRole && <ReportEdition editionId={edition.editionId} />}
-                <HideEdition editionId={edition.editionId} />
-                <DiscussionButton editionId={edition.editionId} />
+                    </TabPanel>
+                    <TabPanel id="talk" className={styles.panel}>
+                        <Discussion editionId={edition.editionId} focus={focus ? Number(focus) : undefined} />
+                    </TabPanel>
+                </Tabs>
             </div>
         </section>
+    );
+}
+
+/** «Про новелу»: tags, the description, the reader's own stars, other names and the original. */
+function About({ novel }: { novel: Novel }) {
+    const names = otherNames(novel.title, novel.facts);
+    const facts = novel.facts;
+    const original = [facts?.sourceStatus && SOURCE_STATUS_LABELS[facts.sourceStatus],
+        facts?.sourceChapterCount && `${facts.sourceChapterCount} ${chaptersWord(facts.sourceChapterCount)}`].filter(Boolean).join(' · ');
+    return (
+        <div className={styles.about}>
+            {novel.tags.length > 0 && (
+                <div className={styles.chips}>
+                    {novel.tags.map((tag) => (
+                        <Link key={tag} to="/catalog" search={{ tags: [tag.toLowerCase()] }} className={`${styles.chip} ${styles.ghost}`}>
+                            {tag}
+                        </Link>
+                    ))}
+                </div>
+            )}
+            {novel.description.length > 0 && (
+                <div className={styles.description}><Blocks blocks={novel.description} /></div>
+            )}
+            <MyRating novel={novel} />
+            {names.length > 0 && (
+                <div>
+                    <h2 className={styles.label}>Інші назви</h2>
+                    <p className={styles.names}>{names.join(' · ')}</p>
+                </div>
+            )}
+            {novel.origin !== 'original' && (original || novel.originalUrl) && (
+                <div>
+                    <h2 className={styles.label}>Оригінал</h2>
+                    <p className={styles.muted}>
+                        {original}
+                        {novel.originalUrl && <>{original && ' · '}<a href={novel.originalUrl} target="_blank" rel="noopener noreferrer nofollow">відкрити ↗</a></>}
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+}
+
+/**
+ * «⋯»: what is needed now and then — other translations, translating it oneself, the reading
+ * progress, a report; for the team, managing it; for administrators, hiding it.
+ */
+function MoreButton({ novel }: { novel: Novel }) {
+    const me = useMe();
+    const navigate = useNavigate();
+    const [open, setOpen] = useState(false);
+    const [own, setOwn] = useState(false);
+    const edition = novel.edition;
+    const { reset } = useReadMarks(novel.slug, novel.viewer ? edition.editionId : null);
+    const report = useReportEdition(edition.editionId);
+    const relay = useRelay(novel);
+    const hide = useMutation({ meta: { errorToast: true },
+        mutationFn: (reason: string) => adminApi.hide('edition', edition.editionId, reason),
+        onSuccess: () => void navigate({ to: '/admin/moderation' }),
+    });
+    const close = (then?: () => void) => {
+        setOpen(false);
+        then?.();
+    };
+    const team = novel.viewer?.teamRole;
+    const admin = me?.role === 'admin' || me?.role === 'owner';
+    return (
+        <>
+            <AriaButton className={styles.libraryButton} aria-label="Ще" onPress={() => setOpen(true)}>
+                <Ellipsis size={20} aria-hidden />
+            </AriaButton>
+            <Sheet open={open} onClose={() => setOpen(false)} title={novel.title}>
+                <div className={styles.sheetList}>
+                    {novel.editions.length > 1 && (
+                        <>
+                            <div className={styles.label}>Переклади</div>
+                            {novel.editions.map((other) => (
+                                <Link key={other.editionId} to="/n/$slug" params={{ slug: novel.slug }} search={{ t: other.teamHandle }}
+                                    className={styles.sheetItem} onClick={() => setOpen(false)}
+                                    aria-current={other.editionId === edition.editionId ? 'true' : undefined}>
+                                    <span>{other.teamName}</span>
+                                    <span className={styles.muted}>
+                                        {other.editionId === edition.editionId ? 'цей · ' : ''}{other.chapterCount} {chaptersWord(other.chapterCount)}
+                                    </span>
+                                </Link>
+                            ))}
+                            <div className={styles.label}>Ще</div>
+                        </>
+                    )}
+                    {me && novel.origin === 'translation' && (
+                        <button type="button" className={styles.sheetItem} onClick={() => close(() => setOwn(true))}>Перекласти самому</button>
+                    )}
+                    {relay.offer && (
+                        <button type="button" className={styles.sheetItem} onClick={() => close(relay.offer!.run)}>
+                            <span>{relay.offer.label}</span>
+                            {relay.offer.hint && <span className={styles.muted}>{relay.offer.hint}</span>}
+                        </button>
+                    )}
+                    {relay.asked && <div className={`${styles.sheetItem} ${styles.muted}`}>Запит продовжити переклад надіслано, чекаємо відповіді власника.</div>}
+                    {novel.viewer?.chapterNumber != null && (
+                        <button type="button" className={styles.sheetItem} onClick={() => close(() => void askConfirm({
+                            title: 'Скинути прогрес?', text: 'Місце читання й позначки «прочитано» зникнуть. Новела лишиться в бібліотеці.',
+                            confirmLabel: 'Скинути', danger: true,
+                        }).then((yes) => { if (yes) reset.mutate(); }))}>
+                            Скинути прогрес читання
+                        </button>
+                    )}
+                    {!team && (
+                        <button type="button" className={styles.sheetItem} onClick={() => close(report.ask)}>Поскаржитися на переклад</button>
+                    )}
+                    {team && (
+                        <>
+                            <div className={styles.label}>Команда</div>
+                            <Link to="/studio/$editionId" params={{ editionId: String(edition.editionId) }} className={styles.sheetItem}>
+                                Керувати в Студії
+                            </Link>
+                        </>
+                    )}
+                    {admin && (
+                        <>
+                            <div className={styles.label}>Модерація</div>
+                            <button type="button" className={`${styles.sheetItem} ${styles.remove}`} onClick={() => close(() => void askText({
+                                title: 'Приховати переклад', label: 'Причина', hint: 'Її побачать інші модератори.', confirmLabel: 'Приховати', danger: true,
+                            }).then((reason) => { if (reason) hide.mutate(reason); }))}>
+                                Приховати переклад
+                            </button>
+                        </>
+                    )}
+                </div>
+            </Sheet>
+            {own && <OwnTranslation novel={novel} onClose={() => setOwn(false)} />}
+        </>
     );
 }
 
@@ -184,56 +282,56 @@ const RELAY_REASONS = {
     unanswered: 'Нових глав давно немає, а на запит продовжити ніхто не відповів.',
 };
 
-/** «Естафета» for readers: continue a free translation, or ask the team for permission. */
-function RelayOffer({ novel }: { novel: Novel }) {
+/** Going on with someone else's translation: at once when it is free, otherwise by asking its owner. */
+function useRelay(novel: Novel) {
     const me = useMe();
     const navigate = useNavigate();
     const [asked, setAsked] = useState(false);
-    const start = useMutation({
+    const start = useMutation({ meta: { errorToast: true },
         mutationFn: () => relayApi.start(novel.edition.editionId, '', 'human'),
         onSuccess: ({ editionId }) => void navigate({ to: '/studio/$editionId', params: { editionId: String(editionId) } }),
     });
-    const ask = useMutation({
+    const ask = useMutation({ meta: { errorToast: true },
         mutationFn: (message: string) => relayApi.ask(novel.edition.editionId, '', message),
-        onSuccess: () => setAsked(true),
+        onSuccess: () => {
+            setAsked(true);
+            showInfo('Запит надіслано власнику перекладу.');
+        },
     });
-    if (!me) return null;
+    if (!me || novel.origin !== 'translation' || novel.viewer?.teamRole) return { offer: null, asked: false };
     if (novel.relay.free) {
-        return (
-            <div className={styles.relay}>
-                <b>Переклад вільний для продовження</b>
-                <p className={styles.muted}>{novel.relay.reason ? RELAY_REASONS[novel.relay.reason] : ''} Ваш переклад почнеться з глави {novel.relay.lastNumber + 1}.</p>
-                {start.isError && <Notice tone="error">{start.error.message}</Notice>}
-                <Button variant="secondary" onPress={() => start.mutate()} pending={start.isPending}>Продовжити переклад</Button>
-            </div>
-        );
+        return {
+            offer: {
+                label: 'Продовжити цей переклад',
+                hint: `${novel.relay.reason ? RELAY_REASONS[novel.relay.reason] : 'Переклад вільний.'} Ваш почнеться з глави ${novel.relay.lastNumber + 1}.`,
+                run: () => start.mutate(),
+            },
+            asked: false,
+        };
     }
-    if (novel.edition.status === 'completed') return null;
-    return (
-        <div className={styles.relay}>
-            {asked || novel.viewer?.relayAsked ? <p className={styles.muted}>Запит надіслано, чекаємо відповіді власника.</p> : (
-                <>
-                    {ask.isError && <Notice tone="error">{ask.error.message}</Notice>}
-                    <button type="button" className={styles.more} onClick={() => void askText({
-                        title: 'Продовжити переклад', label: 'Кілька слів власнику', hint: 'Необовʼязково.', optional: true, multiline: true,
-                        confirmLabel: 'Надіслати запит',
-                    }).then((message) => { if (message !== null) ask.mutate(message); })}>Хочу продовжити цей переклад</button>
-                </>
-            )}
-        </div>
-    );
+    if (novel.edition.status === 'completed') return { offer: null, asked: false };
+    if (asked || novel.viewer?.relayAsked) return { offer: null, asked: true };
+    return {
+        offer: {
+            label: 'Хочу продовжити цей переклад',
+            hint: null,
+            run: () => void askText({
+                title: 'Продовжити переклад', label: 'Кілька слів власнику', hint: 'Необовʼязково.', optional: true, multiline: true,
+                confirmLabel: 'Надіслати запит',
+            }).then((message) => { if (message !== null) ask.mutate(message); }),
+        },
+        asked: false,
+    };
 }
 
 /**
  * «Перекласти самому» (етап 17): anyone with an account starts their own translation of this
  * novel — from the first chapter or going on after this one — without asking anybody.
  */
-function OwnTranslation({ novel }: { novel: Novel }) {
-    const me = useMe();
+function OwnTranslation({ novel, onClose }: { novel: Novel; onClose: () => void }) {
     const navigate = useNavigate();
-    const [open, setOpen] = useState(false);
     const [from, setFrom] = useState<'start' | 'after'>('after');
-    const teams = useQuery({ queryKey: ['my-teams'], queryFn: teamApi.mine, enabled: open });
+    const teams = useQuery({ queryKey: ['my-teams'], queryFn: teamApi.mine });
     const mine = (teams.data ?? []).filter((team) => team.role !== 'editor');
     const [team, setTeam] = useState('');
     const chosen = team || mine[0]?.handle || '';
@@ -241,36 +339,30 @@ function OwnTranslation({ novel }: { novel: Novel }) {
         mutationFn: () => relayApi.own(novel.slug, chosen, from === 'after' ? novel.edition.editionId : null),
         onSuccess: ({ editionId }) => void navigate({ to: '/studio/$editionId', params: { editionId: String(editionId) } }),
     });
-    if (!me) return null;
     return (
-        <>
-            <button type="button" className={styles.more} style={{ marginTop: 12 }} onClick={() => setOpen(true)}>Перекласти самому</button>
-            {open && (
-                <Sheet open onClose={() => setOpen(false)} title="Свій переклад">
-                    <div style={{ display: 'grid', gap: 14 }}>
-                        <p className={styles.muted}>
-                            Ваш переклад стане поруч із наявними, читачі оберуть, чий читати. Дозвіл не потрібен.
-                        </p>
-                        <Segmented label="З якої глави" value={from} onChange={setFrom} options={[
-                            { value: 'after', label: `Після ${'$'}${novel.edition.teamHandle} — з глави ${novel.relay.lastNumber + 1}` },
-                            { value: 'start', label: 'З першої глави' },
-                        ]} />
-                        {mine.length > 1 && (
-                            <label style={{ display: 'grid', gap: 6 }}>
-                                <span className={styles.muted}>Команда</span>
-                                <select className={styles.select} value={chosen} onChange={(event) => setTeam(event.target.value)}>
-                                    {mine.map((option) => <option key={option.handle} value={option.handle}>{option.name}</option>)}
-                                </select>
-                            </label>
-                        )}
-                        {start.isError && <Notice tone="error">{start.error.message}</Notice>}
-                        <Button onPress={() => start.mutate()} pending={start.isPending} pendingLabel="Створюємо…" isDisabled={teams.isPending}>
-                            Почати переклад
-                        </Button>
-                    </div>
-                </Sheet>
-            )}
-        </>
+        <Sheet open onClose={onClose} title="Свій переклад">
+            <div style={{ display: 'grid', gap: 14 }}>
+                <p className={styles.muted}>
+                    Ваш переклад стане поруч із наявними, читачі оберуть, чий читати. Дозвіл не потрібен.
+                </p>
+                <Segmented label="З якої глави" value={from} onChange={setFrom} options={[
+                    { value: 'after', label: `Після ${'$'}${novel.edition.teamHandle} — з глави ${novel.relay.lastNumber + 1}` },
+                    { value: 'start', label: 'З першої глави' },
+                ]} />
+                {mine.length > 1 && (
+                    <label style={{ display: 'grid', gap: 6 }}>
+                        <span className={styles.muted}>Команда</span>
+                        <select className={styles.select} value={chosen} onChange={(event) => setTeam(event.target.value)}>
+                            {mine.map((option) => <option key={option.handle} value={option.handle}>{option.name}</option>)}
+                        </select>
+                    </label>
+                )}
+                {start.isError && <Notice tone="error">{start.error.message}</Notice>}
+                <Button onPress={() => start.mutate()} pending={start.isPending} pendingLabel="Створюємо…" isDisabled={teams.isPending}>
+                    Почати переклад
+                </Button>
+            </div>
+        </Sheet>
     );
 }
 
@@ -388,7 +480,7 @@ function ChapterList({ slug, team, current, total, editionId }: {
     /** The reader's own translation for marks; null for a guest. */
     editionId: number | null;
 }) {
-    const { mark, reset } = useReadMarks(slug, editionId);
+    const { mark } = useReadMarks(slug, editionId);
     const [marking, setMarking] = useState<ChapterRowType | null>(null);
     const [order, setOrder] = useState<'asc' | 'desc'>('asc');
     const pages = Math.max(1, Math.ceil(total / CHAPTERS_PER_PAGE));
@@ -408,7 +500,6 @@ function ChapterList({ slug, team, current, total, editionId }: {
     return (
         <div className={styles.chapters} id="chapters" ref={top}>
             <div className={styles.chaptersHead}>
-                <h2 className={styles.sectionTitle}>Глави</h2>
                 <button type="button" className={styles.order} onClick={() => { setOrder(order === 'asc' ? 'desc' : 'asc'); setPage(1); }}>
                     <ArrowDownUp size={14} aria-hidden /> {order === 'asc' ? 'від першої' : 'від останньої'}
                 </button>
@@ -437,15 +528,6 @@ function ChapterList({ slug, team, current, total, editionId }: {
                 ))}
             </ol>
             <Pager page={page} total={total} size={CHAPTERS_PER_PAGE} onPage={turn} />
-            {editionId && current && (
-                <button type="button" className={styles.resetProgress} disabled={reset.isPending}
-                    onClick={() => void askConfirm({
-                        title: 'Скинути прогрес?', text: 'Місце читання й позначки «прочитано» зникнуть. Новела лишиться в бібліотеці.',
-                        confirmLabel: 'Скинути', danger: true,
-                    }).then((yes) => { if (yes) reset.mutate(); })}>
-                    Скинути прогрес читання
-                </button>
-            )}
             {marking && (
                 <Sheet open onClose={() => setMarking(null)} title={chapterHeading(marking)}>
                     <div className={styles.markSheet}>
@@ -466,68 +548,27 @@ function ChapterList({ slug, team, current, total, editionId }: {
     );
 }
 
-/** Talk about the translation as a whole; a link to a comment (#c40) opens it at once. */
-function DiscussionButton({ editionId }: { editionId: number }) {
-    const hash = useRouterState({ select: (state) => state.location.hash });
-    const focus = /^c(\d+)$/.exec(hash)?.[1];
-    const [open, setOpen] = useState(Boolean(focus));
-    const count = useCommentCount(editionId);
-    return (
-        <>
-            <button type="button" className={discussionStyles.fab} onClick={() => setOpen(true)}
-                aria-label={`Обговорення перекладу, коментарів: ${count}`}>
-                <MessageCircle size={18} aria-hidden />{count > 0 ? count : 'Обговорення'}
-            </button>
-            <Sheet open={open} onClose={() => setOpen(false)} title="Обговорення перекладу" tall>
-                <Discussion editionId={editionId} focus={focus ? Number(focus) : undefined} />
-            </Sheet>
-        </>
-    );
-}
 
-/** Average stars; a signed-in reader gives their own (tap the same star again to take it back). */
-function Stars({ novel }: { novel: Novel }) {
+/** The reader's own stars (tap the same star again to take them back); the average is in the heading. */
+function MyRating({ novel }: { novel: Novel }) {
     const me = useMe();
     const client = useQueryClient();
-    const edition = novel.edition;
     const mine = novel.viewer?.myRating ?? null;
     const rate = useMutation({ meta: { errorToast: true },
-        mutationFn: (score: number | null) => commentApi.rate(edition.editionId, score),
+        mutationFn: (score: number | null) => commentApi.rate(novel.edition.editionId, score),
         onSuccess: () => void client.invalidateQueries({ queryKey: ['novel', novel.slug] }),
     });
+    if (!me) return null;
     return (
-        <div className={styles.stars}>
-            {me ? (
-                <span role="radiogroup" aria-label="Ваша оцінка перекладу">
-                    {[1, 2, 3, 4, 5].map((score) => (
-                        <button key={score} type="button" role="radio" aria-checked={mine === score} aria-label={`${score} з 5`}
-                            className={(mine ?? 0) >= score ? styles.starOn : styles.star}
-                            onClick={() => rate.mutate(mine === score ? null : score)}>★</button>
-                    ))}
-                </span>
-            ) : edition.rating != null && <span className={styles.starOn} aria-hidden>★</span>}
-            <span className={styles.muted}>
-                {edition.rating != null ? `${edition.rating.toFixed(1).replace('.', ',')} · оцінок: ${edition.ratings ?? 0}` : 'ще без оцінок'}
+        <div>
+            <h2 className={styles.label}>Ваша оцінка перекладу</h2>
+            <span role="radiogroup" aria-label="Ваша оцінка перекладу" className={styles.stars}>
+                {[1, 2, 3, 4, 5].map((score) => (
+                    <button key={score} type="button" role="radio" aria-checked={mine === score} aria-label={`${score} з 5`}
+                        className={(mine ?? 0) >= score ? styles.starOn : styles.star}
+                        onClick={() => rate.mutate(mine === score ? null : score)}>★</button>
+                ))}
             </span>
-        </div>
-    );
-}
-
-/** Administrators hide a translation that breaks the rules; it comes back from «Приховане». */
-function HideEdition({ editionId }: { editionId: number }) {
-    const me = useMe();
-    const navigate = useNavigate();
-    const hide = useMutation({
-        mutationFn: (reason: string) => adminApi.hide('edition', editionId, reason),
-        onSuccess: () => void navigate({ to: '/admin/moderation' }),
-    });
-    if (me?.role !== 'admin' && me?.role !== 'owner') return null;
-    return (
-        <div style={{ marginTop: 24 }}>
-            <Button variant="danger" onPress={() => void askText({
-                title: 'Приховати переклад', label: 'Причина', hint: 'Її побачать інші модератори.', confirmLabel: 'Приховати', danger: true,
-            }).then((reason) => { if (reason) hide.mutate(reason); })}>Приховати переклад</Button>
-            {hide.isError && <Notice tone="error">{hide.error.message}</Notice>}
         </div>
     );
 }
@@ -542,26 +583,23 @@ function translatedFrom(language: string | null | undefined): string {
 }
 
 /** «Оригінал: виходить · 822 глави» and how much of it this translation covers. */
+
+/** How much of the original this translation covers: «Перекладено 44 з 822 · оригінал виходить». */
 function OriginalProgress({ novel }: { novel: Novel }) {
     const facts = novel.facts;
     if (!facts?.sourceStatus && !facts?.sourceChapterCount) return null;
     const total = facts.sourceChapterCount;
     const done = novel.edition.chapterCount;
+    const status = facts.sourceStatus && `оригінал ${SOURCE_STATUS_LABELS[facts.sourceStatus]}`;
     return (
         <div className={styles.original}>
-            <div className={styles.muted}>
-                Оригінал: {[facts.sourceStatus && SOURCE_STATUS_LABELS[facts.sourceStatus], total && `${total} ${chaptersWord(total)}`]
-                    .filter(Boolean).join(' · ')}
-            </div>
             {total ? (
-                <>
-                    <div className={styles.progressBar} role="progressbar" aria-label="Перекладено" aria-valuemin={0}
-                        aria-valuemax={total} aria-valuenow={Math.min(done, total)}>
-                        <span style={{ width: `${Math.min(100, (done / total) * 100)}%` }} />
-                    </div>
-                    <div className={styles.muted}>Перекладено {done} з {total}</div>
-                </>
+                <div className={styles.progressBar} role="progressbar" aria-label="Перекладено" aria-valuemin={0}
+                    aria-valuemax={total} aria-valuenow={Math.min(done, total)}>
+                    <span style={{ width: `${Math.min(100, (done / total) * 100)}%` }} />
+                </div>
             ) : null}
+            <div className={styles.muted}>{[total && `Перекладено ${done} з ${total}`, status].filter(Boolean).join(' · ')}</div>
         </div>
     );
 }

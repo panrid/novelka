@@ -20,6 +20,7 @@ const NAMES: Record<string, string> = {
     ChevronLeft: 'ChevronLeftIcon',
     ChevronRight: 'ChevronRightIcon',
     ChevronUp: 'ChevronUpIcon',
+    Ellipsis: 'EllipsisHorizontalIcon',
     FileUp: 'DocumentArrowUpIcon',
     Flag: 'FlagIcon',
     History: 'ClockIcon',

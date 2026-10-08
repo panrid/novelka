@@ -14,6 +14,16 @@ import styles from './reportEdition.module.css';
 export function ReportEdition({ editionId, chapterLabel, chapterNumber }: {
     editionId: number; chapterLabel?: string | undefined; chapterNumber?: number | undefined;
 }) {
+    const report = useReportEdition(editionId, chapterLabel, chapterNumber);
+    return (
+        <button type="button" className={styles.report} onClick={report.ask} disabled={report.pending}>
+            <Flag size={14} aria-hidden /> {chapterLabel ? 'Поскаржитися на главу' : 'Поскаржитися на переклад'}
+        </button>
+    );
+}
+
+/** The report itself, for a button of its own or an item of a menu; a guest is sent to sign in first. */
+export function useReportEdition(editionId: number, chapterLabel?: string, chapterNumber?: number) {
     const me = useMe();
     const navigate = useNavigate();
     const report = useMutation({
@@ -31,9 +41,5 @@ export function ReportEdition({ editionId, chapterLabel, chapterNumber }: {
             label: 'Що не так?', hint: 'Причину побачать лише модератори.', multiline: true, confirmLabel: 'Надіслати скаргу',
         }).then((reason) => { if (reason) report.mutate(reason); });
     };
-    return (
-        <button type="button" className={styles.report} onClick={ask} disabled={report.isPending}>
-            <Flag size={14} aria-hidden /> {chapterLabel ? 'Поскаржитися на главу' : 'Поскаржитися на переклад'}
-        </button>
-    );
+    return { ask, pending: report.isPending };
 }

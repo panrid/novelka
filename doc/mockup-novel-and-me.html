@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Макет: сторінка новели й меню «Я»</title>
+<style>
+:root { --bg: #161815; --card: #20231f; --line: #34382f; --text: #ecebe4; --muted: #9a9d92; --accent: #a8c48f; --accent-bg: #2f3b27; --warn-bg: #3b3420; --warn: #e6c873; --danger: #e48a7a; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, sans-serif; }
+.wrap { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; padding: 16px; }
+.col { width: 100%; max-width: 380px; }
+h2 { font-size: 13px; font-weight: 500; color: var(--muted); margin: 0 0 8px; }
+.phone { border: 1px solid var(--line); border-radius: 22px; padding: 16px; background: var(--bg); }
+.muted { color: var(--muted); font-size: 13px; }
+.head { display: flex; gap: 12px; }
+.cover { width: 76px; height: 108px; border-radius: 8px; background: linear-gradient(160deg, #5a6b8a, #8a5a6b); flex: none; }
+.title { font: 600 19px/1.25 Georgia, serif; margin-bottom: 4px; }
+.bar { height: 5px; border-radius: 3px; background: var(--line); margin: 8px 0 4px; }
+.bar span { display: block; height: 5px; width: 51%; border-radius: 3px; background: var(--accent); }
+.actions { display: flex; gap: 8px; margin-top: 14px; }
+.btn { border: 1px solid var(--line); border-radius: 12px; padding: 11px 13px; text-align: center; background: var(--card); }
+.primary { flex: 1; background: var(--accent); color: #1b2215; font-weight: 600; border: 0; }
+.seg { display: flex; margin: 16px 0 12px; border-bottom: 1px solid var(--line); }
+.seg div { flex: 1; text-align: center; padding: 9px 0; font-size: 14px; color: var(--muted); }
+.seg .on { color: var(--text); font-weight: 600; box-shadow: inset 0 -2px var(--accent); }
+.note { background: var(--warn-bg); color: var(--warn); border-radius: 10px; padding: 9px 12px; font-size: 14px; margin-bottom: 6px; }
+.row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.row.read { color: var(--muted); }
+.row.here { color: var(--accent); }
+.tick { width: 20px; height: 20px; border-radius: 6px; border: 1px solid var(--line); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+.read .tick { background: var(--accent-bg); color: var(--accent); border-color: transparent; }
+.pager { text-align: center; padding-top: 10px; }
+.sheet { margin-top: 18px; border: 1px solid var(--line); border-radius: 18px 18px 0 0; padding: 14px 16px; background: var(--card); }
+.label { font-size: 12px; color: var(--muted); margin: 14px 0 2px; text-transform: none; }
+.item { display: flex; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.item:last-child { border-bottom: 0; }
+.danger { color: var(--danger); }
+.profile { display: flex; gap: 12px; align-items: center; padding-bottom: 6px; }
+.avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--accent-bg); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.chip { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 13px; }
+.stars { color: var(--warn); letter-spacing: 2px; }
+.explain { max-width: 800px; margin: 8px auto 24px; padding: 0 16px; color: var(--muted); font-size: 14px; }
+.explain b { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="explain"><b>Пропозиція.</b> Сторінка новели: коротка шапка, один рядок дій, рідкісне — у «⋯», а нижче перемикач «Про новелу / Глави / Обговорення» замість довгої стрічки й плаваючої кнопки. Меню «Я» — чотири групи без повторів.</div>
+<div class="wrap">
+
+<div class="col">
+<h2>Сторінка новели · вкладка «Глави» (відкривається першою)</h2>
+<div class="phone">
+  <div class="head">
+    <div class="cover"></div>
+    <div>
+      <div class="title">Творець магії — Як створювати магію в іншому світі</div>
+      <div class="muted">Кабуракі Кадзукі · з японської · $panrid · ШІ</div>
+      <div class="bar"><span></span></div>
+      <div class="muted">Перекладено 106 з 207 · оригінал виходить</div>
+      <div class="muted"><span class="stars">★</span> 3,5 · оцінок: 2</div>
+    </div>
+  </div>
+  <div class="actions">
+    <div class="btn primary">Продовжити · гл. 57</div>
+    <div class="btn" title="Бібліотека">☆</div>
+    <div class="btn" title="Нові глави">🔔</div>
+    <div class="btn" title="Ще">⋯</div>
+  </div>
+  <div class="seg"><div>Про новелу</div><div class="on">Глави · 106</div><div>Обговорення · 12</div></div>
+  <div class="note">Пропущено 3 глави · <u>читати з 53</u> · <u>позначити</u></div>
+  <div class="row read"><span>55. Справжні наміри</span><span class="tick">✓</span></div>
+  <div class="row read"><span>56. Перший урок</span><span class="tick">✓</span></div>
+  <div class="row here"><span>57. Групи</span><span class="muted">тут ви</span></div>
+  <div class="row"><span>58. Навчи мене</span><span class="tick"></span></div>
+  <div class="row"><span>59. Ознаки зростання</span><span class="tick"></span></div>
+  <div class="pager muted">‹ сторінка 3 з 6 ›</div>
+</div>
+</div>
+
+<div class="col">
+<h2>Вкладка «Про новелу»</h2>
+<div class="phone">
+  <div class="chips"><span class="chip">Фентезі</span><span class="chip">Пригоди</span><span class="chip">Ісекай</span><span class="chip">Магія</span></div>
+  <div>Чоловік, який, досягши тридцяти років, усе ще мріяв користуватися магією, раптово помирає, а прокинувшись, опиняється в іншому світі… <span class="muted">ще</span></div>
+  <div class="label">Ваша оцінка</div>
+  <div class="stars" style="font-size:22px">★★★★☆</div>
+  <div class="label">Інші назви</div>
+  <div class="muted">Magic Maker: How to Make Magic in Another World · マジック・メイカー</div>
+  <div class="label">Оригінал</div>
+  <div class="muted">207 глав · виходить · <u>відкрити ↗</u></div>
+</div>
+<h2 style="margin-top:20px">Меню «⋯» (знизу, як аркуш)</h2>
+<div class="sheet">
+  <div class="item"><span>Інші переклади</span><span class="muted">2</span></div>
+  <div class="item"><span>Перекласти самому</span></div>
+  <div class="item"><span>Хочу продовжити цей переклад</span></div>
+  <div class="item"><span>Скинути прогрес читання</span></div>
+  <div class="item"><span>Поскаржитися на переклад</span></div>
+  <div class="label">Команда</div>
+  <div class="item"><span>Керувати в Студії</span></div>
+  <div class="label">Модерація</div>
+  <div class="item danger"><span>Приховати переклад</span></div>
+</div>
+</div>
+
+<div class="col">
+<h2>Меню «Я»</h2>
+<div class="phone">
+  <div class="profile"><div class="avatar"></div><div><div style="font-weight:600">panrid</div><div class="muted">Переглянути профіль</div></div></div>
+  <div class="label">Моє</div>
+  <div class="item"><span>Студія — переклади й твори</span><span class="muted">правок: 4</span></div>
+  <div class="item"><span>Мої правки</span></div>
+  <div class="item"><span>Шаги й автопереклад</span></div>
+  <div class="label">Налаштування</div>
+  <div class="item"><span>Акаунт</span><span class="muted">профіль, нік, пошта, пароль, Google</span></div>
+  <div class="item"><span>Вигляд</span><span class="muted">сайт, читалка</span></div>
+  <div class="item"><span>Сповіщення</span><span class="muted">Telegram</span></div>
+  <div class="item"><span>Приватність</span><span class="muted">хто пише, 18+</span></div>
+  <div class="label">Модерація — модератори й вище</div>
+  <div class="item"><span>Скарги й приховане</span><span class="muted">2</span></div>
+  <div class="label">Адміністрування — адміністратори й власник</div>
+  <div class="item"><span>Користувачі й ролі</span></div>
+  <div class="item"><span>Налаштування сайту</span><span class="muted">моделі й ціни</span></div>
+  <div class="item"><span>Аналітика</span></div>
+  <div class="item"><span>Журнал дій</span></div>
+  <div class="item danger" style="margin-top:8px"><span>Вийти</span></div>
+</div>
+</div>
+
+</div>
+</body>
+</html>

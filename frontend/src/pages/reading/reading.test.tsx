@@ -193,6 +193,7 @@ describe('own translation', () => {
             'POST /api/novels/mah-vody/own-translation': { status: 201, body: { editionId: 31, novelSlug: 'mah-vody' } },
             'GET /api/studio/editions/31': { status: 404, body: { detail: '—' } },
         });
+        await userEvent.click(await screen.findByRole('button', { name: 'Ще' }));
         await userEvent.click(await screen.findByRole('button', { name: 'Перекласти самому' }));
         expect(await screen.findByText(/з глави 45/)).toBeInTheDocument();
         await userEvent.click(screen.getByRole('button', { name: 'Почати переклад' }));
@@ -263,6 +264,28 @@ describe('reporting a translation', () => {
     });
 });
 
+describe('the novel page’s «⋯»', () => {
+    it('reports the translation from the menu and opens the discussion as a tab', async () => {
+        const { calls } = await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': { body: NOVEL },
+            'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
+            'GET /api/editions/7/comments': { body: { items: [], total: 3, page: 1, hasMore: false } },
+            'POST /api/reports': { status: 201, body: { received: true } },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Ще' }));
+        await userEvent.click(await screen.findByRole('button', { name: 'Поскаржитися на переклад' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Поскаржитися на переклад' });
+        await userEvent.type(within(dialog).getByLabelText('Що не так?'), 'Чужий переклад');
+        await userEvent.click(within(dialog).getByRole('button', { name: 'Надіслати скаргу' }));
+        await vi.waitFor(() => expect(calls.find((call) => call.path === '/api/reports')?.body)
+            .toMatchObject({ target: 'edition', targetId: 7, reason: 'Чужий переклад' }));
+        expect(screen.getByRole('tab', { name: 'Глави · 44' })).toHaveAttribute('aria-selected', 'true');
+        await userEvent.click(await screen.findByRole('tab', { name: 'Обговорення · 3' }));
+        expect(screen.getByRole('tab', { name: 'Обговорення · 3' })).toHaveAttribute('aria-selected', 'true');
+    });
+});
+
 describe('catalog', () => {
     it('counts the novels, offers popular tags and hints at novels and tags while typing', async () => {
         const { router, calls } = await renderAt('/catalog', {
@@ -305,11 +328,13 @@ describe('the novel’s other names and the original', () => {
             } },
             'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
         });
-        expect(await screen.findByText('Water Magician · 水属性の魔法使い · Mizu Zokusei')).toBeInTheDocument();
-        expect(screen.getByText(/44 глави · призупинено до 1 березня 2031/)).toBeInTheDocument();
-        expect(screen.getByText('Оригінал: виходить · 822 глави')).toBeInTheDocument();
-        expect(screen.getByText('Перекладено 44 з 822')).toBeInTheDocument();
+        expect(await screen.findByText(/44 глави · призупинено до 1 березня 2031/)).toBeInTheDocument();
+        expect(screen.getByText('Перекладено 44 з 822 · оригінал виходить')).toBeInTheDocument();
         expect(screen.getByRole('progressbar', { name: 'Перекладено' })).toHaveAttribute('aria-valuenow', '44');
+        // The other names and the original are on «Про новелу».
+        await userEvent.click(screen.getByRole('tab', { name: 'Про новелу' }));
+        expect(await screen.findByText('Water Magician · 水属性の魔法使い · Mizu Zokusei')).toBeInTheDocument();
+        expect(screen.getByText('виходить · 822 глави')).toBeInTheDocument();
         // Google reads the title the app sets: the English name and «безкоштовно» live only there, not on the page.
         await waitFor(() => expect(document.title).toBe('Маг води (Water Magician) — читати українською безкоштовно | Новелка'));
         expect(screen.queryByText(/безкоштовно/)).not.toBeInTheDocument();
@@ -321,7 +346,7 @@ describe('the novel’s other names and the original', () => {
             'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
         });
         expect(await screen.findByText('44 глави · в роботі')).toBeInTheDocument();
-        expect(screen.queryByText(/Оригінал:/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/оригінал/)).not.toBeInTheDocument();
     });
 });
 
@@ -363,7 +388,8 @@ describe('read marks', () => {
         await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Усі до цієї включно — прочитані' }));
         await waitFor(() => expect(calls.filter((call) => call.path === '/api/reads/7').at(-1)?.body).toEqual({ from: 1, to: 3, read: true }));
 
-        await userEvent.click(screen.getByRole('button', { name: 'Скинути прогрес читання' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Ще' }));
+        await userEvent.click(await screen.findByRole('button', { name: 'Скинути прогрес читання' }));
         await userEvent.click(within(await screen.findByRole('dialog', { name: 'Скинути прогрес?' })).getByRole('button', { name: 'Скинути' }));
         await waitFor(() => expect(calls.some((call) => call.method === 'DELETE' && call.path === '/api/progress/7')).toBe(true));
     });

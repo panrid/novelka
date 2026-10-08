@@ -77,6 +77,7 @@ export const ChevronDown = icon('ChevronDown');
 export const ChevronLeft = icon('ChevronLeft');
 export const ChevronRight = icon('ChevronRight');
 export const ChevronUp = icon('ChevronUp');
+export const Ellipsis = icon('Ellipsis');
 export const FileUp = icon('FileUp');
 export const Flag = icon('Flag');
 export const History = icon('History');

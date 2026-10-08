@@ -34,22 +34,13 @@
     grid-column: 1 / -1;
 }
 
-/* The phone keeps its order: buttons, tags, description, «Керувати», chapters and the rest. */
+/* The phone keeps its order: cover and heading, the buttons, then the tabs. */
 .side > * {
     order: 1;
 }
 
-.content > .tags,
-.content > .description {
+.content > :not(.headText) {
     order: 2;
-}
-
-.side > .manage {
-    order: 3;
-}
-
-.content > :not(.headText, .tags, .description) {
-    order: 4;
 }
 
 .coverBox,
@@ -78,6 +69,16 @@
 
     .side .actions {
         margin-top: 0;
+        flex-wrap: wrap;
+    }
+
+    /* The column is narrow: reading gets a row of its own, the small buttons share the next. */
+    .side .actions > :first-child {
+        flex-basis: 100%;
+    }
+
+    .side .actions > :not(:first-child) {
+        flex: 1;
     }
 
     .side > *,
@@ -110,11 +111,6 @@
     }
 }
 
-.head {
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-}
 
 .headText {
     min-width: 0;
@@ -180,10 +176,6 @@
     white-space: nowrap;
 }
 
-.team {
-    background: color-mix(in srgb, var(--accent) 22%, transparent);
-    color: var(--accent);
-}
 
 .ghost {
     background: none;
@@ -191,10 +183,6 @@
     color: var(--muted);
 }
 
-.on {
-    background: color-mix(in srgb, var(--accent) 22%, transparent);
-    color: var(--accent);
-}
 
 .actions {
     display: flex;
@@ -204,6 +192,8 @@
 
 .actions > :first-child {
     flex: 1;
+    min-width: 0;
+    white-space: nowrap;
 }
 
 .libraryButton {
@@ -253,13 +243,6 @@
     color: var(--danger);
 }
 
-.editions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin-top: 12px;
-}
 
 .description {
     margin-top: 14px;
@@ -272,21 +255,7 @@
     margin-top: 0.6em;
 }
 
-.clamped {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
 
-.more {
-    padding: 4px 0;
-    border: 0;
-    background: none;
-    color: var(--muted);
-    font-size: 13px;
-    cursor: pointer;
-}
 
 .chapters {
     margin-top: 12px;
@@ -294,8 +263,9 @@
 
 .chaptersHead {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
+    padding-top: 4px;
 }
 
 .sectionTitle {
@@ -402,16 +372,6 @@
     gap: 8px;
 }
 
-.resetProgress {
-    margin-top: 6px;
-    padding: 6px 0;
-    border: 0;
-    background: none;
-    color: var(--muted);
-    font-size: 13px;
-    text-decoration: underline;
-    cursor: pointer;
-}
 
 .continuation {
     display: block;
@@ -424,17 +384,6 @@
     font-weight: 500;
 }
 
-.relay {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin: 16px 0 8px;
-    padding: 14px;
-    border-radius: var(--radius);
-    background: var(--surface);
-    border: var(--card-border);
-    box-shadow: var(--card-shadow);
-}
 
 .stars {
     display: flex;
@@ -482,5 +431,105 @@
 
 /* After .libraryButton: the bell that rings takes the accent colour. */
 .bellOn {
+    color: var(--accent);
+}
+
+/* Author, language, team and kind in one quiet line under the title. */
+.meta {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13.5px;
+    overflow-wrap: anywhere;
+}
+
+/* «Про новелу · Глави · Обговорення»: one page instead of a long ribbon. */
+.tabsBox {
+    margin-top: 18px;
+}
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.tab {
+    flex: 1 0 auto;
+    padding: 10px 8px;
+    color: var(--muted);
+    font-size: 14px;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+    outline: none;
+}
+
+.tab[data-selected] {
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: inset 0 -2px var(--accent);
+}
+
+.tab[data-focus-visible] {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+}
+
+.panel {
+    padding-top: 6px;
+    outline: none;
+}
+
+.about {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-top: 10px;
+}
+
+.about .description {
+    margin-top: 0;
+}
+
+.label {
+    margin: 0 0 4px;
+    color: var(--muted);
+    font: 500 12.5px var(--font-ui);
+}
+
+/* «⋯»: a plain list of actions, grouped under quiet labels. */
+.sheetList {
+    display: flex;
+    flex-direction: column;
+}
+
+.sheetList .label {
+    margin: 14px 0 0;
+}
+
+.sheetItem {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    padding: 13px 0;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: none;
+    color: var(--text);
+    font: 15px var(--font-ui);
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.sheetItem[aria-current] {
     color: var(--accent);
 }
