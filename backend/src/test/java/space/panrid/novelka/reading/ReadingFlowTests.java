@@ -142,7 +142,9 @@ class ReadingFlowTests {
         reader.browser().put(progress, json("chapterNumber", 3, "position", 0));
         reader.browser().put(progress, json("chapterNumber", 3, "position", 0.1));
         JsonNode viewer = read(reader.browser().get("/api/novels/" + slug)).path("viewer");
-        assertThat(viewer.path("chapterNumber").asInt()).as("opening a later chapter is not reading it yet").isEqualTo(1);
+        assertThat(viewer.path("chapterNumber").asInt()).as("opening a later chapter is not reading it yet; chapter 1 is read, so on to 2")
+                .isEqualTo(2);
+        assertThat(viewer.path("position").asDouble()).isZero();
         assertThat(viewer.path("skipped").asInt()).isZero();
 
         reader.browser().put(progress, json("chapterNumber", 3, "position", 0.2));
@@ -194,13 +196,18 @@ class ReadingFlowTests {
                 .as("a look back at an earlier chapter keeps the place").isEqualTo(2);
         reader.browser().put("/api/progress/" + editionId, json("chapterNumber", 1, "position", 0.95));
         assertThat(read(reader.browser().get("/api/home")).path("continueReading").path(0).path("chapterNumber").asInt())
-                .as("read to its end, it is read again").isEqualTo(1);
+                .as("read to its end, it is the place again — and «Продовжити» leads on to the next one").isEqualTo(2);
+        assertThat(read(reader.browser().get("/api/novels/" + slug + "/chapters/2")).path("savedPosition").asDouble())
+                .as("the next chapter opens at its start").isZero();
         reader.browser().put("/api/progress/" + editionId, json("chapterNumber", 2, "position", 0.4));
 
         JsonNode library = read(reader.browser().get("/api/library?list=reading"));
         assertThat(library.path("items")).singleElement()
                 .satisfies(item -> assertThat(item.path("chapterNumber").asInt()).isEqualTo(2));
         assertThat(library.path("counts").path("reading").asInt()).isEqualTo(1);
+        reader.browser().put("/api/progress/" + editionId, json("chapterNumber", 3, "position", 0.95));
+        assertThat(read(reader.browser().get("/api/home")).path("continueReading").path(0).path("chapterNumber").asInt())
+                .as("the last chapter read to its end stays: there is nothing after it yet").isEqualTo(3);
         JsonNode activity = read(new Browser(port).get("/api/users/" + reader.nick() + "/activity"));
         assertThat(activity.path("reading")).as("«Читає зараз» on the profile").singleElement()
                 .satisfies(card -> assertThat(card.path("editionId").asLong()).isEqualTo(editionId));

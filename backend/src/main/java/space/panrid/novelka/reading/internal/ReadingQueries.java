@@ -214,10 +214,25 @@ class ReadingQueries {
         List<Card> cards = toCards(rows);
         List<Views.ContinueItem> result = new ArrayList<>();
         for (int i = 0; i < cards.size(); i++) {
-            result.add(new Views.ContinueItem(cards.get(i), rows.get(i).get(READING_PROGRESS.CHAPTER_NUMBER),
-                    rows.get(i).get(READING_PROGRESS.POSITION), rows.get(i).get(CHAPTER.LABEL)));
+            Place place = resumeAt(rows.get(i).get(EDITION.ID), rows.get(i).get(READING_PROGRESS.CHAPTER_NUMBER),
+                    rows.get(i).get(READING_PROGRESS.POSITION), rows.get(i).get(CHAPTER.LABEL));
+            result.add(new Views.ContinueItem(cards.get(i), place.number(), place.position(), place.label()));
         }
         return result;
+    }
+
+    /** Where «Продовжити» leads: the place, or the start of the next chapter once the place is read to its end. */
+    private record Place(int number, float position, String label) {
+    }
+
+    private Place resumeAt(long editionId, int number, float position, String label) {
+        if (position < LibraryService.FINISHED) {
+            return new Place(number, position, label);
+        }
+        Record next = db.select(CHAPTER.NUMBER, CHAPTER.LABEL).from(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.gt(number), CHAPTER.PUBLISHED_REVISION_ID.isNotNull())
+                .orderBy(CHAPTER.NUMBER).limit(1).fetchOne();
+        return next == null ? new Place(number, position, label) : new Place(next.get(CHAPTER.NUMBER), 0f, next.get(CHAPTER.LABEL));
     }
 
     /**
@@ -501,12 +516,12 @@ class ReadingQueries {
         Integer firstUnread = skippedCount == 0 ? null : skipped.get(1, Integer.class);
         String firstUnreadLabel = firstUnread == null ? null : db.select(CHAPTER.LABEL).from(CHAPTER)
                 .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(firstUnread)).fetchOne(CHAPTER.LABEL);
-        return new Views.ViewerState(list, progress == null ? null : progress.get(READING_PROGRESS.CHAPTER_NUMBER),
-                progress == null ? null : progress.get(READING_PROGRESS.POSITION), teamRole,
-                rating == null ? null : rating.intValue(),
-                progress == null ? null : db.select(CHAPTER.LABEL).from(CHAPTER)
+        Place place = progress == null ? null : resumeAt(editionId, progress.get(READING_PROGRESS.CHAPTER_NUMBER),
+                progress.get(READING_PROGRESS.POSITION), db.select(CHAPTER.LABEL).from(CHAPTER)
                         .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(progress.get(READING_PROGRESS.CHAPTER_NUMBER)))
-                        .fetchOne(CHAPTER.LABEL),
+                        .fetchOne(CHAPTER.LABEL));
+        return new Views.ViewerState(list, place == null ? null : place.number(), place == null ? null : place.position(), teamRole,
+                rating == null ? null : rating.intValue(), place == null ? null : place.label(),
                 db.fetchExists(TAKEOVER_REQUEST, TAKEOVER_REQUEST.EDITION_ID.eq(editionId), TAKEOVER_REQUEST.STATE.eq("open"),
                         TAKEOVER_REQUEST.TEAM_ID.in(DSL.select(TEAM.ID).from(TEAM).where(TEAM.OWNER_ID.eq(accountId))
                                 .union(DSL.select(TEAM_MEMBER.TEAM_ID).from(TEAM_MEMBER).where(TEAM_MEMBER.ACCOUNT_ID.eq(accountId))))),
@@ -529,7 +544,7 @@ class ReadingQueries {
         db.select(LIBRARY_ENTRY.LIST, DSL.count()).from(LIBRARY_ENTRY).join(EDITION).on(EDITION.ID.eq(LIBRARY_ENTRY.EDITION_ID))
                 .where(mine.and(visible(adult))).groupBy(LIBRARY_ENTRY.LIST)
                 .forEach(r -> counts.put(r.value1(), r.value2()));
-        List<Record> rows = cards(READING_PROGRESS.CHAPTER_NUMBER, CHAPTER.LABEL).join(LIBRARY_ENTRY).on(LIBRARY_ENTRY.EDITION_ID.eq(EDITION.ID))
+        List<Record> rows = cards(READING_PROGRESS.CHAPTER_NUMBER, READING_PROGRESS.POSITION, CHAPTER.LABEL).join(LIBRARY_ENTRY).on(LIBRARY_ENTRY.EDITION_ID.eq(EDITION.ID))
                 .leftJoin(READING_PROGRESS).on(READING_PROGRESS.EDITION_ID.eq(EDITION.ID).and(READING_PROGRESS.ACCOUNT_ID.eq(accountId)))
                 .leftJoin(CHAPTER).on(CHAPTER.EDITION_ID.eq(EDITION.ID), CHAPTER.NUMBER.eq(READING_PROGRESS.CHAPTER_NUMBER))
                 .where(mine.and(LIBRARY_ENTRY.LIST.eq(list)).and(visible(adult)))
@@ -540,7 +555,10 @@ class ReadingQueries {
         List<Card> cards = toCards(rows);
         List<Views.LibraryItem> items = new ArrayList<>();
         for (int i = 0; i < cards.size(); i++) {
-            items.add(new Views.LibraryItem(cards.get(i), list, rows.get(i).get(READING_PROGRESS.CHAPTER_NUMBER), rows.get(i).get(CHAPTER.LABEL)));
+            Integer number = rows.get(i).get(READING_PROGRESS.CHAPTER_NUMBER);
+            Place place = number == null ? null
+                    : resumeAt(rows.get(i).get(EDITION.ID), number, rows.get(i).get(READING_PROGRESS.POSITION), rows.get(i).get(CHAPTER.LABEL));
+            items.add(new Views.LibraryItem(cards.get(i), list, place == null ? null : place.number(), place == null ? null : place.label()));
         }
         int total = counts.getOrDefault(list, 0);
         return new Views.LibraryPage(items, counts, total, at, at * LIBRARY_PAGE < total);
