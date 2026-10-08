@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Award } from 'lucide-react';
+import { Award } from '../../ui/icons';
 import { achievementApi } from '../../achievement/api';
 import { relativeTime } from '../../lib/dates';
 import styles from './achievements.module.css';

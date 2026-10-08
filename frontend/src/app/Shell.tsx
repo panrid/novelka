@@ -2,7 +2,7 @@ import { SearchBox } from '../reading/SearchBox';
 import { useQuery } from '@tanstack/react-query';
 import { HeadContent, Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { BookOpen, Home, Inbox, PenLine, Search, User, type LucideIcon } from 'lucide-react';
+import { BookOpen, Home, Inbox, PenLine, Search, User, type LucideIcon } from '../ui/icons';
 import { syncWithAccount } from '../appearance/store';
 import { meQuery, useMe } from '../auth/me';
 import { useInboxCounts, useLiveEvents } from '../inbox/live';

@@ -12,7 +12,7 @@ import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
 import styles from './studio.module.css';
 import { useCanRun } from '../../ledger/api';
-import { ArrowRightLeft, PenLine, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowRightLeft, PenLine, RefreshCw, Sparkles } from '../../ui/icons';
 
 type Kind = 'human' | 'original' | 'syosetu';
 

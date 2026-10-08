@@ -122,3 +122,13 @@
     margin: 0;
     text-indent: 1.6em;
 }
+
+.iconDemo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    color: var(--icon-color, currentColor);
+}

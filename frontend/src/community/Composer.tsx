@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ImagePlus, Send, X } from 'lucide-react';
+import { ImagePlus, Send, X } from '../ui/icons';
 import { useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Avatar } from '../ui/Avatar';
 import { mentionApi } from './api';

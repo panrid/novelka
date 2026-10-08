@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from '../ui/icons';
 import { useEffect, useState } from 'react';
 import { useMe, type Me } from '../auth/me';
 import { messagingApi } from '../inbox/api';

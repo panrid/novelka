@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { FileUp, PenLine, Sparkles } from 'lucide-react';
+import { FileUp, PenLine, Sparkles } from '../../ui/icons';
 import { useState } from 'react';
 import { useDebounced } from '../../lib/useDebounced';
 import { autotranslateApi, money } from '../../studio/autotranslate';

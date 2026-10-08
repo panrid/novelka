@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
-import { ArrowDownUp, Bell, BellRing, BookmarkPlus, Check, MessageCircle } from 'lucide-react';
+import { ArrowDownUp, Bell, BellRing, BookmarkPlus, Check, MessageCircle } from '../../ui/icons';
 import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import { Button as AriaButton, Menu, MenuItem, MenuTrigger, Popover, ToggleButton } from 'react-aria-components';
 import { ApiError } from '../../api/client';

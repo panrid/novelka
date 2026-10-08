@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, X } from '../../ui/icons';
 import { useEffect, useState } from 'react';
 import { novelsWord, readingApi, type TagCount } from '../../reading/api';
 import { SearchBox } from '../../reading/SearchBox';

@@ -31,7 +31,7 @@ final class Appearance {
             Map.entry("ui", oneOf(FONTS)),
             Map.entry("head", oneOf(FONTS)),
             Map.entry("scale", number(0.85, 1.25)),
-            Map.entry("icons", oneOf("lucide", "phosphor", "tabler", "remix", "material")),
+            Map.entry("icons", oneOf("lucide", "tabler", "phosphor", "iconoir", "heroicons")),
             Map.entry("iconWeight", number(1, 2.5)),
             Map.entry("iconColor", oneOf("text", "accent", "muted")),
             Map.entry("iconFill", JsonNode::isBoolean),

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, X } from 'lucide-react';
+import { Check, X } from '../../ui/icons';
 import { Link } from '@tanstack/react-router';
 import { Fragment, useState } from 'react';
 import { useDebounced } from '../../lib/useDebounced';

@@ -1,12 +1,14 @@
 import { Link } from '@tanstack/react-router';
 import { FONT_STACKS, loadFont } from '../../appearance/fonts';
 import {
-    READER_COLORS, READER_WIDTHS, SITE_ACCENTS, SITE_FONTS, SITE_PRESETS, SITE_TONES, inkOn, readerLook, siteLook, sitePresetLook,
+    ICON_SETS, READER_COLORS, READER_WIDTHS, SITE_ACCENTS, SITE_FONTS, SITE_PRESETS, SITE_TONES, inkOn, readerLook, siteLook, sitePresetLook,
     type FontId, type SiteLook,
 } from '../../appearance/model';
 import { ReaderLookForm } from '../../appearance/ReaderLookForm';
 import { setSite, setSitePreset, useAppearance } from '../../appearance/store';
 import form from '../../appearance/ReaderLookForm.module.css';
+import { Toggle } from '../../ui/Toggle';
+import { Bell, BookOpen, Home, Inbox, Search, User } from '../../ui/icons';
 import styles from './appearance.module.css';
 
 /**
@@ -97,7 +99,31 @@ export function SiteAppearancePage() {
                 <Choice label="Анімації" value={look.anim} onPick={(anim) => setSite({ anim })}
                     options={[{ value: 'system', label: 'Як у системі' }, { value: 'full', label: 'Увімкнені' }, { value: 'light', label: 'Лише легкі' }, { value: 'off', label: 'Вимкнені' }]} />
             </div>
-            <p className={styles.lead}>Набори іконок і варіанти верстки (меню збоку, полиця в каталозі) з’являться наступними кроками.</p>
+            <div className={styles.group}>
+                <h2 className={styles.groupTitle}>Іконки</h2>
+                <div className={styles.iconDemo} aria-hidden>
+                    <Home size={26} /><Search size={26} /><BookOpen size={26} /><Inbox size={26} /><Bell size={26} /><User size={26} />
+                </div>
+                <Choice label="Набір" value={look.icons} onPick={(icons) => setSite({ icons })}
+                    options={ICON_SETS.map(({ value, label }) => ({ value, label }))} />
+                {look.icons === 'phosphor' ? (
+                    <p className={form.note}>Phosphor має чотири товщини: найближча до вибраної.</p>
+                ) : null}
+                <label className={form.row}>
+                    <span className={form.label}>Товщина ліній</span>
+                    <span className={form.range}>
+                        <input type="range" min={1} max={2.5} step={0.25} value={look.iconWeight}
+                            onChange={(event) => setSite({ iconWeight: Number(event.target.value) })} />
+                        <output>{look.iconWeight.toFixed(2).replace('.', ',')}</output>
+                    </span>
+                </label>
+                <Choice label="Колір у меню й панелях" value={look.iconColor} onPick={(iconColor) => setSite({ iconColor })}
+                    options={[{ value: 'text', label: 'Як текст' }, { value: 'accent', label: 'Акцент' }, { value: 'muted', label: 'Приглушений' }]} />
+                {ICON_SETS.find((set) => set.value === look.icons)?.fill && (
+                    <Toggle label="Заповнені" isSelected={look.iconFill} onChange={(iconFill) => setSite({ iconFill })} />
+                )}
+            </div>
+            <p className={styles.lead}>Варіанти верстки (меню збоку, полиця в каталозі) з’являться наступним кроком.</p>
         </section>
     );
 }

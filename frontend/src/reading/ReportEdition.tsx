@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Flag } from 'lucide-react';
+import { Flag } from '../ui/icons';
 import { useMe } from '../auth/me';
 import { messagingApi } from '../inbox/api';
 import { askText } from '../ui/ask';

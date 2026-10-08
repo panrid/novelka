@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Search } from 'lucide-react';
+import { Search } from '../ui/icons';
 import { useEffect, useId, useState } from 'react';
 import { readingApi, type Card, type TagCount } from './api';
 import { Cover } from './Cover';

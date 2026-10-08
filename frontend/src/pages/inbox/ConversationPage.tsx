@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { ArrowLeft, Info } from 'lucide-react';
+import { ArrowLeft, Info } from '../../ui/icons';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Composer, type ReplyTarget } from '../../community/Composer';
 import { Markup } from '../../community/Markup';

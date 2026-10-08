@@ -21,6 +21,13 @@ export type SiteLook = {
     density: 'compact' | 'normal' | 'airy';
     cards: 'flat' | 'border' | 'shadow';
     anim: 'system' | 'full' | 'light' | 'off';
+    icons: 'lucide' | 'tabler' | 'phosphor' | 'iconoir' | 'heroicons';
+    /** Line width of the icons, 1–2.5. */
+    iconWeight: number;
+    /** In menus and bars: like the text, the accent, or muted. */
+    iconColor: 'text' | 'accent' | 'muted';
+    /** Filled icons, where the set has them (Phosphor, Heroicons). */
+    iconFill: boolean;
 };
 export type SiteAppearance = Partial<SiteLook>;
 
@@ -83,22 +90,30 @@ export const SITE_ACCENTS = ['#8fb07f', '#4f7a40', '#2f4a6b', '#4fb3d9', '#6c7ae
 
 const SITE_DEFAULTS: SiteLook = {
     preset: 'default', custom: false, base: 'dark', bg: 0, accent: '#8fb07f', ui: 'inter', head: 'literata',
-    radius: 12, density: 'normal', cards: 'flat', anim: 'system',
+    radius: 12, density: 'normal', cards: 'flat', anim: 'system', icons: 'lucide', iconWeight: 1.75, iconColor: 'text', iconFill: false,
 };
+
+export const ICON_SETS: { value: SiteLook['icons']; label: string; fill: boolean }[] = [
+    { value: 'lucide', label: 'Lucide', fill: false },
+    { value: 'tabler', label: 'Tabler', fill: false },
+    { value: 'phosphor', label: 'Phosphor', fill: true },
+    { value: 'iconoir', label: 'Iconoir', fill: false },
+    { value: 'heroicons', label: 'Heroicons', fill: true },
+];
 
 export const SITE_PRESETS: { value: SiteStyle; label: string; look: Partial<SiteLook> }[] = [
     { value: 'default', label: 'Звичайний', look: {} },
     { value: 'light', label: 'Світлий', look: { base: 'light', bg: 0, accent: '#4f7a40', cards: 'shadow' } },
-    { value: 'bookish', label: 'Книжковий', look: { base: 'light', bg: 2, accent: '#2f4a6b', ui: 'ptserif', head: 'playfair', radius: 2, cards: 'border' } },
-    { value: 'parchment', label: 'Пергамент', look: { base: 'light', bg: 3, accent: '#7a5a2b', ui: 'merriweather', head: 'merriweather', radius: 6, cards: 'border' } },
+    { value: 'bookish', label: 'Книжковий', look: { base: 'light', bg: 2, accent: '#2f4a6b', ui: 'ptserif', head: 'playfair', radius: 2, cards: 'border', icons: 'phosphor', iconWeight: 1.5, iconColor: 'accent' } },
+    { value: 'parchment', label: 'Пергамент', look: { base: 'light', bg: 3, accent: '#7a5a2b', ui: 'merriweather', head: 'merriweather', radius: 6, cards: 'border', icons: 'iconoir', iconWeight: 1.5 } },
     { value: 'night', label: 'Нічний', look: { base: 'dark', bg: 1 } },
-    { value: 'contrast', label: 'Контрастний', look: { base: 'dark', bg: 1, accent: '#ffd400', ui: 'rubik', head: 'rubik', radius: 8, cards: 'border' } },
-    { value: 'minimal', label: 'Мінімалізм', look: { base: 'light', bg: 1, accent: '#111111', head: 'inter', radius: 0, density: 'airy', anim: 'off' } },
-    { value: 'sakura', label: 'Сакура', look: { base: 'light', bg: 4, accent: '#c2456b', ui: 'nunito', head: 'comfortaa', radius: 20, cards: 'shadow', anim: 'full' } },
-    { value: 'ocean', label: 'Океан', look: { base: 'dark', bg: 2, accent: '#4fb3d9', ui: 'plex', head: 'plex', radius: 14, cards: 'shadow' } },
-    { value: 'forest', label: 'Ліс', look: { base: 'dark', bg: 3, accent: '#d8b45a', ui: 'nunito', head: 'lora', radius: 10, cards: 'border' } },
-    { value: 'neon', label: 'Неон', look: { base: 'dark', bg: 4, accent: '#ff3ea5', ui: 'rubik', head: 'rubik', radius: 10, cards: 'shadow', anim: 'full' } },
-    { value: 'terminal', label: 'Ретро-термінал', look: { base: 'dark', bg: 5, accent: '#8cff9c', ui: 'jetbrains', head: 'jetbrains', radius: 0, cards: 'border', density: 'compact', anim: 'off' } },
+    { value: 'contrast', label: 'Контрастний', look: { base: 'dark', bg: 1, accent: '#ffd400', ui: 'rubik', head: 'rubik', radius: 8, cards: 'border', iconWeight: 2.25 } },
+    { value: 'minimal', label: 'Мінімалізм', look: { base: 'light', bg: 1, accent: '#111111', head: 'inter', radius: 0, density: 'airy', anim: 'off', icons: 'tabler', iconWeight: 1.25 } },
+    { value: 'sakura', label: 'Сакура', look: { base: 'light', bg: 4, accent: '#c2456b', ui: 'nunito', head: 'comfortaa', radius: 20, cards: 'shadow', anim: 'full', icons: 'phosphor', iconFill: true, iconColor: 'accent' } },
+    { value: 'ocean', label: 'Океан', look: { base: 'dark', bg: 2, accent: '#4fb3d9', ui: 'plex', head: 'plex', radius: 14, cards: 'shadow', icons: 'heroicons' } },
+    { value: 'forest', label: 'Ліс', look: { base: 'dark', bg: 3, accent: '#d8b45a', ui: 'nunito', head: 'lora', radius: 10, cards: 'border', icons: 'iconoir' } },
+    { value: 'neon', label: 'Неон', look: { base: 'dark', bg: 4, accent: '#ff3ea5', ui: 'rubik', head: 'rubik', radius: 10, cards: 'shadow', anim: 'full', iconWeight: 2, iconColor: 'accent' } },
+    { value: 'terminal', label: 'Ретро-термінал', look: { base: 'dark', bg: 5, accent: '#8cff9c', ui: 'jetbrains', head: 'jetbrains', radius: 0, cards: 'border', density: 'compact', anim: 'off', icons: 'tabler', iconWeight: 2, iconColor: 'accent' } },
 ];
 
 export const SITE_FONTS: { value: FontId; label: string }[] = [
@@ -223,6 +238,8 @@ const SITE_ONE_OF: { [K in keyof SiteLook]?: readonly unknown[] } = {
     density: ['compact', 'normal', 'airy'],
     cards: ['flat', 'border', 'shadow'],
     anim: ['system', 'full', 'light', 'off'],
+    icons: ICON_SETS.map((item) => item.value),
+    iconColor: ['text', 'accent', 'muted'],
 };
 const SITE_RANGE: { [K in keyof SiteLook]?: [number, number] } = { bg: [0, 5], radius: [0, 24] };
 const FLAGS: (keyof ReaderLook)[] = ['custom', 'hideBars', 'clock', 'percent', 'awake'];
@@ -237,7 +254,8 @@ export function clean(raw: unknown): Appearance {
         const range = SITE_RANGE[k];
         if (SITE_ONE_OF[k]?.includes(item)) site[k] = item;
         else if (range && typeof item === 'number' && Number.isInteger(item) && item >= range[0] && item <= range[1]) site[k] = item;
-        else if (k === 'custom' && typeof item === 'boolean') site[k] = item;
+        else if ((k === 'custom' || k === 'iconFill') && typeof item === 'boolean') site[k] = item;
+        else if (k === 'iconWeight' && typeof item === 'number' && item >= 1 && item <= 2.5) site[k] = item;
         else if (k === 'accent' && typeof item === 'string' && SITE_ACCENTS.includes(item)) site[k] = item;
     }
     if (Object.keys(site).length > 0) out.site = site as SiteAppearance;

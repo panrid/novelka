@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ArrowDownUp, Plus, Trash2 } from 'lucide-react';
+import { ArrowDownUp, Plus, Trash2 } from '../../ui/icons';
 import { useState } from 'react';
 import { useCanRun } from '../../ledger/api';
 import { relativeTime } from '../../lib/dates';

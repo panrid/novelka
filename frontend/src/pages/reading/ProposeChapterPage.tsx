@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearch } from '@tanstack/react-router';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from '../../ui/icons';
 import { useRef, useState } from 'react';
 import { chapterQuery } from '../../reading/queries';
 import { suggestionApi } from '../../reading/suggestions';

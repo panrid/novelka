@@ -105,3 +105,9 @@ button {
         animation-duration: 0.01ms !important;
     }
 }
+
+/* The icons of menus and bars take the colour chosen in «Вигляд сайту»; elsewhere they follow the text. */
+nav [data-icon],
+header [data-icon] {
+    color: var(--icon-color, currentColor);
+}

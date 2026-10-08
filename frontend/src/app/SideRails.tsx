@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useRouterState } from '@tanstack/react-router';
-import { Users } from 'lucide-react';
+import { Users } from '../ui/icons';
 import { useMe } from '../auth/me';
 import { messagingApi } from '../inbox/api';
 import { useInboxCounts } from '../inbox/live';

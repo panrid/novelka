@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Plus } from 'lucide-react';
+import { Plus } from '../../ui/icons';
 import { useState } from 'react';
 import { useMe } from '../../auth/me';
 import { useCanRun, useMyShahs } from '../../ledger/api';

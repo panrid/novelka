@@ -30,6 +30,7 @@ export function siteVars(look: SiteLook): Record<string, string> {
         '--radius': `${r}px`,
         '--radius-lg': `${Math.round(r * 1.5)}px`,
         '--density': String(density),
+        '--icon-color': look.iconColor === 'accent' ? look.accent : look.iconColor === 'muted' ? tone.muted : 'currentColor',
         '--gutter': `${Math.round(16 * density)}px`,
         '--card-border': look.cards === 'border' ? `1px solid ${tone.line}` : '1px solid transparent',
         '--card-shadow': look.cards === 'shadow'
@@ -44,4 +45,4 @@ export function siteVars(look: SiteLook): Record<string, string> {
 
 /** Colours only: the reader's own palette replaces these while a chapter is open. */
 export const COLOR_VARS = ['--bg', '--surface', '--surface-2', '--line', '--text', '--text-reading', '--muted', '--faint',
-    '--accent', '--accent-ink', '--focus', '--card-border', '--card-shadow'];
+    '--accent', '--accent-ink', '--focus', '--card-border', '--card-shadow', '--icon-color'];

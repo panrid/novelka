@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ChevronUp } from 'lucide-react';
+import { ChevronUp } from '../../ui/icons';
 import { useState, type FormEvent } from 'react';
 import { useMe } from '../../auth/me';
 import { useCanRun } from '../../ledger/api';

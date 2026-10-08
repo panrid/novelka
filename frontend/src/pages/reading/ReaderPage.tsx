@@ -1,7 +1,7 @@
 import { DiffModeSwitch } from '../../ui/WordDiff';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
-import { ArrowLeft, ChevronLeft, ChevronRight, List, MessageCircle, Type } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, List, MessageCircle, Type } from '../../ui/icons';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useMe } from '../../auth/me';
 import { Discussion, useCommentCount } from '../../community/Discussion';

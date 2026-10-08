@@ -11,7 +11,7 @@ import Text from '@tiptap/extension-text';
 import Underline from '@tiptap/extension-underline';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
-import { ImagePlus, Link2, Minus, Redo2, Sparkles, Undo2 } from 'lucide-react';
+import { ImagePlus, Link2, Minus, Redo2, Sparkles, Undo2 } from '../ui/icons';
 import { useImperativeHandle, useRef, useState } from 'react';
 import { Dialog, Heading as DialogHeading, Modal, ModalOverlay } from 'react-aria-components';
 import { Button } from '../ui/Button';

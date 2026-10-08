@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
-import { ArrowLeft, History, Languages, Trash2 } from 'lucide-react';
+import { ArrowLeft, History, Languages, Trash2 } from '../../ui/icons';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/client';
 import { IllustrateSheet } from './IllustrateSheet';
