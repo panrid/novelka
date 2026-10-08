@@ -363,8 +363,8 @@
 :global(:root[data-catalog='grid']) .cards,
 :global(:root[data-catalog='shelf']) .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-    gap: 20px 16px;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 18px 12px;
 }
 
 :global(:root[data-catalog='grid']) .cards .row,
@@ -396,4 +396,12 @@
     padding-bottom: 12px;
     border-bottom: 7px solid var(--shelf, #b08b5e);
     box-shadow: 0 8px 8px -8px rgb(0 0 0 / 35%);
+}
+
+@media (min-width: 1024px) {
+    :global(:root[data-catalog='grid']) .cards,
+    :global(:root[data-catalog='shelf']) .cards {
+        grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+        gap: 22px 18px;
+    }
 }
