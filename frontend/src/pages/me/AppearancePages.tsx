@@ -123,7 +123,14 @@ export function SiteAppearancePage() {
                     <Toggle label="Заповнені" isSelected={look.iconFill} onChange={(iconFill) => setSite({ iconFill })} />
                 )}
             </div>
-            <p className={styles.lead}>Варіанти верстки (меню збоку, полиця в каталозі) з’являться наступним кроком.</p>
+            <div className={styles.group}>
+                <h2 className={styles.groupTitle}>Верстка</h2>
+                <Choice label="Меню на комп’ютері" value={look.nav} onPick={(nav) => setSite({ nav })}
+                    options={[{ value: 'top', label: 'Вгорі' }, { value: 'side', label: 'Збоку' }]} />
+                <Choice label="Новели в каталозі" value={look.catalog} onPick={(catalog) => setSite({ catalog })}
+                    options={[{ value: 'rows', label: 'Рядками' }, { value: 'grid', label: 'Сіткою' }, { value: 'shelf', label: 'Полицею' }]} />
+                <p className={form.note}>Меню збоку — лише на широкому екрані; на телефоні вкладки завжди внизу.</p>
+            </div>
         </section>
     );
 }

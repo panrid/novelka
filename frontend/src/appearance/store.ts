@@ -75,6 +75,8 @@ export function apply() {
     root.dataset.style = site.preset;
     root.dataset.theme = theme;
     root.dataset.motion = site.anim;
+    root.dataset.nav = site.nav;
+    root.dataset.catalog = site.catalog;
     if (own) root.dataset.reader = reader.value;
     else delete root.dataset.reader;
     void loadFont(site.ui);
@@ -83,7 +85,7 @@ export function apply() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', own ? reader.bg : style.color);
     try {
         // The next visit starts in this look before the app loads (public/appearance-boot.js).
-        localStorage.setItem(VARS_KEY, JSON.stringify({ vars, theme: style.theme, preset: site.preset, motion: site.anim }));
+        localStorage.setItem(VARS_KEY, JSON.stringify({ vars, theme: style.theme, preset: site.preset, motion: site.anim, nav: site.nav, catalog: site.catalog }));
     } catch {
         // Private mode: the default look until the app loads.
     }

@@ -31,6 +31,7 @@ export function siteVars(look: SiteLook): Record<string, string> {
         '--radius-lg': `${Math.round(r * 1.5)}px`,
         '--density': String(density),
         '--icon-color': look.iconColor === 'accent' ? look.accent : look.iconColor === 'muted' ? tone.muted : 'currentColor',
+        '--shelf': dark ? '#3a2e22' : '#b08b5e',
         '--gutter': `${Math.round(16 * density)}px`,
         '--card-border': look.cards === 'border' ? `1px solid ${tone.line}` : '1px solid transparent',
         '--card-shadow': look.cards === 'shadow'

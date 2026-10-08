@@ -355,3 +355,45 @@
         min-width: 0;
     }
 }
+
+/*
+ * «Новели сіткою» and «полицею» (етап 18): the catalog's rows become covers; on a shelf each row
+ * of covers stands on a wooden board.
+ */
+:global(:root[data-catalog='grid']) .cards,
+:global(:root[data-catalog='shelf']) .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+    gap: 20px 16px;
+}
+
+:global(:root[data-catalog='grid']) .cards .row,
+:global(:root[data-catalog='shelf']) .cards .row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+}
+
+:global(:root[data-catalog='grid']) .cards .row > :first-child,
+:global(:root[data-catalog='shelf']) .cards .row > :first-child {
+    width: 100% !important;
+    height: auto;
+}
+
+:global(:root[data-catalog='shelf']) .cards {
+    gap: 0 16px;
+}
+
+:global(:root[data-catalog='shelf']) .cards .row {
+    padding: 14px 4px 10px;
+    border-bottom: 7px solid var(--shelf, #b08b5e);
+    box-shadow: 0 8px 8px -8px rgb(0 0 0 / 35%);
+}
+
+:global(:root[data-catalog='shelf']) .shelf {
+    padding-bottom: 12px;
+    border-bottom: 7px solid var(--shelf, #b08b5e);
+    box-shadow: 0 8px 8px -8px rgb(0 0 0 / 35%);
+}

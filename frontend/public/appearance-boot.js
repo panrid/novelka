@@ -15,6 +15,8 @@
             theme = saved.theme || theme;
             preset = saved.preset || preset;
             root.dataset.motion = saved.motion || 'system';
+            root.dataset.nav = saved.nav || 'top';
+            root.dataset.catalog = saved.catalog || 'rows';
         } else if (!raw) {
             var old = localStorage.getItem('novelka:theme');
             theme = old === 'light' ? 'light' : old === 'black' ? 'black' : 'dark';
