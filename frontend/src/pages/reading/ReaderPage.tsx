@@ -223,6 +223,19 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
 
     // Pages like a book (етап 18); while making or checking suggestions the chapter scrolls as usual.
     const paged = view.mode === 'pages' && !editMode && !reviewing && !find;
+    // A book does not scroll: without this a phone moves the page a little up and down before turning it.
+    useEffect(() => {
+        if (!paged) return;
+        const root = document.documentElement;
+        const before = { overflow: root.style.overflow, overscroll: root.style.overscrollBehavior };
+        root.style.overflow = 'hidden';
+        root.style.overscrollBehavior = 'none';
+        window.scrollTo(0, 0);
+        return () => {
+            root.style.overflow = before.overflow;
+            root.style.overscrollBehavior = before.overscroll;
+        };
+    }, [paged]);
     const frame = useRef<HTMLDivElement>(null);
     const textRef = useRef<HTMLElement>(null);
     const pages = usePages({
@@ -343,7 +356,6 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                 {!chapter.teamRole && <ReportEdition editionId={chapter.edition.editionId} chapterLabel={chapter.label ?? String(chapter.number)} chapterNumber={chapter.number} />}
             </article>
                     </div>
-                    {pages.effect.startsWith('curl') && <div className={`${styles.curl} ${pages.effect === 'curlNext' ? styles.curlNext : styles.curlBack}`} aria-hidden />}
                 </div>
             ) : (
             <article ref={textRef} className={`${styles.text} ${paged ? styles.pagedText : ''}`} lang="uk" data-paragraphs={view.paragraphs}

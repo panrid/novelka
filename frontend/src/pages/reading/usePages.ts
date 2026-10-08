@@ -22,7 +22,7 @@ export function usePages({ enabled, frame, text, layoutKey, position, turnStyle,
     onAfterEnd: () => void;
 }) {
     const [layout, setLayout] = useState({ page: 0, pages: 1, step: 0, width: 0 });
-    const [effect, setEffect] = useState<'' | 'fadeOut' | 'curlNext' | 'curlBack'>('');
+    const [effect, setEffect] = useState<'' | 'fadeOut'>('');
     const busy = useRef(false);
 
     useLayoutEffect(() => {
@@ -72,13 +72,12 @@ export function usePages({ enabled, frame, text, layoutKey, position, turnStyle,
             setTimeout(() => { show(); setEffect(''); busy.current = false; }, 160);
         } else if (turnStyle === 'curl') {
             busy.current = true;
-            setEffect(direction > 0 ? 'curlNext' : 'curlBack');
-            setTimeout(show, direction > 0 ? 220 : 0);
-            setTimeout(() => { setEffect(''); busy.current = false; }, 460);
+            turnSheet(frame, text, layout.step, direction > 0 ? layout.page : next, direction > 0, show,
+                () => { busy.current = false; });
         } else {
             show();
         }
-    }, [layout, turnStyle, onPage, onBeforeStart, onAfterEnd]);
+    }, [layout, turnStyle, onPage, onBeforeStart, onAfterEnd, frame, text]);
 
     // A swipe turns the page too.
     useEffect(() => {
@@ -106,4 +105,61 @@ export function usePages({ enabled, frame, text, layoutKey, position, turnStyle,
     }, [enabled, frame, turn]);
 
     return { ...layout, turn, effect, animated: turnStyle === 'slide' };
+}
+
+const TURN_MS = 480;
+
+/**
+ * «Аркуш»: a copy of a page lies over the text and turns on its left edge like a book's leaf.
+ * Forward, the current page turns away and shows the next one already under it; back, the
+ * previous page turns in over the current one. {@code show} moves the text itself.
+ */
+function turnSheet(frame: RefObject<HTMLElement | null>, text: RefObject<HTMLElement | null>, step: number, page: number,
+    forward: boolean, show: () => void, done: () => void) {
+    const box = frame.current;
+    const body = text.current;
+    const host = box?.parentElement;
+    const still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!box || !body || !host || typeof host.animate !== 'function' || still) {
+        show();
+        done();
+        return;
+    }
+    const sheet = document.createElement('div');
+    sheet.setAttribute('aria-hidden', 'true');
+    const hostStyle = getComputedStyle(host);
+    Object.assign(sheet.style, {
+        position: 'absolute', inset: '0', zIndex: '5', pointerEvents: 'none', overflow: 'hidden',
+        paddingLeft: hostStyle.paddingLeft, paddingRight: hostStyle.paddingRight,
+        background: getComputedStyle(document.body).backgroundColor, transformOrigin: 'left center',
+        boxShadow: '0 0 28px rgb(0 0 0 / 30%)',
+    });
+    const leaf = document.createElement('div');
+    Object.assign(leaf.style, { height: '100%', overflow: 'hidden' });
+    const copy = body.cloneNode(true) as HTMLElement;
+    copy.style.transition = 'none';
+    copy.style.opacity = '1';
+    copy.style.transform = `translateX(${-page * step}px)`;
+    leaf.append(copy);
+    // The fold darkens as the leaf turns away from the light.
+    const shade = document.createElement('div');
+    Object.assign(shade.style, {
+        position: 'absolute', inset: '0', background: 'linear-gradient(to left, rgb(0 0 0 / 35%), rgb(0 0 0 / 5%) 70%)', opacity: '0',
+    });
+    sheet.append(leaf, shade);
+    host.append(sheet);
+    const flat = 'perspective(1800px) rotateY(0deg)';
+    const away = 'perspective(1800px) rotateY(-92deg)';
+    const options: KeyframeAnimationOptions = { duration: TURN_MS, easing: forward ? 'cubic-bezier(.45,.05,.55,.95)' : 'cubic-bezier(.2,.6,.35,1)', fill: 'forwards' };
+    if (forward) show();
+    const turning = sheet.animate([{ transform: forward ? flat : away }, { transform: forward ? away : flat }], options);
+    shade.animate([{ opacity: forward ? 0 : 1 }, { opacity: forward ? 1 : 0 }], options);
+    turning.onfinish = () => {
+        if (!forward) show();
+        // One frame for the text to move under the leaf before it goes.
+        requestAnimationFrame(() => {
+            sheet.remove();
+            done();
+        });
+    };
 }

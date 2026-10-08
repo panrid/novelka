@@ -268,6 +268,9 @@
     right: 0;
     margin: 0 auto;
     overflow: hidden;
+    /* Turned by taps and swipes: the browser must not scroll or bounce the page under the finger. */
+    touch-action: none;
+    overscroll-behavior: none;
 }
 
 .pageWindow {
@@ -290,37 +293,3 @@
     max-height: 100%;
 }
 
-.curl {
-    position: absolute;
-    inset: 0;
-    z-index: 5;
-    pointer-events: none;
-    background: var(--bg);
-    transform-origin: left center;
-    box-shadow: inset -24px 0 36px rgb(0 0 0 / 22%);
-}
-
-.curlNext {
-    animation: curl-next 0.45s ease-in forwards;
-}
-
-.curlBack {
-    animation: curl-back 0.45s ease-out forwards;
-}
-
-@keyframes curl-next {
-    0% { opacity: 1; transform: perspective(1400px) rotateY(0deg); }
-    100% { opacity: 1; transform: perspective(1400px) rotateY(-100deg); }
-}
-
-@keyframes curl-back {
-    0% { opacity: 1; transform: perspective(1400px) rotateY(-100deg); }
-    100% { opacity: 0; transform: perspective(1400px) rotateY(0deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .curlNext,
-    .curlBack {
-        animation-duration: 0.01s;
-    }
-}
