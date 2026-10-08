@@ -98,6 +98,9 @@ function Row({ item }: { item: Notification }) {
         case 'suggestions_reviewed':
             title = `Ваші правки перевірено: прийнято ${p.accepted}, відхилено ${p.rejected}`;
             break;
+        case 'report':
+            title = `Нова скарга: ${p.title ?? ''}`;
+            break;
         default:
             title = 'Сповіщення';
     }
@@ -115,6 +118,9 @@ function Row({ item }: { item: Notification }) {
     }
     if (item.kind === 'achievement' && p.nick) {
         return <Link to="/u/$nick" params={{ nick: p.nick }} hash="achievements" className={className}>{body}</Link>;
+    }
+    if (item.kind === 'report') {
+        return <Link to="/admin/moderation" className={className}>{body}</Link>;
     }
     if (item.kind === 'shahs_granted') {
         return <Link to="/me/shahs" className={className}>{body}</Link>;

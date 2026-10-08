@@ -1,11 +1,15 @@
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { useMe } from '../auth/me';
 
 export type Target = 'comment' | 'chat' | 'message' | 'image' | 'edition';
 export type Preview = {
     author: string | null; text: string | null; imageUrl: string | null; where: string | null;
     slug: string | null; chapter: number | null; team: string | null; hidden: boolean;
 };
-export type Reported = { target: Target; targetId: number; reports: number; reasons: string[]; firstAt: string; preview: Preview };
+/** One person's report: who, when, why, and the chapter of a translation. */
+export type ReportEntry = { nick: string; at: string; reason: string; chapter: number | null; chapterLabel: string | null };
+export type Reported = { target: Target; targetId: number; reports: number; reasons: string[]; firstAt: string; preview: Preview; entries: ReportEntry[] };
 export type Hidden = { target: Target; targetId: number; hiddenAt: string; hiddenBy: string | null; reason: string | null; preview: Preview };
 export type Person = { nick: string; role: 'reader' | 'moderator' | 'admin' | 'owner'; email: string | null; createdAt: string; lastSeenAt: string | null;
     /** Free and held шаги; only the site owner sees them. */
@@ -40,3 +44,11 @@ export const TARGET_LABELS: Record<Target, string> = {
 export const ROLE_LABELS: Record<Person['role'], string> = {
     reader: 'Читач', moderator: 'Модератор', admin: 'Адміністратор', owner: 'Власник сайту',
 };
+
+/** Reports waiting for a decision, for the counters next to «Адміністрування»; 0 for readers. */
+export function useOpenReports(): number {
+    const me = useMe();
+    const staff = Boolean(me && me.role !== 'reader');
+    const overview = useQuery({ queryKey: ['admin-overview'], queryFn: adminApi.overview, enabled: staff, staleTime: 60_000 });
+    return staff ? overview.data?.openReports ?? 0 : 0;
+}

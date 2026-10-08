@@ -81,6 +81,10 @@ class Texts {
                 title = "«" + text(p, "title") + "» взяли перекладати";
                 excerpt = "Новела, за яку ви голосували. Перекладає $" + text(p, "teamHandle") + ".";
             }
+            case "report" -> {
+                title = "Нова скарга: " + text(p, "title");
+                path = "/admin/moderation";
+            }
             default -> title = "Нове сповіщення";
         }
         StringBuilder html = new StringBuilder("🔔 <b>").append(escape(title)).append("</b>");

@@ -22,6 +22,7 @@ import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 import space.panrid.novelka.achievement.AchievementEarned;
+import space.panrid.novelka.admin.ReportFiled;
 import space.panrid.novelka.autotranslate.ProposalTaken;
 import space.panrid.novelka.catalog.TakeoverAnswered;
 import space.panrid.novelka.catalog.TakeoverRequested;
@@ -155,6 +156,20 @@ class NotificationListeners {
         Map<String, Object> payload = Map.of("title", taken.title(), "slug", taken.novelSlug(), "teamHandle", taken.teamHandle());
         for (long voter : taken.voters()) {
             inbox.add(voter, "proposal_taken", payload);
+        }
+    }
+
+    /** Everyone who moderates hears about a new report, except whoever filed it. */
+    @ApplicationModuleListener
+    void on(ReportFiled filed) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("actorNick", nick(filed.reporterId()));
+        payload.put("title", filed.what());
+        payload.put("excerpt", filed.reason().length() > 200 ? filed.reason().substring(0, 199) + "…" : filed.reason());
+        List<Long> staff = db.select(ACCOUNT.ID).from(ACCOUNT)
+                .where(ACCOUNT.SITE_ROLE.in("moderator", "admin", "owner"), ACCOUNT.ID.ne(filed.reporterId())).fetch(ACCOUNT.ID);
+        for (long person : staff) {
+            inbox.add(person, "report", payload);
         }
     }
 

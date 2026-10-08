@@ -6,6 +6,8 @@ import static space.panrid.novelka.jooq.Tables.REPORT;
 import static space.panrid.novelka.jooq.Tables.SITE_SETTING;
 import static space.panrid.novelka.support.Browser.json;
 
+import java.util.List;
+
 import org.jooq.DSLContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +19,7 @@ import space.panrid.novelka.support.Accounts;
 import space.panrid.novelka.support.Accounts.Person;
 import space.panrid.novelka.support.Browser;
 import space.panrid.novelka.support.Browser.Response;
+import space.panrid.novelka.support.Eventually;
 import space.panrid.novelka.support.IntegrationTest;
 import space.panrid.novelka.support.TestMailbox;
 import tools.jackson.databind.JsonNode;
@@ -154,6 +157,40 @@ class AdminFlowTests {
         assertThat(new Browser(port).get("/api/novels/" + slug).status()).isEqualTo(404);
         assertThat(reader.browser().post("/api/reports", json("target", "edition", "targetId", edition, "reason", "ще раз")).status())
                 .as("a hidden translation is not reported again").isEqualTo(404);
+    }
+
+    @Test
+    void aReportNamesTheChapterListsEveryReporterAndReachesTheStaff() {
+        read(reader.browser().post("/api/reports", json("target", "edition", "targetId", edition, "reason", "чужий переклад", "chapter", 1)));
+        read(translator.browser().post("/api/reports", json("target", "edition", "targetId", edition, "reason", "уся новела", "chapter", 99)));
+        assertThat(reader.browser().post("/api/reports", json("target", "edition", "targetId", edition, "reason", "ще раз", "chapter", 1))
+                .status()).as("the same open report is kept once").isEqualTo(201);
+
+        JsonNode report = read(moderator.browser().get("/api/admin/reports")).path(0);
+        assertThat(report.path("reports").asInt()).isEqualTo(2);
+        JsonNode first = report.path("entries").path(0);
+        assertThat(first.path("nick").asString()).isEqualTo(reader.nick());
+        assertThat(first.path("reason").asString()).isEqualTo("чужий переклад");
+        assertThat(first.path("chapter").asInt()).isEqualTo(1);
+        assertThat(first.path("chapterLabel").asString()).isEqualTo("1");
+        assertThat(report.path("entries").path(1).path("chapter").isNull()).as("a chapter that is not there is not kept").isTrue();
+        assertThat(read(moderator.browser().get("/api/admin/overview")).path("openReports").asInt()).isEqualTo(1);
+
+        for (Person staff : List.of(owner, admin, moderator)) {
+            // The reader's report names the chapter; the translator's own report reaches the others.
+            JsonNode note = Eventually.eventually(() -> read(staff.browser().get("/api/notifications")).path("items"),
+                    items -> items.valueStream().anyMatch(item -> item.path("payload").path("title").asString()
+                            .equals("Переклад «Модерована " + translator.nick() + "», глава 1")));
+            assertThat(note.valueStream().filter(item -> item.path("kind").asString().equals("report")))
+                    .extracting(item -> item.path("payload").path("excerpt").asString()).contains("чужий переклад");
+        }
+        assertThat(read(reader.browser().get("/api/notifications")).path("items").valueStream()
+                .noneMatch(item -> item.path("kind").asString().equals("report"))).as("readers do not hear about reports").isTrue();
+
+        read(moderator.browser().post("/api/admin/reports/edition/" + edition, json("action", "dismiss")));
+        read(reader.browser().post("/api/reports", json("target", "edition", "targetId", edition, "reason", "знову", "chapter", 1)));
+        assertThat(read(moderator.browser().get("/api/admin/reports")).path(0).path("reasons").path(0).asString())
+                .as("after a decision the same person may report again").isEqualTo("знову");
     }
 
     @Test

@@ -258,7 +258,7 @@ describe('reporting a translation', () => {
         await userEvent.type(within(dialog).getByLabelText('Що не так?'), 'Чужий переклад');
         await userEvent.click(within(dialog).getByRole('button', { name: 'Надіслати скаргу' }));
         await vi.waitFor(() => expect(calls.find((call) => call.path === '/api/reports')?.body)
-            .toEqual({ target: 'edition', targetId: 7, reason: 'Глава 11: Чужий переклад' }));
+            .toEqual({ target: 'edition', targetId: 7, reason: 'Чужий переклад', chapter: 12 }));
         expect(await screen.findByRole('status')).toHaveTextContent('Скаргу надіслано');
     });
 });

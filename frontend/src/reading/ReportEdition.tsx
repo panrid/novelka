@@ -9,13 +9,15 @@ import styles from './reportEdition.module.css';
 
 /**
  * «Поскаржитися» on a translation: what it is, its text, its cover. From the reader the reason
- * names the chapter. Moderators see it in their queue; administrators may hide the translation.
+ * names the chapter, which moderators open from their queue. Moderators see it in their queue; administrators may hide the translation.
  */
-export function ReportEdition({ editionId, chapterLabel }: { editionId: number; chapterLabel?: string | undefined }) {
+export function ReportEdition({ editionId, chapterLabel, chapterNumber }: {
+    editionId: number; chapterLabel?: string | undefined; chapterNumber?: number | undefined;
+}) {
     const me = useMe();
     const navigate = useNavigate();
     const report = useMutation({
-        mutationFn: (reason: string) => messagingApi.report('edition', editionId, chapterLabel ? `Глава ${chapterLabel}: ${reason}` : reason),
+        mutationFn: (reason: string) => messagingApi.report('edition', editionId, reason, chapterNumber),
         onSuccess: () => showInfo('Скаргу надіслано. Модератори її переглянуть.'),
         onError: (error: Error) => showError(error.message),
     });

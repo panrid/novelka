@@ -10,6 +10,10 @@ const person = (role: string) => ({
 const REPORT = {
     target: 'comment', targetId: 40, reports: 2, reasons: ['образи', 'спам'], firstAt: new Date().toISOString(),
     preview: { author: 'lysytsia', text: 'Грубий **коментар**', imageUrl: null, where: 'Маг води, глава 3', slug: 'mah-vody', chapter: 3, team: 'panrid', hidden: false },
+    entries: [
+        { nick: 'mika', at: new Date().toISOString(), reason: 'образи', chapter: null, chapterLabel: null },
+        { nick: 'oleh', at: new Date().toISOString(), reason: 'спам', chapter: null, chapterLabel: null },
+    ],
 };
 
 afterEach(() => vi.unstubAllGlobals());
@@ -24,7 +28,12 @@ describe('administration', () => {
         const bold = await screen.findByText('коментар');
         expect(bold.tagName).toMatch(/^(B|STRONG)$/);
         const item = bold.closest('article')!;
-        expect(within(item).getByText(/Скарг: 2/)).toHaveTextContent('«образи», «спам»');
+        const reports = within(item).getByRole('list', { name: 'Скарги' });
+        expect(within(reports).getAllByRole('listitem').map((row) => row.textContent)).toEqual([
+            expect.stringContaining('mika'), expect.stringContaining('oleh'),
+        ]);
+        expect(within(reports).getByText('«образи»')).toBeInTheDocument();
+        expect(within(item).getByRole('link', { name: 'Відкрити' })).toHaveAttribute('href', '/n/mah-vody/3?t=panrid');
         expect(within(item).getByRole('link', { name: 'Маг води, глава 3' })).toHaveAttribute('href', '/n/mah-vody/3?t=panrid');
         await userEvent.click(within(item).getByRole('button', { name: 'Приховати' }));
         const dialog = await screen.findByRole('dialog', { name: 'Приховати' });
@@ -32,6 +41,29 @@ describe('administration', () => {
         await userEvent.click(within(dialog).getByRole('button', { name: 'Приховати' }));
         await waitFor(() => expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ action: 'hide', reason: 'образи' }));
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('shows who reported which chapter of a translation; only administrators may hide it', async () => {
+        await renderAt('/admin/moderation', {
+            'GET /api/me': { body: person('moderator') },
+            'GET /api/admin/reports': { body: [{
+                target: 'edition', targetId: 7, reports: 1, reasons: ['чужий переклад'], firstAt: new Date().toISOString(),
+                preview: { author: 'panrid', text: 'Маг води', imageUrl: null, where: 'переклад', slug: 'mah-vody', chapter: null, team: 'panrid', hidden: false },
+                entries: [{ nick: 'mika', at: new Date().toISOString(), reason: 'чужий переклад', chapter: 12, chapterLabel: '12' }],
+            }] },
+        });
+        expect(await screen.findByRole('link', { name: 'глава 12' })).toHaveAttribute('href', '/n/mah-vody/12?t=panrid');
+        expect(screen.getByText('«чужий переклад»')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Приховати' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Відхилити скаргу' })).toBeInTheDocument();
+    });
+
+    it('counts open reports next to «Адміністрування»', async () => {
+        await renderAt('/me', {
+            'GET /api/me': { body: person('moderator') },
+            'GET /api/admin/overview': { body: { openReports: 3, activeJobs: 0, failedJobs: 0, role: 'moderator' } },
+        });
+        expect(await screen.findByRole('link', { name: 'Адміністрування · скарг: 3' })).toHaveAttribute('href', '/admin');
     });
 
     it('an administrator gives roles up to moderator, and the owner up to administrator', async () => {

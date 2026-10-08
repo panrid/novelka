@@ -6,6 +6,7 @@ import { useMe } from '../../auth/me';
 import { Markup } from '../../community/Markup';
 import { relativeTime } from '../../lib/dates';
 import { Button } from '../../ui/Button';
+import { LinkButton } from '../../ui/LinkButton';
 import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
 import { Sheet } from '../../ui/Sheet';
@@ -75,6 +76,7 @@ function PreviewBox({ target, preview }: { target: Target; preview: Preview }) {
 
 export function ModerationPage() {
     const client = useQueryClient();
+    const rank = useRank();
     const [view, setView] = useState<'reports' | 'hidden'>('reports');
     const reports = useQuery({ meta: { errorToast: true }, queryKey: ['admin-reports'], queryFn: adminApi.reports, enabled: view === 'reports' });
     const hidden = useQuery({ meta: { errorToast: true }, queryKey: ['admin-hidden'], queryFn: adminApi.hidden, enabled: view === 'hidden' });
@@ -94,16 +96,32 @@ export function ModerationPage() {
             {view === 'reports' && reportPage.shown.map((item) => (
                 <article key={`${item.target}-${item.targetId}`} className={styles.item}>
                     <PreviewBox target={item.target} preview={item.preview} />
-                    <div className={styles.muted}>
-                        Скарг: {item.reports} · перша {relativeTime(new Date(item.firstAt))} · «{item.reasons.join('», «')}»
-                    </div>
+                    {item.target === 'edition' && item.preview.text && <div className={styles.quote}>{item.preview.text}</div>}
+                    <ul className={styles.reports} aria-label="Скарги">
+                        {(item.entries ?? []).map((entry, index) => (
+                            <li key={index}>
+                                <span className={styles.muted}>
+                                    <Link to="/u/$nick" params={{ nick: entry.nick }}>{entry.nick}</Link> · {relativeTime(new Date(entry.at))}
+                                    {entry.chapter !== null && item.preview.slug && <> · <Link to="/n/$slug/$number"
+                                        params={{ slug: item.preview.slug, number: String(entry.chapter) }}
+                                        search={item.preview.team ? { t: item.preview.team } : {}}>глава {entry.chapterLabel}</Link></>}
+                                </span>
+                                <div>«{entry.reason}»</div>
+                            </li>
+                        ))}
+                    </ul>
                     <div className={styles.actions}>
-                        <Button onPress={() => void askText({
+                        {item.preview.slug && (
+                            <LinkButton variant="secondary" to={item.preview.chapter ? '/n/$slug/$number' : '/n/$slug'}
+                                params={{ slug: item.preview.slug, number: String(item.preview.chapter ?? '') }}
+                                search={item.preview.team ? { t: item.preview.team } : {}}>Відкрити</LinkButton>
+                        )}
+                        {(item.target !== 'edition' || rank >= RANK.admin) && <Button onPress={() => void askText({
                             title: 'Приховати', label: 'Причина', hint: 'Необовʼязково. Її побачать інші модератори.', optional: true,
                             confirmLabel: 'Приховати', danger: true,
                         }).then((reason) => {
                             if (reason !== null) act.mutate(() => adminApi.decide(item.target, item.targetId, 'hide', reason || undefined));
-                        })}>Приховати</Button>
+                        })}>Приховати</Button>}
                         <Button variant="secondary" onPress={() => act.mutate(() => adminApi.decide(item.target, item.targetId, 'dismiss'))}>
                             Відхилити скаргу
                         </Button>

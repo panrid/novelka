@@ -21,12 +21,14 @@ import java.util.Set;
 import org.jooq.DSLContext;
 import org.jooq.Record;
 import org.jooq.impl.DSL;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.account.Viewer;
+import space.panrid.novelka.admin.ReportFiled;
 import space.panrid.novelka.catalog.Catalog;
 import space.panrid.novelka.community.CommunityModeration;
 import space.panrid.novelka.community.Mentions;
@@ -52,9 +54,11 @@ class Moderation {
     private final Catalog catalog;
     private final Mentions mentions;
     private final AuditLog audit;
+    private final ApplicationEventPublisher events;
 
     Moderation(DSLContext db, CommunityModeration community, MessageModeration messages, Images images, Catalog catalog,
-            Mentions mentions, AuditLog audit) {
+            Mentions mentions, AuditLog audit, ApplicationEventPublisher events) {
+        this.events = events;
         this.db = db;
         this.community = community;
         this.messages = messages;
@@ -66,9 +70,9 @@ class Moderation {
 
     // ---- reports -------------------------------------------------------------------------------
 
-    /** One report per person and thing; repeating it just keeps the first. */
+    /** One open report per person, thing and chapter; repeating it just keeps the first. */
     @Transactional
-    void report(Viewer reporter, String target, long targetId, String rawReason) {
+    void report(Viewer reporter, String target, long targetId, String rawReason, Integer chapter) {
         String reason = rawReason == null ? "" : rawReason.strip();
         if (target == null || !TARGETS.contains(target)) {
             throw UserFacingException.badRequest("Невідомо, на що скарга.");
@@ -79,15 +83,33 @@ class Moderation {
         if (!exists(target, targetId)) {
             throw UserFacingException.notFound("Цього вже немає.");
         }
-        db.insertInto(REPORT).set(REPORT.REPORTER_ID, reporter.accountId()).set(REPORT.TARGET, target)
-                .set(REPORT.TARGET_ID, targetId).set(REPORT.REASON, reason).onConflictDoNothing().execute();
+        Integer number = "edition".equals(target) && chapter != null && db.fetchExists(CHAPTER,
+                CHAPTER.EDITION_ID.eq(targetId), CHAPTER.NUMBER.eq(chapter)) ? chapter : null;
+        int added = db.insertInto(REPORT).set(REPORT.REPORTER_ID, reporter.accountId()).set(REPORT.TARGET, target)
+                .set(REPORT.TARGET_ID, targetId).set(REPORT.REASON, reason).set(REPORT.CHAPTER_NUMBER, number)
+                .onConflictDoNothing().execute();
+        if (added > 0) {
+            Preview preview = preview(target, targetId);
+            String what = "edition".equals(target)
+                    ? "Переклад «" + preview.text() + "»" + (number == null ? "" : ", глава " + chapterLabel(targetId, number))
+                    : TARGET_NAMES.get(target) + (preview.where() == null ? "" : " · " + preview.where());
+            events.publishEvent(new ReportFiled(reporter.accountId(), target, targetId, what, reason));
+        }
+    }
+
+    private static final Map<String, String> TARGET_NAMES = Map.of("comment", "Коментар", "chat", "Чат", "message",
+            "Особисте повідомлення", "image", "Картинка", "edition", "Переклад");
+
+    /** One person's report: who, when, why, and the chapter for a translation. */
+    record Entry(String nick, OffsetDateTime at, String reason, Integer chapter, String chapterLabel) {
     }
 
     record Preview(String author, String text, String imageUrl, String where, String slug, Integer chapter, String team,
             boolean hidden) {
     }
 
-    record Reported(String target, long targetId, int reports, List<String> reasons, OffsetDateTime firstAt, Preview preview) {
+    record Reported(String target, long targetId, int reports, List<String> reasons, OffsetDateTime firstAt, Preview preview,
+            List<Entry> entries) {
     }
 
     List<Reported> open() {
@@ -99,9 +121,26 @@ class Moderation {
                 .where(REPORT.STATE.eq("open")).groupBy(REPORT.TARGET, REPORT.TARGET_ID).orderBy(first).limit(100).fetch()) {
             String target = row.get(REPORT.TARGET);
             long id = row.get(REPORT.TARGET_ID);
-            out.add(new Reported(target, id, row.get(count), List.of(row.get(reasons)), row.get(first), preview(target, id)));
+            out.add(new Reported(target, id, row.get(count), List.of(row.get(reasons)), row.get(first), preview(target, id),
+                    entries(target, id)));
         }
         return out;
+    }
+
+    private List<Entry> entries(String target, long id) {
+        return db.select(ACCOUNT.NICK, REPORT.CREATED_AT, REPORT.REASON, REPORT.CHAPTER_NUMBER).from(REPORT)
+                .join(ACCOUNT).on(ACCOUNT.ID.eq(REPORT.REPORTER_ID))
+                .where(REPORT.TARGET.eq(target), REPORT.TARGET_ID.eq(id), REPORT.STATE.eq("open"))
+                .orderBy(REPORT.CREATED_AT)
+                .fetch(r -> new Entry(r.get(ACCOUNT.NICK), r.get(REPORT.CREATED_AT), r.get(REPORT.REASON), r.get(REPORT.CHAPTER_NUMBER),
+                        r.get(REPORT.CHAPTER_NUMBER) == null ? null : chapterLabel(id, r.get(REPORT.CHAPTER_NUMBER))));
+    }
+
+    /** The number readers see for a chapter of a translation. */
+    private String chapterLabel(long editionId, int number) {
+        String label = db.select(CHAPTER.LABEL).from(CHAPTER).where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(number))
+                .fetchOne(CHAPTER.LABEL);
+        return label == null || label.isEmpty() ? String.valueOf(number) : label;
     }
 
     int openCount() {

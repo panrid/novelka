@@ -340,7 +340,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                         <p className={styles.finished}>Це остання перекладена глава. Нові зʼявляться на головній і у «Вхідних».</p>
                     )}
                 </nav>
-                {!chapter.teamRole && <ReportEdition editionId={chapter.edition.editionId} chapterLabel={chapter.label ?? String(chapter.number)} />}
+                {!chapter.teamRole && <ReportEdition editionId={chapter.edition.editionId} chapterLabel={chapter.label ?? String(chapter.number)} chapterNumber={chapter.number} />}
             </article>
                     </div>
                     {pages.effect.startsWith('curl') && <div className={`${styles.curl} ${pages.effect === 'curlNext' ? styles.curlNext : styles.curlBack}`} aria-hidden />}
@@ -411,7 +411,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                         <p className={styles.finished}>Це остання перекладена глава. Нові зʼявляться на головній і у «Вхідних».</p>
                     )}
                 </nav>
-                {!chapter.teamRole && <ReportEdition editionId={chapter.edition.editionId} chapterLabel={chapter.label ?? String(chapter.number)} />}
+                {!chapter.teamRole && <ReportEdition editionId={chapter.edition.editionId} chapterLabel={chapter.label ?? String(chapter.number)} chapterNumber={chapter.number} />}
             </article>
             )}
 

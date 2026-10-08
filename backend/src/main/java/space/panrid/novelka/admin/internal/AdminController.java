@@ -58,13 +58,14 @@ class AdminController {
 
     // ---- anyone signed in reports -----------------------------------------------------------
 
-    record Report(String target, long targetId, String reason) {
+    /** {@code chapter}: the chapter of a translation the report is about, if any. */
+    record Report(String target, long targetId, String reason, Integer chapter) {
     }
 
     @PostMapping("/reports")
     @ResponseStatus(HttpStatus.CREATED)
     Map<String, Boolean> report(@RequestBody Report body) {
-        moderation.report(currentUser.requireSignedIn(), body.target(), body.targetId(), body.reason());
+        moderation.report(currentUser.requireSignedIn(), body.target(), body.targetId(), body.reason(), body.chapter());
         return Map.of("received", true);
     }
 

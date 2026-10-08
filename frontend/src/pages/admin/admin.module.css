@@ -77,6 +77,17 @@
     overflow-wrap: anywhere;
 }
 
+/* Every report on the thing: who, when, the chapter and why. */
+.reports {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+    overflow-wrap: anywhere;
+}
+
 .picture {
     max-width: 240px;
     border-radius: var(--radius-sm);

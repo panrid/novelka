@@ -5,7 +5,7 @@ const json = (method: string, body: unknown): RequestInit => ({ method, body: JS
 // ---- notifications ------------------------------------------------------------------------------
 
 export type NotificationKind = 'reply' | 'mention' | 'team_mention' | 'new_chapters' | 'suggestions_reviewed' | 'suggestions_submitted' | 'shahs_granted' | 'proposal_taken' | 'achievement'
-    | 'takeover_request' | 'takeover_answered';
+    | 'takeover_request' | 'takeover_answered' | 'report';
 
 export type NotificationPayload = {
     editionId?: number; slug?: string; novelTitle?: string; teamHandle?: string;
@@ -76,8 +76,9 @@ export const messagingApi = {
     blocked: () => api<string[]>('/api/me/blocks'),
     block: (nick: string) => api<void>(`/api/me/blocks/${encodeURIComponent(nick)}`, { method: 'PUT' }),
     unblock: (nick: string) => api<void>(`/api/me/blocks/${encodeURIComponent(nick)}`, { method: 'DELETE' }),
-    report: (target: 'comment' | 'chat' | 'message' | 'edition', targetId: number, reason: string) =>
-        api<void>('/api/reports', json('POST', { target, targetId, reason })),
+    /** {@code chapter}: the chapter of a translation the report is about. */
+    report: (target: 'comment' | 'chat' | 'message' | 'edition', targetId: number, reason: string, chapter?: number) =>
+        api<void>('/api/reports', json('POST', { target, targetId, reason, chapter: chapter ?? null })),
 };
 
 // ---- site chat ----------------------------------------------------------------------------------

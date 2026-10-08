@@ -13,6 +13,7 @@ import { Button } from '../../ui/Button';
 import { LinkButton } from '../../ui/LinkButton';
 import styles from '../pages.module.css';
 import { useMyShahs } from '../../ledger/api';
+import { useOpenReports } from '../../admin/api';
 import { shahWord } from '../../studio/autotranslate';
 
 /**
@@ -23,6 +24,7 @@ export function MePage() {
     const me = useMe();
     const wide = useWide();
     const shahs = useMyShahs();
+    const reports = useOpenReports();
     // Readers who never got шаги do not need the page.
     const hasShahs = Boolean(shahs.data && (shahs.data.available > 0 || shahs.data.reserved > 0 || shahs.data.history.length > 0));
     const client = useQueryClient();
@@ -68,7 +70,9 @@ export function MePage() {
                 {me.role !== 'owner' && hasShahs && (
                     <Link to="/me/shahs" className={styles.menuItem}>Шаги · {shahs.data!.available} {shahWord(shahs.data!.available)}</Link>
                 )}
-                {me.role !== 'reader' && <Link to="/admin" className={styles.menuItem}>Адміністрування</Link>}
+                {me.role !== 'reader' && (
+                    <Link to="/admin" className={styles.menuItem}>Адміністрування{reports > 0 ? ` · скарг: ${reports}` : ''}</Link>
+                )}
                 <Link to="/me/suggestions" className={styles.menuItem}>Мої правки</Link>
                 <Link to="/me/settings" className={styles.menuItem}>Налаштування</Link>
                 <Link to="/me/settings/appearance" className={styles.menuItem}>Вигляд</Link>

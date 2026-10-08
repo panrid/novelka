@@ -4,6 +4,7 @@ import { Users } from '../ui/icons';
 import { useMe } from '../auth/me';
 import { messagingApi } from '../inbox/api';
 import { useInboxCounts } from '../inbox/live';
+import { useOpenReports } from '../admin/api';
 import { useMyShahs } from '../ledger/api';
 import { shahWord } from '../studio/autotranslate';
 import { Avatar } from '../ui/Avatar';
@@ -19,6 +20,7 @@ export function MeRail() {
     const me = useMe();
     const path = useRouterState({ select: (state) => state.location.pathname });
     const shahs = useMyShahs();
+    const reports = useOpenReports();
     if (!me) return <nav className={styles.rail} aria-label="Особисте" />;
     const rank = RANK[me.role];
     const hasShahs = Boolean(shahs.data && (shahs.data.available > 0 || shahs.data.reserved > 0 || shahs.data.history.length > 0));
@@ -47,7 +49,7 @@ export function MeRail() {
                 <>
                     <div className={styles.label}>Адміністрування</div>
                     {item('/admin', 'Огляд')}
-                    {item('/admin/moderation', 'Скарги й приховане')}
+                    {item('/admin/moderation', reports > 0 ? `Скарги й приховане · ${reports}` : 'Скарги й приховане')}
                     {rank >= RANK.admin && item('/admin/users', 'Користувачі й ролі')}
                     {rank >= RANK.owner && item('/admin/analytics', 'Аналітика')}
                     {rank >= RANK.owner && item('/admin/settings', 'Налаштування сайту')}
