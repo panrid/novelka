@@ -114,7 +114,9 @@ class SearchPagesTests {
         String sitemap = google.get("/sitemap.xml").body();
         assertThat(sitemap).contains("<loc>http://127.0.0.1:5173/n/" + slug + "</loc>")
                 .contains("<loc>http://127.0.0.1:5173/n/" + slug + "/2</loc>");
-        assertThat(google.get("/robots.txt").body()).contains("Sitemap: http://127.0.0.1:5173/sitemap.xml").contains("Disallow: /studio");
+        assertThat(google.get("/robots.txt").body()).contains("Sitemap: http://127.0.0.1:5173/sitemap.xml").contains("Disallow: /studio")
+                .as("the app draws the public pages from these, Google must be able to read them")
+                .contains("Allow: /api/novels/").contains("Allow: /api/me$").contains("Disallow: /api/");
     }
 
     @Test

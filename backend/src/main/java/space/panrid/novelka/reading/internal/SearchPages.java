@@ -189,6 +189,17 @@ class SearchPages {
         return ResponseEntity.ok().contentType(new MediaType("text", "plain", StandardCharsets.UTF_8)).body("""
                 # Новелка: novels and chapters are for everyone; the rest is personal or for the teams.
                 User-agent: *
+                # Google runs the app, and the app draws the public pages from these: blocked, a novel
+                # looks like an empty shell, the same as the home page. Personal ones answer only to their owner.
+                Allow: /api/me$
+                Allow: /api/home
+                Allow: /api/catalog
+                Allow: /api/tags
+                Allow: /api/novels/
+                Allow: /api/editions/
+                Allow: /api/proposals
+                Allow: /api/users/
+                Allow: /api/teams/
                 Disallow: /api/
                 Disallow: /studio
                 Disallow: /admin
