@@ -113,12 +113,15 @@ const routeTree = rootRoute.addChildren([
         loader: async ({ context, params, deps }) => {
             try {
                 const novel = await context.queryClient.ensureQueryData(novelQuery(params.slug, deps.t));
-                return { title: novel.title };
+                // The same title search engines get from the server (SearchPages): Google reads the one the app sets.
+                const english = novel.facts?.titleEnglish;
+                const shown = english && english.toLowerCase() !== novel.title.toLowerCase() ? `${novel.title} (${english})` : novel.title;
+                return { title: `${shown} — читати українською безкоштовно` };
             } catch {
                 return { title: null };
             }
         },
-        head: ({ loaderData }) => ({ meta: [{ title: loaderData?.title ? `${loaderData.title} — Новелка` : 'Новелка' }] }),
+        head: ({ loaderData }) => ({ meta: [{ title: loaderData?.title ? `${loaderData.title} | Новелка` : 'Новелка' }] }),
     }),
     createRoute({
         getParentRoute: () => rootRoute, path: '/n/$slug/$number', component: ReaderPage, validateSearch: readerSearch,
@@ -129,7 +132,7 @@ const routeTree = rootRoute.addChildren([
         loader: async ({ context, params, deps }) => {
             try {
                 const chapter = await context.queryClient.ensureQueryData(chapterQuery(params.slug, Number(params.number), deps.t));
-                return { title: `${chapter.title} — ${chapter.novelTitle}` };
+                return { title: `${chapter.title} — ${chapter.novelTitle} — читати безкоштовно | Новелка` };
             } catch {
                 return { title: null };
             }

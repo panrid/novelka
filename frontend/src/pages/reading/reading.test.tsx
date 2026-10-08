@@ -310,6 +310,9 @@ describe('the novel’s other names and the original', () => {
         expect(screen.getByText('Оригінал: виходить · 822 глави')).toBeInTheDocument();
         expect(screen.getByText('Перекладено 44 з 822')).toBeInTheDocument();
         expect(screen.getByRole('progressbar', { name: 'Перекладено' })).toHaveAttribute('aria-valuenow', '44');
+        // Google reads the title the app sets: the English name and «безкоштовно» live only there, not on the page.
+        await waitFor(() => expect(document.title).toBe('Маг води (Water Magician) — читати українською безкоштовно | Новелка'));
+        expect(screen.queryByText(/безкоштовно/)).not.toBeInTheDocument();
     });
 
     it('shows nothing extra when the team said nothing', async () => {

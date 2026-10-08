@@ -129,8 +129,9 @@ class SearchPages {
         // «Маг води (Water Magician)»: people often search by the English name.
         String english = it.novel().facts().titleEnglish();
         String shown = english == null || english.equalsIgnoreCase(it.title()) ? it.title() : it.title() + " (" + english + ")";
-        String description = names.isEmpty() ? about : "Також: " + String.join(", ", names) + ". " + about;
-        return page(new Head(shown + " — читати українською | " + SITE, cut(description, DESCRIPTION_CHARS), it.path(), cover, true,
+        // What people type into Google: the other names and «безкоштовно» — only here, the page itself stays as it is.
+        String description = "Читайте українською безкоштовно. " + (names.isEmpty() ? "" : "Також: " + String.join(", ", names) + ". ") + about;
+        return page(new Head(shown + " — читати українською безкоштовно | " + SITE, cut(description, DESCRIPTION_CHARS), it.path(), cover, true,
                 json.writeValueAsString(book)), body.toString(), HttpStatus.OK);
     }
 
@@ -178,7 +179,8 @@ class SearchPages {
         String ld = json.writeValueAsString(java.util.Map.of(
                 "@context", "https://schema.org", "@type", "Chapter", "name", heading, "inLanguage", "uk", "url", base + path,
                 "isPartOf", java.util.Map.of("@type", "Book", "name", it.title(), "url", base + it.path())));
-        return page(new Head(heading + " — " + it.title() + " | " + SITE, cut(plain, DESCRIPTION_CHARS), path, cover(it), true, ld),
+        return page(new Head(heading + " — " + it.title() + " — читати безкоштовно | " + SITE, cut(plain, DESCRIPTION_CHARS), path,
+                cover(it), true, ld),
                 body.toString(), HttpStatus.OK);
     }
 

@@ -76,7 +76,7 @@ class SearchPagesTests {
                 .path("items").path(0).path("sourceChapters").asInt()).isEqualTo(822);
 
         String html = guest.get("/n/" + slug).body();
-        assertThat(html).contains("<title>Маг води " + suffix + " (" + english + ") — читати українською | Новелка</title>")
+        assertThat(html).contains("<title>Маг води " + suffix + " (" + english + ") — читати українською безкоштовно | Новелка</title>")
                 .contains("\"alternateName\":[\"" + english + "\",\"水属性の魔法使い\"")
                 .contains("Інші назви: " + english + " · 水属性の魔法使い");
 
@@ -98,8 +98,8 @@ class SearchPagesTests {
         Response novel = google.get("/n/" + slug);
         assertThat(novel.status()).isEqualTo(200);
         assertThat(novel.body())
-                .contains("<title>Ліхтарі над ринком " + translator.nick() + " — читати українською | Новелка</title>")
-                .contains("<meta name=\"description\" content=\"Дівчина &lt; рятує &amp; місто від &quot;тіні&quot;.\">")
+                .contains("<title>Ліхтарі над ринком " + translator.nick() + " — читати українською безкоштовно | Новелка</title>")
+                .contains("<meta name=\"description\" content=\"Читайте українською безкоштовно. Дівчина &lt; рятує &amp; місто від &quot;тіні&quot;.\">")
                 .contains("rel=\"canonical\" href=\"http://127.0.0.1:5173/n/" + slug + "\"")
                 .contains("\"@type\":\"Book\"")
                 .contains("<a href=\"/n/" + slug + "/2\">2. Світанок 2</a>")
