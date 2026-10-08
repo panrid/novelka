@@ -50,10 +50,12 @@ class ProfileSettingsTests {
         String look = """
                 {"site": {"preset": "light", "accent": "#4f7a40", "radius": 8},
                  "reader": {"preset": "paper", "size": 20, "lineHeight": 1.7, "align": "justify", "hideBars": true,
-                            "colors": "own", "bg": "#1a2230", "text": "#e8d9b8", "taps": "forward"}}""";
+                            "colors": "own", "bg": "#1a2230", "text": "#e8d9b8", "taps": "forward"},
+                 "readerOwn": {"colors": "own", "bg": "#1a2230", "text": "#e8d9b8", "custom": true}}""";
         JsonNode me = read(person.browser().put("/api/me/appearance", look));
         assertThat(me.path("appearance").path("site").path("preset").asString()).isEqualTo("light");
         assertThat(me.path("appearance").path("reader").path("size").asInt()).isEqualTo(20);
+        assertThat(me.path("appearance").path("readerOwn").path("bg").asString()).as("one's own style kept aside").isEqualTo("#1a2230");
         assertThat(read(person.browser().get("/api/me")).path("appearance").path("reader").path("align").asString())
                 .as("another device sees the same").isEqualTo("justify");
 

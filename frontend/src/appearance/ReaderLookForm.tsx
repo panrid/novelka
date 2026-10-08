@@ -3,7 +3,7 @@ import {
     READER_ACCENTS, READER_BACKGROUNDS, READER_COLORS, READER_INKS, READER_FONTS, READER_LINE_HEIGHT, READER_MARGIN, READER_PRESETS, READER_SIZE,
     contrast, readerLook, tapZones, type ReaderLook,
 } from './model';
-import { setReader, setReaderPreset, useAppearance } from './store';
+import { restoreOwnReader, setReader, setReaderPreset, useAppearance } from './store';
 import { Toggle } from '../ui/Toggle';
 import styles from './ReaderLookForm.module.css';
 
@@ -12,12 +12,14 @@ import styles from './ReaderLookForm.module.css';
  * form sits in «Налаштування» and behind «Аа» in the reader; every change shows at once.
  */
 export function ReaderLookForm() {
-    const look = readerLook(useAppearance());
+    const appearance = useAppearance();
+    const look = readerLook(appearance);
     return (
         <div className={styles.form}>
-            <Choice label="Готовий стиль" value={look.custom ? null : look.preset} onPick={setReaderPreset}
-                options={READER_PRESETS.map(({ value, label }) => ({ value, label }))} />
-            {look.custom && <p className={styles.note}>Свій стиль на основі «{READER_PRESETS.find((p) => p.value === look.preset)?.label}». Готовий стиль вище поверне все як було.</p>}
+            <Choice label="Готовий стиль" value={look.custom ? 'own' : look.preset}
+                onPick={(value) => (value === 'own' ? restoreOwnReader() : setReaderPreset(value))}
+                options={[...READER_PRESETS.map(({ value, label }) => ({ value, label })), ...(appearance.readerOwn ? [{ value: 'own' as const, label: 'Свій' }] : [])]} />
+            {look.custom && <p className={styles.note}>Свій стиль на основі «{READER_PRESETS.find((p) => p.value === look.preset)?.label}». Він збережеться: можна перебрати готові й повернутись до «Свій».</p>}
 
             <Choice label="Гортання" value={look.mode} onPick={(mode) => setReader({ mode })}
                 options={[{ value: 'scroll', label: 'Прокрутка вниз' }, { value: 'pages', label: 'Сторінки' }]} />

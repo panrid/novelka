@@ -34,6 +34,11 @@ describe('the look of the site and of the reader', () => {
         await userEvent.click(screen.getByRole('radio', { name: '#c2456b' }));
         expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#c2456b');
         expect(screen.getByText(/Свій стиль на основі «Світлий»/)).toBeInTheDocument();
+        // Trying another ready style keeps one's own, and «Свій» brings it back.
+        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Готовий стиль' })).getByRole('radio', { name: /Неон/ }));
+        expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#ff3ea5');
+        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Готовий стиль' })).getByRole('radio', { name: /Свій/ }));
+        expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#c2456b');
 
         await act(() => router.navigate({ to: '/me/settings/reader' }));
         await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Кольори' })).getByRole('radio', { name: 'Чорний' }));
@@ -57,6 +62,12 @@ describe('the look of the site and of the reader', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Більший текст' }));
         expect(text.style.fontSize).toBe('19px');
         expect(screen.getByText(/Свій стиль на основі «Книжка»/)).toBeInTheDocument();
+        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Готовий стиль' })).getByRole('radio', { name: 'Ніч' }));
+        // «Книжка» turns pages and «Ніч» scrolls: the text is drawn anew each time.
+        expect(document.querySelector('article')!.style.fontSize).toBe('18px');
+        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Готовий стиль' })).getByRole('radio', { name: 'Свій' }));
+        expect(document.querySelector('article')!.style.fontSize).toBe('19px');
+        expect(document.querySelector('article')!.style.textAlign).toBe('justify');
         await userEvent.click(screen.getByRole('button', { name: 'Готово' }));
         await act(() => router.navigate({ to: '/' }));
         expect(document.documentElement.dataset.reader).toBeUndefined();

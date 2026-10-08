@@ -72,7 +72,8 @@ export type ReaderLook = {
     awake: boolean;
 };
 export type ReaderAppearance = Partial<ReaderLook>;
-export type Appearance = { site?: SiteAppearance; reader?: ReaderAppearance };
+/** The look in use, and the person's own one kept aside while they try ready styles. */
+export type Appearance = { site?: SiteAppearance; reader?: ReaderAppearance; siteOwn?: SiteAppearance; readerOwn?: ReaderAppearance };
 
 /** Backgrounds the site offers: the page, cards, raised parts, lines and the text that reads on them. */
 export type Tone = { name: string; bg: string; surface: string; surface2: string; line: string; text: string; reading: string; muted: string; faint: string };
@@ -324,8 +325,21 @@ const FLAGS: (keyof ReaderLook)[] = ['custom', 'hideBars', 'clock', 'percent', '
 export function clean(raw: unknown): Appearance {
     const value = (raw && typeof raw === 'object' ? raw : {}) as Record<string, Record<string, unknown> | undefined>;
     const out: Appearance = {};
+    const site = cleanSite(value.site);
+    if (site) out.site = site;
+    const reader = cleanReader(value.reader);
+    if (reader) out.reader = reader;
+    // «Свій стиль» waits here while the person tries ready ones.
+    const siteOwn = cleanSite(value.siteOwn);
+    if (siteOwn) out.siteOwn = siteOwn;
+    const readerOwn = cleanReader(value.readerOwn);
+    if (readerOwn) out.readerOwn = readerOwn;
+    return out;
+}
+
+function cleanSite(raw: Record<string, unknown> | undefined): SiteAppearance | undefined {
     const site: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value.site ?? {})) {
+    for (const [key, item] of Object.entries(raw && typeof raw === 'object' ? raw : {})) {
         const k = key as keyof SiteLook;
         const range = SITE_RANGE[k];
         if (SITE_ONE_OF[k]?.includes(item)) site[k] = item;
@@ -334,9 +348,12 @@ export function clean(raw: unknown): Appearance {
         else if (k === 'iconWeight' && typeof item === 'number' && item >= 1 && item <= 2.5) site[k] = item;
         else if (k === 'accent' && typeof item === 'string' && SITE_ACCENTS.includes(item)) site[k] = item;
     }
-    if (Object.keys(site).length > 0) out.site = site as SiteAppearance;
+    return Object.keys(site).length > 0 ? site as SiteAppearance : undefined;
+}
+
+function cleanReader(raw: Record<string, unknown> | undefined): ReaderAppearance | undefined {
     const reader: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value.reader ?? {})) {
+    for (const [key, item] of Object.entries(raw && typeof raw === 'object' ? raw : {})) {
         const k = key as keyof ReaderLook;
         const range = RANGE[k];
         if (ONE_OF[k]?.includes(item)) reader[k] = item;
@@ -344,6 +361,5 @@ export function clean(raw: unknown): Appearance {
         else if (FLAGS.includes(k) && typeof item === 'boolean') reader[k] = item;
         else if (k === 'accent' && typeof item === 'string' && READER_ACCENTS.includes(item)) reader[k] = item;
     }
-    if (Object.keys(reader).length > 0) out.reader = reader as ReaderAppearance;
-    return out;
+    return Object.keys(reader).length > 0 ? reader as ReaderAppearance : undefined;
 }

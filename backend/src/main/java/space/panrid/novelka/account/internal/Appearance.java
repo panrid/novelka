@@ -11,8 +11,8 @@ import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * How a person wants the site and the reader to look (етап 18): {@code {"site": {...},
- * "reader": {...}}}. Only the choices the site offers get in: known keys, values from their
+ * How a person wants the site and the reader to look (етап 18): {@code {"site": {...}, "siteOwn": {...},
+ * "reader": {...}, "readerOwn": {...}}} — the own ones wait while ready styles are tried. Only the choices the site offers get in: known keys, values from their
  * lists or ranges, colours as #rrggbb. Nothing of the person's own (files, fonts, styles).
  */
 final class Appearance {
@@ -75,8 +75,9 @@ final class Appearance {
         ObjectNode out = JsonNodeFactory.instance.objectNode();
         for (String section : body.propertyNames()) {
             Map<String, Predicate<JsonNode>> rules = switch (section) {
-                case "site" -> SITE;
-                case "reader" -> READER;
+                // «Свій стиль» kept aside while the person tries ready ones.
+                case "site", "siteOwn" -> SITE;
+                case "reader", "readerOwn" -> READER;
                 default -> throw UserFacingException.badRequest("Невідомий розділ вигляду «%s».".formatted(section));
             };
             JsonNode values = body.get(section);

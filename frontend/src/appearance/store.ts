@@ -120,7 +120,8 @@ function changed(next: Appearance) {
 
 /** A change to the site's look: from now on it is one's own («Свій стиль»). */
 export function setSite(patch: SiteAppearance) {
-    changed({ ...current, site: { ...current.site, ...patch, custom: true } });
+    const site = { ...current.site, ...patch, custom: true };
+    changed({ ...current, site, siteOwn: site });
 }
 
 /** A ready site style replaces whatever was changed before. */
@@ -130,7 +131,18 @@ export function setSitePreset(preset: SiteStyle) {
 
 /** A change to the reader's look: from now on it is one's own («Свій стиль»). */
 export function setReader(patch: ReaderAppearance) {
-    changed({ ...current, reader: { ...current.reader, ...patch, custom: true } });
+    const reader = { ...current.reader, ...patch, custom: true };
+    changed({ ...current, reader, readerOwn: reader });
+}
+
+/** Back to one's own site style after trying ready ones. */
+export function restoreOwnSite() {
+    if (current.siteOwn) changed({ ...current, site: current.siteOwn });
+}
+
+/** Back to one's own reader style after trying ready ones. */
+export function restoreOwnReader() {
+    if (current.readerOwn) changed({ ...current, reader: current.readerOwn });
 }
 
 /** A ready reader style replaces whatever was changed before. */

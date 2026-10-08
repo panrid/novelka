@@ -8,7 +8,7 @@ import {
     type FontId, type SiteLook,
 } from '../../appearance/model';
 import { ReaderLookForm } from '../../appearance/ReaderLookForm';
-import { setSite, setSitePreset, useAppearance } from '../../appearance/store';
+import { restoreOwnSite, setSite, setSitePreset, useAppearance } from '../../appearance/store';
 import form from '../../appearance/ReaderLookForm.module.css';
 import { Notice } from '../../ui/Notice';
 import { Toggle } from '../../ui/Toggle';
@@ -20,7 +20,8 @@ import styles from './appearance.module.css';
  * The whole site changes as soon as something is picked.
  */
 export function SiteAppearancePage() {
-    const look = siteLook(useAppearance());
+    const appearance = useAppearance();
+    const look = siteLook(appearance);
     const base = SITE_PRESETS.find((item) => item.value === look.preset)!;
     return (
         <section className={styles.page}>
@@ -47,10 +48,29 @@ export function SiteAppearancePage() {
                         </button>
                     );
                 })}
+                {appearance.siteOwn && (() => {
+                    const own = siteLook({ site: appearance.siteOwn });
+                    const tone = SITE_TONES[own.base][own.bg] ?? SITE_TONES[own.base][0]!;
+                    return (
+                        <button type="button" role="radio" aria-checked={look.custom} className={styles.preset}
+                            onClick={restoreOwnSite} onFocus={() => void loadFont(own.head)}>
+                            <span className={styles.thumb} style={{ background: tone.bg }}>
+                                <i style={{ width: '62%', background: tone.text, borderRadius: own.radius / 3 }} />
+                                <i style={{ width: '36%', background: own.accent, borderRadius: own.radius / 3 }} />
+                                <span className={styles.covers}>
+                                    <b style={{ background: tone.surface2, borderRadius: own.radius / 4 }} />
+                                    <b style={{ background: own.accent, opacity: 0.7, borderRadius: own.radius / 4 }} />
+                                    <b style={{ background: tone.surface2, borderRadius: own.radius / 4 }} />
+                                </span>
+                            </span>
+                            <span className={styles.name} style={{ fontFamily: FONT_STACKS[own.head] }}>Свій</span>
+                        </button>
+                    );
+                })()}
             </div>
             {look.custom && (
                 <p className={form.note}>
-                    Свій стиль на основі «{base.label}».{' '}
+                    Свій стиль на основі «{base.label}». Він збережеться: можна перебрати готові й повернутись до «Свій».{' '}
                     <button type="button" className={styles.link} onClick={() => setSitePreset(look.preset)}>Повернути «{base.label}»</button>
                 </p>
             )}
