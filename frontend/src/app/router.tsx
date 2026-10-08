@@ -186,7 +186,7 @@ const routeTree = rootRoute.addChildren([
     createRoute({ getParentRoute: () => rootRoute, path: '/team/$handle', component: TeamPage, head: ({ params }) => ({ meta: [{ title: `$${params.handle} — Новелка` }] }) }),
     createRoute({
         getParentRoute: () => rootRoute, path: '/me/settings', component: SettingsPage,
-        beforeLoad: requireSignedIn, head: title('Налаштування'),
+        beforeLoad: requireSignedIn, head: title('Акаунт'),
     }),
     // The look of the site and of the reader: guests choose too, kept in their browser.
     createRoute({ getParentRoute: () => rootRoute, path: '/me/settings/appearance', component: SiteAppearancePage, head: title('Вигляд') }),

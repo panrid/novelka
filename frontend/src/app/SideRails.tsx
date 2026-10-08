@@ -35,24 +35,30 @@ export function MeRail() {
                 <Avatar nick={me.nick} url={me.avatarUrl} size={24} />
                 <span className={styles.name}>{me.nick}</span>
             </Link>
-            <div className={styles.label}>Особисте</div>
+            <div className={styles.label}>Моє</div>
             {item('/me', 'Огляд')}
             {item('/studio', 'Студія')}
+            {item('/me/suggestions', 'Мої правки')}
             {me.role === 'owner' && item('/me/wallet', 'Шаги й автопереклад')}
             {me.role !== 'owner' && hasShahs && item('/me/shahs', `Шаги · ${shahs.data!.available} ${shahWord(shahs.data!.available)}`)}
-            {item('/me/suggestions', 'Мої правки')}
-            {item('/me/settings', 'Налаштування')}
+            <div className={styles.label}>Налаштування</div>
+            {item('/me/settings', 'Акаунт')}
             {item('/me/settings/appearance', 'Вигляд')}
             {item('/me/settings/notifications', 'Сповіщення')}
             {item('/me/settings/privacy', 'Приватність')}
             {rank >= RANK.moderator && (
                 <>
+                    <div className={styles.label}>Модерація</div>
+                    {item('/admin/moderation', reports > 0 ? `Скарги й приховане · ${reports}` : 'Скарги й приховане')}
+                </>
+            )}
+            {rank >= RANK.admin && (
+                <>
                     <div className={styles.label}>Адміністрування</div>
                     {item('/admin', 'Огляд')}
-                    {item('/admin/moderation', reports > 0 ? `Скарги й приховане · ${reports}` : 'Скарги й приховане')}
-                    {rank >= RANK.admin && item('/admin/users', 'Користувачі й ролі')}
-                    {rank >= RANK.owner && item('/admin/analytics', 'Аналітика')}
+                    {item('/admin/users', 'Користувачі й ролі')}
                     {rank >= RANK.owner && item('/admin/settings', 'Налаштування сайту')}
+                    {rank >= RANK.owner && item('/admin/analytics', 'Аналітика')}
                     {rank >= RANK.owner && item('/admin/audit', 'Журнал дій')}
                 </>
             )}

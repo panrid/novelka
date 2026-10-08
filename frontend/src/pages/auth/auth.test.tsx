@@ -47,7 +47,7 @@ describe('sign-in', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Увійти' }));
 
         await waitFor(() => expect(router.state.location.pathname).toBe('/me/settings'));
-        expect(await screen.findByRole('heading', { name: 'Налаштування' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Акаунт' })).toBeInTheDocument();
     });
 });
 

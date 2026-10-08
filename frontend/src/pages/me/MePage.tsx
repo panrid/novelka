@@ -65,19 +65,39 @@ export function MePage() {
                 </div>
             </Link>
             <nav className={styles.menu} aria-label="Особисте">
-                <Link to="/studio" className={styles.menuItem}>Студія — мої переклади й твори</Link>
+                <div className={styles.menuLabel}>Моє</div>
+                <Link to="/studio" className={styles.menuItem}>Студія — переклади й твори</Link>
+                <Link to="/me/suggestions" className={styles.menuItem}>Мої правки</Link>
                 {me.role === 'owner' && <Link to="/me/wallet" className={styles.menuItem}>Шаги й автопереклад</Link>}
                 {me.role !== 'owner' && hasShahs && (
                     <Link to="/me/shahs" className={styles.menuItem}>Шаги · {shahs.data!.available} {shahWord(shahs.data!.available)}</Link>
                 )}
+                <div className={styles.menuLabel}>Налаштування</div>
+                <MenuLink to="/me/settings" hint="профіль, нік, пошта, пароль, Google">Акаунт</MenuLink>
+                <MenuLink to="/me/settings/appearance" hint="сайт і читалка">Вигляд</MenuLink>
+                <MenuLink to="/me/settings/notifications" hint="Telegram">Сповіщення</MenuLink>
+                <MenuLink to="/me/settings/privacy" hint="хто може писати, 18+">Приватність</MenuLink>
                 {me.role !== 'reader' && (
-                    <Link to="/admin" className={styles.menuItem}>Адміністрування{reports > 0 ? ` · скарг: ${reports}` : ''}</Link>
+                    <>
+                        <div className={styles.menuLabel}>Модерація</div>
+                        <Link to="/admin/moderation" className={styles.menuItem}>
+                            Скарги й приховане{reports > 0 ? ` · ${reports}` : ''}
+                        </Link>
+                    </>
                 )}
-                <Link to="/me/suggestions" className={styles.menuItem}>Мої правки</Link>
-                <Link to="/me/settings" className={styles.menuItem}>Налаштування</Link>
-                <Link to="/me/settings/appearance" className={styles.menuItem}>Вигляд</Link>
-                <Link to="/me/settings/notifications" className={styles.menuItem}>Сповіщення</Link>
-                <Link to="/me/settings/privacy" className={styles.menuItem}>Приватність</Link>
+                {(me.role === 'admin' || me.role === 'owner') && (
+                    <>
+                        <div className={styles.menuLabel}>Адміністрування</div>
+                        <Link to="/admin/users" className={styles.menuItem}>Користувачі й ролі</Link>
+                        {me.role === 'owner' && (
+                            <>
+                                <MenuLink to="/admin/settings" hint="реєстрація, 18+, естафета">Налаштування сайту</MenuLink>
+                                <Link to="/admin/analytics" className={styles.menuItem}>Аналітика</Link>
+                                <Link to="/admin/audit" className={styles.menuItem}>Журнал дій</Link>
+                            </>
+                        )}
+                    </>
+                )}
             </nav>
             <div style={{ marginTop: 24 }}>
                 <Button variant="danger" wide onPress={() => logout.mutate()} pending={logout.isPending} pendingLabel="Виходимо…">
@@ -106,6 +126,15 @@ export function MePage() {
                 <div className={me$.panel}><Achievements nick={me.nick} /></div>
             </div>
         </section>
+    );
+}
+
+/** A menu row with a quiet line of what is inside. */
+function MenuLink({ to, hint, children }: { to: string; hint: string; children: React.ReactNode }) {
+    return (
+        <Link to={to} className={styles.menuItem}>
+            <span className={styles.menuText}>{children}<small>{hint}</small></span>
+        </Link>
     );
 }
 

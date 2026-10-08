@@ -89,6 +89,29 @@
     font-size: 15px;
 }
 
+/* «Моє», «Налаштування», «Модерація»: quiet group names inside one menu. */
+.menuLabel {
+    margin: 20px 0 2px;
+    color: var(--muted);
+    font-size: 12.5px;
+    font-weight: 500;
+}
+
+.menuLabel:first-child {
+    margin-top: 4px;
+}
+
+.menuText {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 0;
+}
+
+.menuText small {
+    color: var(--muted);
+    font-size: 12.5px;
+}
+
 .menuItem::after {
     content: '›';
     color: var(--faint);

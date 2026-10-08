@@ -188,10 +188,9 @@ export function ReaderAppearancePage() {
 
 /** One «Вигляд» in the settings: the site and the reader are its two tabs. */
 function Heading({ at }: { at: 'site' | 'reader' }) {
-    const me = useMe();
     return (
         <>
-            <Link to={me ? '/me/settings' : '/me'} className={styles.back}>‹ {me ? 'Налаштування' : 'Я'}</Link>
+            <Link to="/me" className={styles.back}>‹ Я</Link>
             <h1 className={styles.title}>Вигляд</h1>
             <nav className={styles.tabs} aria-label="Що налаштовуємо">
                 <Link to="/me/settings/appearance" className={styles.tab} aria-current={at === 'site' ? 'page' : undefined}>Сайт</Link>

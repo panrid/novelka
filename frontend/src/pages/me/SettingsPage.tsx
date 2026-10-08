@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { Link, useSearch } from '@tanstack/react-router';
+import { useSearch } from '@tanstack/react-router';
 import { authApi, googleUrl, meApi } from '../../auth/api';
 import { GoogleMark, useProviders } from '../../auth/GoogleButton';
 import { useMe, useSetMe, type Me } from '../../auth/me';
@@ -19,25 +19,13 @@ export function SettingsPage() {
     }
     return (
         <section className={styles.narrow}>
-            <h1 className={styles.title}>Налаштування</h1>
-            <SettingsMenu />
+            <h1 className={styles.title}>Акаунт</h1>
             <ProfileSection me={me} />
             <NickSection me={me} />
             <EmailSection me={me} />
             <PasswordSection me={me} />
             <GoogleSection me={me} />
         </section>
-    );
-}
-
-/** The other parts of the settings, each on its own page; this page keeps the profile and signing in. */
-function SettingsMenu() {
-    return (
-        <nav className={styles.menu} aria-label="Розділи налаштувань">
-            <Link to="/me/settings/appearance" className={styles.menuItem}>Вигляд — стилі сайту й читалки, меню</Link>
-            <Link to="/me/settings/notifications" className={styles.menuItem}>Сповіщення — Telegram</Link>
-            <Link to="/me/settings/privacy" className={styles.menuItem}>Приватність — хто може писати, 18+</Link>
-        </nav>
     );
 }
 

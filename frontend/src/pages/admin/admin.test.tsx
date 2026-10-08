@@ -58,12 +58,13 @@ describe('administration', () => {
         expect(screen.getByRole('button', { name: 'Відхилити скаргу' })).toBeInTheDocument();
     });
 
-    it('counts open reports next to «Адміністрування»', async () => {
+    it('counts open reports in «Модерація» and keeps administration from a moderator', async () => {
         await renderAt('/me', {
             'GET /api/me': { body: person('moderator') },
             'GET /api/admin/overview': { body: { openReports: 3, activeJobs: 0, failedJobs: 0, role: 'moderator' } },
         });
-        expect(await screen.findByRole('link', { name: 'Адміністрування · скарг: 3' })).toHaveAttribute('href', '/admin');
+        expect(await screen.findByRole('link', { name: 'Скарги й приховане · 3' })).toHaveAttribute('href', '/admin/moderation');
+        expect(screen.queryByRole('link', { name: 'Користувачі й ролі' })).not.toBeInTheDocument();
     });
 
     it('an administrator gives roles up to moderator, and the owner up to administrator', async () => {
