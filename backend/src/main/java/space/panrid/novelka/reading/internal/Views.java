@@ -54,8 +54,12 @@ final class Views {
     /** @param chapterLabel the number readers see for {@code chapterNumber} (null: the position itself) */
     /** {@code relayAsked}: a team of the viewer's already asked to continue this translation and waits. */
     /** @param subscribed the bell rings: new chapters of this translation come to the reader's inbox */
+    /**
+     * @param skipped     published chapters before the place that are not read
+     * @param firstUnread the first of them, with the number readers see
+     */
     record ViewerState(String list, Integer chapterNumber, Float position, String teamRole, Integer myRating, String chapterLabel,
-            boolean relayAsked, boolean subscribed) {
+            boolean relayAsked, boolean subscribed, int skipped, Integer firstUnread, String firstUnreadLabel) {
     }
 
     /**
@@ -77,7 +81,8 @@ final class Views {
 
     /** @param label number readers see; null means {@code number}, empty means none */
     /** @param volume the volume the chapter is in, or null before the first one */
-    record ChapterRow(int number, String title, OffsetDateTime publishedAt, String label, VolumeRef volume) {
+    /** {@code read}: whether the signed-in reader finished it; null for a guest. */
+    record ChapterRow(int number, String title, OffsetDateTime publishedAt, String label, VolumeRef volume, Boolean read) {
     }
 
     /**

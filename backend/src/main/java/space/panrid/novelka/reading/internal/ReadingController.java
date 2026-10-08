@@ -116,7 +116,8 @@ class ReadingController {
             @RequestParam(defaultValue = "" + CHAPTERS_PAGE_SIZE) int size) {
         EditionRow edition = pick(visibleEditions(queries.novel(slug).orElseThrow(ReadingController::noNovel),
                 currentUser.viewer()), t);
-        return queries.chapters(edition.id(), order.equals("desc"), Math.max(1, page), Math.max(1, Math.min(size, 100)));
+        return queries.chapters(edition.id(), order.equals("desc"), Math.max(1, page), Math.max(1, Math.min(size, 100)),
+                currentUser.accountId().orElse(null));
     }
 
     @GetMapping("/novels/{slug}/chapters/{number}")
@@ -146,6 +147,22 @@ class ReadingController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void progress(@PathVariable long editionId, @RequestBody ProgressRequest body) {
         library.saveProgress(currentUser.requireSignedIn(), editionId, body.chapterNumber(), body.position());
+    }
+
+    /** Chapters {@code from}..{@code to} marked read or not: one, «усі до цієї», or the skipped ones. */
+    record ReadRequest(int from, int to, boolean read) {
+    }
+
+    @PutMapping("/reads/{editionId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void reads(@PathVariable long editionId, @RequestBody ReadRequest body) {
+        library.markRead(currentUser.requireSignedIn(), editionId, body.from(), body.to(), body.read());
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/progress/{editionId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void resetProgress(@PathVariable long editionId) {
+        library.resetProgress(currentUser.requireSignedIn(), editionId);
     }
 
     /** A person's translations and works, for their profile. */

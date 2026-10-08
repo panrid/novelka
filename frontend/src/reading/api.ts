@@ -84,7 +84,9 @@ export type NovelPage = {
     editions: EditionSummary[];
     adult: boolean;
     lastPublishedAt: string | null;
-    viewer: { list: ListName | null; chapterNumber: number | null; position: number | null; teamRole: 'owner' | 'translator' | 'editor' | null; myRating: number | null; chapterLabel?: string | null; relayAsked?: boolean; subscribed?: boolean } | null;
+    viewer: { list: ListName | null; chapterNumber: number | null; position: number | null; teamRole: 'owner' | 'translator' | 'editor' | null; myRating: number | null; chapterLabel?: string | null; relayAsked?: boolean; subscribed?: boolean;
+        /** Published chapters before the place the reader did not read, and the first of them. */
+        skipped?: number; firstUnread?: number | null; firstUnreadLabel?: string | null } | null;
     relay: { free: boolean; reason: 'abandoned' | 'inactive' | 'unanswered' | null; lastNumber: number; continuations: Continuation[] };
     /** The original's page, when the site knows it. */
     originalUrl?: string | null;
@@ -97,7 +99,8 @@ export type Continuation = { teamHandle: string; teamName: string; firstNumber: 
 /** A volume as readers see it (етап 15); {@code index} is «Том 2», null for a prologue or side stories. */
 export type VolumeRef = { firstNumber: number; title: string; kind: 'volume' | 'prologue' | 'side' | 'extra'; index: number | null };
 
-export type ChapterRow = { number: number; title: string; publishedAt: string; label: string | null; volume?: VolumeRef | null };
+/** {@code read}: whether the signed-in reader finished it (null for a guest). */
+export type ChapterRow = { number: number; title: string; publishedAt: string; label: string | null; volume?: VolumeRef | null; read?: boolean | null };
 
 /** «Том 2. Подорож удвох», «Пролог», «Побічні історії». */
 export function volumeTitle(volume: VolumeRef): string {
@@ -169,6 +172,11 @@ export const readingApi = {
     setList: (editionId: number, list: ListName | null) =>
         api<void>(`/api/library/${editionId}`, { method: 'PUT', body: JSON.stringify({ list }) }),
     /** The bell: new chapters of this translation come to the inbox while it rings. */
+    /** Chapters from..to marked read or not: one, «усі до цієї», or the skipped ones. */
+    markRead: (editionId: number, from: number, to: number, read: boolean) =>
+        api<void>(`/api/reads/${editionId}`, { method: 'PUT', body: JSON.stringify({ from, to, read }) }),
+    /** No place and nothing read; the novel stays in its library list. */
+    resetProgress: (editionId: number) => api<void>(`/api/progress/${editionId}`, { method: 'DELETE' }),
     subscribe: (editionId: number, on: boolean) =>
         api<void>(`/api/library/${editionId}/subscription`, { method: on ? 'PUT' : 'DELETE' }),
 };

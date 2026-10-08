@@ -24,13 +24,16 @@ export function saveLocalProgress(slug: string, team: string, saved: Saved) {
     }
 }
 
-/** Read this far, an earlier chapter counts as read again (the server has the same rule). */
+/** Read this far, a chapter counts as read and an earlier one is the place again (the server has the same rules). */
 const FINISHED = 0.9;
+/** Read this far into a later chapter, it becomes the place: opening one is not reading it. */
+const STARTED = 0.15;
 
 /**
- * Whether reading `number` at `position` becomes the place: a later chapter always does, an
- * earlier one only once read to its end — a look at chapter 17 for a suggestion keeps chapter 20.
+ * Whether reading `number` at `position` becomes the place: a later chapter once really begun,
+ * an earlier one only once read to its end — a look at chapter 17 for a suggestion keeps
+ * chapter 20, and a peek at chapter 40 does not skip twenty chapters.
  */
 export function movesPlace(saved: { number: number } | null | undefined, number: number, position: number): boolean {
-    return !saved || number >= saved.number || position >= FINISHED;
+    return !saved || number === saved.number || position >= FINISHED || (number > saved.number && position >= STARTED);
 }

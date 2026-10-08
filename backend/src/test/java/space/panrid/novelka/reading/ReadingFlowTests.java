@@ -132,6 +132,44 @@ class ReadingFlowTests {
     }
 
     @Test
+    void finishedChaptersAreMarkedAndSkippedOnesShow() {
+        String slug = read(importNovel(admin.browser(), title, NOVEL, false)).path("slug").asString();
+        Person reader = Accounts.signedIn(port, mailbox);
+        long editionId = read(reader.browser().get("/api/novels/" + slug)).path("edition").path("editionId").asLong();
+        String progress = "/api/progress/" + editionId;
+
+        reader.browser().put(progress, json("chapterNumber", 1, "position", 0.95));
+        reader.browser().put(progress, json("chapterNumber", 3, "position", 0));
+        reader.browser().put(progress, json("chapterNumber", 3, "position", 0.1));
+        JsonNode viewer = read(reader.browser().get("/api/novels/" + slug)).path("viewer");
+        assertThat(viewer.path("chapterNumber").asInt()).as("opening a later chapter is not reading it yet").isEqualTo(1);
+        assertThat(viewer.path("skipped").asInt()).isZero();
+
+        reader.browser().put(progress, json("chapterNumber", 3, "position", 0.2));
+        viewer = read(reader.browser().get("/api/novels/" + slug)).path("viewer");
+        assertThat(viewer.path("chapterNumber").asInt()).isEqualTo(3);
+        assertThat(viewer.path("skipped").asInt()).as("chapter 2 was skipped").isEqualTo(1);
+        assertThat(viewer.path("firstUnread").asInt()).isEqualTo(2);
+        assertThat(read(reader.browser().get("/api/novels/" + slug + "/chapters")).path("items"))
+                .extracting(row -> row.path("read").asBoolean()).containsExactly(true, false, false);
+        assertThat(read(new Browser(port).get("/api/novels/" + slug + "/chapters")).path("items").path(0).path("read").isNull())
+                .as("guests have no marks").isTrue();
+
+        assertThat(reader.browser().put("/api/reads/" + editionId, json("from", 2, "to", 2, "read", true)).status()).isEqualTo(204);
+        assertThat(read(reader.browser().get("/api/novels/" + slug)).path("viewer").path("skipped").asInt()).isZero();
+        reader.browser().put("/api/reads/" + editionId, json("from", 1, "to", 3, "read", false));
+        assertThat(read(reader.browser().get("/api/novels/" + slug + "/chapters")).path("items"))
+                .extracting(row -> row.path("read").asBoolean()).containsExactly(false, false, false);
+        assertThat(read(reader.browser().get("/api/novels/" + slug)).path("viewer").path("skipped").asInt()).isEqualTo(2);
+        assertThat(reader.browser().put("/api/reads/" + editionId, json("from", 3, "to", 1, "read", true)).status()).isEqualTo(400);
+
+        assertThat(reader.browser().delete(progress).status()).isEqualTo(204);
+        viewer = read(reader.browser().get("/api/novels/" + slug)).path("viewer");
+        assertThat(viewer.path("chapterNumber").isNull()).as("the progress is gone").isTrue();
+        assertThat(viewer.path("list").asString()).as("the novel stays in the library").isEqualTo("reading");
+    }
+
+    @Test
     void readingRemembersThePlaceAndFillsTheLibrary() {
         String slug = read(importNovel(admin.browser(), title, NOVEL, false)).path("slug").asString();
         Person reader = Accounts.signedIn(port, mailbox);

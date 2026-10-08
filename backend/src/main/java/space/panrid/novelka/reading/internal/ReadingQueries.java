@@ -2,6 +2,7 @@ package space.panrid.novelka.reading.internal;
 
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
+import static space.panrid.novelka.jooq.Tables.CHAPTER_READ;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITION_RATING;
 import static space.panrid.novelka.jooq.Tables.EDITION_SUBSCRIPTION;
@@ -400,15 +401,23 @@ class ReadingQueries {
     }
 
     Views.Page<ChapterRow> chapters(long editionId, boolean newestFirst, int page, int size) {
-        List<ChapterRow> rows = db.select(CHAPTER.NUMBER, REVISION.TITLE, CHAPTER.FIRST_PUBLISHED_AT, CHAPTER.LABEL)
+        return chapters(editionId, newestFirst, page, size, null);
+    }
+
+    /** {@code reader}: marks each row read or not for that account; null for a guest. */
+    Views.Page<ChapterRow> chapters(long editionId, boolean newestFirst, int page, int size, Long reader) {
+        Field<Boolean> read = reader == null ? DSL.inline((Boolean) null) : DSL.field(DSL.exists(DSL.selectOne().from(CHAPTER_READ)
+                .where(CHAPTER_READ.ACCOUNT_ID.eq(reader), CHAPTER_READ.EDITION_ID.eq(editionId),
+                        CHAPTER_READ.CHAPTER_NUMBER.eq(CHAPTER.NUMBER))));
+        List<ChapterRow> rows = db.select(CHAPTER.NUMBER, REVISION.TITLE, CHAPTER.FIRST_PUBLISHED_AT, CHAPTER.LABEL, read)
                 .from(CHAPTER).join(REVISION).on(REVISION.ID.eq(CHAPTER.PUBLISHED_REVISION_ID))
                 .where(CHAPTER.EDITION_ID.eq(editionId))
                 .orderBy(newestFirst ? CHAPTER.NUMBER.desc() : CHAPTER.NUMBER.asc())
                 .limit(size + 1).offset((page - 1) * size)
-                .fetch(r -> new ChapterRow(r.value1(), r.value2(), r.value3(), r.value4(), null));
+                .fetch(r -> new ChapterRow(r.value1(), r.value2(), r.value3(), r.value4(), null, r.value5()));
         List<Views.VolumeRef> volumes = volumes(editionId);
         rows = rows.stream().map(row -> new ChapterRow(row.number(), row.title(), row.publishedAt(), row.label(),
-                volumeOf(volumes, row.number()))).toList();
+                volumeOf(volumes, row.number()), row.read())).toList();
         boolean more = rows.size() > size;
         return new Views.Page<>(more ? rows.subList(0, size) : rows, page, more);
     }
@@ -481,6 +490,17 @@ class ReadingQueries {
                 .fetchOne(0, String.class);
         Short rating = db.select(EDITION_RATING.SCORE).from(EDITION_RATING)
                 .where(EDITION_RATING.ACCOUNT_ID.eq(accountId), EDITION_RATING.EDITION_ID.eq(editionId)).fetchOne(EDITION_RATING.SCORE);
+        // Chapters before the place the reader did not read: skipped, or read before marks existed.
+        Record skipped = progress == null ? null : db.select(DSL.count(), DSL.min(CHAPTER.NUMBER)).from(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull(),
+                        CHAPTER.NUMBER.lt(progress.get(READING_PROGRESS.CHAPTER_NUMBER)),
+                        DSL.notExists(DSL.selectOne().from(CHAPTER_READ).where(CHAPTER_READ.ACCOUNT_ID.eq(accountId),
+                                CHAPTER_READ.EDITION_ID.eq(editionId), CHAPTER_READ.CHAPTER_NUMBER.eq(CHAPTER.NUMBER))))
+                .fetchOne();
+        int skippedCount = skipped == null ? 0 : skipped.get(0, Integer.class);
+        Integer firstUnread = skippedCount == 0 ? null : skipped.get(1, Integer.class);
+        String firstUnreadLabel = firstUnread == null ? null : db.select(CHAPTER.LABEL).from(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(firstUnread)).fetchOne(CHAPTER.LABEL);
         return new Views.ViewerState(list, progress == null ? null : progress.get(READING_PROGRESS.CHAPTER_NUMBER),
                 progress == null ? null : progress.get(READING_PROGRESS.POSITION), teamRole,
                 rating == null ? null : rating.intValue(),
@@ -491,7 +511,8 @@ class ReadingQueries {
                         TAKEOVER_REQUEST.TEAM_ID.in(DSL.select(TEAM.ID).from(TEAM).where(TEAM.OWNER_ID.eq(accountId))
                                 .union(DSL.select(TEAM_MEMBER.TEAM_ID).from(TEAM_MEMBER).where(TEAM_MEMBER.ACCOUNT_ID.eq(accountId))))),
                 db.fetchExists(EDITION_SUBSCRIPTION, EDITION_SUBSCRIPTION.ACCOUNT_ID.eq(accountId),
-                        EDITION_SUBSCRIPTION.EDITION_ID.eq(editionId)));
+                        EDITION_SUBSCRIPTION.EDITION_ID.eq(editionId)),
+                skippedCount, firstUnread, firstUnreadLabel);
     }
 
     // ---- library --------------------------------------------------------------------------

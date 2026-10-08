@@ -12,7 +12,7 @@ import { adminApi } from '../../admin/api';
 import { Sheet } from '../../ui/Sheet';
 import { Blocks } from '../../reading/Blocks';
 import { Cover } from '../../reading/Cover';
-import { LIST_LABELS, SOURCE_STATUS_LABELS, chapterHeading, chaptersWord, otherNames, readingApi, translationStatus, volumeTitle, type ListName, type NovelPage as Novel } from '../../reading/api';
+import { LIST_LABELS, SOURCE_STATUS_LABELS, chapterHeading, chaptersWord, otherNames, readingApi, translationStatus, volumeTitle, type ChapterRow as ChapterRowType, type ListName, type NovelPage as Novel } from '../../reading/api';
 import { relayApi, teamApi } from '../../studio/api';
 import { Segmented } from '../../ui/Segmented';
 import { localProgress } from '../../reading/progress';
@@ -24,7 +24,7 @@ import { Notice } from '../../ui/Notice';
 import { showInfo } from '../../ui/toast';
 import { ReportEdition } from '../../reading/ReportEdition';
 import styles from './novel.module.css';
-import { askText } from '../../ui/ask';
+import { askConfirm, askText } from '../../ui/ask';
 
 export function NovelPage() {
     const { slug } = useParams({ strict: false }) as { slug: string };
@@ -158,7 +158,9 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                     </div>
                 )}
 
-                <ChapterList slug={novel.slug} team={team} current={resume} total={edition.chapterCount} />
+                {novel.viewer && <Skipped novel={novel} />}
+                <ChapterList slug={novel.slug} team={team} current={resume} total={edition.chapterCount}
+                    editionId={novel.viewer ? edition.editionId : null} />
 
                 {novel.relay.continuations.map((next) => (
                     <Link key={next.teamHandle} to="/n/$slug/$number" params={{ slug: novel.slug, number: String(next.firstNumber) }}
@@ -343,7 +345,51 @@ function BellButton({ novel }: { novel: Novel }) {
 const CHAPTERS_PER_PAGE = 20;
 
 /** The chapters 20 to a page (етап 17), opened at the page with the chapter the reader stopped at. */
-function ChapterList({ slug, team, current, total }: { slug: string; team: string | undefined; current: number | null; total: number }) {
+/** Marks change the novel page (skipped chapters, the place) and every page of the list. */
+function useReadMarks(slug: string, editionId: number | null) {
+    const client = useQueryClient();
+    const refresh = () => {
+        for (const key of [['novel', slug], ['chapters', slug], ['home'], ['library']]) void client.invalidateQueries({ queryKey: key });
+    };
+    const mark = useMutation({ meta: { errorToast: true },
+        mutationFn: ({ from, to, read }: { from: number; to: number; read: boolean }) => readingApi.markRead(editionId!, from, to, read),
+        onSuccess: refresh,
+    });
+    const reset = useMutation({ meta: { errorToast: true }, mutationFn: () => readingApi.resetProgress(editionId!), onSuccess: refresh });
+    return { mark, reset };
+}
+
+/** «Пропущено 3 глави»: chapters before the place the reader never finished. */
+function Skipped({ novel }: { novel: Novel }) {
+    const viewer = novel.viewer!;
+    const { mark } = useReadMarks(novel.slug, novel.edition.editionId);
+    const team = novel.editions.length > 1 ? novel.edition.teamHandle : undefined;
+    if (!viewer.skipped || !viewer.firstUnread || !viewer.chapterNumber) return null;
+    return (
+        <div className={styles.skipped} role="status">
+            <div>
+                Пропущено {viewer.skipped} {chaptersWord(viewer.skipped)} перед главою {viewer.chapterLabel ?? viewer.chapterNumber}
+                {' '}— перша з них {viewer.firstUnreadLabel ?? viewer.firstUnread}.
+            </div>
+            <div className={styles.skippedActions}>
+                <LinkButton to="/n/$slug/$number" params={{ slug: novel.slug, number: String(viewer.firstUnread) }}
+                    search={team ? { t: team } : {}} variant="secondary">Читати з першої непрочитаної</LinkButton>
+                <Button variant="quiet" pending={mark.isPending}
+                    onPress={() => mark.mutate({ from: viewer.firstUnread!, to: viewer.chapterNumber! - 1, read: true })}>
+                    Позначити прочитаними
+                </Button>
+            </div>
+        </div>
+    );
+}
+
+function ChapterList({ slug, team, current, total, editionId }: {
+    slug: string; team: string | undefined; current: number | null; total: number;
+    /** The reader's own translation for marks; null for a guest. */
+    editionId: number | null;
+}) {
+    const { mark, reset } = useReadMarks(slug, editionId);
+    const [marking, setMarking] = useState<ChapterRowType | null>(null);
     const [order, setOrder] = useState<'asc' | 'desc'>('asc');
     const pages = Math.max(1, Math.ceil(total / CHAPTERS_PER_PAGE));
     const [page, setPage] = useState(() => (current ? Math.min(pages, Math.max(1, Math.ceil(current / CHAPTERS_PER_PAGE))) : 1));
@@ -374,17 +420,48 @@ function ChapterList({ slug, team, current, total }: { slug: string; team: strin
                     {row.volume && row.volume.firstNumber !== rows[index - 1]?.volume?.firstNumber && (
                         <li className={styles.volumeHead}>{volumeTitle(row.volume)}</li>
                     )}
-                    <li>
+                    <li className={editionId ? styles.markedRow : undefined}>
                         <Link to="/n/$slug/$number" params={{ slug, number: String(row.number) }} search={team ? { t: team } : {}}
-                            className={`${styles.chapter} ${row.number === current ? styles.here : ''}`}>
+                            className={`${styles.chapter} ${row.number === current ? styles.here : ''} ${row.read ? styles.read : ''}`}>
                             <span>{chapterHeading(row)}</span>
                             {row.number === current && <span className={styles.muted}>тут зупинились</span>}
                         </Link>
+                        {editionId && (
+                            <button type="button" className={`${styles.mark} ${row.read ? styles.markOn : ''}`} onClick={() => setMarking(row)}
+                                aria-label={`${chapterHeading(row)}: ${row.read ? 'прочитано' : 'не прочитано'}`}>
+                                {row.read && <Check size={14} aria-hidden />}
+                            </button>
+                        )}
                     </li>
                     </Fragment>
                 ))}
             </ol>
             <Pager page={page} total={total} size={CHAPTERS_PER_PAGE} onPage={turn} />
+            {editionId && current && (
+                <button type="button" className={styles.resetProgress} disabled={reset.isPending}
+                    onClick={() => void askConfirm({
+                        title: 'Скинути прогрес?', text: 'Місце читання й позначки «прочитано» зникнуть. Новела лишиться в бібліотеці.',
+                        confirmLabel: 'Скинути', danger: true,
+                    }).then((yes) => { if (yes) reset.mutate(); })}>
+                    Скинути прогрес читання
+                </button>
+            )}
+            {marking && (
+                <Sheet open onClose={() => setMarking(null)} title={chapterHeading(marking)}>
+                    <div className={styles.markSheet}>
+                        <Button wide variant={marking.read ? 'secondary' : 'primary'}
+                            onPress={() => { mark.mutate({ from: marking.number, to: marking.number, read: !marking.read }); setMarking(null); }}>
+                            {marking.read ? 'Позначити непрочитаною' : 'Позначити прочитаною'}
+                        </Button>
+                        {marking.number > 1 && (
+                            <Button wide variant="secondary"
+                                onPress={() => { mark.mutate({ from: 1, to: marking.number, read: true }); setMarking(null); }}>
+                                Усі до цієї включно — прочитані
+                            </Button>
+                        )}
+                    </div>
+                </Sheet>
+            )}
         </div>
     );
 }

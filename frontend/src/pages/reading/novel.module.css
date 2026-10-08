@@ -335,6 +335,84 @@
     color: var(--accent);
 }
 
+/* Read marks: the row and its round mark side by side; a read chapter is quieter. */
+.markedRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--line);
+}
+
+.markedRow .chapter {
+    flex: 1;
+    min-width: 0;
+    border-bottom: 0;
+}
+
+.read {
+    color: var(--muted);
+}
+
+.mark {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin: 0 2px;
+    padding: 0;
+    border: 1.5px solid var(--line);
+    border-radius: 50%;
+    background: none;
+    color: var(--bg);
+    cursor: pointer;
+}
+
+.markOn {
+    border-color: var(--accent);
+    background: var(--accent);
+}
+
+.mark:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}
+
+.markSheet {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.skipped {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    font-size: 14px;
+}
+
+.skippedActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.resetProgress {
+    margin-top: 6px;
+    padding: 6px 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 .continuation {
     display: block;
     margin: 12px 0;

@@ -1,6 +1,7 @@
 package space.panrid.novelka.reading.internal;
 
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
+import static space.panrid.novelka.jooq.Tables.CHAPTER_READ;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITION_SUBSCRIPTION;
 import static space.panrid.novelka.jooq.Tables.LIBRARY_ENTRY;
@@ -12,6 +13,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 import org.jooq.DSLContext;
+import org.jooq.impl.DSL;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,14 +74,18 @@ class LibraryService {
         }
     }
 
-    /** Read this far, an earlier chapter counts as read again and becomes the place. */
+    /** Read this far, a chapter counts as read; an earlier one becomes the place again. */
     static final float FINISHED = 0.9f;
+    /** Read this far into a later chapter, it becomes the place: opening one is not reading it. */
+    static final float STARTED = 0.15f;
+    private static final int RANGE_MAX = 10_000;
 
     /**
-     * Remembers where the reader is. Reading an edition that is not in the library yet
-     * puts it into «Читаю», so it shows up there without an extra tap. An earlier chapter
-     * than the saved one only moves the place once read to its end: a look at chapter 17
-     * (a suggestion, a glossary word) must not lose chapter 20.
+     * Remembers where the reader is and which chapters they finished. Reading an edition that is
+     * not in the library yet puts it into «Читаю», so it shows up there without an extra tap.
+     * A later chapter becomes the place once really begun, an earlier one once read to its end:
+     * a look at chapter 17 (a suggestion, a glossary word) must not lose chapter 20, nor a peek
+     * at chapter 40 skip twenty chapters.
      */
     @Transactional
     void saveProgress(Viewer viewer, long editionId, int chapterNumber, float position) {
@@ -93,10 +99,15 @@ class LibraryService {
         Integer saved = db.select(READING_PROGRESS.CHAPTER_NUMBER).from(READING_PROGRESS)
                 .where(READING_PROGRESS.ACCOUNT_ID.eq(viewer.accountId()), READING_PROGRESS.EDITION_ID.eq(editionId))
                 .fetchOne(READING_PROGRESS.CHAPTER_NUMBER);
-        if (saved != null && saved > chapterNumber && clamped < FINISHED) {
+        OffsetDateTime now = now();
+        if (clamped >= FINISHED) {
+            db.insertInto(CHAPTER_READ).set(CHAPTER_READ.ACCOUNT_ID, viewer.accountId()).set(CHAPTER_READ.EDITION_ID, editionId)
+                    .set(CHAPTER_READ.CHAPTER_NUMBER, chapterNumber).set(CHAPTER_READ.READ_AT, now).onConflictDoNothing().execute();
+        }
+        boolean moves = saved == null || saved == chapterNumber || clamped >= FINISHED || chapterNumber > saved && clamped >= STARTED;
+        if (!moves) {
             return;
         }
-        OffsetDateTime now = now();
         db.insertInto(READING_PROGRESS)
                 .set(READING_PROGRESS.ACCOUNT_ID, viewer.accountId())
                 .set(READING_PROGRESS.EDITION_ID, editionId)
@@ -116,6 +127,33 @@ class LibraryService {
                 .set(LIBRARY_ENTRY.UPDATED_AT, now)
                 .onConflictDoNothing()
                 .execute();
+    }
+
+    /** «Прочитано» by hand: one chapter, «усі до цієї», or the skipped ones; {@code read=false} unmarks them. */
+    @Transactional
+    void markRead(Viewer viewer, long editionId, int from, int to, boolean read) {
+        requireVisible(viewer, editionId);
+        if (from < 1 || to < from || to - from > RANGE_MAX) {
+            throw UserFacingException.badRequest("Не ті номери глав.");
+        }
+        if (!read) {
+            db.deleteFrom(CHAPTER_READ).where(CHAPTER_READ.ACCOUNT_ID.eq(viewer.accountId()), CHAPTER_READ.EDITION_ID.eq(editionId),
+                    CHAPTER_READ.CHAPTER_NUMBER.between(from, to)).execute();
+            return;
+        }
+        db.insertInto(CHAPTER_READ, CHAPTER_READ.ACCOUNT_ID, CHAPTER_READ.EDITION_ID, CHAPTER_READ.CHAPTER_NUMBER, CHAPTER_READ.READ_AT)
+                .select(DSL.select(DSL.val(viewer.accountId()), DSL.val(editionId), CHAPTER.NUMBER, DSL.val(now())).from(CHAPTER)
+                        .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull(),
+                                CHAPTER.NUMBER.between(from, to)))
+                .onConflictDoNothing().execute();
+    }
+
+    /** «Скинути прогрес»: no place and nothing read; the novel stays in its library list. */
+    @Transactional
+    void resetProgress(Viewer viewer, long editionId) {
+        db.deleteFrom(CHAPTER_READ).where(CHAPTER_READ.ACCOUNT_ID.eq(viewer.accountId()), CHAPTER_READ.EDITION_ID.eq(editionId)).execute();
+        db.deleteFrom(READING_PROGRESS)
+                .where(READING_PROGRESS.ACCOUNT_ID.eq(viewer.accountId()), READING_PROGRESS.EDITION_ID.eq(editionId)).execute();
     }
 
     private void requireVisible(Viewer viewer, long editionId) {

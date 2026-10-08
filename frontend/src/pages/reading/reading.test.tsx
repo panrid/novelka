@@ -324,3 +324,57 @@ describe('the novel’s other names and the original', () => {
         expect(screen.queryByText(/Оригінал:/)).not.toBeInTheDocument();
     });
 });
+
+describe('read marks', () => {
+    const VIEWER = { list: 'reading', chapterNumber: 5, position: 0.3, teamRole: null, myRating: null, chapterLabel: null,
+        relayAsked: false, subscribed: false };
+    const ROWS = [1, 2, 3, 4, 5].map((number) => ({ number, title: `Глава ${number}`, publishedAt: '2026-09-20T10:00:00Z', label: null,
+        read: number <= 2 }));
+
+    it('shows skipped chapters and marks them read at once', async () => {
+        const { calls } = await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': { body: { ...NOVEL, viewer: { ...VIEWER, skipped: 2, firstUnread: 3, firstUnreadLabel: null } } },
+            'GET /api/novels/mah-vody/chapters': { body: { items: ROWS, page: 1, hasMore: false } },
+            'GET /api/editions/7/comments/count': { body: { count: 0 } },
+            'PUT /api/reads/7': { status: 204 },
+        });
+        expect(await screen.findByText(/Пропущено 2 глави перед главою 5/)).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Читати з першої непрочитаної' })).toHaveAttribute('href', '/n/mah-vody/3');
+        await userEvent.click(screen.getByRole('button', { name: 'Позначити прочитаними' }));
+        await waitFor(() => expect(calls.find((call) => call.path === '/api/reads/7')?.body).toEqual({ from: 3, to: 4, read: true }));
+    });
+
+    it('marks one chapter, all up to it, and resets the progress', async () => {
+        const { calls } = await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': { body: { ...NOVEL, viewer: { ...VIEWER, skipped: 0 } } },
+            'GET /api/novels/mah-vody/chapters': { body: { items: ROWS, page: 1, hasMore: false } },
+            'GET /api/editions/7/comments/count': { body: { count: 0 } },
+            'PUT /api/reads/7': { status: 204 },
+            'DELETE /api/progress/7': { status: 204 },
+        });
+        expect(await screen.findByRole('button', { name: '1. Глава 1: прочитано' })).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: '4. Глава 4: не прочитано' }));
+        await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Позначити прочитаною' }));
+        await waitFor(() => expect(calls.filter((call) => call.path === '/api/reads/7').at(-1)?.body).toEqual({ from: 4, to: 4, read: true }));
+
+        await userEvent.click(screen.getByRole('button', { name: '3. Глава 3: не прочитано' }));
+        await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Усі до цієї включно — прочитані' }));
+        await waitFor(() => expect(calls.filter((call) => call.path === '/api/reads/7').at(-1)?.body).toEqual({ from: 1, to: 3, read: true }));
+
+        await userEvent.click(screen.getByRole('button', { name: 'Скинути прогрес читання' }));
+        await userEvent.click(within(await screen.findByRole('dialog', { name: 'Скинути прогрес?' })).getByRole('button', { name: 'Скинути' }));
+        await waitFor(() => expect(calls.some((call) => call.method === 'DELETE' && call.path === '/api/progress/7')).toBe(true));
+    });
+
+    it('shows no marks to a guest', async () => {
+        await renderAt('/n/mah-vody', {
+            'GET /api/novels/mah-vody': { body: NOVEL },
+            'GET /api/novels/mah-vody/chapters': { body: { items: ROWS.map((row) => ({ ...row, read: null })), page: 1, hasMore: false } },
+        });
+        expect(await screen.findByText('1. Глава 1')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /прочитано/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Скинути прогрес читання' })).not.toBeInTheDocument();
+    });
+});
