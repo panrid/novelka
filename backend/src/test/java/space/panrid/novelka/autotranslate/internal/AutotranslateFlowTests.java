@@ -383,6 +383,25 @@ class AutotranslateFlowTests {
     }
 
     @Test
+    void aModelThatKeepsThinkingIsToldToThinkBrieflyThenNotAtAll() {
+        long edition = prepare();
+        owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/jobs", """
+                {"kind":"translate","from":1,"to":1,"models":{"translate":"fake/better","proofreadEnabled":false}}""");
+        // DeepSeek V4 Flash on 2026-10-09, chapter 142: thinking about «！！！！！！！！！» until no room was left, again and again.
+        model.troubleNext(Trouble.NONE, Trouble.THOUGHT_OUT, Trouble.THOUGHT_OUT);
+        worker.drain();
+        JsonNode job = read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate")).path("jobs").path(0);
+        assertThat(job.path("state").asString()).isEqualTo("done");
+        java.util.List<JsonNode> translations = model.requests.stream()
+                .filter(request -> request.path("response_format").path("json_schema").path("name").asString().equals("translation"))
+                .toList();
+        assertThat(translations).hasSizeGreaterThanOrEqualTo(3);
+        assertThat(translations.get(0).has("reasoning")).as("the first time as the model likes").isFalse();
+        assertThat(translations.get(1).path("reasoning").path("effort").asString()).isEqualTo("low");
+        assertThat(translations.get(2).path("reasoning").path("enabled").asBoolean(true)).isFalse();
+    }
+
+    @Test
     void aTranslationThatLostItsPlaceIsNotPublished() {
         long edition = prepare();
         owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/jobs", json("to", 1));

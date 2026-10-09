@@ -615,10 +615,18 @@ class Pipeline {
                 default -> settings.translate();
             };
             String last = "";
+            AiRequest.Thinking thinking = AiRequest.Thinking.NORMAL;
             for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
                 guard();
                 AiAnswer answer = ai.ask(new AiRequest(model.model(), system, user, schemaName, schema, maxTokens,
-                        model.price(), new AiTag(job.getId(), number, stage, part), attempt + settings.salt()));
+                        model.price(), new AiTag(job.getId(), number, stage, part), attempt + settings.salt(), thinking));
+                if (answer.cut() && answer.content().isBlank()) {
+                    // Every token went on thinking and none on the answer: think briefly next time, then not at all.
+                    thinking = thinking == AiRequest.Thinking.NORMAL ? AiRequest.Thinking.BRIEF : AiRequest.Thinking.OFF;
+                    last = "модель витратила всю довжину відповіді на роздуми";
+                    journal.add(job.getId(), number, "retry", Map.of("stage", stage, "part", part, "reason", last));
+                    continue;
+                }
                 if (answer.cut()) {
                     last = "відповідь обірвалася на межі довжини";
                     journal.add(job.getId(), number, "retry", Map.of("stage", stage, "part", part, "reason", last));

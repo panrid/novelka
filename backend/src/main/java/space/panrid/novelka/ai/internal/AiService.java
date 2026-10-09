@@ -293,6 +293,11 @@ class AiService implements Ai {
         // A model that thinks before it answers counts its thinking in max_tokens; it gets room for both.
         boolean thinks = known.map(model -> model.accepts("reasoning")).orElse(false);
         body.put("max_tokens", request.maxTokens() + (thinks ? THINKING_ROOM : 0));
+        if (thinks && request.thinking() == AiRequest.Thinking.BRIEF) {
+            body.put("reasoning", Map.of("effort", "low"));
+        } else if (thinks && request.thinking() == AiRequest.Thinking.OFF) {
+            body.put("reasoning", Map.of("enabled", false));
+        }
         // Some models take no temperature; with require_parameters OpenRouter would find no endpoint for them.
         boolean temperature = known.map(model -> model.accepts("temperature")).orElse(true);
         if (temperature) {
