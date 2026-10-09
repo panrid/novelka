@@ -6,24 +6,34 @@ import { studioApi } from '../../studio/api';
 import { Notice } from '../../ui/Notice';
 import { RefreshTick } from '../../ui/RefreshTick';
 import { messageTime } from '../../lib/dates';
+import { PAGE_SIZE, usePage } from '../../lib/usePage';
+import { Pager } from '../../ui/Pager';
+import { Segmented } from '../../ui/Segmented';
 import styles from './jobLog.module.css';
 
 const STAGES: Record<string, string> = { analyze: 'аналіз', translate: 'переклад', proofread: 'вичитка' };
+const ORDERS = [{ value: 'desc', label: 'Спершу останні' }, { value: 'asc', label: 'Спершу перші' }] as const;
 
 /**
  * A run's journal (етап 17): chapter by chapter what analysis added to the glossary, which
  * entries each part used, retries and why, what proofreading changed. It follows a live run.
+ * 20 chapters to a page, the last ones first, so a long run shows where it is now.
  */
 export function JobLogPage() {
     const { editionId, jobId } = useParams({ strict: false }) as { editionId: string; jobId: string };
     const id = Number(editionId);
+    const [page, setPage] = usePage();
+    const [order, setOrder] = useState<'desc' | 'asc'>('desc');
     const log = useQuery({
-        queryKey: ['job-log', id, Number(jobId)],
-        queryFn: () => autotranslateApi.journal(id, Number(jobId)),
+        queryKey: ['job-log', id, Number(jobId), page, order],
+        queryFn: () => autotranslateApi.journal(id, Number(jobId), page, order),
+        placeholderData: (previous) => previous,
         refetchInterval: (query) => (['queued', 'running'].includes(query.state.data?.job.state ?? 'running') ? 3000 : false),
     });
     const edition = useQuery({ queryKey: ['studio-edition', id], queryFn: () => studioApi.overview(id) });
     const chapters = group(log.data?.events ?? []);
+    // Open: the chapter the run works on now, else the one it touched last.
+    const current = log.data?.job.current?.number ?? latest(log.data?.events ?? []);
 
     return (
         <section className={styles.page}>
@@ -46,8 +56,11 @@ export function JobLogPage() {
             {log.data && chapters.length === 0 && (
                 <p className={styles.muted}>Записів ще немає: запуск щойно почався або зроблений до того, як з'явився журнал.</p>
             )}
+            {log.data && log.data.chapters > 1 && (
+                <Segmented label="Глави" value={order} options={ORDERS} onChange={(next) => { setOrder(next); setPage(1); }} />
+            )}
             {chapters.map(({ chapter, events }) => (
-                <details key={chapter} className={styles.chapter} open={chapter === chapters[chapters.length - 1].chapter}>
+                <details key={chapter} className={styles.chapter} open={chapter === current}>
                     <summary>
                         <b>Глава {chapter}</b>
                         <span className={styles.muted}>{summaryOf(events)}</span>
@@ -62,8 +75,14 @@ export function JobLogPage() {
                     </ol>
                 </details>
             ))}
+            {log.data && <Pager page={page} total={log.data.chapters} size={PAGE_SIZE} onPage={setPage} />}
         </section>
     );
+}
+
+/** The chapter of the newest event. */
+function latest(events: JobEvent[]): number | undefined {
+    return events.reduce<JobEvent | undefined>((last, event) => (!last || event.id > last.id ? event : last), undefined)?.chapter;
 }
 
 function group(events: JobEvent[]) {

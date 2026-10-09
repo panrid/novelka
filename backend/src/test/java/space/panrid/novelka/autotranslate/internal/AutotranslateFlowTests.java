@@ -199,16 +199,18 @@ class AutotranslateFlowTests {
         assertThat(model.calls.stream().filter(call -> !call.equals("novel"))).hasSize(9);
 
         // The run's journal: each step of each chapter, with what analysis added and what the parts used.
-        JsonNode log = read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate/jobs/" + job.path("id").asLong() + "/log"));
+        String journal = "/api/studio/editions/" + edition + "/autotranslate/jobs/" + job.path("id").asLong() + "/log";
+        JsonNode log = read(owner.browser().get(journal + "?order=asc"));
         assertThat(log.path("job").path("state").asString()).isEqualTo("done");
+        assertThat(log.path("chapters").asInt()).isEqualTo(3);
         java.util.List<String> kinds = new java.util.ArrayList<>();
         log.path("events").forEach(event -> kinds.add(event.path("chapter").asInt() + ":" + event.path("kind").asString()));
         assertThat(kinds).containsSubsequence("1:start", "1:analysis", "1:translated", "1:proofread", "1:published", "2:start");
         assertThat(log.path("events").findValues("added").toString()).contains("Юкі");
         assertThat(log.path("events").findValues("glossary").toString()).contains("Юкі");
-        long last = log.path("events").get(log.path("events").size() - 1).path("id").asLong();
-        assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate/jobs/" + job.path("id").asLong()
-                + "/log?after=" + last)).path("events").size()).as("only what is new").isZero();
+        assertThat(read(owner.browser().get(journal)).path("events").path(0).path("chapter").asInt())
+                .as("the last chapters first, so a long run shows where it is now").isEqualTo(3);
+        assertThat(read(owner.browser().get(journal + "?page=2")).path("events").size()).as("three chapters fit one page").isZero();
 
         String slug = read(owner.browser().get("/api/studio/editions/" + edition)).path("novelSlug").asString();
         JsonNode chapter = read(new Browser(port).get("/api/novels/" + slug + "/chapters/2"));

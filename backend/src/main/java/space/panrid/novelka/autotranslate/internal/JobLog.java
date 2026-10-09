@@ -21,7 +21,8 @@ import tools.jackson.databind.json.JsonMapper;
 class JobLog {
 
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() { };
-    private static final int PAGE = 500;
+    /** Chapters to a page of the journal (owner's rule: lists show 20 rows). */
+    static final int CHAPTERS = 20;
 
     private final DSLContext db;
     private final JsonMapper json;
@@ -39,10 +40,25 @@ class JobLog {
     record Event(long id, int chapter, String kind, Map<String, Object> payload, OffsetDateTime at) {
     }
 
-    /** @param after the last event the page has; 0 for all */
-    List<Event> events(long jobId, long after) {
-        return db.selectFrom(JOB_EVENT).where(JOB_EVENT.JOB_ID.eq(jobId), JOB_EVENT.ID.gt(after)).orderBy(JOB_EVENT.ID).limit(PAGE)
+    /** One page of the journal: {@code chapters} — how many chapters it has in all. */
+    record Page(int chapters, List<Event> events) {
+    }
+
+    /**
+     * Twenty chapters of a run with every event of each, the chapters by number — the last ones
+     * first unless {@code oldestFirst}, so a long run shows where it is now on its first page; a chapter's
+     * events in the order they happened.
+     */
+    Page chapters(long jobId, int page, boolean oldestFirst) {
+        var number = JOB_EVENT.CHAPTER_NUMBER;
+        var ofJob = JOB_EVENT.JOB_ID.eq(jobId);
+        int total = db.fetchCount(db.selectDistinct(number).from(JOB_EVENT).where(ofJob));
+        var byNumber = oldestFirst ? number.asc() : number.desc();
+        List<Integer> shown = db.selectDistinct(number).from(JOB_EVENT).where(ofJob).orderBy(byNumber)
+                .limit(CHAPTERS).offset((Math.max(1, page) - 1) * CHAPTERS).fetch(number);
+        List<Event> events = db.selectFrom(JOB_EVENT).where(ofJob, number.in(shown)).orderBy(byNumber, JOB_EVENT.ID)
                 .fetch(r -> new Event(r.getId(), r.getChapterNumber(), r.getKind(), json.readValue(r.getPayload().data(), MAP),
                         r.getCreatedAt()));
+        return new Page(total, events);
     }
 }

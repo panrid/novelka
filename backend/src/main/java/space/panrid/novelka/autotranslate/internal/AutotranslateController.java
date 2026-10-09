@@ -172,15 +172,18 @@ class AutotranslateController {
         return jobs.view(jobs.job(editionId, jobId).orElseThrow());
     }
 
-    record Journal(Jobs.JobView job, List<JobLog.Event> events) {
+    /** {@code chapters}: how many chapters the journal has, {@link JobLog#CHAPTERS} to a page. */
+    record Journal(Jobs.JobView job, int chapters, int page, List<JobLog.Event> events) {
     }
 
-    /** The run's journal (етап 17): {@code after} — the last event the page already shows. */
+    /** The run's journal (етап 17), a page of chapters: the last ones first, or from the first with {@code order=asc}. */
     @GetMapping("/editions/{editionId}/autotranslate/jobs/{jobId}/log")
-    Journal journal(@PathVariable long editionId, @PathVariable long jobId, @RequestParam(defaultValue = "0") long after) {
+    Journal journal(@PathVariable long editionId, @PathVariable long jobId, @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "desc") String order) {
         ownerTranslating(editionId);
         var job = jobs.job(editionId, jobId).orElseThrow(() -> UserFacingException.notFound("Такого запуску немає."));
-        return new Journal(jobs.view(job), journal.events(jobId, after));
+        var shown = journal.chapters(jobId, page, "asc".equals(order));
+        return new Journal(jobs.view(job), shown.chapters(), Math.max(1, page), shown.events());
     }
 
     /**

@@ -108,9 +108,11 @@ export const autotranslateApi = {
     start: (id: number, plan: Plan) => api<Job>(`${base(id)}/autotranslate/jobs`, json('POST', plan)),
     cancel: (id: number, jobId: number) => api<void>(`${base(id)}/autotranslate/jobs/${jobId}/cancel`, json('POST', {})),
     resume: (id: number, jobId: number) => api<void>(`${base(id)}/autotranslate/jobs/${jobId}/resume`, json('POST', {})),
-    /** A run's journal (етап 17); {@code after}: the last event already shown. */
-    journal: (id: number, jobId: number, after = 0) =>
-        api<{ job: Job; events: JobEvent[] }>(`${base(id)}/autotranslate/jobs/${jobId}/log?after=${after}`),
+    /** A run's journal (етап 17), 20 chapters to a page: the last ones first, or from the first. */
+    journal: (id: number, jobId: number, page = 1, order: 'desc' | 'asc' = 'desc') =>
+        api<{ job: Job; chapters: number; page: number; events: JobEvent[] }>(
+            `${base(id)}/autotranslate/jobs/${jobId}/log?page=${page}&order=${order}`,
+        ),
     /** 20 to a page; state: active | failed | done | cancelled, kind: analyze | translate, q: words of the title. */
     processes: (filter: { state?: string; kind?: string; q?: string; page: number }) => {
         const params = new URLSearchParams({ page: String(filter.page) });
