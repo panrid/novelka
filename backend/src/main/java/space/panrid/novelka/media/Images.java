@@ -31,6 +31,9 @@ public interface Images {
     /** URLs of a picture, unless moderators hid it. */
     Optional<StoredImage> find(long imageId);
 
+    /** A picture file to put into a book: the copy at least {@code width} wide (or the largest), unless hidden. */
+    Optional<ImageFile> file(long imageId, int width);
+
     /** Several pictures at once (covers on a list page); hidden ones are left out. */
     Map<Long, StoredImage> findAll(Collection<Long> imageIds);
 }

@@ -30,6 +30,7 @@ function AboutForm({ edition }: { edition: Overview }) {
     const [tags, setTags] = useState<string[]>(edition.tags);
     const [status, setStatus] = useState(edition.status);
     const [adult, setAdult] = useState(edition.adult);
+    const [downloadAllowed, setDownloadAllowed] = useState(edition.downloadAllowed);
     const [pausedUntil, setPausedUntil] = useState(edition.pausedUntil ?? '');
     const [titleOriginal, setTitleOriginal] = useState(edition.facts.titleOriginal ?? '');
     const [titleEnglish, setTitleEnglish] = useState(edition.facts.titleEnglish ?? '');
@@ -42,7 +43,7 @@ function AboutForm({ edition }: { edition: Overview }) {
     const editor = useRef<EditorHandle>(null);
     const save = useMutation({
         mutationFn: () => studioApi.update(edition.editionId, {
-            title, author, description: editor.current?.read() ?? description, status, adult, tags,
+            title, author, description: editor.current?.read() ?? description, status, adult, tags, downloadAllowed,
             pausedUntil: status === 'paused' ? pausedUntil : '',
             facts: {
                 titleOriginal, titleEnglish,
@@ -116,6 +117,10 @@ function AboutForm({ edition }: { edition: Overview }) {
                     </>
                 )}
                 <Toggle label="Для дорослих (18+)" isSelected={adult} onChange={setAdult} />
+                <div>
+                    <Toggle label="Читачі можуть завантажити EPUB" isSelected={downloadAllowed} onChange={setDownloadAllowed} />
+                    <p className={styles.muted}>Книжку з усіма главами чи одним томом. Команда може завантажувати завжди.</p>
+                </div>
                 {save.isError && <Notice tone="error">{save.error.message}</Notice>}
                 {save.isSuccess && <Notice tone="success">Збережено.</Notice>}
                 <Button onPress={() => save.mutate()} pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти</Button>

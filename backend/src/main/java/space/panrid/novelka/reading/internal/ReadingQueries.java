@@ -372,7 +372,7 @@ class ReadingQueries {
 
     record EditionRow(long id, String teamHandle, String teamName, String title, String kind, String status,
             boolean adult, int chapterCount, Long coverImageId, JSONB description, OffsetDateTime lastPublishedAt,
-            int popularity, boolean hidden, java.time.LocalDate pausedUntil) {
+            int popularity, boolean hidden, java.time.LocalDate pausedUntil, boolean downloadAllowed) {
     }
 
     /** All editions of a novel, the most popular first. */
@@ -380,7 +380,8 @@ class ReadingQueries {
         Field<Integer> popularity = popularity().as("popularity");
         return db.select(EDITION.ID, TEAM.HANDLE, teamName(), EDITION.TITLE, EDITION.KIND, EDITION.STATUS,
                         EDITION.ADULT, EDITION.CHAPTER_COUNT, EDITION.COVER_IMAGE_ID, EDITION.DESCRIPTION,
-                        EDITION.LAST_PUBLISHED_AT, popularity, EDITION.HIDDEN_AT, EDITION.PAUSED_UNTIL)
+                        EDITION.LAST_PUBLISHED_AT, popularity, EDITION.HIDDEN_AT, EDITION.PAUSED_UNTIL,
+                        EDITION.DOWNLOAD_ALLOWED)
                 .from(EDITION)
                 .join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
                 .join(ACCOUNT).on(ACCOUNT.ID.eq(TEAM.OWNER_ID))
@@ -390,7 +391,7 @@ class ReadingQueries {
                         r.get(EDITION.TITLE), r.get(EDITION.KIND), r.get(EDITION.STATUS), r.get(EDITION.ADULT),
                         r.get(EDITION.CHAPTER_COUNT), r.get(EDITION.COVER_IMAGE_ID), r.get(EDITION.DESCRIPTION),
                         r.get(EDITION.LAST_PUBLISHED_AT), r.get(popularity), r.get(EDITION.HIDDEN_AT) != null,
-                        r.get(EDITION.PAUSED_UNTIL)));
+                        r.get(EDITION.PAUSED_UNTIL), r.get(EDITION.DOWNLOAD_ALLOWED)));
     }
 
     List<EditionSummary> summaries(List<EditionRow> editions) {
@@ -408,7 +409,7 @@ class ReadingQueries {
         return new EditionSummary(e.id(), e.teamHandle(), e.teamName(), e.kind(), e.status(), e.chapterCount(),
                 cover == null ? null : cover.url(COVER_WIDTH),
                 average == null ? null : average.setScale(1, java.math.RoundingMode.HALF_UP).doubleValue(),
-                rating == null ? 0 : rating.get(2, Integer.class), e.pausedUntil());
+                rating == null ? 0 : rating.get(2, Integer.class), e.pausedUntil(), e.downloadAllowed());
     }
 
     List<String> allTags(long novelId) {
@@ -445,6 +446,60 @@ class ReadingQueries {
         return db.select(VOLUME.FIRST_NUMBER, VOLUME.TITLE, VOLUME.KIND).from(VOLUME).where(VOLUME.EDITION_ID.eq(editionId))
                 .orderBy(VOLUME.FIRST_NUMBER).fetch(r -> new Views.VolumeRef(r.value1(), r.value2(), r.value3(),
                         "volume".equals(r.value3()) ? ++ordinary[0] : null));
+    }
+
+    /**
+     * Published chapters {@code from}..{@code to} (to: null for all after) for a downloaded book,
+     * each with the volume it belongs to.
+     */
+    List<EpubBook.Chapter> bookChapters(long editionId, int from, Integer to) {
+        List<Views.VolumeRef> volumes = volumes(editionId);
+        Condition range = CHAPTER.NUMBER.ge(from);
+        if (to != null) {
+            range = range.and(CHAPTER.NUMBER.le(to));
+        }
+        return db.select(CHAPTER.NUMBER, CHAPTER.LABEL, REVISION.TITLE, REVISION.BLOCKS)
+                .from(CHAPTER).join(REVISION).on(REVISION.ID.eq(CHAPTER.PUBLISHED_REVISION_ID))
+                .where(CHAPTER.EDITION_ID.eq(editionId).and(range))
+                .orderBy(CHAPTER.NUMBER)
+                .fetch(r -> {
+                    Views.VolumeRef volume = volumeOf(volumes, r.value1());
+                    return new EpubBook.Chapter(r.value1(), r.value2(), r.value3(), json.readValue(r.value4().data(), BLOCKS),
+                            volume == null ? null : volumeTitle(volume));
+                });
+    }
+
+    /** «Том 2. Назва», «Пролог»: as the site shows a volume. */
+    static String volumeTitle(Views.VolumeRef volume) {
+        boolean titled = volume.title() != null && !volume.title().isBlank();
+        if (!"volume".equals(volume.kind())) {
+            return titled ? volume.title() : switch (volume.kind()) {
+                case "prologue" -> "Пролог";
+                case "side" -> "Побічні історії";
+                default -> "Екстра";
+            };
+        }
+        String prefix = volume.index() == null ? "Том" : "Том " + volume.index();
+        return titled ? prefix + ". " + volume.title() : prefix;
+    }
+
+    /** Volumes that have published chapters, with how many: the choice of «Завантажити EPUB». */
+    List<Views.VolumeChoice> volumeChoices(long editionId) {
+        List<Views.VolumeRef> volumes = volumes(editionId);
+        List<Integer> numbers = db.select(CHAPTER.NUMBER).from(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull())
+                .orderBy(CHAPTER.NUMBER).fetch(CHAPTER.NUMBER);
+        List<Views.VolumeChoice> choices = new ArrayList<>();
+        for (int i = 0; i < volumes.size(); i++) {
+            Views.VolumeRef volume = volumes.get(i);
+            int first = volume.firstNumber();
+            Integer last = i + 1 < volumes.size() ? volumes.get(i + 1).firstNumber() - 1 : null;
+            long count = numbers.stream().filter(n -> n >= first && (last == null || n <= last)).count();
+            if (count > 0) {
+                choices.add(new Views.VolumeChoice(first, last, volumeTitle(volume), (int) count));
+            }
+        }
+        return choices;
     }
 
     /** The last volume starting at or before the chapter. */

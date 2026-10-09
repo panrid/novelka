@@ -124,6 +124,18 @@ class ImageService implements Images {
     }
 
     @Override
+    public Optional<space.panrid.novelka.media.ImageFile> file(long imageId, int width) {
+        return db.select(IMAGE.VARIANTS).from(IMAGE).where(IMAGE.ID.eq(imageId).and(IMAGE.HIDDEN_AT.isNull()))
+                .fetchOptional(r -> new TreeMap<>(json.readValue(r.value1().data(), new TypeReference<Map<Integer, String>>() { })))
+                .flatMap(keys -> {
+                    String key = keys.tailMap(width).isEmpty() ? keys.get(keys.lastKey()) : keys.get(keys.tailMap(width).firstKey());
+                    boolean png = key.endsWith(".png");
+                    return storage.read(key).map(bytes -> new space.panrid.novelka.media.ImageFile(bytes,
+                            png ? "image/png" : "image/jpeg", png ? "png" : "jpg"));
+                });
+    }
+
+    @Override
     public Map<Long, StoredImage> findAll(Collection<Long> imageIds) {
         List<Long> ids = imageIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
         if (ids.isEmpty()) {

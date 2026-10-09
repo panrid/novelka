@@ -65,3 +65,31 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     const text = await response.text();
     return (text ? JSON.parse(text) : undefined) as T;
 }
+
+/** A file from the backend (a book, an export), with the name it gave; failures as {@link ApiError}. */
+export async function download(path: string): Promise<{ blob: Blob; name: string }> {
+    let response: Response;
+    try {
+        response = await fetch(path, { credentials: 'same-origin' });
+    } catch {
+        throw new ApiError(0, OFFLINE_MESSAGE);
+    }
+    if (!response.ok) {
+        throw await problem(response);
+    }
+    const disposition = response.headers.get('Content-Disposition') ?? '';
+    const name = /filename="?([^";]+)"?/.exec(disposition)?.[1] ?? 'download';
+    return { blob: await response.blob(), name };
+}
+
+/** Hands a downloaded file to the browser to save. */
+export function saveFile(blob: Blob, name: string) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}

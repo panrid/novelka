@@ -229,6 +229,42 @@ class ReadingFlowTests {
     }
 
     @Test
+    void aReaderDownloadsTheTranslationAsAnEpubUnlessTheTeamForbidsIt() throws Exception {
+        String slug = read(importNovel(admin.browser(), title, NOVEL, false)).path("slug").asString();
+        long editionId = read(admin.browser().get("/api/novels/" + slug)).path("edition").path("editionId").asLong();
+        assertThat(read(admin.browser().get("/api/novels/" + slug)).path("edition").path("downloadAllowed").asBoolean()).isTrue();
+
+        assertThat(new Browser(port).download("/api/novels/" + slug + "/epub").status())
+                .as("only people with an account download").isEqualTo(401);
+
+        Person reader = Accounts.signedIn(port, mailbox);
+        Browser.BinaryResponse book = reader.browser().download("/api/novels/" + slug + "/epub");
+        assertThat(book.status()).isEqualTo(200);
+        assertThat(book.contentType()).startsWith("application/epub+zip");
+        Map<String, String> files = new java.util.LinkedHashMap<>();
+        try (var zip = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(book.body()))) {
+            for (var entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
+                files.put(entry.getName(), new String(zip.readAllBytes(), StandardCharsets.UTF_8));
+            }
+        }
+        assertThat(files.keySet()).first().as("the type comes first, as EPUB asks").isEqualTo("mimetype");
+        assertThat(files.get("mimetype")).isEqualTo("application/epub+zip");
+        assertThat(files).containsKeys("META-INF/container.xml", "OEBPS/content.opf", "OEBPS/nav.xhtml",
+                "OEBPS/chapter-1.xhtml", "OEBPS/chapter-3.xhtml");
+        assertThat(files.get("OEBPS/chapter-1.xhtml")).contains("Рьо відкрив очі й побачив <strong>стелю</strong>.");
+        assertThat(files.get("OEBPS/content.opf")).contains("<dc:title>" + title + "</dc:title>", "<dc:language>uk</dc:language>");
+        assertThat(files.get("OEBPS/title.xhtml")).contains("Глави 1–3");
+
+        assertThat(read(reader.browser().get("/api/novels/" + slug + "/volumes"))).as("no volumes yet").isEmpty();
+
+        assertThat(admin.browser().patch("/api/studio/editions/" + editionId, json("downloadAllowed", false)).status()).isEqualTo(200);
+        assertThat(reader.browser().download("/api/novels/" + slug + "/epub").status())
+                .as("the team forbade downloading").isEqualTo(403);
+        assertThat(admin.browser().download("/api/novels/" + slug + "/epub").status())
+                .as("the team itself still can").isEqualTo(200);
+    }
+
+    @Test
     void adultNovelsStayHiddenUntilTheAgeIsConfirmed() {
         String slug = read(importNovel(admin.browser(), title, NOVEL, true)).path("slug").asString();
         String word = title.substring(title.length() - 6);

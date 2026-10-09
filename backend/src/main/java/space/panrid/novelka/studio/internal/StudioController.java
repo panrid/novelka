@@ -98,12 +98,12 @@ class StudioController {
             List<String> tags, String kind, String status, boolean adult, String coverUrl, int chapterCount,
             boolean ownNovel, String teamHandle, String teamName, String role, Integer sourceChapters, int pendingSuggestions,
             int drafts, int newWords, String originalUrl, java.time.LocalDate pausedUntil, String source,
-            space.panrid.novelka.catalog.NovelFacts facts) {
+            space.panrid.novelka.catalog.NovelFacts facts, boolean downloadAllowed) {
     }
 
     /** {@code facts}: the novel's other names and the original's state, shared by all its translations. */
     record UpdateRequest(String title, String author, List<Block> description, List<String> tags, String status,
-            Boolean adult, String pausedUntil, space.panrid.novelka.catalog.NovelFacts facts) {
+            Boolean adult, String pausedUntil, space.panrid.novelka.catalog.NovelFacts facts, Boolean downloadAllowed) {
     }
 
     record CoverRequest(Long imageId) {
@@ -260,7 +260,7 @@ class StudioController {
                 data.tags(), data.kind(), data.status(), data.adult(),
                 data.coverImageId() == null ? null : images.find(data.coverImageId()).map(image -> image.url(480)).orElse(null),
                 data.chapterCount(), data.ownNovel(), team.handle(), team.name(), who.role().code(), sources == 0 ? null : sources,
-                pending, drafts, words, novel.value2(), data.pausedUntil(), data.source(), data.facts());
+                pending, drafts, words, novel.value2(), data.pausedUntil(), data.source(), data.facts(), data.downloadAllowed());
     }
 
     @PatchMapping("/editions/{editionId}")
@@ -268,7 +268,7 @@ class StudioController {
         access.requireEditionOwner(editionId);
         catalog.updateEdition(editionId, new EditionChanges(body.title(), body.author(),
                 body.description() == null ? null : description(body.description()), body.tags(), body.status(), body.adult(),
-                body.pausedUntil(), body.facts()));
+                body.pausedUntil(), body.facts(), body.downloadAllowed()));
         return overview(editionId);
     }
 

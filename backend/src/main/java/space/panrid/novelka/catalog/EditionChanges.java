@@ -9,7 +9,8 @@ import space.panrid.novelka.platform.text.Block;
  *
  * @param pausedUntil an ISO date, or empty to clear it
  * @param facts       the novel's names and the original's state; each null field is left as is, an empty one clears it
+ * @param downloadAllowed readers may download the translation as EPUB
  */
 public record EditionChanges(String title, String author, List<Block> description, List<String> tags, String status,
-        Boolean adult, String pausedUntil, NovelFacts facts) {
+        Boolean adult, String pausedUntil, NovelFacts facts, Boolean downloadAllowed) {
 }

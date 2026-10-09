@@ -286,6 +286,39 @@ describe('the novel page’s «⋯»', () => {
     });
 });
 
+describe('downloading an EPUB', () => {
+    it('offers all chapters and the volumes, and tells why a download failed', async () => {
+        const { calls } = await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': { body: { ...NOVEL, edition: { ...EDITION, downloadAllowed: true } } },
+            'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
+            'GET /api/editions/7/comments': { body: { items: [], total: 0, page: 1, hasMore: false } },
+            'GET /api/novels/mah-vody/volumes': { body: [{ firstNumber: 1, lastNumber: 20, title: 'Том 1', chapters: 20 }] },
+            'GET /api/novels/mah-vody/epub': { status: 429, body: { detail: 'Забагато спроб. Спробуйте за хвилину.' } },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Ще' }));
+        await userEvent.click(await screen.findByRole('button', { name: 'Завантажити EPUB' }));
+        const sheet = await screen.findByRole('dialog', { name: 'Завантажити EPUB' });
+        expect(await within(sheet).findByRole('button', { name: /Том 1/ })).toBeInTheDocument();
+        await userEvent.click(within(sheet).getByRole('button', { name: /Усі глави/ }));
+        // The sheet stays open, so the toast is behind it for assistive tech; its text is there.
+        expect(await screen.findByText('Забагато спроб. Спробуйте за хвилину.')).toBeInTheDocument();
+        expect(calls.some((call) => call.path === '/api/novels/mah-vody/epub')).toBe(true);
+    });
+
+    it('is not offered when the team forbids it', async () => {
+        await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': { body: { ...NOVEL, edition: { ...EDITION, downloadAllowed: false } } },
+            'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
+            'GET /api/editions/7/comments': { body: { items: [], total: 0, page: 1, hasMore: false } },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Ще' }));
+        await screen.findByRole('button', { name: 'Поскаржитися на переклад' });
+        expect(screen.queryByRole('button', { name: 'Завантажити EPUB' })).not.toBeInTheDocument();
+    });
+});
+
 describe('catalog', () => {
     it('counts the novels, offers popular tags and hints at novels and tags while typing', async () => {
         const { router, calls } = await renderAt('/catalog', {

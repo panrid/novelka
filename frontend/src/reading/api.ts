@@ -58,7 +58,12 @@ export type EditionSummary = {
     ratings: number;
     /** The day a paused translation means to go on (ISO date). */
     pausedUntil?: string | null;
+    /** The team lets readers download it as EPUB. */
+    downloadAllowed?: boolean;
 };
+
+/** A volume one can download as a book. */
+export type VolumeChoice = { firstNumber: number; lastNumber: number | null; title: string; chapters: number };
 
 export type SourceStatus = 'ongoing' | 'completed' | 'paused';
 
@@ -160,6 +165,9 @@ export const readingApi = {
     tagGroups: () => api<TagGroup[]>('/api/tags/groups'),
     hints: (q: string) => api<Hints>(`/api/search/hints${query({ q })}`),
     novel: (slug: string, team?: string) => api<NovelPage>(`${novelPath(slug)}${query({ t: team })}`),
+    volumes: (slug: string, team?: string) => api<VolumeChoice[]>(`${novelPath(slug)}/volumes${query({ t: team })}`),
+    /** The book itself is a plain link: the browser downloads it with the session's cookie. */
+    epubUrl: (slug: string, team?: string, volume?: number) => `${novelPath(slug)}/epub${query({ t: team, volume })}`,
     chapters: (slug: string, team: string | undefined, order: 'asc' | 'desc', page: number) =>
         api<Page<ChapterRow>>(`${novelPath(slug)}/chapters${query({ t: team, order, page })}`),
     chapter: (slug: string, number: number, team?: string) =>

@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } fro
 import { ArrowDownUp, Bell, BellRing, BookmarkPlus, Check, Ellipsis } from '../../ui/icons';
 import { Fragment, useRef, useState } from 'react';
 import { Button as AriaButton, Menu, MenuItem, MenuTrigger, Popover, Tab, TabList, TabPanel, Tabs, ToggleButton } from 'react-aria-components';
-import { ApiError } from '../../api/client';
+import { ApiError, download, saveFile } from '../../api/client';
 import { useMe } from '../../auth/me';
 import { Discussion, useCommentCount } from '../../community/Discussion';
 import { commentApi } from '../../community/api';
@@ -193,6 +193,7 @@ function MoreButton({ novel }: { novel: Novel }) {
     const navigate = useNavigate();
     const [open, setOpen] = useState(false);
     const [own, setOwn] = useState(false);
+    const [book, setBook] = useState(false);
     const edition = novel.edition;
     const { reset } = useReadMarks(novel.slug, novel.viewer ? edition.editionId : null);
     const report = useReportEdition(edition.editionId);
@@ -229,6 +230,9 @@ function MoreButton({ novel }: { novel: Novel }) {
                             ))}
                             <div className={styles.label}>Ще</div>
                         </>
+                    )}
+                    {me && (edition.downloadAllowed || novel.viewer?.teamRole) && (
+                        <button type="button" className={styles.sheetItem} onClick={() => close(() => setBook(true))}>Завантажити EPUB</button>
                     )}
                     {me && novel.origin === 'translation' && (
                         <button type="button" className={styles.sheetItem} onClick={() => close(() => setOwn(true))}>Перекласти самому</button>
@@ -272,7 +276,44 @@ function MoreButton({ novel }: { novel: Novel }) {
                 </div>
             </Sheet>
             {own && <OwnTranslation novel={novel} onClose={() => setOwn(false)} />}
+            {book && <EpubSheet novel={novel} onClose={() => setBook(false)} />}
         </>
+    );
+}
+
+/** «Завантажити EPUB»: the whole translation or one of its volumes, as a book for a reader's app. */
+function EpubSheet({ novel, onClose }: { novel: Novel; onClose: () => void }) {
+    const team = novel.editions.length > 1 ? novel.edition.teamHandle : undefined;
+    const volumes = useQuery({ queryKey: ['volumes', novel.slug, team ?? ''], queryFn: () => readingApi.volumes(novel.slug, team) });
+    const get = useMutation({ meta: { errorToast: true },
+        mutationFn: (volume: number | undefined) => download(readingApi.epubUrl(novel.slug, team, volume)),
+        onSuccess: ({ blob, name }) => {
+            saveFile(blob, name);
+            onClose();
+        },
+    });
+    const count = novel.edition.chapterCount;
+    const option = (volume: number | undefined, title: string, chapters: number) => (
+        <button key={volume ?? 'all'} type="button" className={styles.sheetItem} disabled={get.isPending}
+            onClick={() => get.mutate(volume)}>
+            <span>{title}</span>
+            <span className={styles.muted}>
+                {get.isPending && get.variables === volume ? 'Збираємо книжку…' : `${chapters} ${chaptersWord(chapters)}`}
+            </span>
+        </button>
+    );
+    return (
+        <Sheet open onClose={onClose} title="Завантажити EPUB">
+            <div className={styles.sheetList}>
+                {option(undefined, 'Усі глави', count)}
+                {volumes.isError && <Notice tone="error">{volumes.error.message}</Notice>}
+                {(volumes.data?.length ?? 0) > 0 && <div className={styles.label}>Томи</div>}
+                {volumes.data?.map((volume) => option(volume.firstNumber, volume.title, volume.chapters))}
+                <p className={styles.muted} style={{ marginTop: 12 }}>
+                    Відкривається в читалках книжок: Apple Books, Google Play Книги, PocketBook, Moon+ Reader.
+                </p>
+            </div>
+        </Sheet>
     );
 }
 

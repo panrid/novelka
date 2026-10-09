@@ -45,9 +45,13 @@ final class Views {
     record Hints(List<Card> novels, List<TagCount> tags) {
     }
 
-    /** @param rating average stars, null until someone rates */
+    /**
+     * @param rating          average stars, null until someone rates
+     * @param downloadAllowed the team lets readers download it as EPUB
+     */
     record EditionSummary(long editionId, String teamHandle, String teamName, String kind, String status,
-            int chapterCount, String coverUrl, Double rating, int ratings, java.time.LocalDate pausedUntil) {
+            int chapterCount, String coverUrl, Double rating, int ratings, java.time.LocalDate pausedUntil,
+            boolean downloadAllowed) {
     }
 
     /** {@code teamRole}: owner, translator or editor when the viewer works on this edition. */
@@ -91,6 +95,14 @@ final class Views {
      * @param index «Том 2»: ordinary volumes counted from 1; null for the others
      */
     record VolumeRef(int firstNumber, String title, String kind, Integer index) {
+    }
+
+    /**
+     * A volume one can download as a book.
+     *
+     * @param lastNumber the last chapter number it may hold; null for the last volume
+     */
+    record VolumeChoice(int firstNumber, Integer lastNumber, String title, int chapters) {
     }
 
     record ReaderBlock(String id, String type, List<Span> content, String imageUrl) {

@@ -44,6 +44,19 @@ class LocalMediaStorage implements MediaStorage, WebMvcConfigurer {
     }
 
     @Override
+    public java.util.Optional<byte[]> read(String key) {
+        Path file = root.resolve(key).normalize();
+        if (!file.startsWith(root) || !Files.isRegularFile(file)) {
+            return java.util.Optional.empty();
+        }
+        try {
+            return java.util.Optional.of(Files.readAllBytes(file));
+        } catch (IOException error) {
+            throw new UncheckedIOException(error);
+        }
+    }
+
+    @Override
     public String url(String key) {
         return URL_PREFIX + key;
     }

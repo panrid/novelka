@@ -3,7 +3,11 @@ package space.panrid.novelka.reading.internal;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,12 +45,14 @@ class ReadingController {
     private final LibraryService library;
     private final CurrentUser currentUser;
     private final Relay relay;
+    private final Downloads downloads;
 
-    ReadingController(ReadingQueries queries, LibraryService library, CurrentUser currentUser, Relay relay) {
+    ReadingController(ReadingQueries queries, LibraryService library, CurrentUser currentUser, Relay relay, Downloads downloads) {
         this.queries = queries;
         this.library = library;
         this.currentUser = currentUser;
         this.relay = relay;
+        this.downloads = downloads;
     }
 
     @GetMapping("/home")
@@ -108,6 +114,29 @@ class ReadingController {
                 queries.allTags(novel.id()), chosen, summaries, edition.adult(), edition.lastPublishedAt(),
                 viewer.map(v -> queries.viewer(v.accountId(), edition.id())).orElse(null), relay(edition.id()), novel.url(),
                 novel.facts());
+    }
+
+    /** The volumes «Завантажити EPUB» offers besides the whole translation. */
+    @GetMapping("/novels/{slug}/volumes")
+    List<Views.VolumeChoice> volumes(@PathVariable String slug, @RequestParam(required = false) String t) {
+        Viewer viewer = currentUser.requireSignedIn();
+        EditionRow edition = pick(visibleEditions(queries.novel(slug).orElseThrow(ReadingController::noNovel), Optional.of(viewer)), t);
+        return downloads.volumes(viewer, edition);
+    }
+
+    /** The translation as an EPUB book: all its chapters, or the volume starting at {@code volume}. */
+    @GetMapping("/novels/{slug}/epub")
+    ResponseEntity<byte[]> epub(@PathVariable String slug, @RequestParam(required = false) String t,
+            @RequestParam(required = false) Integer volume) {
+        Viewer viewer = currentUser.requireSignedIn();
+        NovelRow novel = queries.novel(slug).orElseThrow(ReadingController::noNovel);
+        EditionRow edition = pick(visibleEditions(novel, Optional.of(viewer)), t);
+        Downloads.File book = downloads.epub(viewer, novel, edition, volume);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/epub+zip"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(book.name()).build().toString())
+                .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
+                .body(book.content());
     }
 
     @GetMapping("/novels/{slug}/chapters")

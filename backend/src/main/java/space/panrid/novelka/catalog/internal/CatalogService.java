@@ -148,7 +148,8 @@ class CatalogService implements Catalog {
         Record row = db.select(EDITION.ID, NOVEL.ID, NOVEL.SLUG, EDITION.TEAM_ID, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE),
                         NOVEL.AUTHOR, DSL.coalesce(EDITION.DESCRIPTION, NOVEL.DESCRIPTION), EDITION.KIND, EDITION.STATUS,
                         EDITION.ADULT, EDITION.COVER_IMAGE_ID, EDITION.CHAPTER_COUNT, NOVEL.SOURCE, EDITION.PAUSED_UNTIL,
-                        NOVEL.TITLE_ORIGINAL, NOVEL.TITLE_ENGLISH, NOVEL.ALT_TITLES, NOVEL.SOURCE_STATUS, NOVEL.SOURCE_CHAPTER_COUNT)
+                        NOVEL.TITLE_ORIGINAL, NOVEL.TITLE_ENGLISH, NOVEL.ALT_TITLES, NOVEL.SOURCE_STATUS, NOVEL.SOURCE_CHAPTER_COUNT,
+                        EDITION.DOWNLOAD_ALLOWED)
                 .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
                 .where(EDITION.ID.eq(editionId))
                 .fetchOne();
@@ -164,7 +165,8 @@ class CatalogService implements Catalog {
                 row.get(EDITION.STATUS), row.get(EDITION.ADULT), row.get(EDITION.COVER_IMAGE_ID),
                 row.get(EDITION.CHAPTER_COUNT), ownNovel(novelId, row.get(NOVEL.SOURCE)), row.get(EDITION.PAUSED_UNTIL),
                 row.get(NOVEL.SOURCE), new NovelFacts(row.get(NOVEL.TITLE_ORIGINAL), row.get(NOVEL.TITLE_ENGLISH),
-                        List.of(row.get(NOVEL.ALT_TITLES)), row.get(NOVEL.SOURCE_STATUS), row.get(NOVEL.SOURCE_CHAPTER_COUNT))));
+                        List.of(row.get(NOVEL.ALT_TITLES)), row.get(NOVEL.SOURCE_STATUS), row.get(NOVEL.SOURCE_CHAPTER_COUNT)),
+                row.get(EDITION.DOWNLOAD_ALLOWED)));
     }
 
     private static final java.util.Set<String> SOURCE_STATUSES = java.util.Set.of("ongoing", "completed", "paused");
@@ -272,6 +274,9 @@ class CatalogService implements Catalog {
         }
         if (changes.adult() != null) {
             edition.put(EDITION.ADULT, changes.adult());
+        }
+        if (changes.downloadAllowed() != null) {
+            edition.put(EDITION.DOWNLOAD_ALLOWED, changes.downloadAllowed());
         }
         if (!edition.isEmpty()) {
             db.update(EDITION).set(edition).where(EDITION.ID.eq(editionId)).execute();
