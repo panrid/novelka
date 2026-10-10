@@ -66,12 +66,12 @@ describe('шаги without payments', () => {
             'POST /api/studio/editions/4/autotranslate/quote': { body: {
                 kind: 'analyze', from: 1, to: 3, chapters: 3, skipped: 0, shah: 1, usd: 0.07, expectedUsd: 0.012, estimated: true, unanalyzed: 0,
                 analyzeModel: SETTINGS.analyze, translateModel: SETTINGS.translate, proofreadModel: SETTINGS.proofread, reserveShah: 2,
+                steps: ['analyze'],
             } },
         });
         expect(await screen.findByText(/У вас/)).toHaveTextContent('У вас 9 шагів, ще 2 у резерві запусків.');
-        await userEvent.click(screen.getByRole('button', { name: /Розширені налаштування/ }));
-        expect(screen.queryByRole('combobox', { name: 'Модель аналізу' })).not.toBeInTheDocument();
-        await userEvent.type(screen.getByLabelText('Аналізувати з глави 1 до глави…'), '3');
+        expect(screen.queryByRole('button', { name: /Обрати модель/ })).not.toBeInTheDocument();
+        await userEvent.type(screen.getByLabelText('По главу'), '3');
         expect(await screen.findByText(/≈ 1 шаг/, {}, { timeout: 2000 })).toBeInTheDocument();
         expect(screen.getByText(/заблокуємо 2 шаги, решту повернемо/)).toBeInTheDocument();
     });

@@ -48,6 +48,15 @@ record Settings(Stage analyze, Stage translate, Stage proofread, int segmentChar
         return new Settings(analyze, translate, proofread, segmentChars, microUsdPerShahOfPeople, 1.0, redo);
     }
 
+    /**
+     * Which optional steps run: {@code analyze} — analysis is done (again, with «Зробити заново»)
+     * even where it exists; {@code proofread} — the text is proofread.
+     */
+    Settings withSteps(boolean analyzeStep, boolean proofreadStep) {
+        return withModels(new Stage(analyze.model(), analyze.inputPerMillion(), analyze.outputPerMillion(), analyzeStep), translate,
+                new Stage(proofread.model(), proofread.inputPerMillion(), proofread.outputPerMillion(), proofreadStep));
+    }
+
     Settings withModels(Stage analyze, Stage translate, Stage proofread) {
         return new Settings(analyze, translate, proofread, segmentChars, microUsdPerShah, capFactor, redo);
     }
@@ -61,19 +70,22 @@ record Settings(Stage analyze, Stage translate, Stage proofread, int segmentChar
 
     /** What a chapter of {@code chars} is expected to cost at these models, in millionths of a dollar. */
     long expectedMicroUsd(int chars, boolean analyzeToo, boolean translateToo) {
-        double thousands = chars / 1000.0;
-        double total = 0;
+        return expectedMicroUsd(chars, analyzeToo, translateToo, translateToo && proofread.enabled());
+    }
+
+    /** The same for any set of steps: proofreading may run without translating (a published text). */
+    long expectedMicroUsd(int chars, boolean analyzeToo, boolean translateToo, boolean proofreadToo) {
+        long total = 0;
         if (analyzeToo) {
-            total += thousands * (TOKENS_PER_THOUSAND[0][0] * analyze.inputPerMillion() + TOKENS_PER_THOUSAND[0][1] * analyze.outputPerMillion());
+            total += stageMicroUsd(0, chars, analyze.inputPerMillion(), analyze.outputPerMillion());
         }
         if (translateToo) {
-            total += thousands * (TOKENS_PER_THOUSAND[1][0] * translate.inputPerMillion() + TOKENS_PER_THOUSAND[1][1] * translate.outputPerMillion());
-            if (proofread.enabled()) {
-                total += thousands * (TOKENS_PER_THOUSAND[2][0] * proofread.inputPerMillion()
-                        + TOKENS_PER_THOUSAND[2][1] * proofread.outputPerMillion());
-            }
+            total += stageMicroUsd(1, chars, translate.inputPerMillion(), translate.outputPerMillion());
         }
-        return Math.round(total);
+        if (proofreadToo) {
+            total += stageMicroUsd(2, chars, proofread.inputPerMillion(), proofread.outputPerMillion());
+        }
+        return total;
     }
 
     /** One stage of a chapter at a model's prices: 0 analysis, 1 translation, 2 proofreading. */

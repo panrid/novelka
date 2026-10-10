@@ -34,6 +34,8 @@ class Checkpoint {
     /** Chapter summary for the next chapter's context. */
     public String summary;
     public Long revisionId;
+    /** Proofreading alone: the published revision it edits; a newer one by a person is not overwritten. */
+    public Long baseRevisionId;
     /** The journal already says this chapter took an earlier analysis. */
     public boolean reusedNoted;
 }

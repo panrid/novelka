@@ -38,6 +38,10 @@ class Presets {
          * preset still runs, the estimate from token prices for a step changed by hand.
          */
         long expectedMicroUsd(int chars, boolean analyzeToo, boolean translateToo, Settings settings) {
+            return expectedMicroUsd(chars, analyzeToo, translateToo, translateToo && settings.proofread().enabled(), settings);
+        }
+
+        long expectedMicroUsd(int chars, boolean analyzeToo, boolean translateToo, boolean proofreadToo, Settings settings) {
             double thousands = chars / 1000.0;
             long total = 0;
             if (analyzeToo) {
@@ -47,10 +51,10 @@ class Presets {
             if (translateToo) {
                 total += settings.translate().model().equals(translate) ? Math.round(thousands * translateMicroUsdPerThousand)
                         : estimate(1, chars, settings.translate());
-                if (settings.proofread().enabled()) {
-                    total += settings.proofread().model().equals(proofread) ? Math.round(thousands * proofreadMicroUsdPerThousand)
-                            : estimate(2, chars, settings.proofread());
-                }
+            }
+            if (proofreadToo) {
+                total += settings.proofread().model().equals(proofread) && proofreadMicroUsdPerThousand > 0
+                        ? Math.round(thousands * proofreadMicroUsdPerThousand) : estimate(2, chars, settings.proofread());
             }
             return total;
         }

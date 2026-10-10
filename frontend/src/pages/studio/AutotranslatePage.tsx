@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { chaptersWord } from '../../reading/api';
-import { JOB_LABELS, STAGE_LABELS, autotranslateApi, dollars, money, shahWord, type Job, type JobKind, type ModelShow, type Plan } from '../../studio/autotranslate';
+import { JOB_LABELS, JOB_NAMES, STAGE_LABELS, STEP_NAMES, autotranslateApi, dollars, money, shahWord, type Job, type JobKind, type ModelShow, type Plan, type Step } from '../../studio/autotranslate';
 import { ModelPicker } from '../../studio/ModelPicker';
 import { PresetPicker } from '../../studio/PresetPicker';
 import pickerStyles from '../../studio/modelPicker.module.css';
@@ -13,7 +13,6 @@ import { Collapsible } from '../../ui/Collapsible';
 import { EditionShell } from './EditionShell';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
-import { Segmented } from '../../ui/Segmented';
 import { TextInput } from '../../ui/TextInput';
 import { RefreshTick } from '../../ui/RefreshTick';
 import { Toggle } from '../../ui/Toggle';
@@ -42,7 +41,7 @@ function AutotranslateTab() {
         // Live events refresh it at once; the slow poll only covers a lost connection.
         refetchInterval: (query) => (active(query.state.data?.jobs[0]) ? 5_000 : false),
     });
-    const [kind, setKind] = useState<JobKind>('analyze');
+    const [steps, setSteps] = useState<Step[]>(['analyze', 'translate', 'proofread']);
     const [to, setTo] = useState('');
     const [advanced, setAdvanced] = useState(false);
     const [from, setFrom] = useState('');
@@ -52,15 +51,21 @@ function AutotranslateTab() {
     const [onlyRecommended, setOnlyRecommended] = useState(true);
     const [withWeak, setWithWeak] = useState(false);
     const modelShow: ModelShow = onlyRecommended ? 'recommended' : withWeak ? 'weak' : 'usual';
+    const has = (step: Step) => steps.includes(step);
+    const kind: JobKind = has('translate') ? 'translate' : has('proofread') ? 'proofread' : 'analyze';
+    const toggle = (step: Step) => {
+        const next = has(step) ? steps.filter((item) => item !== step) : STEPS.filter((item) => item === step || has(item));
+        if (next.length > 0) setSteps(next);
+    };
 
     const data = overview.data;
-    const firstOpen = data ? (kind === 'analyze' ? data.nextToAnalyze : data.nextNumber) : 1;
+    const firstOpen = data ? (kind === 'analyze' ? data.nextToAnalyze : kind === 'proofread' ? 1 : data.nextNumber) : 1;
     const plan: Plan | null = number(to) === undefined ? null : {
-        kind, to: number(to)!,
-        ...(advanced && number(from) !== undefined ? { from: number(from)! } : {}),
-        ...(advanced && redo ? { redo: true } : {}),
+        kind, steps, to: number(to)!,
+        ...(number(from) !== undefined ? { from: number(from)! } : {}),
+        ...(redo && kind !== 'proofread' ? { redo: true } : {}),
         ...(preset !== null ? { preset } : {}),
-        ...(advanced && Object.keys(models).length > 0 ? { models } : {}),
+        ...(Object.keys(models).length > 0 ? { models } : {}),
     };
     // Checked only once typing stops: «3» on the way to «30» is not an error.
     const settled = useDebounced(to, 500);
@@ -72,9 +77,9 @@ function AutotranslateTab() {
     if (data && settled.trim() && !typing) {
         if (target === undefined) problem = 'Вкажіть номер глави числом.';
         else if (target > data.sourceChapters) problem = `В оригіналі поки ${data.sourceChapters} ${chaptersWord(data.sourceChapters)}.`;
-        else if (target < start && !(advanced && (redo || number(from) !== undefined))) {
+        else if (target < start && kind !== 'proofread' && !(redo || number(from) !== undefined)) {
             problem = `Глави до ${firstOpen - 1} уже ${kind === 'analyze' ? 'проаналізовано' : 'перекладено'}. `
-                + 'Щоб повторити їх або вибрати інший діапазон, відкрийте «Розширені налаштування».';
+                + 'Щоб повторити їх, увімкніть «Зробити заново» або вкажіть, з якої глави.';
         }
     }
     const quote = useQuery({
@@ -100,10 +105,8 @@ function AutotranslateTab() {
     const fieldError = problem ?? (quote.isError && !typing ? quote.error.message : undefined);
     const chosen = data.presets.find((item) => item.id === preset);
     const model = (stage: 'analyze' | 'translate' | 'proofread') => models[stage] ?? chosen?.[stage] ?? data.settings[stage].model;
-    const proofreading = models.proofreadEnabled ?? (chosen ? chosen.proofread !== null : data.settings.proofread.enabled);
     const short = (id: string) => id.slice(id.indexOf('/') + 1);
-    const siteModels = kind === 'analyze' ? short(data.settings.analyze.model)
-        : `${short(data.settings.translate.model)}, ${data.settings.proofread.enabled ? `вичитка ${short(data.settings.proofread.model)}` : 'без вичитки'}`;
+    const siteModels = steps.map((step) => `${STEP_NAMES[step].toLowerCase()} ${short(data.settings[step].model)}`).join(', ');
 
     return (
         <>
@@ -126,79 +129,69 @@ function AutotranslateTab() {
             {!busy && <h2 className={styles.sectionTitle}>Новий запуск</h2>}
             {!busy && (
                 <form className={styles.form} onSubmit={(event) => { event.preventDefault(); if (ready) startJob.mutate(); }}>
-                    <Segmented label="Що робимо" value={kind} onChange={(next) => { setKind(next); setModels({}); }} options={[
-                        { value: 'analyze', label: 'Аналіз і словник' },
-                        { value: 'translate', label: 'Переклад' },
-                    ]} />
-                    {kind === 'analyze' && (
+                    <div className={styles.steps} role="group" aria-label="Етапи">
+                        {STEPS.map((step) => (
+                            <button key={step} type="button" className={styles.step} aria-pressed={has(step)} onClick={() => toggle(step)}>
+                                {STEP_NAMES[step]}
+                                <small>{STEP_HINTS[step]}</small>
+                            </button>
+                        ))}
+                    </div>
+                    <p className={styles.muted}>{explain(steps)}</p>
+                    <div className={styles.range}>
+                        <TextInput label="З глави" value={from} onChange={setFrom} inputMode="numeric" placeholder={String(firstOpen)} />
+                        <TextInput label="По главу" value={to} onChange={setTo} inputMode="numeric" error={fieldError}
+                            hint={`Щонайбільше ${data.sourceChapters}.`} />
+                    </div>
+                    {kind !== 'proofread' && <Toggle label="Зробити заново вже опрацьовані глави" isSelected={redo} onChange={setRedo} />}
+                    {redo && kind !== 'proofread' && (
                         <p className={styles.muted}>
-                            Модель збере імена й терміни в словник і перекладе назви глав. Перевірте їх, а тоді запускайте переклад:
-                            він візьме готовий аналіз і не платитиме за нього вдруге.
+                            {kind === 'analyze'
+                                ? 'Модель проаналізує глави знову; назви глав, які ви виправили, буде замінено новими. Словник лише доповниться.'
+                                : 'Глави перекладуться знову й вийдуть новою версією; попередня лишиться в історії глави.'}
                         </p>
                     )}
-                    {!data.personal && data.presets.length > 0 && (
-                        <PresetPicker presets={data.presets} value={preset} kind={kind} siteModels={siteModels}
-                            onChange={(next) => { setPreset(next); setModels({}); }} />
-                    )}
-                    <TextInput label={`${kind === 'analyze' ? 'Аналізувати' : 'Перекласти'} ${advanced && number(from) ? `з глави ${number(from)}` : `з глави ${firstOpen}`} до глави…`}
-                        value={to} onChange={setTo} inputMode="numeric" error={fieldError}
-                        hint={`Щонайбільше ${data.sourceChapters}.`} />
 
-                    <button type="button" className={styles.disclosure} aria-expanded={advanced} onClick={() => setAdvanced(!advanced)}>
-                        {advanced ? '▾' : '▸'} Розширені налаштування
-                    </button>
-                    {advanced && (
-                        <div className={styles.advanced}>
-                            <TextInput label="З глави" value={from} onChange={setFrom} inputMode="numeric"
-                                placeholder={String(firstOpen)} hint="Порожньо — з першої ще не опрацьованої." />
-                            <Toggle label="Зробити заново вже опрацьовані глави" isSelected={redo} onChange={setRedo} />
-                            {redo && (
+                    {!data.personal && (<>
+                        <h3 className={styles.subTitle}>Моделі</h3>
+                        {data.presets.length > 0 && (
+                            <PresetPicker presets={data.presets} value={preset} kind={kind === 'analyze' ? 'analyze' : 'translate'} siteModels={siteModels}
+                                onChange={(next) => { setPreset(next); setModels({}); }} />
+                        )}
+                        <button type="button" className={styles.disclosure} aria-expanded={advanced} onClick={() => setAdvanced(!advanced)}>
+                            {advanced ? '▾' : '▸'} Обрати модель для кожного етапу
+                        </button>
+                        {advanced && (
+                            <div className={styles.advanced}>
+                                <div className={pickerStyles.filters}>
+                                    <label>
+                                        <input type="checkbox" checked={onlyRecommended} onChange={(event) => setOnlyRecommended(event.target.checked)} />
+                                        <span>Лише рекомендовані моделі</span>
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" checked={withWeak} disabled={onlyRecommended} onChange={(event) => setWithWeak(event.target.checked)} />
+                                        <span>Показати й слабкі</span>
+                                    </label>
+                                </div>
+                                {STEPS.filter((step) => has(step) || step === 'analyze' && kind === 'translate').map((step) => (
+                                    <ModelPicker key={`${step}-${preset}`} label={`Модель: ${STEP_NAMES[step].toLowerCase()}`} show={modelShow} stage={step}
+                                        value={model(step)} chars={data.averageChars} onChange={(id) => setModels({ ...models, [step]: id })}
+                                        hint={step === 'analyze' && !has('analyze') ? 'Для глав, які ще не проаналізовано.' : undefined} />
+                                ))}
                                 <p className={styles.muted}>
-                                    {kind === 'analyze'
-                                        ? 'Модель проаналізує глави знову; назви глав, які ви виправили, буде замінено новими. Словник лише доповниться.'
-                                        : 'Глави перекладуться знову й вийдуть новою версією; попередня лишиться в історії глави.'}
+                                    Ціна «за главу» — для середньої глави цієї новели (~{data.averageChars.toLocaleString('uk-UA')} знаків), якщо всі кроки
+                                    робить ця модель. Вибір діє лише для цього запуску; постійні моделі — на <Link to="/me/wallet">«Шагах»</Link>.
                                 </p>
-                            )}
-                            {!data.personal && (<>
-                            <div className={pickerStyles.filters}>
-                                <label>
-                                    <input type="checkbox" checked={onlyRecommended} onChange={(event) => setOnlyRecommended(event.target.checked)} />
-                                    <span>Лише рекомендовані моделі</span>
-                                </label>
-                                <label>
-                                    <input type="checkbox" checked={withWeak} disabled={onlyRecommended} onChange={(event) => setWithWeak(event.target.checked)} />
-                                    <span>Показати й слабкі</span>
-                                </label>
                             </div>
-                            <ModelPicker key={`analyze-${preset}`} label="Модель аналізу" show={modelShow} stage="analyze" value={model('analyze')} chars={data.averageChars}
-                                onChange={(analyze) => setModels({ ...models, analyze })}
-                                hint={kind === 'translate' ? 'Для глав, які ще не проаналізовано.' : undefined} />
-                            {kind === 'translate' && (
-                                <>
-                                    <ModelPicker key={`translate-${preset}`} label="Модель перекладу" show={modelShow} stage="translate" value={model('translate')} chars={data.averageChars}
-                                        onChange={(translate) => setModels({ ...models, translate })} />
-                                    <Toggle label="Вичитка" isSelected={proofreading}
-                                        onChange={(proofreadEnabled) => setModels({ ...models, proofreadEnabled })} />
-                                    {proofreading && (
-                                        <ModelPicker key={`proofread-${preset}`} label="Модель вичитки" show={modelShow} stage="proofread" value={model('proofread')} chars={data.averageChars}
-                                            onChange={(proofread) => setModels({ ...models, proofread })} />
-                                    )}
-                                </>
-                            )}
-                            <p className={styles.muted}>
-                                Ціна «за главу» — для середньої глави цієї новели (~{data.averageChars.toLocaleString('uk-UA')} знаків), якщо всі кроки
-                                робить ця модель. Вибір діє лише для цього запуску; постійні моделі — на <Link to="/me/wallet">«Шагах»</Link>.
-                            </p>
-                            </>)}
-                        </div>
-                    )}
+                        )}
+                    </>)}
 
                     {ready && quote.data && (
                         <div className={styles.quote} aria-live="polite">
                             <div>
                                 {quote.data.chapters} {chaptersWord(quote.data.chapters)} · {quote.data.estimated ? 'орієнтовно ' : ''}
                                 <b>{data.personal ? `≈ ${quote.data.shah} ${shahWord(quote.data.shah)}` : money(quote.data.shah, quote.data.usd, show)}</b>
-                                {quote.data.skipped > 0 && <span className={styles.muted}> · пропускаємо вже зроблені: {quote.data.skipped}</span>}
+                                {quote.data.skipped > 0 && <span className={styles.muted}> · {kind === 'proofread' ? 'ще не перекладено' : 'пропускаємо вже зроблені'}: {quote.data.skipped}</span>}
                             </div>
                             {data.personal ? (
                                 <div className={styles.muted}>
@@ -209,8 +202,7 @@ function AutotranslateTab() {
                                 <div className={styles.muted}>
                                     Очікувана собівартість ≈ {dollars(quote.data.expectedUsd, 3)} ·{' '}
                                     {chosen && <>набір «{chosen.name}»: </>}
-                                    {kind === 'analyze' ? quote.data.analyzeModel.model
-                                        : `${quote.data.translateModel.model}${quote.data.proofreadModel.enabled ? `, вичитка ${quote.data.proofreadModel.model}` : ', без вичитки'}`}
+                                    {quote.data.steps.map((step) => `${STEP_NAMES[step].toLowerCase()} ${short(quote.data[`${step}Model`].model)}`).join(', ')}
                                 </div>
                             )}
                             {quote.data.unanalyzed > 0 && (
@@ -223,7 +215,7 @@ function AutotranslateTab() {
                     )}
                     {startJob.isError && <Notice tone="error">{startJob.error.message}</Notice>}
                     <Button type="submit" wide pending={startJob.isPending} pendingLabel="Запускаємо…" isDisabled={!ready || !data.configured}>
-                        {kind === 'analyze' ? 'Почати аналіз' : 'Почати переклад'}
+                        Запустити: {steps.map((step) => STEP_NAMES[step].toLowerCase()).join(', ')}
                     </Button>
                 </form>
             )}
@@ -239,7 +231,7 @@ function AutotranslateTab() {
                 <Collapsible id="autotranslate-earlier" title="Історія запусків" count={data.jobs.length - 1}>
                     {data.jobs.slice(1).map((old) => (
                         <div key={old.id} className={styles.row}>
-                            <div className={styles.grow}>{old.kind === 'analyze' ? 'Аналіз' : 'Переклад'} {range(old)} · {JOB_LABELS[old.state]}</div>
+                            <div className={styles.grow}>{JOB_NAMES[old.kind]} {range(old)} · {JOB_LABELS[old.state]}</div>
                             <span className={styles.muted}>
                                 {old.personal ? `${old.chargedShah} ${shahWord(old.chargedShah)}` : money(old.spentShah, old.spentUsd, show)} · {relativeTime(new Date(old.createdAt))}
                             </span>
@@ -249,6 +241,21 @@ function AutotranslateTab() {
             )}
         </>
     );
+}
+
+const STEPS: Step[] = ['analyze', 'translate', 'proofread'];
+const STEP_HINTS: Record<Step, string> = { analyze: 'словник, назви', translate: 'з оригіналу', proofread: 'редагує текст' };
+
+/** What the chosen steps will do, in a sentence. */
+function explain(steps: Step[]): string {
+    const has = (step: Step) => steps.includes(step);
+    if (has('translate')) {
+        return `${has('analyze') ? 'Спершу аналіз (словник і назви глав), тоді переклад' : 'Переклад; глави без аналізу проаналізуються дорогою'}${has('proofread') ? ' і вичитка' : ' без вичитки'}.`;
+    }
+    if (has('proofread')) {
+        return `${has('analyze') ? 'Аналіз, тоді вичитка' : 'Вичитка'} вже перекладених глав: виправлена версія публікується, попередня лишається в історії глави.`;
+    }
+    return 'Модель збере імена й терміни в словник і перекладе назви глав. Перевірте їх, а тоді запускайте переклад: він візьме готовий аналіз і не платитиме за нього вдруге.';
 }
 
 /** «глава 3» or «глави 3–5». */
@@ -280,9 +287,9 @@ export function JobCard({ job, editionId, showShah, usdPerShah, onCancel, onResu
             {title}
             {/* The progress opens the run's journal: what each step did (етап 17). */}
             <Link to="/studio/$editionId/translate/jobs/$jobId" params={{ editionId: String(editionId), jobId: String(job.id) }}
-                className={styles.jobLink} aria-label={`Журнал запуску: ${job.kind === 'analyze' ? 'аналіз' : 'переклад'} ${range(job)}`}>
+                className={styles.jobLink} aria-label={`Журнал запуску: ${JOB_NAMES[job.kind].toLowerCase()} ${range(job)}`}>
             <div className={styles.jobHead}>
-                <b>{job.kind === 'analyze' ? 'Аналіз' : 'Переклад'}: {range(job)}</b>
+                <b>{JOB_NAMES[job.kind]}: {range(job)}</b>
                 <span className={styles.jobState}>
                     {refreshed && active(job) && <RefreshTick at={refreshed.at} failed={refreshed.failed} />}
                     <span className={styles.badge}>{JOB_LABELS[job.state]}</span>

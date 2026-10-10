@@ -567,6 +567,26 @@ class AutotranslateFlowTests {
         assertThat(read(new Browser(port).get("/api/novels/" + slug + "/chapters/1")).path("blocks").toString())
                 .as("no proofreading this time").doesNotContain("✓");
 
+        // Proofreading alone: the published text is edited, not translated again.
+        JsonNode only = read(owner.browser().post(base + "/autotranslate/quote", """
+                {"steps":["proofread"],"from":1,"to":3}"""));
+        assertThat(only.path("kind").asString()).isEqualTo("proofread");
+        assertThat(only.path("chapters").asInt()).as("chapter 3 is not translated yet").isEqualTo(2);
+        assertThat(only.path("steps")).extracting(JsonNode::asString).containsExactly("proofread");
+        assertThat(owner.browser().post(base + "/autotranslate/quote", """
+                {"steps":["proofread"],"from":3,"to":3}""").status()).as("nothing to proofread there").isEqualTo(400);
+        model.reset();
+        assertThat(owner.browser().post(base + "/autotranslate/jobs", """
+                {"steps":["proofread"],"from":1,"to":1}""").status()).isEqualTo(201);
+        worker.drain();
+        assertThat(model.calls).as("no analysis, no translation").containsOnly("proofread");
+        assertThat(read(new Browser(port).get("/api/novels/" + slug + "/chapters/1")).path("blocks").toString())
+                .as("the proofread text is published").contains("✓");
+        java.util.List<String> proofreadKinds = new java.util.ArrayList<>();
+        read(owner.browser().get(base + "/autotranslate/jobs/" + jobId(edition) + "/log")).path("events")
+                .forEach(event -> proofreadKinds.add(event.path("kind").asString()));
+        assertThat(proofreadKinds).contains("proofread", "proofread_published").doesNotContain("translated", "analysis");
+
         model.reset();
         owner.browser().post(base + "/autotranslate/jobs", json("from", 4, "to", 5));
         worker.drain();

@@ -129,10 +129,38 @@ class Jobs {
      * {@code models} replace the site's models for this run only; {@code preset} picks a ready
      * set of them, and {@code models} given too change single steps of it.
      */
-    record Plan(String kind, Integer from, Integer to, Boolean redo, Models models, Long preset) {
+    record Plan(String kind, Integer from, Integer to, Boolean redo, Models models, Long preset, List<String> steps) {
+
+        Plan(String kind, Integer from, Integer to, Boolean redo, Models models, Long preset) {
+            this(kind, from, to, redo, models, preset, null);
+        }
+
+        /**
+         * The steps asked for: «analyze», «translate», «proofread» in any sensible set. A plan
+         * without them (the old form) is analysis alone or a translation with the site's proofreading.
+         */
+        Set<String> chosen() {
+            if (steps != null && !steps.isEmpty()) {
+                Set<String> out = new java.util.LinkedHashSet<>();
+                for (String step : steps) {
+                    if (!STEPS.contains(step)) {
+                        throw UserFacingException.badRequest("Невідомий етап «%s».".formatted(step));
+                    }
+                    out.add(step);
+                }
+                return out;
+            }
+            return "analyze".equals(kind) ? Set.of("analyze") : Set.of("translate");
+        }
+
+        /** What the job is: a translation (with whatever else), a proofreading of published text, or analysis alone. */
+        String job() {
+            Set<String> chosen = chosen();
+            return chosen.contains("translate") ? "translate" : chosen.contains("proofread") ? "proofread" : "analyze";
+        }
 
         boolean analyze() {
-            return "analyze".equals(kind);
+            return "analyze".equals(job());
         }
 
         /** Missing fields are allowed (Jackson refuses absent primitives), so read them through these. */
@@ -146,6 +174,16 @@ class Jobs {
             }
             return to;
         }
+    }
+
+    static final List<String> STEPS = List.of("analyze", "translate", "proofread");
+
+    static String jobTitle(String kind) {
+        return switch (kind) {
+            case "analyze" -> "Аналіз";
+            case "proofread" -> "Вичитка";
+            default -> "Автопереклад";
+        };
     }
 
     /** Model ids for this run; null keeps the site's choice. */
@@ -162,7 +200,7 @@ class Jobs {
      */
     record Quote(String kind, int from, int to, int chapters, int skipped, int shah, BigDecimal usd, BigDecimal expectedUsd,
             boolean estimated, int unanalyzed, Settings.Stage analyzeModel, Settings.Stage translateModel,
-            Settings.Stage proofreadModel, int reserveShah) {
+            Settings.Stage proofreadModel, int reserveShah, List<String> steps) {
     }
 
     /** Analysis is about a quarter of a chapter's work: its price in шаги. */
@@ -186,8 +224,11 @@ class Jobs {
         Presets.Preset preset = plan.preset() == null ? null
                 : presets.find(plan.preset()).orElseThrow(() -> UserFacingException.notFound("Такого набору моделей немає."));
         Novel novel = novel(editionId);
-        boolean analyze = plan.analyze();
-        int from = plan.from() != null ? plan.from() : analyze ? novel.nextToAnalyze() : novel.nextNumber();
+        Set<String> steps = plan.chosen();
+        String kind = plan.job();
+        boolean analyze = "analyze".equals(kind);
+        boolean proofreadOnly = "proofread".equals(kind);
+        int from = plan.from() != null ? plan.from() : analyze ? novel.nextToAnalyze() : proofreadOnly ? 1 : novel.nextNumber();
         int to = plan.last();
         if (from < 1 || to < from) {
             throw UserFacingException.badRequest("Перевірте діапазон: «з» не може бути більшим за «по».");
@@ -195,24 +236,36 @@ class Jobs {
         if (to > novel.sourceChapters()) {
             throw UserFacingException.badRequest("В оригіналі поки %d глав.".formatted(novel.sourceChapters()));
         }
+        Set<Integer> published = new HashSet<>(db.select(CHAPTER.NUMBER).from(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull(), CHAPTER.NUMBER.between(from, to))
+                .fetch(CHAPTER.NUMBER));
         Set<Integer> done = new HashSet<>(analyze
                 ? db.select(CHAPTER_ANALYSIS.NUMBER).from(CHAPTER_ANALYSIS)
                         .where(CHAPTER_ANALYSIS.EDITION_ID.eq(editionId), CHAPTER_ANALYSIS.NUMBER.between(from, to)).fetch(CHAPTER_ANALYSIS.NUMBER)
-                : db.select(CHAPTER.NUMBER).from(CHAPTER)
-                        .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull(), CHAPTER.NUMBER.between(from, to))
-                        .fetch(CHAPTER.NUMBER));
+                : published);
         List<Integer> numbers = new ArrayList<>();
         for (int number = from; number <= to; number++) {
-            if (plan.again() || !done.contains(number)) {
+            boolean wanted = proofreadOnly ? published.contains(number) : plan.again() || !done.contains(number);
+            if (wanted) {
                 numbers.add(number);
             }
         }
         if (numbers.isEmpty()) {
-            throw UserFacingException.badRequest((analyze ? "Ці глави вже проаналізовано." : "Ці глави вже перекладено.")
-                    + " Щоб зробити їх заново, увімкніть «Зробити заново» в розширених налаштуваннях.");
+            throw UserFacingException.badRequest(proofreadOnly
+                    ? "Глави %d–%d ще не перекладено — увімкніть «Переклад» або змініть діапазон.".formatted(from, to)
+                    : (analyze ? "Ці глави вже проаналізовано." : "Ці глави вже перекладено.")
+                            + " Щоб зробити їх заново, увімкніть «Зробити заново» в розширених налаштуваннях.");
         }
         Settings site = settings();
         Settings settings = withModels(site, preset == null ? plan.models() : over(preset.models(), plan.models()));
+        if (plan.steps() != null && !plan.steps().isEmpty()) {
+            // The steps say what runs: analysis is redone only when asked, proofreading only when chosen.
+            settings = settings.withSteps(analyze || steps.contains("analyze"), steps.contains("proofread"));
+        } else if (!analyze) {
+            settings = settings.withSteps(false, settings.proofread().enabled());
+        }
+        boolean analyzeStep = settings.analyze().enabled();
+        boolean proofreadStep = settings.proofread().enabled();
         Map<Integer, Integer> known = db.select(SOURCE_CHAPTER.NUMBER, SOURCE_CHAPTER.CHARS).from(SOURCE_CHAPTER)
                 .where(SOURCE_CHAPTER.NOVEL_ID.eq(novel.novelId())).fetchMap(SOURCE_CHAPTER.NUMBER, SOURCE_CHAPTER.CHARS);
         int guess = known.isEmpty() ? UNKNOWN_CHAPTER_CHARS
@@ -227,12 +280,15 @@ class Jobs {
             Integer chars = known.get(number);
             estimated |= chars == null;
             int size = chars == null ? guess : chars;
-            boolean needsAnalysis = analyze || !analyzed.contains(number);
-            unanalyzed += !analyze && !analyzed.contains(number) ? 1 : 0;
-            long chosen = preset == null ? settings.expectedMicroUsd(size, needsAnalysis, !analyze)
-                    : preset.expectedMicroUsd(size, needsAnalysis, !analyze, settings);
+            boolean wasAnalyzed = analyzed.contains(number);
+            boolean needsAnalysis = analyze || analyzeStep && (plan.again() || !wasAnalyzed) || !proofreadOnly && !wasAnalyzed;
+            unanalyzed += !analyze && !wasAnalyzed && !(proofreadOnly && !analyzeStep) ? 1 : 0;
+            boolean translates = !analyze && !proofreadOnly;
+            boolean proofreads = !analyze && proofreadStep;
+            long chosen = preset == null ? settings.expectedMicroUsd(size, needsAnalysis, translates, proofreads)
+                    : preset.expectedMicroUsd(size, needsAnalysis, translates, proofreads, settings);
             expected += chosen;
-            shah += shahFor(size, chosen, site.expectedMicroUsd(size, needsAnalysis, !analyze));
+            shah += shahFor(size, chosen, site.expectedMicroUsd(size, needsAnalysis, translates, proofreads));
         }
         if (analyze) {
             shah = analysisShah(shah);
@@ -244,9 +300,19 @@ class Jobs {
             shah = Math.max(1, ledger.shahOf(expected));
             reserve = Math.max(shah, ledger.shahOf(Math.round(expected * RESERVE_MARGIN)));
         }
-        Quote quote = new Quote(analyze ? "analyze" : "translate", from, to, numbers.size(), to - from + 1 - numbers.size(), shah,
+        List<String> ran = new ArrayList<>();
+        if (analyze || analyzeStep) {
+            ran.add("analyze");
+        }
+        if (!analyze && !proofreadOnly) {
+            ran.add("translate");
+        }
+        if (!analyze && proofreadStep) {
+            ran.add("proofread");
+        }
+        Quote quote = new Quote(kind, from, to, numbers.size(), to - from + 1 - numbers.size(), shah,
                 settings.usd(shah), Settings.usdOfMicro(expected), estimated, unanalyzed,
-                settings.analyze(), settings.translate(), settings.proofread(), reserve);
+                settings.analyze(), settings.translate(), settings.proofread(), reserve, ran);
         return new Prepared(quote, numbers, settings);
     }
 
@@ -340,7 +406,7 @@ class Jobs {
             String title = db.select(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE)).from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
                     .where(EDITION.ID.eq(editionId)).fetchSingle().value1();
             String chapters = quote.from() == quote.to() ? "глава " + quote.from() : "глави %d–%d".formatted(quote.from(), quote.to());
-            hold = ledger.hold(ownerId, quote.reserveShah(), "%s «%s», %s".formatted(plan.analyze() ? "Аналіз" : "Автопереклад", title, chapters));
+            hold = ledger.hold(ownerId, quote.reserveShah(), "%s «%s», %s".formatted(jobTitle(quote.kind()), title, chapters));
         }
         long jobId = db.insertInto(JOB)
                 .set(JOB.EDITION_ID, editionId)
@@ -429,6 +495,23 @@ class Jobs {
      */
     static StepView step(int number, String stage, String state, String error, Checkpoint checkpoint, boolean analysisOnly,
             boolean proofreading) {
+        return step(number, stage, state, error, checkpoint, analysisOnly ? "analyze" : "translate", proofreading);
+    }
+
+    static StepView step(int number, String stage, String state, String error, Checkpoint checkpoint, String kind,
+            boolean proofreading) {
+        boolean analysisOnly = "analyze".equals(kind);
+        if ("proofread".equals(kind)) {
+            int parts = checkpoint.parts == null ? 0 : checkpoint.parts;
+            int proofread = Math.min(parts, checkpoint.revised.size());
+            double progress = switch (stage) {
+                case "analyze" -> 0.05;
+                case "proofread" -> 0.1 + (parts == 0 ? 0 : 0.85 * proofread / parts);
+                case "publish" -> 0.95;
+                default -> 0;
+            };
+            return new StepView(number, stage, state, error, "proofread".equals(stage) ? proofread : 0, parts, Math.min(1, progress));
+        }
         int parts = checkpoint.parts == null ? 0 : checkpoint.parts;
         int translated = Math.min(parts, checkpoint.draft.size());
         int proofread = Math.min(parts, checkpoint.revised.size());
@@ -468,7 +551,7 @@ class Jobs {
                 .where(JOB_STEP.JOB_ID.eq(job.getId()), JOB_STEP.STATE.ne("done"))
                 .orderBy(JOB_STEP.CHAPTER_NUMBER).limit(1)
                 .fetchOptional(step -> step(step.getChapterNumber(), step.getStage(), step.getState(), step.getError(),
-                        json.readValue(step.getCheckpoint().data(), Checkpoint.class), "analyze".equals(job.getKind()),
+                        json.readValue(step.getCheckpoint().data(), Checkpoint.class), job.getKind(),
                         settings.proofread().enabled()))
                 .orElse(null);
         long spent = ai.spentMicroUsd(job.getId());
@@ -565,7 +648,7 @@ class Jobs {
             case "failed", "done", "cancelled" -> where.and(JOB.STATE.eq(state));
             default -> where;
         };
-        if ("analyze".equals(kind) || "translate".equals(kind)) {
+        if (STEPS.contains(kind)) {
             where = where.and(JOB.KIND.eq(kind));
         }
         for (String word : (q == null ? "" : q).strip().toLowerCase(java.util.Locale.ROOT).split("\\s+")) {

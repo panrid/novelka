@@ -56,6 +56,14 @@ public interface Chapters {
     long publish(long editionId, int number, long accountId, String title, List<Block> blocks, Long baseRevisionId,
             boolean mayAddPictures);
 
+    /**
+     * Publishes a machine-proofread text of a published chapter as a new revision, if the chapter
+     * still has {@code baseRevisionId}: a person who published meanwhile is never overwritten.
+     *
+     * @return the new revision, or null when the chapter changed since
+     */
+    Long publishProofread(long editionId, int number, String title, List<Block> blocks, long baseRevisionId, long jobId);
+
     /** The published text of a chapter, or 404 if it has none. */
     EditorModels.CurrentText current(long editionId, int number);
 

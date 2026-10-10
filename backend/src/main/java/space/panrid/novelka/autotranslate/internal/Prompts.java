@@ -93,12 +93,21 @@ final class Prompts {
     static final String PROOFREAD = """
             You are a Ukrainian literary editor. You get the Japanese original and its Ukrainian draft translation,
             block by block. First check that each block's draft translates its own original and not a neighbour's:
-            if the drafts have slipped by a line, put each translation back with its own original. Then fix
-            mistranslations (meaning turned around, wrong speaker, wrong subject), omissions, words the original
-            does not have (added speaker tags such as «— сказав він»), wrong names (use the glossary), gender
-            agreement (also the narrator's, when the request names them), the vocative case in address,
-            honorifics left in (-сан, -кун, -чан: remove them), a dash at the start of every block of a speech in
-            「」, punctuation, typos and Russian calques. Keep what is already right; do not reword good sentences.
+            if the drafts have slipped by a line, put each translation back with its own original. Then fix:
+            - mistranslations (meaning turned around, a lost negation, wrong speaker, wrong subject), omissions, and
+              words the original does not have (added speaker tags such as «— сказав він»);
+            - names and terms: use the glossary forms, declined by Ukrainian grammar; follow the glossary notes —
+              they say how a character addresses others and which of two similar terms is meant (keep them apart);
+            - gender agreement (also the narrator's, when the request names them), the vocative case in direct
+              address (Сіоне, графе), honorifics left in (-сан, -кун, -чан, -sama: remove them; 様 → пане / пані);
+            - ти and ви: a character keeps the same form of address to the same person all through;
+            - dashes: only a block of speech in 「」 (or one that goes on a speech begun in an earlier block) starts
+              with a dash; narration and thoughts never do;
+            - Russian calques, stiff word-for-word phrasing and Japanese word order: rewrite such a sentence into
+              natural Ukrainian prose with the same meaning; keep sentences that already read well;
+            - punctuation: an ellipsis is one «…» (after ? or ! write «?..», «!..»), no space before a punctuation
+              mark, «» for quotes; 【】 of the original become «»;
+            - typos, Latin letters inside Ukrainian words, English words left in the text.
             Return ONLY the blocks you change, in their order, each with its full final Ukrainian text and «start»:
             the first 4 characters of that block's original, copied exactly. A block left out keeps its draft;
             when nothing needs fixing, return an empty list. If drafts slipped by a line, return every block

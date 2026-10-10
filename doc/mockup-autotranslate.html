@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Макет: автопереклад з етапів</title>
+<style>
+:root { --bg: #161815; --card: #20231f; --line: #34382f; --text: #ecebe4; --muted: #9a9d92; --accent: #a8c48f; --accent-bg: #2f3b27; --warn-bg: #3b3420; --warn: #e6c873; --danger: #e48a7a; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, sans-serif; }
+.wrap { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; padding: 16px; }
+.col { width: 100%; max-width: 380px; }
+h2 { font-size: 13px; font-weight: 500; color: var(--muted); margin: 0 0 8px; }
+.phone { border: 1px solid var(--line); border-radius: 22px; padding: 16px; background: var(--bg); }
+.muted { color: var(--muted); font-size: 13px; }
+.title { font: 600 21px/1.25 Georgia, serif; margin: 4px 0 2px; }
+.section { font-size: 13px; color: var(--muted); margin: 18px 0 8px; }
+.card { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--card); margin-bottom: 10px; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.step { border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px; text-align: center; font-size: 14px; }
+.step small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+.step.on { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.field { margin-top: 12px; }
+.label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.inputs { display: flex; gap: 8px; }
+.input { flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; background: var(--bg); }
+.toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 0 2px; font-size: 14px; }
+.sw { width: 38px; height: 22px; border-radius: 11px; background: var(--line); position: relative; }
+.sw::after { content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); }
+.sw.on { background: var(--accent); } .sw.on::after { left: 19px; background: #1b2215; }
+.model { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.model:last-child { border-bottom: 0; }
+.model b { font-weight: 500; }
+.price { color: var(--muted); font-size: 13px; text-align: right; }
+.presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+.chip { border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; font-size: 13px; }
+.chip.on { border-color: var(--accent); color: var(--accent); }
+.note { background: var(--warn-bg); color: var(--warn); border-radius: 10px; padding: 9px 12px; font-size: 14px; margin-top: 10px; }
+.sum { display: flex; justify-content: space-between; margin: 14px 0 10px; font-size: 14px; }
+.btn { border-radius: 12px; padding: 12px; text-align: center; background: var(--accent); color: #1b2215; font-weight: 600; }
+.job { display: flex; justify-content: space-between; gap: 8px; }
+.bar { height: 5px; border-radius: 3px; background: var(--line); margin: 8px 0 4px; }
+.bar span { display: block; height: 5px; border-radius: 3px; background: var(--accent); }
+.tag { font-size: 11px; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; color: var(--muted); margin-right: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+td, th { padding: 7px 4px; border-bottom: 1px solid var(--line); text-align: right; }
+td:first-child, th:first-child { text-align: left; }
+th { color: var(--muted); font-weight: 500; }
+tr.pick td { color: var(--accent); }
+.explain { max-width: 800px; margin: 8px auto 24px; padding: 0 16px; color: var(--muted); font-size: 14px; }
+.explain b { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="explain"><b>Пропозиція.</b> Запуск автоперекладу складається з етапів — аналіз, переклад, вичитка — у будь-якій розумній комбінації. Для кожного ввімкненого етапу своя модель із ціною за главу. Новий етап (наприклад, «узгодити словник») — ще одна плитка, сторінку перебудовувати не треба. Нижче — запуски з журналом, словник лишається окремою сторінкою.</div>
+<div class="wrap">
+
+<div class="col">
+<h2>Студія · Автопереклад · новий запуск (усі етапи)</h2>
+<div class="phone">
+  <div class="muted">‹ Студія</div>
+  <div class="title">Автопереклад</div>
+  <div class="muted">Творець магії · в оригіналі 207 глав · перекладено 207</div>
+
+  <div class="section">Новий запуск</div>
+  <div class="card">
+    <div class="label">Етапи</div>
+    <div class="steps">
+      <div class="step on">Аналіз<small>словник, назви</small></div>
+      <div class="step on">Переклад<small>з оригіналу</small></div>
+      <div class="step on">Вичитка<small>редагує текст</small></div>
+    </div>
+    <div class="field">
+      <div class="label">Глави</div>
+      <div class="inputs"><div class="input">з 208</div><div class="input">по 220</div></div>
+    </div>
+    <div class="toggle">Зробити заново вже опрацьовані глави <span class="sw"></span></div>
+  </div>
+
+  <div class="card">
+    <div class="label">Моделі</div>
+    <div class="presets"><span class="chip">Найдешевше</span><span class="chip on">Рекомендовано</span><span class="chip">Якісно</span><span class="chip">Свої</span></div>
+    <div class="model"><span>Аналіз<br><b>Claude Haiku 5.5</b></span><span class="price">≈ $0.001<br>за главу</span></div>
+    <div class="model"><span>Переклад<br><b>Grok 4.3</b></span><span class="price">≈ $0.056<br>за главу</span></div>
+    <div class="model"><span>Вичитка<br><b>Claude Haiku 5.5</b></span><span class="price">≈ $0.003<br>за главу</span></div>
+  </div>
+
+  <div class="sum"><span>13 глав · ≈ $0.79</span><span class="muted">≈ $6 за 100 глав</span></div>
+  <div class="btn">Запустити</div>
+</div>
+</div>
+
+<div class="col">
+<h2>Лише вичитка вже перекладених глав</h2>
+<div class="phone">
+  <div class="section" style="margin-top:0">Новий запуск</div>
+  <div class="card">
+    <div class="label">Етапи</div>
+    <div class="steps">
+      <div class="step">Аналіз<small>словник, назви</small></div>
+      <div class="step">Переклад<small>з оригіналу</small></div>
+      <div class="step on">Вичитка<small>редагує текст</small></div>
+    </div>
+    <div class="field">
+      <div class="label">Глави</div>
+      <div class="inputs"><div class="input">з 147</div><div class="input">по 207</div></div>
+    </div>
+    <div class="note">Вичитка бере опублікований текст глави й публікує виправлену версію; попередня лишається в історії глави, її можна повернути.</div>
+  </div>
+  <div class="card">
+    <div class="label">Модель</div>
+    <div class="model"><span>Вичитка<br><b>Claude Haiku 5.5</b></span><span class="price">≈ $0.003<br>за главу</span></div>
+  </div>
+  <div class="sum"><span>61 глава · ≈ $0.16</span><span class="muted">≈ $0.26 за 100 глав</span></div>
+  <div class="btn">Запустити</div>
+
+  <div class="section">Що сайт не дасть запустити</div>
+  <div class="card muted">
+    Вичитка без перекладу — лише для глав, які вже перекладено: «Глави 208–220 ще не перекладено — увімкніть «Переклад» або змініть діапазон».<br><br>
+    Переклад без аналізу — для глав без аналізу сайт попередить: словник для них не перевірено заздалегідь.
+  </div>
+</div>
+</div>
+
+<div class="col">
+<h2>Запуски й рекомендація моделі</h2>
+<div class="phone">
+  <div class="section" style="margin-top:0">Запуски</div>
+  <div class="card">
+    <div class="job"><span><span class="tag">вичитка</span>глави 147–207</span><span class="muted">32 з 61</span></div>
+    <div class="bar"><span style="width:52%"></span></div>
+    <div class="muted">Зараз: глава 179 · витрачено $0.09 · <u>Журнал ›</u></div>
+  </div>
+  <div class="card">
+    <div class="job"><span><span class="tag">аналіз</span><span class="tag">переклад</span>глави 142–207</span><span class="muted">готово</span></div>
+    <div class="muted">Grok 4.3 · витрачено $3.70 · <u>Журнал ›</u></div>
+  </div>
+
+  <div class="section">Скільки коштує 100 глав (≈ 4 800 знаків оригіналу)</div>
+  <table>
+    <tr><th>Модель</th><th>Аналіз</th><th>Переклад</th><th>Вичитка</th></tr>
+    <tr><td>Claude Haiku 5.5</td><td>$0.10</td><td>$0.44</td><td>$0.26</td></tr>
+    <tr><td>GLM-5.3 Flash</td><td>$0.13</td><td>$0.65</td><td>$0.44</td></tr>
+    <tr><td>Gemini 3.1 Flash Lite</td><td>$0.26</td><td>$1.26</td><td>$0.70</td></tr>
+    <tr><td>DeepSeek V4 Flash</td><td>$0.11</td><td>$1.78</td><td>$0.60</td></tr>
+    <tr><td>Grok 4.3 (виміряно)</td><td>$0.92</td><td>$5.59</td><td>$4.63</td></tr>
+    <tr class="pick"><td>Рекомендовано</td><td>Haiku</td><td>Grok</td><td>Haiku</td></tr>
+  </table>
+  <div class="muted" style="margin-top:8px">«Рекомендовано» ≈ $6 за 100 глав. Grok 4.3 уже виміряно на 66 главах; решта — оцінка з цін OpenRouter, моделі з роздумами виходять дорожчими за оцінку. Перед великим запуском — пробний на 5 глав.</div>
+</div>
+</div>
+
+</div>
+</body>
+</html>

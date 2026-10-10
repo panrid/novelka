@@ -1,9 +1,15 @@
 import { api } from '../api/client';
 
-export type JobKind = 'analyze' | 'translate';
+export type JobKind = 'analyze' | 'translate' | 'proofread';
+/** The steps a run is made of, in any sensible set. */
+export type Step = 'analyze' | 'translate' | 'proofread';
+export const STEP_NAMES: Record<Step, string> = { analyze: 'Аналіз', translate: 'Переклад', proofread: 'Вичитка' };
+export const JOB_NAMES: Record<JobKind, string> = { analyze: 'Аналіз', translate: 'Переклад', proofread: 'Вичитка' };
 export type Stage = { model: string; inputPerMillion: number; outputPerMillion: number; enabled: boolean };
 export type Plan = {
     kind: JobKind; from?: number; to: number; redo?: boolean;
+    /** What runs; the kind follows from it. Without it: analysis alone or a translation as the site sets it. */
+    steps?: Step[];
     /** A ready set of models; models given too change single steps of it. */
     preset?: number;
     models?: { analyze?: string; translate?: string; proofread?: string; proofreadEnabled?: boolean };
@@ -21,6 +27,8 @@ export type Quote = {
     estimated: boolean; unanalyzed: number; analyzeModel: Stage; translateModel: Stage; proofreadModel: Stage;
     /** What a person's run holds until it ends (рішення 29); 0 for the site owner's runs. */
     reserveShah: number;
+    /** The steps the run will really do. */
+    steps: Step[];
 };
 export type Balance = { shah: number; usd: number };
 export type JobState = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';

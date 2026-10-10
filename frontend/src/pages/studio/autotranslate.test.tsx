@@ -22,7 +22,8 @@ const OVERVIEW = {
 };
 const quote = (over: object = {}) => ({
     kind: 'translate', from: 1, to: 3, chapters: 3, skipped: 0, shah: 3, usd: 0.11, expectedUsd: 0.105, estimated: true, unanalyzed: 0,
-    analyzeModel: SETTINGS.analyze, translateModel: SETTINGS.translate, proofreadModel: SETTINGS.proofread, ...over,
+    analyzeModel: SETTINGS.analyze, translateModel: SETTINGS.translate, proofreadModel: SETTINGS.proofread,
+    steps: ['analyze', 'translate', 'proofread'], ...over,
 });
 const FAILED_JOB = {
     id: 9, kind: 'translate', state: 'failed', from: 1, to: 3, done: 1, quoteShah: 3, spentUsd: 0.012, spentShah: 1,
@@ -90,15 +91,14 @@ describe('autotranslate', () => {
             'POST /api/studio/editions/4/autotranslate/quote': (body) => ({ body: quote({ to: (body as { to: number }).to }) }),
             'POST /api/studio/editions/4/autotranslate/jobs': { status: 201, body: {} },
         });
-        await userEvent.click(await screen.findByRole('radio', { name: 'Переклад' }));
-        await userEvent.type(screen.getByLabelText('Перекласти з глави 1 до глави…'), '30');
+        await userEvent.type(await screen.findByLabelText('По главу'), '30');
         expect(await screen.findByText(/орієнтовно/, {}, { timeout: 2000 })).toHaveTextContent('3 шаги');
         const quotes = calls.filter((call) => call.path.endsWith('/quote'));
-        expect(quotes.map((call) => call.body)).toEqual([{ kind: 'translate', to: 30 }]);
+        expect(quotes.map((call) => call.body)).toEqual([{ kind: 'translate', steps: ['analyze', 'translate', 'proofread'], to: 30 }]);
         expect(screen.getByText(/Очікувана собівартість/)).toHaveTextContent('$0,105');
 
-        await userEvent.click(screen.getByRole('button', { name: 'Почати переклад' }));
-        expect(calls.find((call) => call.path.endsWith('/jobs'))?.body).toEqual({ kind: 'translate', to: 30 });
+        await userEvent.click(screen.getByRole('button', { name: /^Запустити/ }));
+        expect(calls.find((call) => call.path.endsWith('/jobs'))?.body).toEqual({ kind: 'translate', steps: ['analyze', 'translate', 'proofread'], to: 30 });
     });
 
     it('picks a ready set of models by its judged result and price', async () => {
@@ -109,8 +109,7 @@ describe('autotranslate', () => {
             'POST /api/studio/editions/4/autotranslate/quote': { body: quote() },
             'POST /api/studio/editions/4/autotranslate/jobs': { status: 201, body: {} },
         });
-        await userEvent.click(await screen.findByRole('radio', { name: 'Переклад' }));
-        expect(screen.getByText(/Як у налаштуваннях/)).toHaveTextContent('gpt-4.1-mini, вичитка gpt-4.1-mini');
+        expect(await screen.findByText(/Як у налаштуваннях/)).toHaveTextContent('переклад gpt-4.1-mini, вичитка gpt-4.1-mini');
         await userEvent.click(screen.getByRole('button', { name: 'Змінити' }));
         const option = screen.getByRole('radio', { name: /Швидкий\+/ });
         expect(option.closest('label')).toHaveTextContent('★★★★☆');
@@ -121,13 +120,32 @@ describe('autotranslate', () => {
         expect(screen.queryByRole('radio', { name: /Копійка/ })).not.toBeInTheDocument();
         expect(screen.getByText('Швидкий+')).toBeInTheDocument();
 
-        await userEvent.click(screen.getByRole('button', { name: /Розширені налаштування/ }));
-        expect(screen.getByRole('combobox', { name: 'Модель перекладу' })).toHaveValue('x-ai/grok-4.3');
-        expect(screen.getByRole('combobox', { name: 'Модель вичитки' })).toHaveValue('deepseek/deepseek-v4-flash');
-        await userEvent.type(screen.getByLabelText('Перекласти з глави 1 до глави…'), '3');
+        await userEvent.click(screen.getByRole('button', { name: /Обрати модель для кожного етапу/ }));
+        expect(screen.getByRole('combobox', { name: 'Модель: переклад' })).toHaveValue('x-ai/grok-4.3');
+        expect(screen.getByRole('combobox', { name: 'Модель: вичитка' })).toHaveValue('deepseek/deepseek-v4-flash');
+        await userEvent.type(screen.getByLabelText('По главу'), '3');
         await screen.findByText(/набір «Швидкий\+»/, {}, { timeout: 2000 });
-        await userEvent.click(screen.getByRole('button', { name: 'Почати переклад' }));
-        expect(calls.find((call) => call.path.endsWith('/jobs'))?.body).toEqual({ kind: 'translate', to: 3, preset: 5 });
+        await userEvent.click(screen.getByRole('button', { name: /^Запустити/ }));
+        expect(calls.find((call) => call.path.endsWith('/jobs'))?.body).toEqual({ kind: 'translate', steps: ['analyze', 'translate', 'proofread'], to: 3, preset: 5 });
+    });
+
+    it('proofreads chapters already published, alone', async () => {
+        const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/4/autotranslate': { body: OVERVIEW },
+            'POST /api/studio/editions/4/autotranslate/quote': { body: quote({ kind: 'proofread', from: 1, to: 3, steps: ['proofread'] }) },
+            'POST /api/studio/editions/4/autotranslate/jobs': { status: 201, body: {} },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: /^Аналіз/ }));
+        await userEvent.click(screen.getByRole('button', { name: /^Переклад/ }));
+        expect(screen.getByRole('button', { name: /^Вичитка/ })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByText(/Вичитка вже перекладених глав/)).toBeInTheDocument();
+        expect(screen.queryByRole('switch', { name: /Зробити заново/ })).not.toBeInTheDocument();
+        await userEvent.type(screen.getByLabelText('По главу'), '3');
+        await screen.findByText(/Очікувана собівартість/, {}, { timeout: 2000 });
+        await userEvent.click(screen.getByRole('button', { name: 'Запустити: вичитка' }));
+        expect(calls.find((call) => call.path.endsWith('/jobs'))?.body).toEqual({ kind: 'proofread', steps: ['proofread'], to: 3 });
     });
 
     it('fills the bar part by part while a long chapter is translated and turns once per refresh', async () => {
@@ -150,7 +168,9 @@ describe('autotranslate', () => {
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/4/autotranslate': { body: OVERVIEW },
         });
-        const field = await screen.findByLabelText('Аналізувати з глави 21 до глави…');
+        await userEvent.click(await screen.findByRole('button', { name: /^Переклад/ }));
+        await userEvent.click(screen.getByRole('button', { name: /^Вичитка/ }));
+        const field = screen.getByLabelText('По главу');
         await userEvent.type(field, '3');
         await vi.waitFor(() => expect(screen.getByText(/Глави до 20 уже проаналізовано/)).toBeInTheDocument(), { timeout: 2000 });
         expect(calls.some((call) => call.path.endsWith('/quote'))).toBe(false);
@@ -167,10 +187,12 @@ describe('autotranslate', () => {
             'POST /api/studio/editions/4/autotranslate/quote': { body: quote({ kind: 'analyze', from: 1, to: 20, chapters: 20, shah: 5 }) },
             'POST /api/studio/editions/4/autotranslate/jobs': { status: 201, body: {} },
         });
-        await userEvent.click(await screen.findByRole('button', { name: /Розширені налаштування/ }));
+        await userEvent.click(await screen.findByRole('button', { name: /^Переклад/ }));
+        await userEvent.click(screen.getByRole('button', { name: /^Вичитка/ }));
         await userEvent.type(screen.getByLabelText('З глави'), '1');
         await userEvent.click(screen.getByRole('switch', { name: 'Зробити заново вже опрацьовані глави' }));
-        const picker = screen.getByRole('combobox', { name: 'Модель аналізу' });
+        await userEvent.click(screen.getByRole('button', { name: /Обрати модель для кожного етапу/ }));
+        const picker = screen.getByRole('combobox', { name: 'Модель: аналіз' });
         await userEvent.clear(picker);
         await userEvent.type(picker, 'better');
         const option = await screen.findByRole('option', { name: /fake\/better/ }, { timeout: 2000 });
@@ -180,15 +202,15 @@ describe('autotranslate', () => {
         expect(calls.filter((call) => call.path.includes('/models')).every((call) => call.query.includes('show=recommended'))).toBe(true);
         expect(screen.getByRole('checkbox', { name: 'Показати й слабкі' })).toBeDisabled();
         await userEvent.click(option);
-        await userEvent.type(screen.getByLabelText('Аналізувати з глави 1 до глави…'), '20');
+        await userEvent.type(screen.getByLabelText('По главу'), '20');
         await screen.findByText(/20 глав/, {}, { timeout: 2000 });
-        await userEvent.click(screen.getByRole('button', { name: 'Почати аналіз' }));
+        await userEvent.click(screen.getByRole('button', { name: /^Запустити/ }));
         expect(calls.find((call) => call.path.endsWith('/jobs'))?.body)
-            .toEqual({ kind: 'analyze', to: 20, from: 1, redo: true, models: { analyze: 'fake/better' } });
+            .toEqual({ kind: 'analyze', steps: ['analyze'], to: 20, from: 1, redo: true, models: { analyze: 'fake/better' } });
 
         await userEvent.click(screen.getByRole('checkbox', { name: 'Лише рекомендовані моделі' }));
         await userEvent.click(screen.getByRole('checkbox', { name: 'Показати й слабкі' }));
-        await userEvent.click(screen.getByRole('combobox', { name: 'Модель аналізу' }));
+        await userEvent.click(screen.getByRole('combobox', { name: 'Модель: аналіз' }));
         await vi.waitFor(() => expect(calls.some((call) => call.query.includes('show=weak'))).toBe(true), { timeout: 2000 });
     });
 
@@ -200,7 +222,9 @@ describe('autotranslate', () => {
             'POST /api/studio/editions/4/autotranslate/quote': { body: quote({ kind: 'analyze', from: 21, to: 23 }) },
         });
         expect(await screen.findByText(/Баланс:/)).toHaveTextContent('$7,50');
-        await userEvent.type(screen.getByLabelText('Аналізувати з глави 21 до глави…'), '23');
+        await userEvent.click(screen.getByRole('button', { name: /^Переклад/ }));
+        await userEvent.click(screen.getByRole('button', { name: /^Вичитка/ }));
+        await userEvent.type(screen.getByLabelText('По главу'), '23');
         expect(await screen.findByText(/3 глави · орієнтовно/, {}, { timeout: 2000 })).toHaveTextContent('$0,11');
     });
 
@@ -214,7 +238,7 @@ describe('autotranslate', () => {
         const card = (await screen.findByRole('progressbar')).closest<HTMLElement>('[aria-live]')!;
         expect(within(card).getByText('зупинено')).toBeInTheDocument();
         expect(within(card).getByRole('alert')).toHaveTextContent('загубилася');
-        expect(screen.queryByRole('button', { name: 'Почати переклад' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^Запустити/ })).not.toBeInTheDocument();
         await userEvent.click(within(card).getByRole('button', { name: 'Продовжити' }));
         expect(calls.some((call) => call.method === 'POST' && call.path.endsWith('/jobs/9/resume'))).toBe(true);
         expect(within(card).getByRole('link', { name: /Журнал запуску/ })).toHaveAttribute('href', '/studio/4/translate/jobs/9');

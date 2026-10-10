@@ -510,3 +510,48 @@
 .badgeRun {
     color: var(--accent);
 }
+
+/* «Новий запуск»: the steps a run is made of, any of them on or off. */
+.steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.step {
+    padding: 10px 6px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.step small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.step[aria-pressed='true'] {
+    border-color: var(--accent);
+    background: var(--surface-2);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.range {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.subTitle {
+    margin: 8px 0 0;
+    font-size: 14px;
+    font-weight: 600;
+}

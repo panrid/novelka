@@ -39,6 +39,7 @@ import space.panrid.novelka.platform.web.UserFacingException;
 import space.panrid.novelka.source.SourceText;
 import space.panrid.novelka.source.Sources;
 import space.panrid.novelka.text.Chapters;
+import space.panrid.novelka.text.EditorModels;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -103,8 +104,10 @@ class Pipeline {
 
         // Analysis done earlier (maybe by an «analysis only» job, maybe corrected since) is reused.
         // «Зробити заново» for analysis asks the model again even where an analysis exists.
-        boolean redoAnalysis = "analyze".equals(job.getKind()) && settings.redo() != null;
-        boolean analyzedBefore = !redoAnalysis
+        // A run with the analysis step redoes it too; proofreading alone skips analysis unless asked for it.
+        boolean redoAnalysis = settings.redo() != null && ("analyze".equals(job.getKind()) || settings.analyze().enabled());
+        boolean skipAnalysis = "proofread".equals(job.getKind()) && !settings.analyze().enabled();
+        boolean analyzedBefore = skipAnalysis || !redoAnalysis
                 && analyses.find(editionId, number).filter(done -> done.sourceChapterId() == source.id()).isPresent();
         List<List<Block>> bigParts = parts(text, settings.segmentChars() * 3);
         for (int part = 0; part < bigParts.size() && !analyzedBefore; part++) {
@@ -139,7 +142,7 @@ class Pipeline {
             save(step, "analyze", checkpoint);
         }
 
-        if (analyzedBefore && checkpoint.analyzed.isEmpty() && !checkpoint.reusedNoted) {
+        if (analyzedBefore && !skipAnalysis && checkpoint.analyzed.isEmpty() && !checkpoint.reusedNoted) {
             journal.add(job.getId(), number, "analysis_reused", Map.of());
             checkpoint.reusedNoted = true;
         }
@@ -157,6 +160,10 @@ class Pipeline {
         }
         calls.narrator = analyses.find(editionId, number)
                 .map(done -> Prompts.narrator(done.narrator(), done.narratorGender())).orElse("");
+        if ("proofread".equals(job.getKind())) {
+            proofreadPublished(job, step, checkpoint, calls, settings, editionId, number, source, text);
+            return;
+        }
 
         if (checkpoint.linesPerPart == null) {
             checkpoint.linesPerPart = checkpoint.draft.isEmpty() ? LINES_PER_PART : Integer.MAX_VALUE;
@@ -227,6 +234,79 @@ class Pipeline {
                     source.id(), source.chars(), job.getId(), source.hash());
             journal.add(job.getId(), number, "published", Map.of("title", analysis.title(),
                     "label", analysis.label() == null ? String.valueOf(number) : analysis.label(), "paragraphs", blocks.size()));
+        }
+        save(step, "done", checkpoint);
+    }
+
+    /**
+     * Proofreading alone: the chapter's published text is the draft, the editor's changes become
+     * a new revision (the old one stays in the history). A person who published the chapter
+     * meanwhile is not overwritten: the run notes it and goes on.
+     */
+    private void proofreadPublished(JobRecord job, JobStepRecord step, Checkpoint checkpoint, Calls calls, Settings settings,
+            long editionId, int number, SourceText source, List<Block> text) {
+        EditorModels.CurrentText current = chapters.current(editionId, number);
+        if (checkpoint.baseRevisionId == null) {
+            checkpoint.baseRevisionId = current.revisionId();
+        }
+        Map<String, String> published = new HashMap<>();
+        current.blocks().forEach(block -> published.put(block.id(), block.text()));
+        if (checkpoint.linesPerPart == null) {
+            checkpoint.linesPerPart = LINES_PER_PART;
+        }
+        List<List<Block>> parts = parts(text, settings.segmentChars(), checkpoint.linesPerPart);
+        if (checkpoint.parts == null || checkpoint.parts != parts.size()) {
+            checkpoint.parts = parts.size();
+            save(step, "proofread", checkpoint);
+        }
+        for (int part = 0; part < parts.size(); part++) {
+            String key = String.valueOf(part);
+            if (checkpoint.revised.containsKey(key)) {
+                continue;
+            }
+            List<Line> draft = parts.get(part).stream().filter(block -> published.containsKey(block.id()))
+                    .map(block -> new Line(block.id(), published.get(block.id()))).toList();
+            checkpoint.draft.put(key, draft);
+            List<Line> revised = draft.isEmpty() ? draft : proofread(calls, editionId, part, parts.get(part), draft);
+            journal.add(job.getId(), number, "proofread", Map.of("part", part, "of", parts.size(), "changes", changes(draft, revised)));
+            checkpoint.revised.put(key, revised);
+            save(step, "proofread", checkpoint);
+        }
+        if (checkpoint.revisionId == null) {
+            save(step, "publish", checkpoint);
+            Map<String, String> changed = new HashMap<>();
+            for (int part = 0; part < parts.size(); part++) {
+                String key = String.valueOf(part);
+                Map<String, String> before = new HashMap<>();
+                checkpoint.draft.get(key).forEach(line -> before.put(line.id(), line.text()));
+                checkpoint.revised.get(key).forEach(line -> {
+                    if (!line.text().isBlank() && !line.text().equals(before.get(line.id()))) {
+                        changed.put(line.id(), line.text());
+                    }
+                });
+            }
+            if (changed.isEmpty()) {
+                journal.add(job.getId(), number, "proofread_unchanged", Map.of());
+            } else {
+                Set<String> spoken = spoken(source.blocks());
+                Set<String> narration = narration(source.blocks());
+                List<Block> blocks = current.blocks().stream().map(block -> {
+                    String line = changed.get(block.id());
+                    if (line == null) {
+                        return block;
+                    }
+                    String shown = spoken.contains(block.id()) ? withDash(line.strip())
+                            : narration.contains(block.id()) ? withoutDash(line.strip()) : line.strip();
+                    return new Block(block.id(), block.type(), List.of(Span.plain(shown)), null, null);
+                }).toList();
+                Long revision = chapters.publishProofread(editionId, number, current.title(), blocks, checkpoint.baseRevisionId, job.getId());
+                if (revision == null) {
+                    journal.add(job.getId(), number, "proofread_conflict", Map.of());
+                } else {
+                    checkpoint.revisionId = revision;
+                    journal.add(job.getId(), number, "proofread_published", Map.of("changed", changed.size()));
+                }
+            }
         }
         save(step, "done", checkpoint);
     }

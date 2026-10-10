@@ -304,6 +304,26 @@ class ChapterService implements Chapters {
 
     @Override
     @Transactional
+    public Long publishProofread(long editionId, int number, String rawTitle, List<Block> rawBlocks, long baseRevisionId, long jobId) {
+        ChapterRecord chapter = db.selectFrom(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(editionId).and(CHAPTER.NUMBER.eq(number)))
+                .forUpdate().fetchOptional()
+                .orElseThrow(() -> UserFacingException.notFound("Такої глави немає."));
+        if (!Long.valueOf(baseRevisionId).equals(chapter.getPublishedRevisionId())) {
+            return null;
+        }
+        OffsetDateTime now = now();
+        long revisionId = insertRevision(chapter.getId(), baseRevisionId, BlockRules.title(rawTitle), BlockRules.normalize(rawBlocks),
+                "ai", null, now);
+        db.update(REVISION).set(REVISION.JOB_ID, jobId).where(REVISION.ID.eq(revisionId)).execute();
+        db.update(CHAPTER).set(CHAPTER.PUBLISHED_REVISION_ID, revisionId).set(CHAPTER.UPDATED_AT, now)
+                .where(CHAPTER.ID.eq(chapter.getId())).execute();
+        refreshCounters(editionId, null);
+        return revisionId;
+    }
+
+    @Override
+    @Transactional
     public long publishFromSuggestions(long editionId, int number, String rawTitle, List<Block> rawBlocks,
             long baseRevisionId, long reviewerId, java.util.Map<Long, ChangeStats> credits) {
         String title = BlockRules.title(rawTitle);
