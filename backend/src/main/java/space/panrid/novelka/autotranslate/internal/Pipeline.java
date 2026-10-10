@@ -221,8 +221,8 @@ class Pipeline {
                     default -> {
                         String line = translated.get(block.id());
                         if (line != null && !line.isBlank()) {
-                            String shown = spoken.contains(block.id()) ? withDash(line.strip())
-                                    : narration.contains(block.id()) ? withoutDash(line.strip()) : line.strip();
+                            String shown = spoken.contains(block.id()) ? withDash(typography(line))
+                                    : narration.contains(block.id()) ? withoutDash(typography(line)) : typography(line);
                             blocks.add(new Block(block.id(), block.type(), List.of(Span.plain(shown)), null, null));
                         }
                     }
@@ -295,8 +295,8 @@ class Pipeline {
                     if (line == null) {
                         return block;
                     }
-                    String shown = spoken.contains(block.id()) ? withDash(line.strip())
-                            : narration.contains(block.id()) ? withoutDash(line.strip()) : line.strip();
+                    String shown = spoken.contains(block.id()) ? withDash(typography(line))
+                            : narration.contains(block.id()) ? withoutDash(typography(line)) : typography(line);
                     return new Block(block.id(), block.type(), List.of(Span.plain(shown)), null, null);
                 }).toList();
                 Long revision = chapters.publishProofread(editionId, number, current.title(), blocks, checkpoint.baseRevisionId, job.getId());
@@ -653,6 +653,30 @@ class Pipeline {
             }
         }
         return out;
+    }
+
+    private static final java.util.regex.Pattern LATIN_IN_WORD = java.util.regex.Pattern.compile(
+            "(?<=[а-яіїєґА-ЯІЇЄҐ'’])[aeiopcxyAEIOPCXTHKMB]+|[aeiopcxyAEIOPCXTHKMB]+(?=[а-яіїєґ])");
+    private static final String LATIN = "aeiopcxyAEIOPCXTHKMB";
+    private static final String CYRILLIC = "аеіорсхуАЕІОРСХТНКМВ";
+
+    /**
+     * Ukrainian typography models keep getting wrong, whatever the prompt says: one «…» for an
+     * ellipsis («?..», «!..» after a question or a cry), no space before a punctuation mark, single
+     * spaces, «» instead of the original's 【】, and Cyrillic letters where a Latin look-alike slipped in.
+     */
+    static String typography(String line) {
+        String text = line.strip()
+                .replaceAll("([?!])\\.{2,}", "$1..")
+                .replaceAll("…{2,}|\\.{3,}|…\\.+|\\.+…", "…")
+                .replaceAll("(?<=[^\\s—–-])[ ]+(?=[,.!?…;:])(?!\\.\\.)", "")
+                .replaceAll(" {2,}", " ")
+                .replaceAll("【([^】]*)】", "«$1»");
+        return LATIN_IN_WORD.matcher(text).replaceAll(match -> {
+            StringBuilder out = new StringBuilder();
+            match.group().chars().forEach(c -> out.append(CYRILLIC.charAt(LATIN.indexOf(c))));
+            return java.util.regex.Matcher.quoteReplacement(out.toString());
+        });
     }
 
     /** Narration has no dash in front, whatever the model made of it. */

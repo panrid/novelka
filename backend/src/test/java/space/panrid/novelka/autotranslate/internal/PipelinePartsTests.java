@@ -154,6 +154,16 @@ class PipelinePartsTests {
     }
 
     @Test
+    void typographyIsMadeRightAtPublishing() {
+        assertThat(Pipeline.typography("Ну...  гаразд , піду……")).isEqualTo("Ну… гаразд, піду…");
+        assertThat(Pipeline.typography("Справді?... Ні!...")).isEqualTo("Справді?.. Ні!..");
+        assertThat(Pipeline.typography("— … Так")).as("an ellipsis opening a line keeps its space after the dash").isEqualTo("— … Так");
+        assertThat(Pipeline.typography("Це 【магія злиття】.")).isEqualTo("Це «магія злиття».");
+        assertThat(Pipeline.typography("Оціпенілe")).as("a Latin look-alike inside a Ukrainian word").isEqualTo("Оціпеніле");
+        assertThat(Pipeline.typography("Grok і GPT")).as("Latin words stay").isEqualTo("Grok і GPT");
+    }
+
+    @Test
     void aSpeechTheAuthorForgotToCloseIsOneLine() {
         // «Меджик Мейкер», chapter 181: 「行ってくるわ without its 」 put a dash before all the narration after it.
         List<Block> blocks = List.of(
