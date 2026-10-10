@@ -56,7 +56,8 @@ export type Process = { editionId: number; title: string; slug: string; job: Job
 export type ModelRating = 'recommended' | 'usual' | 'weak';
 /** Which models the pickers list: only recommended, also usual ones, or weak ones too. */
 export type ModelShow = 'recommended' | 'usual' | 'weak';
-export type ModelChoice = { id: string; name: string; inputPerMillion: number; outputPerMillion: number; chapterUsd: number; rating: ModelRating };
+/** measuredChapters: the price is what the model really cost here on that many chapters; null — estimated from token prices. */
+export type ModelChoice = { id: string; name: string; inputPerMillion: number; outputPerMillion: number; chapterUsd: number; rating: ModelRating; measuredChapters?: number | null };
 export type GlossaryKind = 'character' | 'place' | 'organization' | 'term' | 'other';
 export type Gender = 'male' | 'female' | 'unknown';
 export type GlossaryStatus = 'new' | 'approved' | 'rejected';

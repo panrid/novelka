@@ -50,10 +50,13 @@ class Jobs {
     private final Ledger ledger;
     private final AuditLog audit;
     private final Presets presets;
+    private final ModelCosts costs;
     /** A person's run holds this much more than the quote: chapters vary and answers get asked again. */
     static final double RESERVE_MARGIN = 1.5;
 
-    Jobs(DSLContext db, Ai ai, SiteSettings siteSettings, JsonMapper json, Ledger ledger, AuditLog audit, Presets presets) {
+    Jobs(DSLContext db, Ai ai, SiteSettings siteSettings, JsonMapper json, Ledger ledger, AuditLog audit, Presets presets,
+            ModelCosts costs) {
+        this.costs = costs;
         this.presets = presets;
         this.audit = audit;
         this.ledger = ledger;
@@ -285,7 +288,7 @@ class Jobs {
             unanalyzed += !analyze && !wasAnalyzed && !(proofreadOnly && !analyzeStep) ? 1 : 0;
             boolean translates = !analyze && !proofreadOnly;
             boolean proofreads = !analyze && proofreadStep;
-            long chosen = preset == null ? settings.expectedMicroUsd(size, needsAnalysis, translates, proofreads)
+            long chosen = preset == null ? costs.chapterMicroUsd(settings, size, needsAnalysis, translates, proofreads)
                     : preset.expectedMicroUsd(size, needsAnalysis, translates, proofreads, settings);
             expected += chosen;
             shah += shahFor(size, chosen, site.expectedMicroUsd(size, needsAnalysis, translates, proofreads));

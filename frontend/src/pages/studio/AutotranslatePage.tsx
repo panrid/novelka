@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { chaptersWord } from '../../reading/api';
 import { JOB_LABELS, JOB_NAMES, STAGE_LABELS, STEP_NAMES, autotranslateApi, dollars, money, shahWord, type Job, type JobKind, type ModelShow, type Plan, type Step } from '../../studio/autotranslate';
 import { ModelPicker } from '../../studio/ModelPicker';
-import { PresetPicker } from '../../studio/PresetPicker';
-import pickerStyles from '../../studio/modelPicker.module.css';
 import { useDebounced } from '../../lib/useDebounced';
 import { relativeTime } from '../../lib/dates';
 import { askConfirm } from '../../ui/ask';
@@ -43,14 +41,12 @@ function AutotranslateTab() {
     });
     const [steps, setSteps] = useState<Step[]>(['analyze', 'translate', 'proofread']);
     const [to, setTo] = useState('');
-    const [advanced, setAdvanced] = useState(false);
     const [from, setFrom] = useState('');
     const [redo, setRedo] = useState(false);
     const [models, setModels] = useState<NonNullable<Plan['models']>>({});
     const [preset, setPreset] = useState<number | null>(null);
-    const [onlyRecommended, setOnlyRecommended] = useState(true);
     const [withWeak, setWithWeak] = useState(false);
-    const modelShow: ModelShow = onlyRecommended ? 'recommended' : withWeak ? 'weak' : 'usual';
+    const modelShow: ModelShow = withWeak ? 'weak' : 'usual';
     const has = (step: Step) => steps.includes(step);
     const kind: JobKind = has('translate') ? 'translate' : has('proofread') ? 'proofread' : 'analyze';
     const toggle = (step: Step) => {
@@ -106,7 +102,6 @@ function AutotranslateTab() {
     const chosen = data.presets.find((item) => item.id === preset);
     const model = (stage: 'analyze' | 'translate' | 'proofread') => models[stage] ?? chosen?.[stage] ?? data.settings[stage].model;
     const short = (id: string) => id.slice(id.indexOf('/') + 1);
-    const siteModels = steps.map((step) => `${STEP_NAMES[step].toLowerCase()} ${short(data.settings[step].model)}`).join(', ');
 
     return (
         <>
@@ -155,35 +150,29 @@ function AutotranslateTab() {
                     {!data.personal && (<>
                         <h3 className={styles.subTitle}>Моделі</h3>
                         {data.presets.length > 0 && (
-                            <PresetPicker presets={data.presets} value={preset} kind={kind === 'analyze' ? 'analyze' : 'translate'} siteModels={siteModels}
-                                onChange={(next) => { setPreset(next); setModels({}); }} />
-                        )}
-                        <button type="button" className={styles.disclosure} aria-expanded={advanced} onClick={() => setAdvanced(!advanced)}>
-                            {advanced ? '▾' : '▸'} Обрати модель для кожного етапу
-                        </button>
-                        {advanced && (
-                            <div className={styles.advanced}>
-                                <div className={pickerStyles.filters}>
-                                    <label>
-                                        <input type="checkbox" checked={onlyRecommended} onChange={(event) => setOnlyRecommended(event.target.checked)} />
-                                        <span>Лише рекомендовані моделі</span>
-                                    </label>
-                                    <label>
-                                        <input type="checkbox" checked={withWeak} disabled={onlyRecommended} onChange={(event) => setWithWeak(event.target.checked)} />
-                                        <span>Показати й слабкі</span>
-                                    </label>
-                                </div>
-                                {STEPS.filter((step) => has(step) || step === 'analyze' && kind === 'translate').map((step) => (
-                                    <ModelPicker key={`${step}-${preset}`} label={`Модель: ${STEP_NAMES[step].toLowerCase()}`} show={modelShow} stage={step}
-                                        value={model(step)} chars={data.averageChars} onChange={(id) => setModels({ ...models, [step]: id })}
-                                        hint={step === 'analyze' && !has('analyze') ? 'Для глав, які ще не проаналізовано.' : undefined} />
+                            <div className={styles.presets} role="group" aria-label="Набір моделей">
+                                <button type="button" aria-pressed={preset === null} onClick={() => { setPreset(null); setModels({}); }}>Як на сайті</button>
+                                {data.presets.map((item) => (
+                                    <button key={item.id} type="button" aria-pressed={preset === item.id}
+                                        onClick={() => { setPreset(item.id); setModels({}); }}>{item.name}</button>
                                 ))}
-                                <p className={styles.muted}>
-                                    Ціна «за главу» — для середньої глави цієї новели (~{data.averageChars.toLocaleString('uk-UA')} знаків), якщо всі кроки
-                                    робить ця модель. Вибір діє лише для цього запуску; постійні моделі — на <Link to="/me/wallet">«Шагах»</Link>.
-                                </p>
                             </div>
                         )}
+                        {chosen && <p className={styles.muted}>{chosen.summary} Оцінка якості — {String(chosen.rating).replace('.', ',')} з 5.</p>}
+                        {STEPS.filter((step) => has(step) || step === 'analyze' && kind === 'translate').map((step) => (
+                            <StepModel key={`${step}-${preset}`} step={step} model={model(step)} chars={data.averageChars} show={modelShow}
+                                note={step === 'analyze' && !has('analyze') ? 'лише для глав, які ще не проаналізовано' : undefined}
+                                onChange={(id) => setModels({ ...models, [step]: id })} />
+                        ))}
+                        <label className={styles.check}>
+                            <input type="checkbox" checked={withWeak} onChange={(event) => setWithWeak(event.target.checked)} />
+                            <span>Показувати й слабкі моделі</span>
+                        </label>
+                        <p className={styles.muted}>
+                            Ціна — для середньої глави цієї новели (~{data.averageChars.toLocaleString('uk-UA')} знаків оригіналу): «виміряно» — скільки модель
+                            справді витратила тут, «оцінка» — з цін за токени (моделі, що роздумують, витрачають більше). Вибір діє лише для цього запуску;
+                            постійні моделі — на <Link to="/me/wallet">«Шагах»</Link>.
+                        </p>
                     </>)}
 
                     {ready && quote.data && (
@@ -244,6 +233,40 @@ function AutotranslateTab() {
 }
 
 const STEPS: Step[] = ['analyze', 'translate', 'proofread'];
+
+/** One step's model in a line — its price for an average chapter, measured or estimated — and «Змінити» to pick another. */
+function StepModel({ step, model, chars, show, note, onChange }: {
+    step: Step; model: string; chars: number; show: ModelShow; note: string | undefined; onChange: (model: string) => void;
+}) {
+    const [picking, setPicking] = useState(false);
+    const found = useQuery({
+        queryKey: ['models', model, chars, step, 'weak', 'text'],
+        queryFn: () => autotranslateApi.models(model, chars, 'text', step, 'weak'),
+        staleTime: 5 * 60_000,
+    });
+    const choice = found.data?.find((item) => item.id === model);
+    const short = model.slice(model.indexOf('/') + 1);
+    return (
+        <div className={styles.stepModel}>
+            <div className={styles.stepLine}>
+                <span className={styles.grow}>
+                    {STEP_NAMES[step]}{note && <span className={styles.muted}> ({note})</span>}<br />
+                    <b>{short}</b>
+                </span>
+                <span className={styles.stepPrice}>
+                    {choice ? <>≈ {dollars(choice.chapterUsd, 3)}<br /><span className={styles.muted}>{choice.measuredChapters
+                        ? `за главу, виміряно на ${choice.measuredChapters}` : 'за главу, оцінка'}</span></> : <span className={styles.muted}>…</span>}
+                </span>
+                <button type="button" className={styles.link} aria-expanded={picking} onClick={() => setPicking(!picking)}
+                    aria-label={`${STEP_NAMES[step]}: змінити модель`}>{picking ? 'Згорнути' : 'Змінити'}</button>
+            </div>
+            {picking && (
+                <ModelPicker label={`Модель: ${STEP_NAMES[step].toLowerCase()}`} show={show} stage={step} value={model} chars={chars}
+                    onChange={(id) => { onChange(id); setPicking(false); }} />
+            )}
+        </div>
+    );
+}
 const STEP_HINTS: Record<Step, string> = { analyze: 'словник, назви', translate: 'з оригіналу', proofread: 'редагує текст' };
 
 /** What the chosen steps will do, in a sentence. */

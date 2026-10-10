@@ -580,12 +580,3 @@
 .volumeName {
     font-weight: 600;
 }
-
-.volumeToggle {
-    padding: 0;
-    border: 0;
-    background: none;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-}

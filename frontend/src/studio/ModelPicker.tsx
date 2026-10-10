@@ -32,7 +32,7 @@ export function ModelPicker({ label, value, onChange, chars = 6000, stage, show 
         setOpen(false);
     };
     const price = (model: ModelChoice) => output === 'image' ? `≈ ${dollars(model.chapterUsd, 3)} за картинку`
-        : stage ? `≈ ${dollars(model.chapterUsd, 3)} за главу`
+        : stage ? `≈ ${dollars(model.chapterUsd, 3)} за главу${model.measuredChapters ? ' · виміряно' : ' · оцінка'}`
             : `${dollars(model.inputPerMillion)} / ${dollars(model.outputPerMillion)} за 1 млн`;
     const id = `model-${label.replace(/\s+/g, '-')}`;
     // The list is long: keep the option chosen with the arrows in sight.

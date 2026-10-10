@@ -530,14 +530,6 @@ function ChapterList({ slug, team, current, total, editionId }: {
     const [mode, setModeState] = useState<ListMode>(() => remembered(MODE_KEY, 'volumes') as ListMode);
     const byVolumes = mode === 'volumes' && volumes.length > 0;
     const setMode = (next: ListMode) => { setModeState(next); remember(MODE_KEY, next); };
-    const [folded, setFolded] = useState<number[]>(() => {
-        try { return JSON.parse(remembered(`${FOLD_KEY}${slug}`, '[]')) as number[]; } catch { return []; }
-    });
-    const fold = (first: number) => {
-        const next = folded.includes(first) ? folded.filter((item) => item !== first) : [...folded, first];
-        setFolded(next);
-        remember(`${FOLD_KEY}${slug}`, JSON.stringify(next));
-    };
     const top = useRef<HTMLDivElement>(null);
 
     const row = (item: ChapterRowType) => (
@@ -578,7 +570,7 @@ function ChapterList({ slug, team, current, total, editionId }: {
                         initiallyOpen={holds(volume) || current === null && volume === shown[0]}
                         current={current} />
                 ))
-                : <AllChapters slug={slug} team={team} order={order} total={total} current={current} row={row} folded={folded} onFold={fold} top={top} />}
+                : <AllChapters slug={slug} team={team} order={order} total={total} current={current} row={row} top={top} />}
             {marking && (
                 <Sheet open onClose={() => setMarking(null)} title={chapterHeading(marking)}>
                     <div className={styles.markSheet}>
@@ -601,7 +593,6 @@ function ChapterList({ slug, team, current, total, editionId }: {
 
 type ListMode = 'volumes' | 'all';
 const MODE_KEY = 'chapter-list-mode';
-const FOLD_KEY = 'chapter-list-folded:';
 
 /** A per-viewer convenience: the browser may refuse storage, then the list just starts fresh. */
 function remembered(key: string, fallback: string): string {
@@ -612,11 +603,10 @@ function remember(key: string, value: string) {
     try { window.localStorage.setItem(key, value); } catch { /* the list works without it */ }
 }
 
-/** «Усі глави»: 20 to a page as before; a volume's heading folds its chapters on the page. */
-function AllChapters({ slug, team, order, total, current, row, folded, onFold, top }: {
+/** «Усі глави»: 20 to a page as before, volume headings between them. */
+function AllChapters({ slug, team, order, total, current, row, top }: {
     slug: string; team: string | undefined; order: 'asc' | 'desc'; total: number; current: number | null;
-    row: (item: ChapterRowType) => React.ReactNode; folded: number[]; onFold: (first: number) => void;
-    top: React.RefObject<HTMLDivElement | null>;
+    row: (item: ChapterRowType) => React.ReactNode; top: React.RefObject<HTMLDivElement | null>;
 }) {
     const pages = Math.max(1, Math.ceil(total / CHAPTERS_PER_PAGE));
     const [page, setPage] = useState(() => (current && order === 'asc'
@@ -635,23 +625,14 @@ function AllChapters({ slug, team, order, total, current, row, folded, onFold, t
         <>
             {chapters.isError && <Notice tone="error">{chapters.error.message}</Notice>}
             <ol className={styles.list}>
-                {rows.map((item, index) => {
-                    const first = item.volume?.firstNumber;
-                    const heading = item.volume && first !== rows[index - 1]?.volume?.firstNumber;
-                    const closed = first !== undefined && folded.includes(first);
-                    return (
-                        <Fragment key={item.number}>
-                            {heading && (
-                                <li className={styles.volumeHead}>
-                                    <button type="button" className={styles.volumeToggle} aria-expanded={!closed} onClick={() => onFold(first!)}>
-                                        <span aria-hidden>{closed ? '▸' : '▾'}</span> {volumeTitle(item.volume!)}
-                                    </button>
-                                </li>
-                            )}
-                            {!closed && row(item)}
-                        </Fragment>
-                    );
-                })}
+                {rows.map((item, index) => (
+                    <Fragment key={item.number}>
+                        {item.volume && item.volume.firstNumber !== rows[index - 1]?.volume?.firstNumber && (
+                            <li className={styles.volumeHead}>{volumeTitle(item.volume)}</li>
+                        )}
+                        {row(item)}
+                    </Fragment>
+                ))}
             </ol>
             <Pager page={page} total={total} size={CHAPTERS_PER_PAGE} onPage={turn} />
         </>

@@ -53,10 +53,12 @@ class AutotranslateController {
     private final Agreement agreement;
     private final JobLog journal;
     private final Presets presets;
+    private final ModelCosts costs;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
             Teams teams, Analyses analyses, Ledger ledger, Sources sources, space.panrid.novelka.suggestion.Suggestions suggestions,
-            Agreement agreement, JobLog journal, Presets presets) {
+            Agreement agreement, JobLog journal, Presets presets, ModelCosts costs) {
+        this.costs = costs;
         this.presets = presets;
         this.journal = journal;
         this.agreement = agreement;
@@ -217,7 +219,9 @@ class AutotranslateController {
      * {@code chapterUsd}: a chapter (or its stage) for text models, one picture for models that draw.
      * {@code rating}: recommended, usual or weak (see {@link ModelRatings}).
      */
-    record ModelChoice(String id, String name, double inputPerMillion, double outputPerMillion, BigDecimal chapterUsd, String rating) {
+    /** {@code measuredChapters}: the price is what the model really cost on that many chapters here; null — an estimate from token prices. */
+    record ModelChoice(String id, String name, double inputPerMillion, double outputPerMillion, BigDecimal chapterUsd, String rating,
+            Integer measuredChapters) {
     }
 
     private static final List<String> STAGES = List.of("analyze", "translate", "proofread");
@@ -252,12 +256,15 @@ class AutotranslateController {
                 .sorted(java.util.Comparator.comparing((space.panrid.novelka.ai.AiModel model) ->
                         text && ModelRatings.of(model.id()) == ModelRatings.Rating.RECOMMENDED ? 0 : 1))
                 .map(model -> {
+                    Settings all = Settings.defaults().withModels(stageOf(model), stageOf(model), stageOf(model));
                     long micro = !text ? pictureMicroUsd(model) : at >= 0
-                            ? Settings.stageMicroUsd(at, size, model.inputPerMillion(), model.outputPerMillion())
-                            : Settings.defaults().withModels(stageOf(model), stageOf(model), stageOf(model)).expectedMicroUsd(size, true, true);
+                            ? costs.chapterMicroUsd(at, size, stageOf(model))
+                            : costs.chapterMicroUsd(all, size, true, true, true);
+                    Integer measured = !text || at < 0 ? null
+                            : costs.of(model.id(), ModelCosts.STAGES.get(at)).map(ModelCosts.Measured::chapters).orElse(null);
                     String rating = text ? ModelRatings.of(model.id()).name().toLowerCase(java.util.Locale.ROOT) : "usual";
                     return new ModelChoice(model.id(), model.name(), model.inputPerMillion(), model.outputPerMillion(),
-                            Settings.usdOfMicro(micro), rating);
+                            Settings.usdOfMicro(micro), rating, measured);
                 })
                 .toList();
     }
