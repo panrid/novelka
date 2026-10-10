@@ -172,6 +172,22 @@ class ReadingFlowTests {
     }
 
     @Test
+    void chaptersMarkedReadByHandMoveContinueOn() {
+        String slug = read(importNovel(admin.browser(), title, NOVEL, false)).path("slug").asString();
+        Person reader = Accounts.signedIn(port, mailbox);
+        long editionId = read(reader.browser().get("/api/novels/" + slug)).path("edition").path("editionId").asLong();
+
+        reader.browser().put("/api/progress/" + editionId, json("chapterNumber", 1, "position", 0.3));
+        assertThat(reader.browser().put("/api/reads/" + editionId, json("from", 1, "to", 2, "read", true)).status()).isEqualTo(204);
+        JsonNode viewer = read(reader.browser().get("/api/novels/" + slug)).path("viewer");
+        assertThat(viewer.path("chapterNumber").asInt()).as("«усі до цієї» read by hand: «Продовжити» goes past them").isEqualTo(3);
+        assertThat(viewer.path("position").asDouble()).isZero();
+        assertThat(read(reader.browser().get("/api/home")).path("continueReading").path(0).path("chapterNumber").asInt()).isEqualTo(3);
+        assertThat(read(reader.browser().get("/api/library?list=reading")).path("items").path(0).path("chapterNumber").asInt())
+                .isEqualTo(3);
+    }
+
+    @Test
     void readingRemembersThePlaceAndFillsTheLibrary() {
         String slug = read(importNovel(admin.browser(), title, NOVEL, false)).path("slug").asString();
         Person reader = Accounts.signedIn(port, mailbox);
