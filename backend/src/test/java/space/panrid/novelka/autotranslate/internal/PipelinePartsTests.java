@@ -154,6 +154,21 @@ class PipelinePartsTests {
     }
 
     @Test
+    void aSpeechTheAuthorForgotToCloseIsOneLine() {
+        // «Меджик Мейкер», chapter 181: 「行ってくるわ without its 」 put a dash before all the narration after it.
+        List<Block> blocks = List.of(
+                line(1, "「行ってくるわ"),
+                line(2, "「い、いってらっしゃいませ！」"),
+                line(3, "ウィノナたちが手を振ってくれた。"),
+                line(4, "「シオン様、そろそろ発ちましょう。"),
+                line(5, "魔力鍛錬は道中でも可能ですし」"),
+                line(6, "僕とマリーは馬車に乗った。"),
+                line(7, "「またね"),
+                line(8, "その姿が妙に心に残った。"));
+        assertThat(Pipeline.spoken(blocks)).containsExactlyInAnyOrder("s1", "s2", "s4", "s5", "s7");
+    }
+
+    @Test
     void japaneseOrAMarkerLeftInTheTranslationIsNotAccepted() {
         assertThat(Pipeline.leftover("s1", "Повернемося до перевірки водяної магії [term].")).isNotNull();
         assertThat(Pipeline.leftover("s1", "Він сказав: まあいいか.")).isNotNull();

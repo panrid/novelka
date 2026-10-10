@@ -529,23 +529,38 @@ class Pipeline {
      * Lines of a speech in 「」, the whole chapter read from its start: those that open one and
      * those inside one that began in an earlier line. Models often leave the dash off the latter
      * (the most common correction in proofreading, 2026-10-07), so publishing puts it there.
+     * A speech whose 」 never comes before the next one opens (or the chapter ends) is the
+     * author's slip: only its first line is speech — else every line after it got a dash
+     * («Меджик Мейкер», chapters 156 and 181).
      */
     static Set<String> spoken(List<Block> blocks) {
         Set<String> out = new java.util.HashSet<>();
-        int depth = 0;
-        for (Block block : blocks) {
-            String text = block.text().strip();
-            if (text.isEmpty()) {
+        List<Block> lines = blocks.stream().filter(block -> !block.text().strip().isEmpty()).toList();
+        for (int i = 0; i < lines.size(); i++) {
+            String text = lines.get(i).text().strip();
+            if (!text.startsWith("「")) {
                 continue;
             }
-            if (text.startsWith("「") || depth > 0) {
-                out.add(block.id());
+            out.add(lines.get(i).id());
+            int depth = balance(text);
+            List<String> inside = new ArrayList<>();
+            int next = i + 1;
+            while (depth > 0 && next < lines.size() && !lines.get(next).text().strip().startsWith("「")) {
+                String line = lines.get(next).text().strip();
+                inside.add(lines.get(next).id());
+                depth = Math.max(0, depth + balance(line));
+                next++;
             }
-            int opens = (int) text.chars().filter(c -> c == '「').count();
-            int closes = (int) text.chars().filter(c -> c == '」').count();
-            depth = Math.max(0, depth + opens - closes);
+            if (depth == 0) {
+                out.addAll(inside);
+                i = next - 1;
+            }
         }
         return out;
+    }
+
+    private static int balance(String text) {
+        return (int) (text.chars().filter(c -> c == '「').count() - text.chars().filter(c -> c == '」').count());
     }
 
     /** Lines that are plainly narration in the original: no 「」 around them and nothing that may be speech. */
