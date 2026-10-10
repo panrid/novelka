@@ -62,6 +62,9 @@ export type EditionSummary = {
     downloadAllowed?: boolean;
 };
 
+/** A volume of the list of chapters «По томах»: read is null for a guest. */
+export type ContentsVolume = { firstNumber: number; lastNumber: number | null; title: string; chapters: number; read: number | null };
+
 /** A volume one can download as a book. */
 export type VolumeChoice = { firstNumber: number; lastNumber: number | null; title: string; chapters: number };
 
@@ -168,8 +171,10 @@ export const readingApi = {
     volumes: (slug: string, team?: string) => api<VolumeChoice[]>(`${novelPath(slug)}/volumes${query({ t: team })}`),
     /** The book itself is a plain link: the browser downloads it with the session's cookie. */
     epubUrl: (slug: string, team?: string, volume?: number) => `${novelPath(slug)}/epub${query({ t: team, volume })}`,
-    chapters: (slug: string, team: string | undefined, order: 'asc' | 'desc', page: number) =>
-        api<Page<ChapterRow>>(`${novelPath(slug)}/chapters${query({ t: team, order, page })}`),
+    /** {@code from}–{@code to}: one volume's chapters; none for all. */
+    chapters: (slug: string, team: string | undefined, order: 'asc' | 'desc', page: number, from?: number, to?: number) =>
+        api<Page<ChapterRow>>(`${novelPath(slug)}/chapters${query({ t: team, order, page, from, to })}`),
+    contents: (slug: string, team?: string) => api<ContentsVolume[]>(`${novelPath(slug)}/contents${query({ t: team })}`),
     chapter: (slug: string, number: number, team?: string) =>
         api<ReaderChapter>(`${novelPath(slug)}/chapters/${number}${query({ t: team })}`),
     saveProgress: (editionId: number, chapterNumber: number, position: number) =>

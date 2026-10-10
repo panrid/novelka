@@ -142,11 +142,20 @@ class ReadingController {
     @GetMapping("/novels/{slug}/chapters")
     Views.Page<Views.ChapterRow> chapters(@PathVariable String slug, @RequestParam(required = false) String t,
             @RequestParam(defaultValue = "asc") String order, @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "" + CHAPTERS_PAGE_SIZE) int size) {
+            @RequestParam(defaultValue = "" + CHAPTERS_PAGE_SIZE) int size, @RequestParam(required = false) Integer from,
+            @RequestParam(required = false) Integer to) {
         EditionRow edition = pick(visibleEditions(queries.novel(slug).orElseThrow(ReadingController::noNovel),
                 currentUser.viewer()), t);
         return queries.chapters(edition.id(), order.equals("desc"), Math.max(1, page), Math.max(1, Math.min(size, 100)),
-                currentUser.accountId().orElse(null));
+                currentUser.accountId().orElse(null), from, to);
+    }
+
+    /** The volumes of the list of chapters «По томах»; empty when the translation has none. */
+    @GetMapping("/novels/{slug}/contents")
+    List<Views.ContentsVolume> contents(@PathVariable String slug, @RequestParam(required = false) String t) {
+        EditionRow edition = pick(visibleEditions(queries.novel(slug).orElseThrow(ReadingController::noNovel),
+                currentUser.viewer()), t);
+        return queries.contents(edition.id(), currentUser.accountId().orElse(null));
     }
 
     @GetMapping("/novels/{slug}/chapters/{number}")

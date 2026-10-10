@@ -105,6 +105,10 @@ final class Views {
     record VolumeChoice(int firstNumber, Integer lastNumber, String title, int chapters) {
     }
 
+    /** A volume in the list of chapters: its range, how many chapters it has and how many the reader read (null for a guest). */
+    record ContentsVolume(int firstNumber, Integer lastNumber, String title, int chapters, Integer read) {
+    }
+
     record ReaderBlock(String id, String type, List<Span> content, String imageUrl) {
     }
 

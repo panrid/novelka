@@ -11,7 +11,7 @@ import { adminApi } from '../../admin/api';
 import { Sheet } from '../../ui/Sheet';
 import { Blocks } from '../../reading/Blocks';
 import { Cover } from '../../reading/Cover';
-import { LIST_LABELS, SOURCE_STATUS_LABELS, chapterHeading, chaptersWord, otherNames, readingApi, translationStatus, volumeTitle, type ChapterRow as ChapterRowType, type ListName, type NovelPage as Novel } from '../../reading/api';
+import { LIST_LABELS, SOURCE_STATUS_LABELS, chapterHeading, chaptersWord, otherNames, readingApi, translationStatus, volumeTitle, type ChapterRow as ChapterRowType, type ContentsVolume, type ListName, type NovelPage as Novel } from '../../reading/api';
 import { relayApi, teamApi } from '../../studio/api';
 import { Segmented } from '../../ui/Segmented';
 import { localProgress } from '../../reading/progress';
@@ -482,7 +482,7 @@ const CHAPTERS_PER_PAGE = 20;
 function useReadMarks(slug: string, editionId: number | null) {
     const client = useQueryClient();
     const refresh = () => {
-        for (const key of [['novel', slug], ['chapters', slug], ['home'], ['library']]) void client.invalidateQueries({ queryKey: key });
+        for (const key of [['novel', slug], ['chapters', slug], ['contents', slug], ['home'], ['library']]) void client.invalidateQueries({ queryKey: key });
     };
     const mark = useMutation({ meta: { errorToast: true },
         mutationFn: ({ from, to, read }: { from: number; to: number; read: boolean }) => readingApi.markRead(editionId!, from, to, read),
@@ -524,51 +524,61 @@ function ChapterList({ slug, team, current, total, editionId }: {
     const { mark } = useReadMarks(slug, editionId);
     const [marking, setMarking] = useState<ChapterRowType | null>(null);
     const [order, setOrder] = useState<'asc' | 'desc'>('asc');
-    const pages = Math.max(1, Math.ceil(total / CHAPTERS_PER_PAGE));
-    const [page, setPage] = useState(() => (current ? Math.min(pages, Math.max(1, Math.ceil(current / CHAPTERS_PER_PAGE))) : 1));
-    const chapters = useQuery({
-        queryKey: ['chapters', slug, team ?? '', order, page],
-        queryFn: () => readingApi.chapters(slug, team, order, page),
-        placeholderData: (previous) => previous,
+    // Without volumes (or if they fail to come) the list is simply «Усі глави».
+    const contents = useQuery({ queryKey: ['contents', slug, team ?? ''], queryFn: () => readingApi.contents(slug, team), retry: false });
+    const volumes = contents.data ?? [];
+    const [mode, setModeState] = useState<ListMode>(() => remembered(MODE_KEY, 'volumes') as ListMode);
+    const byVolumes = mode === 'volumes' && volumes.length > 0;
+    const setMode = (next: ListMode) => { setModeState(next); remember(MODE_KEY, next); };
+    const [folded, setFolded] = useState<number[]>(() => {
+        try { return JSON.parse(remembered(`${FOLD_KEY}${slug}`, '[]')) as number[]; } catch { return []; }
     });
-    const rows = chapters.data?.items ?? [];
-    const top = useRef<HTMLDivElement>(null);
-    const turn = (next: number) => {
-        setPage(next);
-        top.current?.scrollIntoView?.({ block: 'start' });
+    const fold = (first: number) => {
+        const next = folded.includes(first) ? folded.filter((item) => item !== first) : [...folded, first];
+        setFolded(next);
+        remember(`${FOLD_KEY}${slug}`, JSON.stringify(next));
     };
+    const top = useRef<HTMLDivElement>(null);
+
+    const row = (item: ChapterRowType) => (
+        <li key={item.number} className={editionId ? styles.markedRow : undefined}>
+            <Link to="/n/$slug/$number" params={{ slug, number: String(item.number) }} search={team ? { t: team } : {}}
+                className={`${styles.chapter} ${item.number === current ? styles.here : ''} ${item.read ? styles.read : ''}`}>
+                <span>{chapterHeading(item)}</span>
+                {item.number === current && <span className={styles.muted}>тут зупинились</span>}
+            </Link>
+            {editionId && (
+                <button type="button" className={`${styles.mark} ${item.read ? styles.markOn : ''}`} onClick={() => setMarking(item)}
+                    aria-label={`${chapterHeading(item)}: ${item.read ? 'прочитано' : 'не прочитано'}`}>
+                    {item.read && <Check size={14} aria-hidden />}
+                </button>
+            )}
+        </li>
+    );
+    const shown = order === 'asc' ? volumes : [...volumes].reverse();
+    const holds = (volume: ContentsVolume) => current !== null && current >= volume.firstNumber
+        && (volume.lastNumber === null || current <= volume.lastNumber);
 
     return (
         <div className={styles.chapters} id="chapters" ref={top}>
             <div className={styles.chaptersHead}>
-                <button type="button" className={styles.order} onClick={() => { setOrder(order === 'asc' ? 'desc' : 'asc'); setPage(1); }}>
+                {volumes.length > 0 && (
+                    <div className={styles.listMode} role="group" aria-label="Як показати глави">
+                        <button type="button" aria-pressed={byVolumes} onClick={() => setMode('volumes')}>По томах</button>
+                        <button type="button" aria-pressed={!byVolumes} onClick={() => setMode('all')}>Усі глави</button>
+                    </div>
+                )}
+                <button type="button" className={styles.order} onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}>
                     <ArrowDownUp size={14} aria-hidden /> {order === 'asc' ? 'від першої' : 'від останньої'}
                 </button>
             </div>
-            {chapters.isError && <Notice tone="error">{chapters.error.message}</Notice>}
-            <ol className={styles.list}>
-                {rows.map((row, index) => (
-                    <Fragment key={row.number}>
-                    {row.volume && row.volume.firstNumber !== rows[index - 1]?.volume?.firstNumber && (
-                        <li className={styles.volumeHead}>{volumeTitle(row.volume)}</li>
-                    )}
-                    <li className={editionId ? styles.markedRow : undefined}>
-                        <Link to="/n/$slug/$number" params={{ slug, number: String(row.number) }} search={team ? { t: team } : {}}
-                            className={`${styles.chapter} ${row.number === current ? styles.here : ''} ${row.read ? styles.read : ''}`}>
-                            <span>{chapterHeading(row)}</span>
-                            {row.number === current && <span className={styles.muted}>тут зупинились</span>}
-                        </Link>
-                        {editionId && (
-                            <button type="button" className={`${styles.mark} ${row.read ? styles.markOn : ''}`} onClick={() => setMarking(row)}
-                                aria-label={`${chapterHeading(row)}: ${row.read ? 'прочитано' : 'не прочитано'}`}>
-                                {row.read && <Check size={14} aria-hidden />}
-                            </button>
-                        )}
-                    </li>
-                    </Fragment>
-                ))}
-            </ol>
-            <Pager page={page} total={total} size={CHAPTERS_PER_PAGE} onPage={turn} />
+            {contents.isPending ? null : byVolumes
+                ? shown.map((volume) => (
+                    <VolumeSection key={`${volume.firstNumber}-${order}`} volume={volume} slug={slug} team={team} order={order} row={row}
+                        initiallyOpen={holds(volume) || current === null && volume === shown[0]}
+                        current={current} />
+                ))
+                : <AllChapters slug={slug} team={team} order={order} total={total} current={current} row={row} folded={folded} onFold={fold} top={top} />}
             {marking && (
                 <Sheet open onClose={() => setMarking(null)} title={chapterHeading(marking)}>
                     <div className={styles.markSheet}>
@@ -589,6 +599,104 @@ function ChapterList({ slug, team, current, total, editionId }: {
     );
 }
 
+type ListMode = 'volumes' | 'all';
+const MODE_KEY = 'chapter-list-mode';
+const FOLD_KEY = 'chapter-list-folded:';
+
+/** A per-viewer convenience: the browser may refuse storage, then the list just starts fresh. */
+function remembered(key: string, fallback: string): string {
+    try { return window.localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+}
+
+function remember(key: string, value: string) {
+    try { window.localStorage.setItem(key, value); } catch { /* the list works without it */ }
+}
+
+/** «Усі глави»: 20 to a page as before; a volume's heading folds its chapters on the page. */
+function AllChapters({ slug, team, order, total, current, row, folded, onFold, top }: {
+    slug: string; team: string | undefined; order: 'asc' | 'desc'; total: number; current: number | null;
+    row: (item: ChapterRowType) => React.ReactNode; folded: number[]; onFold: (first: number) => void;
+    top: React.RefObject<HTMLDivElement | null>;
+}) {
+    const pages = Math.max(1, Math.ceil(total / CHAPTERS_PER_PAGE));
+    const [page, setPage] = useState(() => (current && order === 'asc'
+        ? Math.min(pages, Math.max(1, Math.ceil(current / CHAPTERS_PER_PAGE))) : 1));
+    const chapters = useQuery({
+        queryKey: ['chapters', slug, team ?? '', order, page],
+        queryFn: () => readingApi.chapters(slug, team, order, page),
+        placeholderData: (previous) => previous,
+    });
+    const rows = chapters.data?.items ?? [];
+    const turn = (next: number) => {
+        setPage(next);
+        top.current?.scrollIntoView?.({ block: 'start' });
+    };
+    return (
+        <>
+            {chapters.isError && <Notice tone="error">{chapters.error.message}</Notice>}
+            <ol className={styles.list}>
+                {rows.map((item, index) => {
+                    const first = item.volume?.firstNumber;
+                    const heading = item.volume && first !== rows[index - 1]?.volume?.firstNumber;
+                    const closed = first !== undefined && folded.includes(first);
+                    return (
+                        <Fragment key={item.number}>
+                            {heading && (
+                                <li className={styles.volumeHead}>
+                                    <button type="button" className={styles.volumeToggle} aria-expanded={!closed} onClick={() => onFold(first!)}>
+                                        <span aria-hidden>{closed ? '▸' : '▾'}</span> {volumeTitle(item.volume!)}
+                                    </button>
+                                </li>
+                            )}
+                            {!closed && row(item)}
+                        </Fragment>
+                    );
+                })}
+            </ol>
+            <Pager page={page} total={total} size={CHAPTERS_PER_PAGE} onPage={turn} />
+        </>
+    );
+}
+
+/** «По томах»: one volume, folded or open, its chapters 20 to a page. */
+function VolumeSection({ volume, slug, team, order, row, initiallyOpen, current }: {
+    volume: ContentsVolume; slug: string; team: string | undefined; order: 'asc' | 'desc';
+    row: (item: ChapterRowType) => React.ReactNode; initiallyOpen: boolean; current: number | null;
+}) {
+    const [open, setOpen] = useState(initiallyOpen);
+    const pages = Math.max(1, Math.ceil(volume.chapters / CHAPTERS_PER_PAGE));
+    const [page, setPage] = useState(() => {
+        if (current === null || !initiallyOpen || order !== 'asc') return 1;
+        return Math.min(pages, Math.max(1, Math.ceil((current - volume.firstNumber + 1) / CHAPTERS_PER_PAGE)));
+    });
+    const chapters = useQuery({
+        queryKey: ['chapters', slug, team ?? '', order, page, volume.firstNumber],
+        queryFn: () => readingApi.chapters(slug, team, order, page, volume.firstNumber, volume.lastNumber ?? undefined),
+        enabled: open,
+        placeholderData: (previous) => previous,
+    });
+    const range = volume.lastNumber === null || volume.lastNumber === volume.firstNumber
+        ? `з глави ${volume.firstNumber}` : `глави ${volume.firstNumber}–${volume.lastNumber}`;
+    return (
+        <section className={styles.volume}>
+            <button type="button" className={styles.volumeBar} aria-expanded={open} onClick={() => setOpen(!open)}>
+                <span aria-hidden>{open ? '▾' : '▸'}</span>
+                <span className={styles.volumeName}>{volume.title}</span>
+                <span className={styles.muted}>
+                    {range} · {volume.chapters} {chaptersWord(volume.chapters)}
+                    {volume.read !== null && volume.read > 0 && ` · прочитано ${volume.read === volume.chapters ? 'всі' : volume.read}`}
+                </span>
+            </button>
+            {open && (
+                <>
+                    {chapters.isError && <Notice tone="error">{chapters.error.message}</Notice>}
+                    <ol className={styles.list}>{(chapters.data?.items ?? []).map((item) => row(item))}</ol>
+                    <Pager page={page} total={volume.chapters} size={CHAPTERS_PER_PAGE} onPage={setPage} />
+                </>
+            )}
+        </section>
+    );
+}
 
 /** The reader's own stars (tap the same star again to take them back); the average is in the heading. */
 function MyRating({ novel }: { novel: Novel }) {

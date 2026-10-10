@@ -225,6 +225,38 @@ describe('chapters 20 to a page', () => {
     });
 });
 
+describe('chapters by volumes', () => {
+    it('opens the volume the reader is in, folds the others, and switches to all chapters', async () => {
+        window.localStorage.clear();
+        const row = (number: number) => ({ number, title: `Глава ${number}`, publishedAt: '2026-09-20T10:00:00Z', label: null });
+        const { calls } = await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': { body: { ...NOVEL, viewer: { list: 'reading', chapterNumber: 25, position: 0.3, teamRole: null, myRating: null, chapterLabel: null, relayAsked: false } } },
+            'GET /api/novels/mah-vody/contents': { body: [
+                { firstNumber: 1, lastNumber: 20, title: 'Вичитано', chapters: 20, read: 20 },
+                { firstNumber: 21, lastNumber: null, title: 'Без вичитки', chapters: 24, read: 4 },
+            ] },
+            'GET /api/novels/mah-vody/chapters': () => ({ body: { items: [row(21), row(25)], page: 1, hasMore: false } }),
+            'GET /api/editions/7/comments/count': { body: { count: 0 } },
+        });
+        const open = await screen.findByRole('button', { name: /Без вичитки/ });
+        expect(open).toHaveAttribute('aria-expanded', 'true');
+        expect(open).toHaveTextContent('з глави 21 · 24 глави · прочитано 4');
+        expect(screen.getByRole('button', { name: /Вичитано/ })).toHaveAttribute('aria-expanded', 'false');
+        expect(await screen.findByText('тут зупинились')).toBeInTheDocument();
+        const query = () => calls.filter((call) => call.path.endsWith('/chapters')).map((call) => new URLSearchParams(call.query));
+        expect(query().map((q) => `${q.get('from')}-${q.get('to')}`)).toEqual(['21-null']);
+
+        await userEvent.click(screen.getByRole('button', { name: /Вичитано/ }));
+        await waitFor(() => expect(query().map((q) => `${q.get('from')}-${q.get('to')}`)).toContain('1-20'));
+        expect(screen.getByRole('button', { name: /Вичитано/ })).toHaveTextContent('прочитано всі');
+
+        await userEvent.click(screen.getByRole('button', { name: 'Усі глави' }));
+        await waitFor(() => expect(query().some((q) => q.get('from') === null)).toBe(true));
+        expect(screen.queryByRole('button', { name: /Вичитано/ })).not.toBeInTheDocument();
+    });
+});
+
 describe('new chapters bell', () => {
     it('subscribes a reader to the translation and tells them so', async () => {
         let subscribed = false;

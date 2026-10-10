@@ -62,6 +62,13 @@ class StructureFlowTests {
         JsonNode list = read(reader.get("/api/novels/" + slug + "/chapters")).path("items");
         assertThat(list.path(0).path("volume").path("kind").asString()).isEqualTo("prologue");
         assertThat(list.path(4).path("volume").path("title").asString()).isEqualTo("Подорож удвох");
+        JsonNode contents = read(reader.get("/api/novels/" + slug + "/contents"));
+        assertThat(contents).extracting(volume -> volume.path("firstNumber").asInt() + "–" + volume.path("lastNumber").asString("")
+                + ":" + volume.path("chapters").asInt()).as("«По томах»: each volume with its range")
+                .containsExactly("1–1:1", "2–3:2", "4–4:1", "5–:2");
+        assertThat(contents.path(0).path("read").isNull()).as("guests have no marks").isTrue();
+        assertThat(read(reader.get("/api/novels/" + slug + "/chapters?from=2&to=3")).path("items"))
+                .extracting(row -> row.path("number").asInt()).as("one volume's chapters").containsExactly(2, 3);
         JsonNode fifth = read(reader.get("/api/novels/" + slug + "/chapters/5"));
         assertThat(fifth.path("label").asString()).isEqualTo("3");
         assertThat(fifth.path("volume").path("title").asString()).isEqualTo("Подорож удвох");

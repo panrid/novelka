@@ -533,3 +533,59 @@
 .sheetItem[aria-current] {
     color: var(--accent);
 }
+
+/* «По томах / Усі глави» and folding volumes. */
+.listMode {
+    display: inline-flex;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-right: auto;
+}
+
+.listMode button {
+    padding: 4px 12px;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.listMode button[aria-pressed='true'] {
+    background: var(--surface-2);
+    color: var(--text);
+}
+
+.volume {
+    border-bottom: 1px solid var(--line);
+}
+
+.volumeBar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+    width: 100%;
+    padding: 12px 0;
+    border: 0;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.volumeName {
+    font-weight: 600;
+}
+
+.volumeToggle {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}

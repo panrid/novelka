@@ -428,14 +428,22 @@ class ReadingQueries {
         return chapters(editionId, newestFirst, page, size, null);
     }
 
-    /** {@code reader}: marks each row read or not for that account; null for a guest. */
     Views.Page<ChapterRow> chapters(long editionId, boolean newestFirst, int page, int size, Long reader) {
+        return chapters(editionId, newestFirst, page, size, reader, null, null);
+    }
+
+    /**
+     * {@code reader}: marks each row read or not for that account; null for a guest.
+     * {@code from}..{@code to}: only these chapters (one volume); null for no bound.
+     */
+    Views.Page<ChapterRow> chapters(long editionId, boolean newestFirst, int page, int size, Long reader, Integer from, Integer to) {
         Field<Boolean> read = reader == null ? DSL.inline((Boolean) null) : DSL.field(DSL.exists(DSL.selectOne().from(CHAPTER_READ)
                 .where(CHAPTER_READ.ACCOUNT_ID.eq(reader), CHAPTER_READ.EDITION_ID.eq(editionId),
                         CHAPTER_READ.CHAPTER_NUMBER.eq(CHAPTER.NUMBER))));
         List<ChapterRow> rows = db.select(CHAPTER.NUMBER, REVISION.TITLE, CHAPTER.FIRST_PUBLISHED_AT, CHAPTER.LABEL, read)
                 .from(CHAPTER).join(REVISION).on(REVISION.ID.eq(CHAPTER.PUBLISHED_REVISION_ID))
-                .where(CHAPTER.EDITION_ID.eq(editionId))
+                .where(CHAPTER.EDITION_ID.eq(editionId), from == null ? DSL.noCondition() : CHAPTER.NUMBER.ge(from),
+                        to == null ? DSL.noCondition() : CHAPTER.NUMBER.le(to))
                 .orderBy(newestFirst ? CHAPTER.NUMBER.desc() : CHAPTER.NUMBER.asc())
                 .limit(size + 1).offset((page - 1) * size)
                 .fetch(r -> new ChapterRow(r.value1(), r.value2(), r.value3(), r.value4(), null, r.value5()));
@@ -508,6 +516,22 @@ class ReadingQueries {
             }
         }
         return choices;
+    }
+
+    /** The volumes of the list of chapters, each with how many chapters it has and how many the reader read. */
+    List<Views.ContentsVolume> contents(long editionId, Long reader) {
+        List<Views.VolumeChoice> choices = volumeChoices(editionId);
+        if (choices.isEmpty()) {
+            return List.of();
+        }
+        List<Integer> read = reader == null ? List.of() : db.select(CHAPTER_READ.CHAPTER_NUMBER).from(CHAPTER_READ)
+                .join(CHAPTER).on(CHAPTER.EDITION_ID.eq(CHAPTER_READ.EDITION_ID), CHAPTER.NUMBER.eq(CHAPTER_READ.CHAPTER_NUMBER))
+                .where(CHAPTER_READ.ACCOUNT_ID.eq(reader), CHAPTER_READ.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull())
+                .fetch(CHAPTER_READ.CHAPTER_NUMBER);
+        return choices.stream().map(volume -> new Views.ContentsVolume(volume.firstNumber(), volume.lastNumber(), volume.title(),
+                volume.chapters(), reader == null ? null : (int) read.stream()
+                        .filter(n -> n >= volume.firstNumber() && (volume.lastNumber() == null || n <= volume.lastNumber())).count()))
+                .toList();
     }
 
     /** The last volume starting at or before the chapter. */
