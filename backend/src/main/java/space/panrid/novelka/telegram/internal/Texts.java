@@ -84,8 +84,9 @@ class Texts {
                     ? "Вам дозволили продовжити «" + text(p, "title") + "»"
                     : "Власник поки не віддає «" + text(p, "title") + "»";
             case "achievement" -> {
-                title = "Нове досягнення: «" + text(p, "title") + "»";
-                path = "/u/" + text(p, "nick") + "#achievements";
+                String about = text(p, "description");
+                return message("🏅 <b>Нове досягнення: «" + escape(text(p, "title")) + "»</b>" + (about.isEmpty() ? "" : "\n" + escape(about)),
+                        "/u/" + text(p, "nick") + "#achievements");
             }
             case "proposal_taken" -> {
                 title = "«" + text(p, "title") + "» взяли перекладати";
@@ -105,6 +106,11 @@ class Texts {
             html.append("\n«").append(escape(excerpt)).append("»");
         }
         return message(html.toString(), path == null ? "/inbox" : path);
+    }
+
+    /** The picture that goes with a notification in Telegram, or null: a badge's card. */
+    String photo(String kind, Map<String, Object> p) {
+        return kind.equals("achievement") && text(p, "code").matches("[a-z0-9_]+") ? site.link("/badges/" + text(p, "code") + ".jpg") : null;
     }
 
     String message(String kind, String title, String authorNick, String excerpt, long conversationId) {

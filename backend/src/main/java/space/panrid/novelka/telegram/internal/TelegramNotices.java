@@ -38,7 +38,15 @@ class TelegramNotices implements AccountMessenger {
                     case "source_chapters" -> link.notifySource();
                     default -> link.notifyInbox();
                 })
-                .ifPresent(link -> send(link.chatId(), texts.notification(added.kind(), added.payload())));
+                .ifPresent(link -> {
+                    String html = texts.notification(added.kind(), added.payload());
+                    String photo = texts.photo(added.kind(), added.payload());
+                    if (photo == null) {
+                        send(link.chatId(), html);
+                    } else if (!telegram.sendPhoto(link.chatId(), photo, html)) {
+                        links.forget(link.chatId());
+                    }
+                });
     }
 
     @ApplicationModuleListener

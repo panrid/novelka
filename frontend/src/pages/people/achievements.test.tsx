@@ -23,5 +23,8 @@ describe('achievements on a profile', () => {
         expect(screen.getByText('Отримано 1 з 2.')).toBeInTheDocument();
         expect(screen.getByText('37 з 100')).toBeInTheDocument();
         expect(screen.getByText('отримано щойно')).toBeInTheDocument();
+        const medals = document.querySelectorAll('img[src^="/badges/"]');
+        expect([...medals].map((medal) => medal.getAttribute('src'))).toEqual(['/badges/comment_1.svg', '/badges/reader_100.svg']);
+        expect((medals[1] as HTMLElement).style.filter).toBe('grayscale(1)');
     });
 });

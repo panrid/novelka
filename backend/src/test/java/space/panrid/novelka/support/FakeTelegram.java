@@ -14,11 +14,17 @@ public class FakeTelegram implements TelegramApi {
     }
 
     private final List<Sent> sent = new CopyOnWriteArrayList<>();
+    private final List<Sent> photos = new CopyOnWriteArrayList<>();
     private final Set<Long> blocked = ConcurrentHashMap.newKeySet();
 
     /** Everything the bot wrote to one chat, oldest first. */
     public List<String> to(long chatId) {
         return sent.stream().filter(message -> message.chatId() == chatId).map(Sent::html).toList();
+    }
+
+    /** The pictures the bot sent to one chat, oldest first; their captions are in {@link #to}. */
+    public List<String> photosTo(long chatId) {
+        return photos.stream().filter(message -> message.chatId() == chatId).map(Sent::html).toList();
     }
 
     public void block(long chatId) {
@@ -41,6 +47,15 @@ public class FakeTelegram implements TelegramApi {
             return false;
         }
         sent.add(new Sent(chatId, html));
+        return true;
+    }
+
+    @Override
+    public boolean sendPhoto(long chatId, String photoUrl, String html) {
+        if (!send(chatId, html)) {
+            return false;
+        }
+        photos.add(new Sent(chatId, photoUrl));
         return true;
     }
 

@@ -15,6 +15,8 @@ export type NotificationPayload = {
     firstLabel?: string; lastLabel?: string; chapterTitle?: string; coverUrl?: string;
     /** A proposed novel someone took to translate, or a new badge: its title. */
     title?: string; nick?: string;
+    /** A badge: its code (the picture is /badges/<code>.svg) and what it is for. */
+    code?: string; description?: string;
     /** Естафета: the asking team, and whether the owner allowed it. */
     teamName?: string; granted?: boolean;
 };

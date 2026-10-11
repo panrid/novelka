@@ -22,6 +22,14 @@ public interface TelegramApi {
      */
     boolean send(long chatId, String html);
 
+    /**
+     * Sends a picture Telegram fetches from {@code photoUrl}, with an HTML caption. When Telegram
+     * cannot fetch it (a site it cannot reach), the caption goes as a plain message.
+     *
+     * @return false when the chat is gone for good
+     */
+    boolean sendPhoto(long chatId, String photoUrl, String html);
+
     /** Telegram posts updates to {@code url} with {@code secret} in a header. */
     void setWebhook(String url, String secret);
 

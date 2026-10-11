@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { Award } from '../../ui/icons';
 import { achievementApi } from '../../achievement/api';
+import { BadgeImage } from '../../achievement/BadgeImage';
 import { relativeTime } from '../../lib/dates';
 import styles from './achievements.module.css';
 
@@ -27,7 +27,7 @@ export function Achievements({ nick }: { nick: string }) {
             <ul className={styles.badges}>
                 {data.badges.map((badge) => (
                     <li key={badge.code} className={`${styles.badge} ${badge.earnedAt ? styles.earned : ''}`}>
-                        <Award size={22} aria-hidden className={styles.icon} />
+                        <BadgeImage code={badge.code} size={44} earned={Boolean(badge.earnedAt)} className={styles.icon} />
                         <div>
                             <div className={styles.badgeTitle}>{badge.title}</div>
                             <div className={styles.muted}>{badge.description}</div>

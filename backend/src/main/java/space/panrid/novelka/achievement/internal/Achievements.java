@@ -125,7 +125,7 @@ class Achievements {
                 if (nick == null) {
                     nick = db.select(ACCOUNT.NICK).from(ACCOUNT).where(ACCOUNT.ID.eq(accountId)).fetchSingle(ACCOUNT.NICK);
                 }
-                events.publishEvent(new AchievementEarned(accountId, nick, badge.code(), badge.title()));
+                events.publishEvent(new AchievementEarned(accountId, nick, badge.code(), badge.title(), badge.description()));
             }
         }
     }

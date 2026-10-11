@@ -143,7 +143,8 @@ class NotificationListeners {
 
     @ApplicationModuleListener
     void on(AchievementEarned earned) {
-        inbox.add(earned.accountId(), "achievement", Map.of("code", earned.code(), "title", earned.title(), "nick", earned.nick()));
+        inbox.add(earned.accountId(), "achievement", Map.of("code", earned.code(), "title", earned.title(), "nick", earned.nick(),
+                "description", earned.description() == null ? "" : earned.description()));
     }
 
     /** Someone wants to continue the owner's translation; the request is answered in the Studio. */

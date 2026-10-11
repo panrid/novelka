@@ -52,6 +52,16 @@ class BotApi implements TelegramApi {
     }
 
     @Override
+    public boolean sendPhoto(long chatId, String photoUrl, String html) {
+        Reply reply = call("sendPhoto", Map.of("chat_id", chatId, "photo", photoUrl, "caption", html, "parse_mode", "HTML"),
+                Duration.ofSeconds(30));
+        if (reply.status() == 403 || reply.status() == 400 && reply.body().contains("chat not found")) {
+            return false;
+        }
+        return reply.status() == 200 || send(chatId, html);
+    }
+
+    @Override
     public void setWebhook(String url, String secret) {
         Reply reply = call("setWebhook", Map.of("url", url, "secret_token", secret, "allowed_updates", List.of("message")),
                 Duration.ofSeconds(20));

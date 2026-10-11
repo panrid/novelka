@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { chaptersWord } from '../../reading/api';
+import { BadgeImage } from '../../achievement/BadgeImage';
 import { Cover } from '../../reading/Cover';
 import { notificationApi, type Notification } from '../../inbox/api';
 import { relativeTime } from '../../lib/dates';
@@ -213,6 +214,7 @@ function Row({ item }: { item: Notification }) {
             break;
         case 'achievement':
             title = `Нове досягнення: «${p.title ?? ''}»`;
+            chapters = p.description || undefined;
             break;
         case 'proposal_taken':
             title = `«${p.title ?? ''}» взяли перекладати`;
@@ -248,7 +250,12 @@ function Row({ item }: { item: Notification }) {
         );
     }
     if (item.kind === 'achievement' && p.nick) {
-        return <Link to="/u/$nick" params={{ nick: p.nick }} hash="achievements" className={className}>{body}</Link>;
+        return (
+            <Link to="/u/$nick" params={{ nick: p.nick }} hash="achievements" className={className}>
+                {p.code && <BadgeImage code={p.code} size={40} />}
+                {body}
+            </Link>
+        );
     }
     if (item.kind === 'report') {
         return <Link to="/admin/moderation" className={className}>{body}</Link>;

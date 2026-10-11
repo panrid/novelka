@@ -52,14 +52,15 @@
     padding: 12px;
     border-radius: var(--radius);
     background: var(--surface);
-    opacity: 0.55;
+    color: var(--muted);
 }
 
 .earned {
-    opacity: 1;
+    color: var(--text);
 }
 
 .icon {
+    align-self: center;
     color: var(--muted);
 }
 

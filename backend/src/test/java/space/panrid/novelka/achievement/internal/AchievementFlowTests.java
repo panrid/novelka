@@ -2,6 +2,7 @@ package space.panrid.novelka.achievement.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
+import static space.panrid.novelka.jooq.Tables.TELEGRAM_LINK;
 import static space.panrid.novelka.support.Browser.json;
 
 import java.util.List;
@@ -16,6 +17,7 @@ import space.panrid.novelka.support.Accounts.Person;
 import space.panrid.novelka.support.Browser;
 import space.panrid.novelka.support.Browser.Response;
 import space.panrid.novelka.support.Eventually;
+import space.panrid.novelka.support.FakeTelegram;
 import space.panrid.novelka.support.IntegrationTest;
 import space.panrid.novelka.support.TestMailbox;
 import tools.jackson.databind.JsonNode;
@@ -39,6 +41,9 @@ class AchievementFlowTests {
     @Autowired
     DSLContext db;
 
+    @Autowired
+    FakeTelegram telegram;
+
     private long id(Person person) {
         return db.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.NICK.eq(person.nick())).fetchSingle(ACCOUNT.ID);
     }
@@ -58,6 +63,8 @@ class AchievementFlowTests {
         assertThat(before.path("badges").findValuesAsString("code")).contains("translator_1", "comment_1");
         assertThat(before.path("badges").findValues("earnedAt")).as("not awarded until counted").allMatch(JsonNode::isNull);
 
+        long chat = java.util.concurrent.ThreadLocalRandom.current().nextLong(1_000_000_000L, 9_000_000_000L);
+        db.insertInto(TELEGRAM_LINK).set(TELEGRAM_LINK.ACCOUNT_ID, id(translator)).set(TELEGRAM_LINK.CHAT_ID, chat).execute();
         achievements.sweep(List.of(id(translator), id(reader)));
 
         JsonNode profile = read(new Browser(port).get("/api/users/" + translator.nick() + "/achievements"));
@@ -73,6 +80,11 @@ class AchievementFlowTests {
                 page -> page.toString().contains("\"achievement\"")).path("items").path(0);
         assertThat(told.path("kind").asString()).isEqualTo("achievement");
         assertThat(told.path("payload").path("title").asString()).isEqualTo("Перекладач");
+        assertThat(told.path("payload").path("description").asString()).isEqualTo("Опублікувати першу главу свого перекладу");
+        assertThat(Eventually.eventually(() -> telegram.photosTo(chat), photos -> !photos.isEmpty()))
+                .as("the badge's card comes to Telegram").singleElement().asString().endsWith("/badges/translator_1.jpg");
+        assertThat(telegram.to(chat)).singleElement().asString().contains("🏅 <b>Нове досягнення: «Перекладач»</b>")
+                .contains("Опублікувати першу главу");
 
         // The level shows next to the nick in comments.
         JsonNode comment = read(new Browser(port).get("/api/editions/" + edition + "/comments")).path("items").path(0);
