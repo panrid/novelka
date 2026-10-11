@@ -6,6 +6,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
+import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.JSONB;
 import org.jooq.impl.DSL;
@@ -91,24 +92,32 @@ class Inbox {
     record Item(long id, String kind, Map<String, Object> payload, OffsetDateTime createdAt, boolean read) {
     }
 
-    /** @param newest the newest row of all (not of this page): opening the list marks up to it as seen */
-    record Page(List<Item> items, int unread, boolean hasMore, int total, int page, Long newest) {
+    /**
+     * @param newest   the newest row of all (not of this page): opening the list marks up to it as seen
+     * @param archived how many rows are in the archive, for its tab
+     */
+    record Page(List<Item> items, int unread, boolean hasMore, int total, int page, Long newest, int archived) {
     }
 
-    Page page(long recipientId, int page) {
+    /** The list or, with {@code archived}, the rows put away; newest first either way. */
+    Page page(long recipientId, int page, boolean archived) {
         int at = Math.max(1, page);
-        int total = db.fetchCount(NOTIFICATION, NOTIFICATION.RECIPIENT_ID.eq(recipientId));
+        Condition mine = NOTIFICATION.RECIPIENT_ID.eq(recipientId);
+        Condition shelf = archived ? NOTIFICATION.ARCHIVED_AT.isNotNull() : NOTIFICATION.ARCHIVED_AT.isNull();
+        int total = db.fetchCount(NOTIFICATION, mine.and(shelf));
         List<Item> items = db.selectFrom(NOTIFICATION)
-                .where(NOTIFICATION.RECIPIENT_ID.eq(recipientId))
+                .where(mine, shelf)
                 .orderBy(NOTIFICATION.ID.desc()).limit(PAGE).offset((at - 1) * PAGE)
                 .fetch(r -> new Item(r.getId(), r.getKind(), json.readValue(r.getPayload().data(), MAP), r.getCreatedAt(), r.getReadAt() != null));
-        Long newest = db.select(DSL.max(NOTIFICATION.ID)).from(NOTIFICATION).where(NOTIFICATION.RECIPIENT_ID.eq(recipientId))
+        Long newest = db.select(DSL.max(NOTIFICATION.ID)).from(NOTIFICATION).where(mine, NOTIFICATION.ARCHIVED_AT.isNull())
                 .fetchOne(0, Long.class);
-        return new Page(items, unread(recipientId), at * PAGE < total, total, at, newest);
+        int inArchive = archived ? total : db.fetchCount(NOTIFICATION, mine.and(NOTIFICATION.ARCHIVED_AT.isNotNull()));
+        return new Page(items, unread(recipientId), at * PAGE < total, total, at, newest, inArchive);
     }
 
     int unread(long recipientId) {
-        return db.fetchCount(NOTIFICATION, NOTIFICATION.RECIPIENT_ID.eq(recipientId).and(NOTIFICATION.READ_AT.isNull()));
+        return db.fetchCount(NOTIFICATION, NOTIFICATION.RECIPIENT_ID.eq(recipientId)
+                .and(NOTIFICATION.READ_AT.isNull()).and(NOTIFICATION.ARCHIVED_AT.isNull()));
     }
 
     /** Everything up to {@code upTo} (or everything) counts as seen. */
@@ -118,6 +127,38 @@ class Inbox {
                         upTo == null ? DSL.noCondition() : NOTIFICATION.ID.le(upTo))
                 .execute();
         nudge(recipientId);
+    }
+
+    /**
+     * Puts rows away (the given ones, or all of the list). A row put away counts as seen, so new
+     * chapters of the same translation start a fresh row in the list instead of widening it.
+     */
+    void archive(long recipientId, List<Long> ids) {
+        db.update(NOTIFICATION).set(NOTIFICATION.ARCHIVED_AT, DSL.currentOffsetDateTime())
+                .set(NOTIFICATION.READ_AT, DSL.coalesce(NOTIFICATION.READ_AT, DSL.currentOffsetDateTime()))
+                .where(NOTIFICATION.RECIPIENT_ID.eq(recipientId), NOTIFICATION.ARCHIVED_AT.isNull(), chosen(ids))
+                .execute();
+        nudge(recipientId);
+    }
+
+    /** Brings rows back from the archive (the given ones, or all of it). */
+    void restore(long recipientId, List<Long> ids) {
+        db.update(NOTIFICATION).setNull(NOTIFICATION.ARCHIVED_AT)
+                .where(NOTIFICATION.RECIPIENT_ID.eq(recipientId), NOTIFICATION.ARCHIVED_AT.isNotNull(), chosen(ids))
+                .execute();
+    }
+
+    /** Deletes rows for good: the given ones, or all of the list or of the archive. */
+    void delete(long recipientId, List<Long> ids, boolean archived) {
+        db.deleteFrom(NOTIFICATION)
+                .where(NOTIFICATION.RECIPIENT_ID.eq(recipientId),
+                        ids == null ? (archived ? NOTIFICATION.ARCHIVED_AT.isNotNull() : NOTIFICATION.ARCHIVED_AT.isNull()) : chosen(ids))
+                .execute();
+        nudge(recipientId);
+    }
+
+    private static Condition chosen(List<Long> ids) {
+        return ids == null ? DSL.noCondition() : NOTIFICATION.ID.in(ids);
     }
 
     private void nudge(long recipientId) {

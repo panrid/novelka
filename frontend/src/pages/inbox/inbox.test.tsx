@@ -62,6 +62,33 @@ describe('inbox', () => {
         await vi.waitFor(() => expect(calls.some((call) => call.path === '/api/notifications' && call.query.includes('page=3'))).toBe(true));
     });
 
+    it('puts notifications away, deletes the chosen ones and shows the archive', async () => {
+        const { calls, router } = await renderAt('/inbox', {
+            'GET /api/me': { body: ME },
+            'GET /api/notifications': { body: { ...NOTIFICATIONS, archived: 4 } },
+            'GET /api/notifications/unread': { body: { unread: 2 } },
+            'GET /api/conversations': { body: { items: [], unread: 0 } },
+            'POST /api/notifications/read': { body: { unread: 0 } },
+            'POST /api/notifications/archive': { body: { unread: 1 } },
+            'POST /api/notifications/delete': { body: { unread: 1 } },
+        });
+        expect(await screen.findByText('Нові глави 11–13 · 3 глави')).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /^Архів/ })).toHaveTextContent('Архів4');
+        await userEvent.click(screen.getAllByRole('button', { name: 'В архів' })[0]!);
+        await vi.waitFor(() => expect(calls.find((call) => call.path === '/api/notifications/archive')?.body).toEqual({ ids: [7] }));
+
+        await userEvent.click(screen.getByRole('button', { name: 'Вибрати' }));
+        await userEvent.click(screen.getByText('lysytsia відповідає на ваш коментар'));
+        expect(router.state.location.pathname).toBe('/inbox');
+        await userEvent.click(screen.getByRole('button', { name: 'Видалити (1)' }));
+        await userEvent.click(await screen.findByRole('button', { name: 'Видалити' }));
+        await vi.waitFor(() => expect(calls.find((call) => call.path === '/api/notifications/delete')?.body).toEqual({ ids: [6], archived: false }));
+
+        await userEvent.click(screen.getByRole('tab', { name: /^Архів/ }));
+        await vi.waitFor(() => expect(calls.some((call) => call.path === '/api/notifications' && call.query.includes('archived=true'))).toBe(true));
+        expect(router.state.location.search).toEqual({ archive: 1 });
+    });
+
     it('shows a conversation with markup and sends a message', async () => {
         const { calls } = await renderAt('/inbox/messages/5', {
             'GET /api/me': { body: ME },

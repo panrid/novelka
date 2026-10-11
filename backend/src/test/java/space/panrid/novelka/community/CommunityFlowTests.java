@@ -115,6 +115,46 @@ class CommunityFlowTests {
         assertThat(new Browser(port).get("/api/events").status()).as("only for signed-in people").isEqualTo(401);
     }
 
+    @Test
+    void notificationsArePutAwayBroughtBackAndDeleted() {
+        for (int i = 1; i <= 4; i++) {
+            read(reader.browser().post(comments(), json("body", "@" + translator.nick() + " питання " + i)));
+        }
+        JsonNode items = inbox(translator, 4).path("items");
+        long newest = items.path(0).path("id").asLong();
+        long second = items.path(1).path("id").asLong();
+        assertThat(inbox(translator).path("unread").asInt()).isEqualTo(4);
+
+        JsonNode after = read(translator.browser().post("/api/notifications/archive", ids(newest, second)));
+        assertThat(after.path("unread").asInt()).as("put away counts as seen").isEqualTo(2);
+        JsonNode list = inbox(translator);
+        assertThat(list.path("total").asInt()).isEqualTo(2);
+        assertThat(list.path("archived").asInt()).isEqualTo(2);
+        JsonNode archive = read(translator.browser().get("/api/notifications?archived=true"));
+        assertThat(archive.path("items")).extracting(item -> item.path("id").asLong()).containsExactly(newest, second);
+
+        read(translator.browser().post("/api/notifications/restore", ids(second)));
+        assertThat(inbox(translator).path("total").asInt()).isEqualTo(3);
+        read(translator.browser().post("/api/notifications/delete", json("archived", true)));
+        assertThat(read(translator.browser().get("/api/notifications?archived=true")).path("total").asInt()).as("the archive emptied").isZero();
+        assertThat(inbox(translator).path("total").asInt()).as("the list kept").isEqualTo(3);
+
+        read(translator.browser().post("/api/notifications/delete", ids(second)));
+        read(reader.browser().post("/api/notifications/delete", "{}"));
+        assertThat(inbox(translator).path("total").asInt()).as("nobody deletes another's rows").isEqualTo(2);
+        read(translator.browser().post("/api/notifications/archive", "{}"));
+        assertThat(inbox(translator).path("total").asInt()).isZero();
+        assertThat(inbox(translator).path("archived").asInt()).isEqualTo(2);
+        read(translator.browser().post("/api/notifications/restore", "{}"));
+        assertThat(inbox(translator).path("total").asInt()).isEqualTo(2);
+        read(translator.browser().post("/api/notifications/delete", "{}"));
+        assertThat(inbox(translator).path("total").asInt()).isZero();
+    }
+
+    private static String ids(long... ids) {
+        return "{\"ids\":" + java.util.Arrays.toString(ids) + "}";
+    }
+
     private static String nextEvent(java.util.concurrent.BlockingQueue<String> lines) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 5_000;
         while (System.currentTimeMillis() < deadline) {

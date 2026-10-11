@@ -7,6 +7,8 @@ import * as solid from '@heroicons/react/24/solid';
 import type { SetIconProps } from '../icons';
 
 const NAMES: Record<string, string> = {
+    Archive: 'ArchiveBoxArrowDownIcon',
+    ArchiveRestore: 'ArrowUturnLeftIcon',
     ArrowDownUp: 'ArrowsUpDownIcon',
     ArrowLeft: 'ArrowLeftIcon',
     ArrowRightLeft: 'ArrowsRightLeftIcon',

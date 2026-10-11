@@ -49,6 +49,78 @@
     text-decoration: none;
 }
 
+/* The link of a row: everything but the checkbox and the row's own buttons. */
+.target {
+    display: flex;
+    flex: 1;
+    gap: 12px;
+    min-width: 0;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.shelves {
+    display: flex;
+    gap: 6px;
+    margin: 0 0 8px;
+}
+
+.shelf,
+.shelfActive {
+    padding: 6px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.shelfActive {
+    border-color: var(--accent);
+    color: var(--text);
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.check {
+    flex: none;
+    align-self: center;
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent);
+}
+
+.rowActions {
+    display: flex;
+    flex: none;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.iconButton {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.iconButton:hover {
+    background: var(--surface-2);
+    color: var(--text);
+}
+
 .unread {
     position: relative;
 }

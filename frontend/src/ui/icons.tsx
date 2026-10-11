@@ -64,6 +64,8 @@ function icon(name: keyof typeof lucide & string): LucideIcon {
     return Icon;
 }
 
+export const Archive = icon('Archive');
+export const ArchiveRestore = icon('ArchiveRestore');
 export const ArrowDownUp = icon('ArrowDownUp');
 export const ArrowLeft = icon('ArrowLeft');
 export const ArrowRightLeft = icon('ArrowRightLeft');

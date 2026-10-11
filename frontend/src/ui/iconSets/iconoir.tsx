@@ -10,6 +10,8 @@ function draw(Icon: ComponentType<Record<string, unknown>>, { size, stroke }: Se
 }
 
 const ICONS: Record<string, ComponentType<Record<string, unknown>>> = {
+    Archive: Archive,
+    ArchiveRestore: Undo,
     ArrowDownUp: Sort,
     ArrowLeft: ArrowLeft,
     ArrowRightLeft: DataTransferBoth,

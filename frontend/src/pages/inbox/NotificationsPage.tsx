@@ -1,13 +1,17 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
 import { chaptersWord } from '../../reading/api';
 import { Cover } from '../../reading/Cover';
 import { notificationApi, type Notification } from '../../inbox/api';
 import { relativeTime } from '../../lib/dates';
 import { plural } from '../../lib/plural';
 import { shahWord } from '../../studio/autotranslate';
+import { askConfirm } from '../../ui/ask';
+import { Button } from '../../ui/Button';
+import { Archive, ArchiveRestore, Trash2 } from '../../ui/icons';
 import { Notice } from '../../ui/Notice';
+import { showError } from '../../ui/toast';
 import { Pager } from '../../ui/Pager';
 import { PAGE_SIZE, usePage } from '../../lib/usePage';
 import { InboxNav } from './InboxNav';
@@ -15,32 +19,142 @@ import styles from './inbox.module.css';
 
 export function NotificationsPage() {
     const client = useQueryClient();
+    const navigate = useNavigate();
+    const search = useSearch({ strict: false }) as Record<string, unknown>;
+    const archived = Boolean(search.archive);
     const [page, setPage] = usePage();
+    const [selecting, setSelecting] = useState(false);
+    const [selected, setSelected] = useState<Set<number>>(new Set());
     const list = useQuery({
-        queryKey: ['notifications', page],
-        queryFn: () => notificationApi.page(page),
+        queryKey: ['notifications', archived ? 'archive' : 'list', page],
+        queryFn: () => notificationApi.page(page, archived),
         placeholderData: (previous) => previous,
     });
     const items = list.data?.items ?? [];
     const newest = list.data?.newest ?? undefined;
     const unread = list.data?.unread ?? 0;
+    const total = list.data?.total ?? 0;
 
     // Opening the list is seeing it: the dots stay for this visit, the badge goes away.
     useEffect(() => {
-        if (newest && unread > 0) {
+        if (!archived && newest && unread > 0) {
             void notificationApi.read(newest).then(() => client.invalidateQueries({ queryKey: ['inbox-counts'] }));
         }
-    }, [newest, unread, client]);
+    }, [archived, newest, unread, client]);
+
+    // The last rows of a far page went away: show the page before it.
+    useEffect(() => {
+        if (list.isSuccess && !list.isPlaceholderData && items.length === 0 && page > 1) setPage(Math.max(1, Math.ceil(total / PAGE_SIZE)));
+    }, [list.isSuccess, list.isPlaceholderData, items.length, page, total, setPage]);
+
+    const act = useMutation({
+        mutationFn: ({ action, ids }: { action: 'archive' | 'restore' | 'remove'; ids?: number[] }) =>
+            action === 'remove' ? notificationApi.remove(ids, archived) : notificationApi[action](ids),
+        onSuccess: () => {
+            setSelected(new Set());
+            setSelecting(false);
+            void client.invalidateQueries({ queryKey: ['notifications'] });
+            void client.invalidateQueries({ queryKey: ['inbox-counts'] });
+        },
+        onError: (error) => showError(error.message),
+    });
+    const removeAll = async () => {
+        const yes = await askConfirm({
+            title: archived ? 'Очистити архів?' : 'Видалити всі сповіщення?',
+            text: archived ? 'Усі сповіщення в архіві зникнуть назавжди.' : 'Усі сповіщення зі списку зникнуть назавжди. Архів лишиться.',
+            confirmLabel: 'Видалити', danger: true,
+        });
+        if (yes) act.mutate({ action: 'remove' });
+    };
+    const removeChosen = async () => {
+        const yes = await askConfirm({ title: `Видалити ${plural(selected.size, 'сповіщення', 'сповіщення', 'сповіщень')}?`,
+            text: 'Їх не буде і в архіві.', confirmLabel: 'Видалити', danger: true });
+        if (yes) act.mutate({ action: 'remove', ids: [...selected] });
+    };
+    const toggle = (id: number) => setSelected((previous) => {
+        const next = new Set(previous);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+    });
+    const shelf = (archive: boolean) => {
+        setSelecting(false);
+        setSelected(new Set());
+        void navigate({ to: '/inbox', search: archive ? { archive: 1 } : {} } as never);
+    };
 
     return (
         <section className={styles.page}>
             <InboxNav />
-            {list.isError && <Notice tone="error">{list.error.message}</Notice>}
-            {list.isSuccess && list.data.total === 0 && (
-                <p className={styles.muted}>Поки тихо. Тут зʼявляться відповіді, згадки, нові глави з вашої бібліотеки, правки до ваших перекладів і рішення щодо ваших правок.</p>
+            <div className={styles.shelves} role="tablist" aria-label="Сповіщення">
+                <button type="button" role="tab" aria-selected={!archived} className={!archived ? styles.shelfActive : styles.shelf}
+                    onClick={() => shelf(false)}>Нові й прочитані</button>
+                <button type="button" role="tab" aria-selected={archived} className={archived ? styles.shelfActive : styles.shelf}
+                    onClick={() => shelf(true)}>
+                    Архів{list.data && list.data.archived > 0 && <span className={styles.count}>{list.data.archived}</span>}
+                </button>
+            </div>
+            {total > 0 && (
+                <div className={styles.toolbar}>
+                    {!selecting ? (
+                        <>
+                            <Button variant="quiet" onPress={() => setSelecting(true)}>Вибрати</Button>
+                            {archived
+                                ? <Button variant="quiet" onPress={() => act.mutate({ action: 'restore' })} isDisabled={act.isPending}>Повернути всі</Button>
+                                : <Button variant="quiet" onPress={() => act.mutate({ action: 'archive' })} isDisabled={act.isPending}>Усі в архів</Button>}
+                            <Button variant="quiet" onPress={() => void removeAll()} isDisabled={act.isPending}>{archived ? 'Очистити архів' : 'Видалити всі'}</Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button variant="quiet" onPress={() => setSelected(selected.size === items.length ? new Set() : new Set(items.map((item) => item.id)))}>
+                                {selected.size === items.length ? 'Зняти вибір' : 'Усі на сторінці'}
+                            </Button>
+                            <Button variant="secondary" isDisabled={selected.size === 0 || act.isPending}
+                                onPress={() => act.mutate({ action: archived ? 'restore' : 'archive', ids: [...selected] })}>
+                                {archived ? 'Повернути' : 'В архів'}{selected.size > 0 ? ` (${selected.size})` : ''}
+                            </Button>
+                            <Button variant="danger" isDisabled={selected.size === 0 || act.isPending} onPress={() => void removeChosen()}>
+                                Видалити{selected.size > 0 ? ` (${selected.size})` : ''}
+                            </Button>
+                            <Button variant="quiet" onPress={() => { setSelecting(false); setSelected(new Set()); }}>Готово</Button>
+                        </>
+                    )}
+                </div>
             )}
-            {items.map((item) => <Row key={item.id} item={item} />)}
-            {list.data && <Pager page={page} total={list.data.total} size={PAGE_SIZE} onPage={setPage} />}
+            {list.isError && <Notice tone="error">{list.error.message}</Notice>}
+            {list.isSuccess && total === 0 && (archived
+                ? <p className={styles.muted}>В архіві порожньо. Сюди потрапляють сповіщення, які ви прибрали зі списку, — їх можна повернути.</p>
+                : <p className={styles.muted}>Поки тихо. Тут зʼявляться відповіді, згадки, нові глави з вашої бібліотеки, правки до ваших перекладів і рішення щодо ваших правок.</p>)}
+            {items.map((item) => (
+                <div key={item.id} className={`${styles.item} ${item.read || archived ? '' : styles.unread}`}
+                    // While choosing, a press anywhere on the row picks it instead of opening it.
+                    onClickCapture={selecting ? (event) => {
+                        if ((event.target as HTMLElement).closest('input')) return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        toggle(item.id);
+                    } : undefined}>
+                    {selecting && (
+                        <input type="checkbox" className={styles.check} checked={selected.has(item.id)} onChange={() => toggle(item.id)}
+                            aria-label="Вибрати сповіщення" />
+                    )}
+                    <Row item={item} />
+                    {!selecting && (
+                        <div className={styles.rowActions}>
+                            {archived ? (
+                                <button type="button" className={styles.iconButton} aria-label="Повернути до списку" title="Повернути"
+                                    onClick={() => act.mutate({ action: 'restore', ids: [item.id] })}><ArchiveRestore size={18} aria-hidden /></button>
+                            ) : (
+                                <button type="button" className={styles.iconButton} aria-label="В архів" title="В архів"
+                                    onClick={() => act.mutate({ action: 'archive', ids: [item.id] })}><Archive size={18} aria-hidden /></button>
+                            )}
+                            <button type="button" className={styles.iconButton} aria-label="Видалити" title="Видалити"
+                                onClick={() => act.mutate({ action: 'remove', ids: [item.id] })}><Trash2 size={18} aria-hidden /></button>
+                        </div>
+                    )}
+                </div>
+            ))}
+            {list.data && <Pager page={page} total={total} size={PAGE_SIZE} onPage={setPage} />}
         </section>
     );
 }
@@ -121,7 +235,7 @@ function Row({ item }: { item: Notification }) {
             <div className={styles.muted}>{item.kind === 'new_chapters' || item.kind === 'source_chapters' ? '' : where && `${where} · `}{relativeTime(new Date(item.createdAt))}</div>
         </div>
     );
-    const className = `${styles.item} ${item.read ? '' : styles.unread}`;
+    const className = styles.target;
     if (item.kind === 'takeover_request' && p.editionId) {
         return <Link to="/studio/$editionId/relay" params={{ editionId: String(p.editionId) }} className={className}>{body}</Link>;
     }

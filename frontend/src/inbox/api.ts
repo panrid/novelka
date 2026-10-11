@@ -23,10 +23,19 @@ export type Notification = { id: number; kind: NotificationKind; payload: Notifi
 
 export const notificationApi = {
     /** 20 to a page, newest first; newest is the newest of all, for marking them seen. */
-    page: (page = 1) => api<{ items: Notification[]; unread: number; hasMore: boolean; total: number; page: number; newest: number | null }>(
-        `/api/notifications?page=${page}`),
+    /** {@code archived}: the rows put away instead of the list; the page always says how many are there. */
+    page: (page = 1, archived = false) => api<{
+        items: Notification[]; unread: number; hasMore: boolean; total: number; page: number; newest: number | null; archived: number;
+    }>(`/api/notifications?page=${page}${archived ? '&archived=true' : ''}`),
     unread: () => api<{ unread: number }>('/api/notifications/unread'),
     read: (upTo?: number) => api<{ unread: number }>('/api/notifications/read', json('POST', { upTo: upTo ?? null })),
+    /** The chosen rows, or (no ids) all of the list; put away they count as seen. */
+    archive: (ids?: number[]) => api<{ unread: number }>('/api/notifications/archive', json('POST', { ids: ids ?? null })),
+    /** The chosen rows, or all of the archive, back into the list. */
+    restore: (ids?: number[]) => api<{ unread: number }>('/api/notifications/restore', json('POST', { ids: ids ?? null })),
+    /** For good: the chosen rows, or all of the list or of the archive. */
+    remove: (ids: number[] | undefined, archived: boolean) =>
+        api<{ unread: number }>('/api/notifications/delete', json('POST', { ids: ids ?? null, archived })),
 };
 
 // ---- conversations ------------------------------------------------------------------------------
