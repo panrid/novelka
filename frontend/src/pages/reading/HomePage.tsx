@@ -118,9 +118,22 @@ export function CardRow({ card }: { card: Card }) {
                     {card.sourceChapters ? `${card.chapterCount} / ${card.sourceChapters} ${chaptersWord(card.sourceChapters)}` : `${card.chapterCount} ${chaptersWord(card.chapterCount)}`}
                     {card.kind === 'machine' || card.kind === 'mixed' ? ' · ШІ' : card.kind === 'original' ? ' · оригінальний твір' : ''}
                     {card.adult ? ' · 18+' : ''}
+                    {card.rating && card.ratings ? <span title={`Середня оцінка з ${card.ratings}`}> · ★ {card.rating.toFixed(1)}</span> : null}
                 </div>
+                {card.read ? <ReadBar read={card.read} total={card.chapterCount} /> : null}
             </div>
         </Link>
+    );
+}
+
+/** How much of the translation the viewer has read: a thin bar under the card. */
+function ReadBar({ read, total }: { read: number; total: number }) {
+    const share = Math.min(100, Math.round((read / Math.max(1, total)) * 100));
+    return (
+        <div className={styles.readBar} role="progressbar" aria-label={`Прочитано ${read} з ${total}`} aria-valuemin={0} aria-valuemax={100}
+            aria-valuenow={share} title={`Прочитано ${read} з ${total}`}>
+            <span style={{ width: `${share}%` }} />
+        </div>
     );
 }
 

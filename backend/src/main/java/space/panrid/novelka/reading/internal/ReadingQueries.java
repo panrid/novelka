@@ -19,6 +19,7 @@ import static space.panrid.novelka.jooq.Tables.TEAM;
 import static space.panrid.novelka.jooq.Tables.TEAM_MEMBER;
 import static space.panrid.novelka.jooq.Tables.VOLUME;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -37,6 +38,7 @@ import org.jooq.DSLContext;
 import org.jooq.Field;
 import org.jooq.JSONB;
 import org.jooq.Record;
+import org.jooq.Record3;
 import org.jooq.SelectField;
 import org.jooq.SelectJoinStep;
 import org.jooq.SortField;
@@ -119,14 +121,30 @@ class ReadingQueries {
 
     /** Turns card rows into cards: covers and first tags are fetched in two extra queries, not per row. */
     private List<Card> toCards(List<? extends Record> rows) {
+        return toCards(rows, null);
+    }
+
+    /** @param viewer whose read chapters the cards count, or null */
+    private List<Card> toCards(List<? extends Record> rows, Long viewer) {
         Map<Long, StoredImage> covers = images.findAll(rows.stream().map(r -> r.get(EDITION.COVER_IMAGE_ID)).toList());
         Map<Long, List<String>> tags = tagsOf(rows.stream().map(r -> r.get(NOVEL.ID)).toList(), 3);
+        List<Long> ids = rows.stream().map(r -> r.get(EDITION.ID)).toList();
+        Map<Long, Record3<Long, BigDecimal, Integer>> ratings = ids.isEmpty() ? Map.of()
+                : db.select(EDITION_RATING.EDITION_ID, DSL.avg(EDITION_RATING.SCORE), DSL.count()).from(EDITION_RATING)
+                        .where(EDITION_RATING.EDITION_ID.in(ids)).groupBy(EDITION_RATING.EDITION_ID).fetchMap(EDITION_RATING.EDITION_ID);
+        Map<Long, Integer> read = viewer == null || ids.isEmpty() ? Map.of()
+                : db.select(CHAPTER_READ.EDITION_ID, DSL.count()).from(CHAPTER_READ)
+                        .where(CHAPTER_READ.ACCOUNT_ID.eq(viewer), CHAPTER_READ.EDITION_ID.in(ids)).groupBy(CHAPTER_READ.EDITION_ID)
+                        .fetchMap(CHAPTER_READ.EDITION_ID, DSL.count());
         return rows.stream().map(r -> {
             StoredImage cover = r.get(EDITION.COVER_IMAGE_ID) == null ? null : covers.get(r.get(EDITION.COVER_IMAGE_ID));
+            var rating = ratings.get(r.get(EDITION.ID));
             return new Card(r.get(EDITION.ID), r.get(NOVEL.SLUG), r.get(TEAM.HANDLE), r.get("team_name", String.class),
                     r.get("title", String.class), r.get(NOVEL.AUTHOR), cover == null ? null : cover.url(COVER_WIDTH),
                     r.get(EDITION.KIND), r.get(EDITION.STATUS), r.get(EDITION.ADULT), r.get(EDITION.CHAPTER_COUNT),
-                    tags.getOrDefault(r.get(NOVEL.ID), List.of()), r.get(EDITION.LAST_PUBLISHED_AT), r.get(NOVEL.SOURCE_CHAPTER_COUNT));
+                    tags.getOrDefault(r.get(NOVEL.ID), List.of()), r.get(EDITION.LAST_PUBLISHED_AT), r.get(NOVEL.SOURCE_CHAPTER_COUNT),
+                    rating == null ? null : Math.round(rating.value2().doubleValue() * 10) / 10.0, rating == null ? 0 : rating.value3(),
+                    viewer == null ? null : read.getOrDefault(r.get(EDITION.ID), 0));
         }).toList();
     }
 
@@ -249,10 +267,49 @@ class ReadingQueries {
      *
      * @param sort popular, updated, new, title, or relevance — titles beginning with the words first
      */
-    Views.Found<Card> search(String query, List<String> tagSlugs, String kind, String machine, String sort,
-            boolean adult, int page, int size) {
+    Views.Found<Card> search(Views.CatalogFilter filter, String sort, boolean adult, Long viewer, int page, int size) {
+        Condition where = catalog(filter, adult);
+        String words = filter.query() == null ? "" : filter.query().strip();
+        List<SortField<?>> order = switch (sort == null ? "popular" : sort) {
+            case "updated" -> List.of(EDITION.LAST_PUBLISHED_AT.desc().nullsLast());
+            case "new" -> List.of(EDITION.CREATED_AT.desc());
+            case "title" -> List.of(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).asc());
+            case "rating" -> List.of(averageScore().desc().nullsLast(), ratingCount().desc(), popularity().desc());
+            case "relevance" -> List.of(DSL.when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase(escapeLike(words) + "%"), 0)
+                    .when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase("%" + escapeLike(words) + "%"), 1)
+                    .when(NOVEL.TITLE_ENGLISH.likeIgnoreCase(escapeLike(words) + "%"), 1)
+                    .otherwise(2).asc(),
+                    popularity().desc());
+            default -> List.of(popularity().desc(), EDITION.LAST_PUBLISHED_AT.desc().nullsLast());
+        };
+        List<SortField<?>> stable = new ArrayList<>(order);
+        stable.add(EDITION.ID.asc());
+        List<Record> rows = cards().where(where).orderBy(stable).limit(size + 1).offset((page - 1) * size).fetch();
+        boolean more = rows.size() > size;
+        int total = page == 1 && !more ? rows.size() : db.fetchCount(cards().where(where));
+        return new Views.Found<>(toCards(more ? rows.subList(0, size) : rows, viewer), page, more, total);
+    }
+
+    /** One novel the filters let through, picked at random: «🎲 Випадкова новела». */
+    Optional<Card> random(Views.CatalogFilter filter, boolean adult) {
+        return cards().where(catalog(filter, adult)).orderBy(DSL.rand()).limit(1).fetch().stream().findFirst()
+                .map(row -> toCards(List.of(row)).getFirst());
+    }
+
+    private Field<BigDecimal> averageScore() {
+        return DSL.select(DSL.avg(EDITION_RATING.SCORE)).from(EDITION_RATING).where(EDITION_RATING.EDITION_ID.eq(EDITION.ID)).asField();
+    }
+
+    private Field<Integer> ratingCount() {
+        return DSL.select(DSL.count()).from(EDITION_RATING).where(EDITION_RATING.EDITION_ID.eq(EDITION.ID)).asField();
+    }
+
+    private Condition catalog(Views.CatalogFilter filter, boolean adult) {
         Condition where = visible(adult).and(EDITION.CHAPTER_COUNT.gt(0));
-        String words = query == null ? "" : query.strip();
+        String words = filter.query() == null ? "" : filter.query().strip();
+        String kind = filter.kind();
+        String machine = filter.machine();
+        List<String> tagSlugs = filter.tags();
         if (!words.isEmpty()) {
             String escaped = escapeLike(words);
             String like = "%" + escaped + "%";
@@ -278,23 +335,25 @@ class ReadingQueries {
         } else if ("machine".equals(machine)) {
             where = where.and(EDITION.KIND.in("machine", "mixed"));
         }
-        List<SortField<?>> order = switch (sort == null ? "popular" : sort) {
-            case "updated" -> List.of(EDITION.LAST_PUBLISHED_AT.desc().nullsLast());
-            case "new" -> List.of(EDITION.CREATED_AT.desc());
-            case "title" -> List.of(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).asc());
-            case "relevance" -> List.of(DSL.when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase(escapeLike(words) + "%"), 0)
-                    .when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase("%" + escapeLike(words) + "%"), 1)
-                    .when(NOVEL.TITLE_ENGLISH.likeIgnoreCase(escapeLike(words) + "%"), 1)
-                    .otherwise(2).asc(),
-                    popularity().desc());
-            default -> List.of(popularity().desc(), EDITION.LAST_PUBLISHED_AT.desc().nullsLast());
-        };
-        List<SortField<?>> stable = new ArrayList<>(order);
-        stable.add(EDITION.ID.asc());
-        List<Record> rows = cards().where(where).orderBy(stable).limit(size + 1).offset((page - 1) * size).fetch();
-        boolean more = rows.size() > size;
-        int total = page == 1 && !more ? rows.size() : db.fetchCount(cards().where(where));
-        return new Views.Found<>(toCards(more ? rows.subList(0, size) : rows), page, more, total);
+        if (filter.status() != null && List.of("ongoing", "completed", "paused", "abandoned").contains(filter.status())) {
+            where = where.and(EDITION.STATUS.eq(filter.status()));
+        }
+        if (filter.source() != null && List.of("ongoing", "completed", "paused").contains(filter.source())) {
+            where = where.and(NOVEL.SOURCE_STATUS.eq(filter.source()));
+        }
+        if (filter.chaptersFrom() != null) {
+            where = where.and(EDITION.CHAPTER_COUNT.ge(filter.chaptersFrom()));
+        }
+        if (filter.chaptersTo() != null) {
+            where = where.and(EDITION.CHAPTER_COUNT.le(filter.chaptersTo()));
+        }
+        if (filter.rated()) {
+            where = where.and(averageScore().ge(BigDecimal.valueOf(4)));
+        }
+        if ("week".equals(filter.fresh()) || "month".equals(filter.fresh())) {
+            where = where.and(EDITION.LAST_PUBLISHED_AT.ge(now().minusDays("week".equals(filter.fresh()) ? 7 : 30)));
+        }
+        return where;
     }
 
     private static String escapeLike(String words) {

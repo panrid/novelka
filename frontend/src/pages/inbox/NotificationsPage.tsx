@@ -232,7 +232,7 @@ function Row({ item }: { item: Notification }) {
     const body = (
         <div className={styles.grow}>
             <div className={item.kind === 'new_chapters' || item.kind === 'source_chapters' ? styles.strong : undefined}>{title}</div>
-            {chapters && <div className={styles.line}>{chapters}</div>}
+            {chapters && <div>{chapters}</div>}
             {excerpt && <div className={`${styles.line} ${styles.muted}`}>«{excerpt}»</div>}
             <div className={styles.muted}>{item.kind === 'new_chapters' || item.kind === 'source_chapters' ? '' : where && `${where} · `}{relativeTime(new Date(item.createdAt))}</div>
         </div>

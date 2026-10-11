@@ -383,6 +383,37 @@ describe('catalog', () => {
     });
 });
 
+describe('catalog collections and filters', () => {
+    it('applies a collection, shows its filters as chips, the reader\'s progress and picks a novel at random', async () => {
+        const { router, calls } = await renderAt('/catalog', {
+            'GET /api/catalog': { body: { items: [{ ...CARD, rating: 4.6, ratings: 12, read: 11 }], page: 1, hasMore: false, total: 1 } },
+            'GET /api/tags/groups': { body: [] },
+            'GET /api/catalog/random': { body: CARD },
+            'GET /api/novels/mah-vody': { body: NOVEL },
+            'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
+        });
+        expect(await screen.findByText(/★ 4\.6/)).toBeInTheDocument();
+        expect(screen.getByRole('progressbar', { name: 'Прочитано 11 з 44' })).toHaveAttribute('aria-valuenow', '25');
+
+        await userEvent.click(screen.getByRole('button', { name: '⭐ Найкраще оцінені' }));
+        await waitFor(() => expect(router.state.location.search).toEqual({ rated: true, sort: 'rating' }));
+        await waitFor(() => expect(calls.some((call) => call.path === '/api/catalog' && call.query.includes('rated=true')
+            && call.query.includes('sort=rating'))).toBe(true));
+        expect(screen.getByRole('button', { name: '⭐ Найкраще оцінені' })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('button', { name: 'Прибрати: оцінка 4+' })).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Фільтри · 1' }));
+        await userEvent.click(screen.getByRole('button', { name: '200–500' }));
+        await waitFor(() => expect(router.state.location.search).toEqual({ rated: true, sort: 'rating', from: 200, to: 500 }));
+        await waitFor(() => expect(calls.some((call) => call.query.includes('chaptersFrom=200') && call.query.includes('chaptersTo=500'))).toBe(true));
+        expect(screen.getByRole('button', { name: '⭐ Найкраще оцінені' })).toHaveAttribute('aria-pressed', 'false');
+
+        await userEvent.click(screen.getByRole('button', { name: '🎲 Випадкова новела' }));
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody'));
+        expect(calls.find((call) => call.path === '/api/catalog/random')?.query).toContain('chaptersFrom=200');
+    });
+});
+
 describe('the novel’s other names and the original', () => {
     it('shows the names under the title and how much of the original is translated', async () => {
         await renderAt('/n/mah-vody', {

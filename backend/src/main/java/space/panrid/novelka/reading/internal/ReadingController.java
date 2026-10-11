@@ -68,13 +68,35 @@ class ReadingController {
     @GetMapping("/catalog")
     Views.Found<Views.Card> catalog(@RequestParam(required = false) String q,
             @RequestParam(required = false) List<String> tag, @RequestParam(defaultValue = "all") String kind,
-            @RequestParam(defaultValue = "all") String machine, @RequestParam(defaultValue = "popular") String sort,
+            @RequestParam(defaultValue = "all") String machine, @RequestParam(required = false) String status,
+            @RequestParam(required = false) String source, @RequestParam(required = false) Integer chaptersFrom,
+            @RequestParam(required = false) Integer chaptersTo, @RequestParam(defaultValue = "false") boolean rated,
+            @RequestParam(required = false) String fresh, @RequestParam(defaultValue = "popular") String sort,
             @RequestParam(defaultValue = "1") int page) {
+        Optional<Viewer> viewer = currentUser.viewer();
+        return queries.search(filter(q, tag, kind, machine, status, source, chaptersFrom, chaptersTo, rated, fresh), sort,
+                adult(viewer), viewer.map(Viewer::accountId).orElse(null), Math.max(1, Math.min(page, 500)), PAGE_SIZE);
+    }
+
+    /** A novel the same filters let through, picked at random; 404 when none does. */
+    @GetMapping("/catalog/random")
+    Views.Card randomNovel(@RequestParam(required = false) String q,
+            @RequestParam(required = false) List<String> tag, @RequestParam(defaultValue = "all") String kind,
+            @RequestParam(defaultValue = "all") String machine, @RequestParam(required = false) String status,
+            @RequestParam(required = false) String source, @RequestParam(required = false) Integer chaptersFrom,
+            @RequestParam(required = false) Integer chaptersTo, @RequestParam(defaultValue = "false") boolean rated,
+            @RequestParam(required = false) String fresh) {
+        return queries.random(filter(q, tag, kind, machine, status, source, chaptersFrom, chaptersTo, rated, fresh), adult(currentUser.viewer()))
+                .orElseThrow(() -> new UserFacingException(HttpStatus.NOT_FOUND, "Таких новел немає — спробуйте прибрати фільтри."));
+    }
+
+    private static Views.CatalogFilter filter(String q, List<String> tag, String kind, String machine, String status, String source,
+            Integer chaptersFrom, Integer chaptersTo, boolean rated, String fresh) {
         if (q != null && q.length() > 100) {
             throw UserFacingException.badRequest("Запит задовгий.");
         }
-        return queries.search(q, tag == null ? List.of() : tag.stream().limit(5).toList(), kind, machine, sort,
-                adult(currentUser.viewer()), Math.max(1, Math.min(page, 500)), PAGE_SIZE);
+        return new Views.CatalogFilter(q, tag == null ? List.of() : tag.stream().limit(5).toList(), kind, machine, status, source,
+                chaptersFrom == null ? null : Math.max(0, chaptersFrom), chaptersTo == null ? null : Math.max(0, chaptersTo), rated, fresh);
     }
 
     @GetMapping("/tags")
@@ -96,7 +118,7 @@ class ReadingController {
             return new Views.Hints(List.of(), List.of());
         }
         boolean adult = adult(currentUser.viewer());
-        return new Views.Hints(queries.search(words, List.of(), "all", "all", "relevance", adult, 1, 6).items(),
+        return new Views.Hints(queries.search(Views.CatalogFilter.words(words), "relevance", adult, null, 1, 6).items(),
                 queries.tagsLike(words, adult, 5));
     }
 

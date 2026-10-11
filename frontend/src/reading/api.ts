@@ -20,6 +20,11 @@ export type Card = {
     lastPublishedAt: string | null;
     /** Chapters in the original, when known: «55 / 822 глав». */
     sourceChapters?: number | null;
+    /** Readers' average score and how many gave one. */
+    rating?: number | null;
+    ratings?: number;
+    /** Chapters the viewer has read: only in the catalog, for a signed-in person. */
+    read?: number | null;
 };
 
 export type Span = { text: string; marks: ('bold' | 'italic' | 'underline' | 'strike')[] };
@@ -141,7 +146,15 @@ export type ReaderChapter = {
     volume?: VolumeRef | null;
 };
 
-export type CatalogQuery = { q?: string; tags?: string[]; kind?: string; machine?: string; sort?: string; page?: number };
+/** The catalog's filters; see CatalogPage for what each means. */
+export type CatalogFilters = {
+    q?: string; tags?: string[]; kind?: string; machine?: string; status?: string; source?: string;
+    from?: number; to?: number; rated?: boolean; fresh?: string;
+};
+export type CatalogQuery = CatalogFilters & { sort?: string; page?: number };
+
+const catalogParams = ({ q, tags, kind, machine, status, source, from, to, rated, fresh }: CatalogFilters) =>
+    ({ q, tag: tags, kind, machine, status, source, chaptersFrom: from, chaptersTo: to, rated: rated ? 'true' : undefined, fresh });
 
 function query(params: Record<string, string | number | string[] | undefined>) {
     const search = new URLSearchParams();
@@ -162,8 +175,10 @@ export const readingApi = {
     works: (nick: string) => api<Card[]>(`/api/users/${encodeURIComponent(nick)}/works`),
     activity: (nick: string) => api<{ reading: Card[]; acceptedSuggestions: number }>(`/api/users/${encodeURIComponent(nick)}/activity`),
     home: () => api<Home>('/api/home'),
-    catalog: ({ q, tags, kind, machine, sort, page }: CatalogQuery) =>
-        api<Found<Card>>(`/api/catalog${query({ q, tag: tags, kind, machine, sort, page })}`),
+    catalog: ({ sort, page, ...filters }: CatalogQuery) =>
+        api<Found<Card>>(`/api/catalog${query({ ...catalogParams(filters), sort, page })}`),
+    /** One novel the filters let through, at random. */
+    randomNovel: (filters: CatalogFilters) => api<Card>(`/api/catalog/random${query(catalogParams(filters))}`),
     tags: () => api<TagCount[]>('/api/tags'),
     tagGroups: () => api<TagGroup[]>('/api/tags/groups'),
     hints: (q: string) => api<Hints>(`/api/search/hints${query({ q })}`),

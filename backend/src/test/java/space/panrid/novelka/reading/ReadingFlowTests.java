@@ -132,6 +132,39 @@ class ReadingFlowTests {
     }
 
     @Test
+    void theCatalogNarrowsByStateLengthRatingAndFreshnessAndPicksAtRandom() {
+        String slug = read(importNovel(admin.browser(), title, NOVEL, false)).path("slug").asString();
+        String word = title.substring(title.length() - 6);
+        String catalog = "/api/catalog?q=" + word;
+        Browser guest = new Browser(port);
+        JsonNode card = read(guest.get(catalog)).path("items").path(0);
+        long editionId = card.path("editionId").asLong();
+        String status = card.path("status").asString();
+        assertThat(card.path("rating").isNull()).isTrue();
+        assertThat(card.path("read").isNull()).as("a guest's cards count nothing").isTrue();
+
+        assertThat(read(guest.get(catalog + "&chaptersFrom=3&chaptersTo=3")).path("total").asInt()).isEqualTo(1);
+        assertThat(read(guest.get(catalog + "&chaptersFrom=4")).path("total").asInt()).isZero();
+        assertThat(read(guest.get(catalog + "&chaptersTo=2")).path("total").asInt()).isZero();
+        assertThat(read(guest.get(catalog + "&status=" + status)).path("total").asInt()).isEqualTo(1);
+        assertThat(read(guest.get(catalog + "&status=" + ("completed".equals(status) ? "abandoned" : "completed"))).path("total").asInt()).isZero();
+        assertThat(read(guest.get(catalog + "&fresh=week")).path("total").asInt()).isEqualTo(1);
+        assertThat(read(guest.get(catalog + "&rated=true")).path("total").asInt()).as("nobody rated it yet").isZero();
+
+        Person reader = Accounts.signedIn(port, mailbox);
+        read(reader.browser().put("/api/editions/" + editionId + "/rating", json("score", 5)));
+        assertThat(reader.browser().put("/api/reads/" + editionId, json("from", 1, "to", 2, "read", true)).status()).isEqualTo(204);
+        JsonNode rated = read(reader.browser().get(catalog + "&rated=true&sort=rating")).path("items").path(0);
+        assertThat(rated.path("novelSlug").asString()).isEqualTo(slug);
+        assertThat(rated.path("rating").asDouble()).isEqualTo(5.0);
+        assertThat(rated.path("ratings").asInt()).isEqualTo(1);
+        assertThat(rated.path("read").asInt()).as("the reader's own progress on the card").isEqualTo(2);
+
+        assertThat(read(guest.get("/api/catalog/random?q=" + word)).path("novelSlug").asString()).isEqualTo(slug);
+        assertThat(guest.get("/api/catalog/random?q=" + word + "&chaptersFrom=99").status()).isEqualTo(404);
+    }
+
+    @Test
     void finishedChaptersAreMarkedAndSkippedOnesShow() {
         String slug = read(importNovel(admin.browser(), title, NOVEL, false)).path("slug").asString();
         Person reader = Accounts.signedIn(port, mailbox);

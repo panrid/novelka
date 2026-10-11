@@ -405,3 +405,61 @@
         gap: 22px 18px;
     }
 }
+
+/* How much of a card's translation the viewer has read. */
+.readBar {
+    height: 3px;
+    margin-top: 5px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: var(--surface-2);
+}
+
+.readBar span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+}
+
+/* Ready-made sets of filters above the results. */
+.collections {
+    display: flex;
+    gap: 6px;
+    margin: 0 0 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.collection {
+    flex: none;
+    padding: 6px 12px;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    background: var(--surface);
+    color: var(--text);
+    font: 13px var(--font-ui);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.collectionOn {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.range {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.range input {
+    width: 90px;
+    min-height: 36px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font: 14px var(--font-ui);
+}

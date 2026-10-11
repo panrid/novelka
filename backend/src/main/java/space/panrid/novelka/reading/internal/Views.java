@@ -11,10 +11,32 @@ final class Views {
     private Views() {
     }
 
-    /** A novel in a list: shelf, catalog row, library row. {@code sourceChapters}: in the original, if known. */
+    /**
+     * A novel in a list: shelf, catalog row, library row. {@code sourceChapters}: in the original, if known.
+     *
+     * @param rating  readers' average score (1–5), null before the first one; {@code ratings} how many gave one
+     * @param read    chapters the viewer has read, where the list knows the viewer (the catalog); null elsewhere
+     */
     record Card(long editionId, String novelSlug, String teamHandle, String teamName, String title, String author,
             String coverUrl, String kind, String status, boolean adult, int chapterCount, List<String> tags,
-            OffsetDateTime lastPublishedAt, Integer sourceChapters) {
+            OffsetDateTime lastPublishedAt, Integer sourceChapters, Double rating, int ratings, Integer read) {
+    }
+
+    /**
+     * What the catalog is narrowed by; null or «all» leaves a filter out.
+     *
+     * @param status       the translation's: ongoing, completed, paused, abandoned
+     * @param source       the original's: ongoing, completed, paused
+     * @param chaptersFrom at least this many chapters translated; {@code chaptersTo} at most
+     * @param rated        only those readers rate 4 or more on average
+     * @param fresh        new chapters within the «week» or «month»
+     */
+    record CatalogFilter(String query, List<String> tags, String kind, String machine, String status, String source,
+            Integer chaptersFrom, Integer chaptersTo, boolean rated, String fresh) {
+
+        static CatalogFilter words(String query) {
+            return new CatalogFilter(query, List.of(), "all", "all", null, null, null, null, false, null);
+        }
     }
 
     /** {@code chapterLabel}: the number readers see (see ChapterLabels); null shows the position. */
