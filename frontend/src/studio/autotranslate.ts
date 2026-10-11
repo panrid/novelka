@@ -109,7 +109,14 @@ export type Wallet = {
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 const base = (id: number) => `/api/studio/editions/${id}`;
 
+/** The Studio's bell for the original: whether the viewer hears of its new chapters; found — what a check just found. */
+export type SourceWatch = { watching: boolean; checkedAt: string | null; sourceChapters: number; found: number };
+
 export const autotranslateApi = {
+    sourceWatch: (id: number) => api<SourceWatch>(`${base(id)}/source-watch`),
+    setSourceWatch: (id: number, watching: boolean) =>
+        api<SourceWatch>(`${base(id)}/source-watch`, { method: 'PUT', body: JSON.stringify({ watching }) }),
+    checkSource: (id: number) => api<SourceWatch>(`${base(id)}/source-check`, { method: 'POST', body: '{}' }),
     prepare: (url: string, team: string) =>
         api<{ editionId: number; novelSlug: string }>('/api/studio/autotranslate/prepare', json('POST', { url, team })),
     overview: (id: number) => api<AutotranslateOverview>(`${base(id)}/autotranslate`),

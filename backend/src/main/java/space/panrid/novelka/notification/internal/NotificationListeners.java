@@ -6,6 +6,7 @@ import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITION_SUBSCRIPTION;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.REVISION;
+import static space.panrid.novelka.jooq.Tables.SOURCE_WATCH;
 import static space.panrid.novelka.jooq.Tables.TEAM;
 import static space.panrid.novelka.jooq.Tables.TEAM_MEMBER;
 
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Component;
 import space.panrid.novelka.achievement.AchievementEarned;
 import space.panrid.novelka.admin.ReportFiled;
 import space.panrid.novelka.autotranslate.ProposalTaken;
+import space.panrid.novelka.autotranslate.SourceChaptersFound;
 import space.panrid.novelka.catalog.TakeoverAnswered;
 import space.panrid.novelka.catalog.TakeoverRequested;
 import space.panrid.novelka.community.ChatMentioned;
@@ -99,6 +101,20 @@ class NotificationListeners {
                 .fetch(EDITION_SUBSCRIPTION.ACCOUNT_ID);
         for (long reader : readers) {
             inbox.addGrouped(reader, "new_chapters", "chapters:" + published.editionId(), base, published.first(), published.last());
+        }
+    }
+
+    /** The team members who rang the Studio's bell: the original has chapters to translate; one row per translation grows. */
+    @ApplicationModuleListener
+    void on(SourceChaptersFound found) {
+        Map<String, Object> base = place(found.editionId(), null);
+        Long cover = db.select(EDITION.COVER_IMAGE_ID).from(EDITION).where(EDITION.ID.eq(found.editionId())).fetchOne(EDITION.COVER_IMAGE_ID);
+        if (cover != null) {
+            images.find(cover).ifPresent(image -> base.put("coverUrl", image.url(160)));
+        }
+        for (long person : db.select(SOURCE_WATCH.ACCOUNT_ID).from(SOURCE_WATCH)
+                .where(SOURCE_WATCH.EDITION_ID.eq(found.editionId())).fetch(SOURCE_WATCH.ACCOUNT_ID)) {
+            inbox.addGrouped(person, "source_chapters", "source:" + found.editionId(), base, found.first(), found.last());
         }
     }
 

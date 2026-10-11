@@ -36,11 +36,11 @@ class TelegramLinks {
 
     /** What the settings show. */
     record Status(boolean available, boolean linked, String username, String botUsername,
-            boolean notifyInbox, boolean notifyChapters, boolean notifyMessages) {
+            boolean notifyInbox, boolean notifyChapters, boolean notifyMessages, boolean notifySource) {
     }
 
     /** A tied chat and what it wants to hear about. */
-    record Link(long accountId, long chatId, boolean notifyInbox, boolean notifyChapters, boolean notifyMessages) {
+    record Link(long accountId, long chatId, boolean notifyInbox, boolean notifyChapters, boolean notifyMessages, boolean notifySource) {
     }
 
     private final DSLContext db;
@@ -63,7 +63,7 @@ class TelegramLinks {
                 .fetchOptional(TELEGRAM_LINK.USERNAME).orElse(null);
         return new Status(telegram.configured(), link.isPresent(), username, telegram.configured() ? telegram.botUsername() : null,
                 link.map(Link::notifyInbox).orElse(true), link.map(Link::notifyChapters).orElse(true),
-                link.map(Link::notifyMessages).orElse(true));
+                link.map(Link::notifyMessages).orElse(true), link.map(Link::notifySource).orElse(true));
     }
 
     /** A fresh one-time link; older ones of the person stop working. */
@@ -80,7 +80,7 @@ class TelegramLinks {
     }
 
     @Transactional
-    void settings(long accountId, Boolean inbox, Boolean chapters, Boolean messages) {
+    void settings(long accountId, Boolean inbox, Boolean chapters, Boolean messages, Boolean source) {
         java.util.Map<org.jooq.Field<?>, Object> changes = new java.util.HashMap<>();
         if (inbox != null) {
             changes.put(TELEGRAM_LINK.NOTIFY_INBOX, inbox);
@@ -90,6 +90,9 @@ class TelegramLinks {
         }
         if (messages != null) {
             changes.put(TELEGRAM_LINK.NOTIFY_MESSAGES, messages);
+        }
+        if (source != null) {
+            changes.put(TELEGRAM_LINK.NOTIFY_SOURCE, source);
         }
         if (!changes.isEmpty()) {
             db.update(TELEGRAM_LINK).set(changes).where(TELEGRAM_LINK.ACCOUNT_ID.eq(accountId)).execute();
@@ -106,7 +109,7 @@ class TelegramLinks {
 
     Optional<Link> of(long accountId) {
         return db.selectFrom(TELEGRAM_LINK).where(TELEGRAM_LINK.ACCOUNT_ID.eq(accountId)).fetchOptional(r -> new Link(
-                r.getAccountId(), r.getChatId(), r.getNotifyInbox(), r.getNotifyChapters(), r.getNotifyMessages()));
+                r.getAccountId(), r.getChatId(), r.getNotifyInbox(), r.getNotifyChapters(), r.getNotifyMessages(), r.getNotifySource()));
     }
 
     /** The chat is gone for good: the person blocked the bot. */

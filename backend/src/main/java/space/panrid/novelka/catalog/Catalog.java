@@ -19,6 +19,12 @@ public interface Catalog {
     Optional<Long> novelBySource(String sourceKey);
 
     /**
+     * What the source site now says of the original: how many chapters can be taken and whether
+     * the author finished it. A pause set by hand stays until it ends.
+     */
+    void updateSource(long novelId, int sourceChapterCount, boolean completed);
+
+    /**
      * A new address for the edition's novel; the old one keeps working (етап 17).
      *
      * @return the address as stored: lower case, a–z, digits and hyphens

@@ -107,11 +107,8 @@ class CatalogService implements Catalog {
                     .returning(NOVEL.ID)
                     .fetchOne(NOVEL.ID);
         } else {
-            // The source site knows best how far the original went; a pause set by hand stays until it ends.
-            db.update(NOVEL).set(NOVEL.SOURCE_CHAPTER_COUNT, novel.sourceChapterCount())
-                    .set(NOVEL.SOURCE_STATUS, novel.completed() ? DSL.val("completed")
-                            : DSL.when(NOVEL.SOURCE_STATUS.eq("paused"), NOVEL.SOURCE_STATUS).otherwise("ongoing"))
-                    .set(NOVEL.SOURCE_LANGUAGE, novel.sourceLanguage()).where(NOVEL.ID.eq(novelId)).execute();
+            updateSource(novelId, novel.sourceChapterCount(), novel.completed());
+            db.update(NOVEL).set(NOVEL.SOURCE_LANGUAGE, novel.sourceLanguage()).where(NOVEL.ID.eq(novelId)).execute();
             slug = db.select(NOVEL.SLUG).from(NOVEL).where(NOVEL.ID.eq(novelId)).fetchOne(NOVEL.SLUG);
         }
         Long editionId = db.select(EDITION.ID).from(EDITION)
@@ -126,6 +123,15 @@ class CatalogService implements Catalog {
                     .fetchOne(EDITION.ID);
         }
         return new EditionRef(novelId, editionId, slug);
+    }
+
+    @Override
+    public void updateSource(long novelId, int sourceChapterCount, boolean completed) {
+        // The source site knows best how far the original went; a pause set by hand stays until it ends.
+        db.update(NOVEL).set(NOVEL.SOURCE_CHAPTER_COUNT, sourceChapterCount)
+                .set(NOVEL.SOURCE_STATUS, completed ? DSL.val("completed")
+                        : DSL.when(NOVEL.SOURCE_STATUS.eq("paused"), NOVEL.SOURCE_STATUS).otherwise("ongoing"))
+                .where(NOVEL.ID.eq(novelId)).execute();
     }
 
     @Override

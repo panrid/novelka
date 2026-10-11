@@ -51,6 +51,16 @@ class Texts {
                 return message("📖 <b>" + escape(text(p, "novelTitle")) + "</b>\n" + escape(chapters),
                         "/n/" + text(p, "slug") + "/" + first + team(p, "?"));
             }
+            case "source_chapters" -> {
+                int first = number(p, "first");
+                int last = number(p, "last");
+                int count = last - first + 1;
+                String chapters = count > 1
+                        ? "В оригіналі нові глави %d–%d · %d %s — можна перекладати".formatted(first, last, count, plural(count, "глава", "глави", "глав"))
+                        : "В оригіналі нова глава " + first + " — можна перекладати";
+                return message("🈁 <b>" + escape(text(p, "novelTitle")) + "</b>\n" + escape(chapters),
+                        "/studio/" + text(p, "editionId") + "/translate");
+            }
             case "suggestions_submitted" -> {
                 int count = number(p, "count") == 0 ? 1 : number(p, "count");
                 title = count == 1 ? actor + " пропонує правку"

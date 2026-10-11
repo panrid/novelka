@@ -24,7 +24,7 @@ class TelegramController {
 
     static final String WEBHOOK = "/api/telegram/webhook";
 
-    record Settings(Boolean notifyInbox, Boolean notifyChapters, Boolean notifyMessages) {
+    record Settings(Boolean notifyInbox, Boolean notifyChapters, Boolean notifyMessages, Boolean notifySource) {
     }
 
     record StartLink(String url) {
@@ -62,7 +62,7 @@ class TelegramController {
     @PatchMapping("/api/me/telegram")
     TelegramLinks.Status settings(@RequestBody Settings body) {
         long me = currentUser.requireSignedIn().accountId();
-        links.settings(me, body.notifyInbox(), body.notifyChapters(), body.notifyMessages());
+        links.settings(me, body.notifyInbox(), body.notifyChapters(), body.notifyMessages(), body.notifySource());
         return links.status(me);
     }
 

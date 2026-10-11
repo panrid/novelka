@@ -33,7 +33,11 @@ class TelegramNotices implements AccountMessenger {
             return;
         }
         links.of(added.recipientId())
-                .filter(link -> "new_chapters".equals(added.kind()) ? link.notifyChapters() : link.notifyInbox())
+                .filter(link -> switch (added.kind()) {
+                    case "new_chapters" -> link.notifyChapters();
+                    case "source_chapters" -> link.notifySource();
+                    default -> link.notifyInbox();
+                })
                 .ifPresent(link -> send(link.chatId(), texts.notification(added.kind(), added.payload())));
     }
 

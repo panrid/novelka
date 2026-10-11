@@ -72,6 +72,15 @@ function Row({ item }: { item: Notification }) {
                 : `Нова глава ${first}${p.chapterTitle ? `. ${p.chapterTitle}` : ''}`;
             break;
         }
+        case 'source_chapters': {
+            const count = (p.last ?? 0) - (p.first ?? 0) + 1;
+            title = p.novelTitle ?? 'Оригінал';
+            excerpt = undefined;
+            chapters = count > 1
+                ? `В оригіналі нові глави ${p.first}–${p.last} · ${count} ${chaptersWord(count)} — можна перекладати`
+                : `В оригіналі нова глава ${p.first} — можна перекладати`;
+            break;
+        }
         case 'suggestions_submitted':
             // Batches from different people add up, so only a single one names its author.
             title = (p.count ?? 1) === 1 ? `${p.actorNick} пропонує правку` : plural(p.count ?? 0, 'нова правка', 'нові правки', 'нових правок');
@@ -106,15 +115,23 @@ function Row({ item }: { item: Notification }) {
     }
     const body = (
         <div className={styles.grow}>
-            <div className={item.kind === 'new_chapters' ? styles.strong : undefined}>{title}</div>
+            <div className={item.kind === 'new_chapters' || item.kind === 'source_chapters' ? styles.strong : undefined}>{title}</div>
             {chapters && <div className={styles.line}>{chapters}</div>}
             {excerpt && <div className={`${styles.line} ${styles.muted}`}>«{excerpt}»</div>}
-            <div className={styles.muted}>{item.kind === 'new_chapters' ? '' : where && `${where} · `}{relativeTime(new Date(item.createdAt))}</div>
+            <div className={styles.muted}>{item.kind === 'new_chapters' || item.kind === 'source_chapters' ? '' : where && `${where} · `}{relativeTime(new Date(item.createdAt))}</div>
         </div>
     );
     const className = `${styles.item} ${item.read ? '' : styles.unread}`;
     if (item.kind === 'takeover_request' && p.editionId) {
         return <Link to="/studio/$editionId/relay" params={{ editionId: String(p.editionId) }} className={className}>{body}</Link>;
+    }
+    if (item.kind === 'source_chapters' && p.editionId) {
+        return (
+            <Link to="/studio/$editionId/translate" params={{ editionId: String(p.editionId) }} className={className}>
+                <Cover url={p.coverUrl ?? null} title={p.novelTitle ?? ''} seed={p.slug ?? String(p.editionId)} width={40} />
+                {body}
+            </Link>
+        );
     }
     if (item.kind === 'achievement' && p.nick) {
         return <Link to="/u/$nick" params={{ nick: p.nick }} hash="achievements" className={className}>{body}</Link>;

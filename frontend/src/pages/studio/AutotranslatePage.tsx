@@ -113,6 +113,7 @@ function AutotranslateTab() {
                     : data.balance && <> Баланс: <b>{money(data.balance.shah, data.balance.usd, show)}</b>.</>}
             </p>
             {!data.configured && <Notice tone="error">Ключ OpenRouter не налаштовано на сервері.</Notice>}
+            <SourceBell editionId={id} />
 
             {job && <h2 className={styles.sectionTitle}>{busy ? 'Зараз іде' : 'Останній запуск'}</h2>}
             {job && <JobCard job={job} editionId={id} showShah={show} usdPerShah={data.usdPerShah}
@@ -233,6 +234,45 @@ function AutotranslateTab() {
 }
 
 const STEPS: Step[] = ['analyze', 'translate', 'proofread'];
+
+/**
+ * The original: when it was last looked at (once a week by itself), «Перевірити зараз», and the
+ * bell — whether the viewer hears that it has new chapters to translate.
+ */
+function SourceBell({ editionId }: { editionId: number }) {
+    const client = useQueryClient();
+    const watch = useQuery({ queryKey: ['source-watch', editionId], queryFn: () => autotranslateApi.sourceWatch(editionId) });
+    const toggle = useMutation({
+        mutationFn: (watching: boolean) => autotranslateApi.setSourceWatch(editionId, watching),
+        onSuccess: (next) => client.setQueryData(['source-watch', editionId], next),
+    });
+    const check = useMutation({
+        mutationFn: () => autotranslateApi.checkSource(editionId),
+        onSuccess: (next) => {
+            client.setQueryData(['source-watch', editionId], next);
+            void client.invalidateQueries({ queryKey: ['autotranslate', editionId] });
+        },
+    });
+    const data = watch.data;
+    if (!data) return null;
+    return (
+        <div className={styles.sourceBell}>
+            <Toggle label="Повідомляти про нові глави оригіналу" isSelected={data.watching} onChange={(on) => toggle.mutate(on)} />
+            <div className={styles.muted}>
+                {data.checkedAt ? `Оригінал перевірено ${relativeTime(new Date(data.checkedAt))}` : 'Оригінал ще не перевіряли'} · сайт дивиться сам раз на тиждень ·{' '}
+                <button type="button" className={styles.link} onClick={() => check.mutate()} disabled={check.isPending}>
+                    {check.isPending ? 'Перевіряємо…' : 'Перевірити зараз'}
+                </button>
+            </div>
+            {check.isSuccess && (
+                <div className={styles.muted} role="status">
+                    {check.data.found > 0 ? `Знайдено нових глав: ${check.data.found}.` : 'Нових глав немає.'}
+                </div>
+            )}
+            {(check.isError || toggle.isError) && <Notice tone="error">{(check.error ?? toggle.error)!.message}</Notice>}
+        </div>
+    );
+}
 
 /** One step's model in a line — its price for an average chapter, measured or estimated — and «Змінити» to pick another. */
 function StepModel({ step, model, chars, show, note, onChange }: {

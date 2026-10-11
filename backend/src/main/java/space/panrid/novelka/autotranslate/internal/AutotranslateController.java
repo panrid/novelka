@@ -54,10 +54,12 @@ class AutotranslateController {
     private final JobLog journal;
     private final Presets presets;
     private final ModelCosts costs;
+    private final SourceWatch watch;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
             Teams teams, Analyses analyses, Ledger ledger, Sources sources, space.panrid.novelka.suggestion.Suggestions suggestions,
-            Agreement agreement, JobLog journal, Presets presets, ModelCosts costs) {
+            Agreement agreement, JobLog journal, Presets presets, ModelCosts costs, SourceWatch watch) {
+        this.watch = watch;
         this.costs = costs;
         this.presets = presets;
         this.journal = journal;
@@ -158,6 +160,43 @@ class AutotranslateController {
                 novel.lastAnalyzed(), novel.nextToAnalyze(), averageChars,
                 jobs.balance().orElse(null), Settings.usdOfMicro(settings.microUsdPerShah()), settings, jobs.jobs(editionId), false, 0,
                 presets(averageChars));
+    }
+
+    /** The Studio's bell for the original: whether this person hears of its new chapters, and when it was last looked at. */
+    record SourceWatchView(boolean watching, java.time.OffsetDateTime checkedAt, int sourceChapters, int found) {
+    }
+
+    record WatchChange(boolean watching) {
+    }
+
+    @GetMapping("/editions/{editionId}/source-watch")
+    SourceWatchView sourceWatch(@PathVariable long editionId) {
+        Viewer viewer = ownerTranslating(editionId);
+        return new SourceWatchView(watch.watching(viewer.accountId(), editionId), watch.checkedAt(editionId),
+                jobs.novel(editionId).sourceChapters(), 0);
+    }
+
+    @PutMapping("/editions/{editionId}/source-watch")
+    SourceWatchView changeSourceWatch(@PathVariable long editionId, @RequestBody WatchChange body) {
+        Viewer viewer = ownerTranslating(editionId);
+        watch.watch(viewer.accountId(), editionId, body.watching());
+        return sourceWatch(editionId);
+    }
+
+    /** «Перевірити зараз»: the original's table of contents read at once; {@code found} — chapters it grew by. */
+    @PostMapping("/editions/{editionId}/source-check")
+    SourceWatchView checkSource(@PathVariable long editionId) {
+        Viewer viewer = ownerTranslating(editionId);
+        SourceWatch.Checked checked;
+        try {
+            checked = watch.check(jobs.novel(editionId).novelId());
+        } catch (UserFacingException known) {
+            throw known;
+        } catch (RuntimeException failed) {
+            throw UserFacingException.badGateway("Сайт оригіналу не відповів. Спробуйте пізніше.");
+        }
+        return new SourceWatchView(watch.watching(viewer.accountId(), editionId), watch.checkedAt(editionId), checked.now(),
+                checked.found());
     }
 
     @PostMapping("/editions/{editionId}/autotranslate/quote")

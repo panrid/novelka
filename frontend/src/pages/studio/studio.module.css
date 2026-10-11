@@ -613,3 +613,11 @@
     font-size: 14px;
     cursor: pointer;
 }
+
+/* The original's bell under the counts: watch it, when it was looked at, look now. */
+.sourceBell {
+    display: grid;
+    gap: 4px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+}

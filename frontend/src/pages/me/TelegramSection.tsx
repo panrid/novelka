@@ -10,8 +10,10 @@ import styles from '../pages.module.css';
 type TelegramStatus = {
     available: boolean; linked: boolean; username: string | null; botUsername: string | null;
     notifyInbox: boolean; notifyChapters: boolean; notifyMessages: boolean;
+    /** New chapters of the original to translate, for those who rang the Studio's bell. */
+    notifySource: boolean;
 };
-type TelegramSettings = Partial<Pick<TelegramStatus, 'notifyInbox' | 'notifyChapters' | 'notifyMessages'>>;
+type TelegramSettings = Partial<Pick<TelegramStatus, 'notifyInbox' | 'notifyChapters' | 'notifyMessages' | 'notifySource'>>;
 
 const telegramApi = {
     status: () => api<TelegramStatus>('/api/me/telegram'),
@@ -54,6 +56,8 @@ export function TelegramSection() {
                         onChange={(value) => update.mutate({ notifyMessages: value })} />
                     <Toggle label="Нові глави з підписок" isSelected={data.notifyChapters}
                         onChange={(value) => update.mutate({ notifyChapters: value })} />
+                    <Toggle label="Нові глави оригіналу для перекладу (з дзвіночка в Студії)" isSelected={data.notifySource}
+                        onChange={(value) => update.mutate({ notifySource: value })} />
                     <Toggle label="Відповіді, згадки, правки й решта сповіщень" isSelected={data.notifyInbox}
                         onChange={(value) => update.mutate({ notifyInbox: value })} />
                     <p className={styles.muted}>Зміну ніка, пошти й пароля бот повідомляє завжди. Посилання для нового пароля теж приходить сюди.</p>

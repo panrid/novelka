@@ -92,6 +92,33 @@ class AutotranslateFlowTests {
     }
 
     @Test
+    void theOriginalIsLookedAtAndWhoRangTheBellHearsOfItsNewChapters() {
+        long edition = prepare();
+        String watch = "/api/studio/editions/" + edition + "/source-watch";
+        assertThat(read(owner.browser().get(watch)).path("watching").asBoolean()).isFalse();
+        assertThat(read(owner.browser().put(watch, json("watching", true))).path("watching").asBoolean()).isTrue();
+
+        JsonNode same = read(owner.browser().post("/api/studio/editions/" + edition + "/source-check", "{}"));
+        assertThat(same.path("found").asInt()).as("nothing new yet").isZero();
+        assertThat(same.path("checkedAt").isNull()).isFalse();
+
+        syosetu.add(code, new FakeSyosetu.Novel("灯台守の夜", "桜ゆき", "あらすじ。", 7));
+        JsonNode grown = read(owner.browser().post("/api/studio/editions/" + edition + "/source-check", "{}"));
+        assertThat(grown.path("found").asInt()).isEqualTo(2);
+        assertThat(grown.path("sourceChapters").asInt()).isEqualTo(7);
+        assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/autotranslate")).path("sourceChapters").asInt())
+                .as("the run may now go as far").isEqualTo(7);
+        JsonNode told = space.panrid.novelka.support.Eventually.eventually(() -> read(owner.browser().get("/api/notifications")),
+                page -> page.toString().contains("source_chapters")).path("items").path(0);
+        assertThat(told.path("kind").asString()).isEqualTo("source_chapters");
+        assertThat(told.path("payload").path("first").asInt()).isEqualTo(6);
+        assertThat(told.path("payload").path("last").asInt()).isEqualTo(7);
+
+        assertThat(read(owner.browser().put(watch, json("watching", false))).path("watching").asBoolean()).isFalse();
+        syosetu.add(code, new FakeSyosetu.Novel("灯台守の夜", "桜ゆき", "あらすじ。", 5));
+    }
+
+    @Test
     void theSiteTableOfContentsIsKeptAndLockedChaptersAreNeverTaken() {
         long edition = prepare();
         long novel = db.select(EDITION.NOVEL_ID).from(EDITION).where(EDITION.ID.eq(edition)).fetchSingle(EDITION.NOVEL_ID);
