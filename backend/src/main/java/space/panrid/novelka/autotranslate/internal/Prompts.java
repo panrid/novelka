@@ -18,7 +18,7 @@ final class Prompts {
             long vowels are not doubled (Ōsaka → Осака, Yūki → Юкі). Names written in katakana that come from
             other languages take their usual Ukrainian form (アリス → Аліса, ルイ → Луї); a katakana word borrowed
             from English is written as the English word sounds, not syllable by syllable (ゴッズ → Ґодз,
-            レイス → рейф).
+            レイス → рейф, ウォーレン → Воррен, not Волрен).
             Honorifics (-san, -sama, -kun, -chan, -dono) are not kept: a name is written without them.""";
 
     static final String METADATA = """
@@ -43,6 +43,13 @@ final class Prompts {
             (a given name, a surname) is not a new person: add it as the same person only if the glossary lacks it,
             with the same Ukrainian name. Skip everyday words that need no fixed translation, family words
             (父さん, 姉さん) and single characters used as ordinary words (水, 火).
+            Follow the glossary you are given: a name it already has keeps its Ukrainian form inside a new term
+            (with ルンの街 → місто Рун in it, ルンのダンジョン → підземелля Руна), and a new term is rendered the
+            way the glossary renders its kin (with レッサーボア → Малий Кабан in it, レッサーウルフ → Малий Вовк,
+            not «лесер-вульф»). Never list a second entry with a Ukrainian form already used, in the glossary or in
+            your answer. Skip real-world places and people the novel only compares with (Гімалаї, Непал), one-off
+            descriptions that are not names (вітряна захисна оболонка) and food and clothes that need no fixed form.
+            Write correct Ukrainian, never Russian forms: a spell that calls on water is «Воде, з'явися», not «Водой».
             Say who tells the text in the first person (僕, 俺, 私, あたし): «narrator» is their Ukrainian name as in
             the glossary, or "" when the text is told in the third person or the narrator is not clear, and their
             gender (僕 and 俺 usually mean a male narrator; else "unknown" unless the text shows it).

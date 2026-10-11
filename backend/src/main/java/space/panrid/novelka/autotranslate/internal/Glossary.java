@@ -214,6 +214,23 @@ class Glossary {
                         GLOSSARY_FORM.LANGUAGE.eq(scope.language()), GLOSSARY_FORM.ORIGINAL.eq(original))) {
                     return 0;
                 }
+                // The same thing under another spelling (ソルジャーアント and 兵士蟻 → «солдат-мураха»):
+                // one entry, the second spelling becomes its alias, not a duplicate to sort out by hand.
+                Long same = tx.select(GLOSSARY_ENTRY.ID).from(GLOSSARY_ENTRY).join(GLOSSARY_FORM)
+                        .on(GLOSSARY_FORM.ENTRY_ID.eq(GLOSSARY_ENTRY.ID), GLOSSARY_FORM.LANGUAGE.eq(scope.language()))
+                        .where(GLOSSARY_ENTRY.NOVEL_ID.eq(scope.novelId()), GLOSSARY_ENTRY.KIND.eq(kind),
+                                GLOSSARY_ENTRY.STATUS.ne("rejected"),
+                                DSL.lower(GLOSSARY_ENTRY.UKRAINIAN).eq(ukrainian.toLowerCase(java.util.Locale.ROOT)))
+                        .orderBy(GLOSSARY_ENTRY.ID).limit(1).fetchOne(GLOSSARY_ENTRY.ID);
+                if (same != null) {
+                    tx.update(GLOSSARY_FORM)
+                            .set(GLOSSARY_FORM.ALIASES, DSL.field("{0} || {1}::jsonb", JSONB.class, GLOSSARY_FORM.ALIASES,
+                                    DSL.val(json.writeValueAsString(List.of(original)))))
+                            .where(GLOSSARY_FORM.ENTRY_ID.eq(same), GLOSSARY_FORM.LANGUAGE.eq(scope.language()),
+                                    DSL.condition("NOT jsonb_exists({0}, {1})", GLOSSARY_FORM.ALIASES, DSL.val(original)))
+                            .execute();
+                    return 0;
+                }
                 Long twin = tx.select(GLOSSARY_ENTRY.ID).from(GLOSSARY_ENTRY)
                         .where(GLOSSARY_ENTRY.NOVEL_ID.eq(scope.novelId()), GLOSSARY_ENTRY.KIND.eq(kind),
                                 DSL.lower(GLOSSARY_ENTRY.UKRAINIAN).eq(ukrainian.toLowerCase(java.util.Locale.ROOT)),

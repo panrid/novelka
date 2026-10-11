@@ -158,6 +158,13 @@ class AutotranslateFlowTests {
                 new Glossary.Proposed("Yuki", "", "Юкі", "character", "female", "")))).as("nothing new").isZero();
         assertThat(glossary.original(edition, harbor).original()).isEqualTo("Harbor");
 
+        // Two spellings of one thing in one answer: one entry, the second spelling its alias.
+        assertThat(glossary.addFromAnalysis(edition, 3, java.util.List.of(
+                new Glossary.Proposed("Soldier Ant", "", "солдат-мураха", "term", "unknown", ""),
+                new Glossary.Proposed("Ant Soldier", "", "солдат-мураха", "term", "unknown", "")))).isEqualTo(1);
+        assertThat(glossary.mentionedIn(edition, "An Ant Soldier came.")).extracting(Glossary.Entry::ukrainian)
+                .as("found by its alias").containsExactly("солдат-мураха");
+
         // A number analysis was not shown (here: a rejected entry) is one the model made up.
         long ghost = db.insertInto(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.NOVEL_ID, novel).set(GLOSSARY_ENTRY.UKRAINIAN, "привид")
                 .set(GLOSSARY_ENTRY.STATUS, "rejected").returning(GLOSSARY_ENTRY.ID).fetchOne(GLOSSARY_ENTRY.ID);

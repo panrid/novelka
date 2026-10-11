@@ -288,10 +288,15 @@ class Jobs {
             unanalyzed += !analyze && !wasAnalyzed && !(proofreadOnly && !analyzeStep) ? 1 : 0;
             boolean translates = !analyze && !proofreadOnly;
             boolean proofreads = !analyze && proofreadStep;
-            long chosen = preset == null ? costs.chapterMicroUsd(settings, size, needsAnalysis, translates, proofreads)
-                    : preset.expectedMicroUsd(size, needsAnalysis, translates, proofreads, settings);
+            // What it should really cost: measured where models have worked here. The price in шаги keeps
+            // comparing token prices with the site's models, so a measured dear chapter does not jump it.
+            // A person's run holds шаги from the token prices (its margin covers the rest, the charge is what it cost).
+            long chosen = preset != null ? preset.expectedMicroUsd(size, needsAnalysis, translates, proofreads, settings)
+                    : personal ? settings.expectedMicroUsd(size, needsAnalysis, translates, proofreads)
+                    : costs.chapterMicroUsd(settings, size, needsAnalysis, translates, proofreads);
+            long priced = preset == null ? settings.expectedMicroUsd(size, needsAnalysis, translates, proofreads) : chosen;
             expected += chosen;
-            shah += shahFor(size, chosen, site.expectedMicroUsd(size, needsAnalysis, translates, proofreads));
+            shah += shahFor(size, priced, site.expectedMicroUsd(size, needsAnalysis, translates, proofreads));
         }
         if (analyze) {
             shah = analysisShah(shah);
