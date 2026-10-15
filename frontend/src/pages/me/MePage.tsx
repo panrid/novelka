@@ -68,6 +68,7 @@ export function MePage() {
                 <div className={styles.menuLabel}>Моє</div>
                 <Link to="/studio" className={styles.menuItem}>Студія — переклади й твори</Link>
                 <Link to="/me/suggestions" className={styles.menuItem}>Мої правки</Link>
+                <Link to="/me/pictures" className={styles.menuItem}>Мої картинки</Link>
                 {me.role === 'owner' && <Link to="/me/wallet" className={styles.menuItem}>Шаги й автопереклад</Link>}
                 {me.role !== 'owner' && hasShahs && (
                     <Link to="/me/shahs" className={styles.menuItem}>Шаги · {shahs.data!.available} {shahWord(shahs.data!.available)}</Link>

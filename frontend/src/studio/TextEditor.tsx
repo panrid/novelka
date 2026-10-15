@@ -11,7 +11,7 @@ import Text from '@tiptap/extension-text';
 import Underline from '@tiptap/extension-underline';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
-import { ImagePlus, Link2, Minus, Redo2, Sparkles, Undo2 } from '../ui/icons';
+import { ImagePlus, Images, Link2, Minus, Redo2, Sparkles, Undo2 } from '../ui/icons';
 import { useImperativeHandle, useRef, useState } from 'react';
 import { Dialog, Heading as DialogHeading, Modal, ModalOverlay } from 'react-aria-components';
 import { Button } from '../ui/Button';
@@ -19,6 +19,7 @@ import { Notice } from '../ui/Notice';
 import { TextInput } from '../ui/TextInput';
 import { studioApi, type StudioBlock } from './api';
 import { toBlocks, toDocument } from './document';
+import { PicturePicker } from './PicturePicker';
 import styles from './TextEditor.module.css';
 
 /** Keeps each paragraph's id and kind (preface, afterword) on its editor node. */
@@ -164,6 +165,8 @@ function PictureButtons({ editor }: { editor: Editor }) {
     const [url, setUrl] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    /** Where «З моїх картинок» puts the chosen ones: after the paragraph the cursor was in. */
+    const [libraryAt, setLibraryAt] = useState<number | null>(null);
 
     const insert = (picture: { id: number; url: string }) =>
         editor.chain().focus().insertContent({ type: 'image', attrs: { src: picture.url, imageId: picture.id } }).run();
@@ -202,6 +205,19 @@ function PictureButtons({ editor }: { editor: Editor }) {
                 onMouseDown={(event) => event.preventDefault()} onClick={() => input.current?.click()}>
                 <ImagePlus size={18} aria-hidden />
             </button>
+            <button type="button" className={styles.tool} aria-label="З моїх картинок" disabled={busy}
+                onMouseDown={(event) => event.preventDefault()} onClick={() => {
+                    const { $to } = editor.state.selection;
+                    setLibraryAt($to.depth >= 1 ? $to.after(1) : editor.state.doc.content.size);
+                }}>
+                <Images size={18} aria-hidden />
+            </button>
+            {libraryAt !== null && (
+                <PicturePicker onClose={() => setLibraryAt(null)} onPick={(pictures) => {
+                    editor.chain().focus().insertContentAt(Math.min(libraryAt, editor.state.doc.content.size),
+                        pictures.map((picture) => ({ type: 'image', attrs: { src: picture.url, imageId: picture.id } }))).run();
+                }} />
+            )}
             <button type="button" className={styles.tool} aria-label="Картинка за посиланням" disabled={busy}
                 onMouseDown={(event) => event.preventDefault()} onClick={() => setLinkOpen(true)}>
                 <Link2 size={18} aria-hidden />

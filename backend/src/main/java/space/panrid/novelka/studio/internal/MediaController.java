@@ -44,7 +44,12 @@ class MediaController {
     Uploaded upload(@RequestParam("file") MultipartFile file, @RequestParam(defaultValue = "illustration") String kind) {
         Viewer viewer = currentUser.requireSignedIn();
         try {
-            return uploaded(images.store(viewer.accountId(), kind(kind), file.getBytes()), kind(kind));
+            ImageKind type = kind(kind);
+            // An illustration keeps its file's name for «Мої картинки» (and «27-5.png» placement).
+            StoredImage image = type == ImageKind.ILLUSTRATION
+                    ? images.store(viewer.accountId(), type, file.getBytes(), file.getOriginalFilename())
+                    : images.store(viewer.accountId(), type, file.getBytes());
+            return uploaded(image, type);
         } catch (IOException error) {
             throw new UncheckedIOException(error);
         }

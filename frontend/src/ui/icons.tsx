@@ -85,6 +85,7 @@ export const Flag = icon('Flag');
 export const History = icon('History');
 export const Home = icon('Home');
 export const ImagePlus = icon('ImagePlus');
+export const Images = icon('Images');
 export const Inbox = icon('Inbox');
 export const Info = icon('Info');
 export const Languages = icon('Languages');

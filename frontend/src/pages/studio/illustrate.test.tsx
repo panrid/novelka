@@ -46,6 +46,30 @@ describe('drawing a scene', () => {
         }));
     });
 
+    it('puts pictures from «Мої картинки» after the paragraph with the cursor', async () => {
+        const mine = (id: number, fileName: string) => ({ id, url: `/media/${id}-640.png`, fullUrl: `/media/${id}.png`, width: 1536, height: 1024,
+            fileName, drawn: false, prompt: null, fragment: null, sourceUrl: null, createdAt: new Date().toISOString(), uses: [] });
+        const { calls } = await renderAt('/studio/7/chapters/3', {
+            'GET /api/me': { body: { ...OWNER, role: 'reader' } },
+            'GET /api/studio/editions/7/chapters/3': { body: { ...EDITOR, blocks: [...EDITOR.blocks,
+                { id: 'b2', type: 'paragraph', content: [{ text: 'Світло згасло.', marks: [] }], imageId: null, imageUrl: null }] } },
+            'GET /api/me/pictures': { body: { total: 2, page: 1, items: [mine(70, '3-1.png'), mine(71, 'lighthouse.png')] } },
+            'PUT /api/studio/editions/7/chapters/3/draft': { status: 204 },
+            'POST /api/studio/editions/7/chapters/3/publish': { body: { revisionId: 42 } },
+        });
+        await screen.findByText('Рьо стояв біля маяка.');
+        act(() => screen.getByRole('textbox', { name: 'Текст глави' }).focus());
+        await userEvent.click(screen.getByRole('button', { name: 'З моїх картинок' }));
+        const sheet = await screen.findByRole('dialog', { name: 'Мої картинки' });
+        await userEvent.click(await within(sheet).findByRole('button', { name: 'lighthouse.png' }));
+        await userEvent.click(within(sheet).getByRole('button', { name: '3-1.png' }));
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Вставити 2' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Опублікувати' }));
+        await vi.waitFor(() => expect(calls.find((call) => call.path.endsWith('/publish'))?.body).toMatchObject({
+            blocks: [{ id: 'b1' }, { type: 'image', imageId: 71 }, { type: 'image', imageId: 70 }, { id: 'b2' }],
+        }));
+    });
+
     it('is not offered to translators other than the site owner', async () => {
         await renderAt('/studio/7/chapters/3', {
             'GET /api/me': { body: { ...OWNER, role: 'reader' } },

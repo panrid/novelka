@@ -10,6 +10,7 @@ import { TokenPage } from '../pages/auth/TokenPage';
 import { ErrorPage, NotFoundPage, PendingPage } from '../pages/ErrorPages';
 import { MePage } from '../pages/me/MePage';
 import { MySuggestionsPage } from '../pages/me/MySuggestionsPage';
+import { PicturesPage } from '../pages/me/PicturesPage';
 import { PrivacyPage } from '../pages/me/PrivacyPage';
 import { NotificationSettingsPage } from '../pages/me/NotificationSettingsPage';
 import { ReaderAppearancePage, SiteAppearancePage } from '../pages/me/AppearancePages';
@@ -159,6 +160,7 @@ const routeTree = rootRoute.addChildren([
     createRoute({ getParentRoute: () => rootRoute, path: '/inbox/chat', component: ChatPage, head: title('Чат') }),
     createRoute({ getParentRoute: () => rootRoute, path: '/me', component: MePage, head: title('Я') }),
     studio('/me/suggestions', MySuggestionsPage, 'Мої правки'),
+    studio('/me/pictures', PicturesPage, 'Мої картинки'),
     createRoute({
         getParentRoute: () => rootRoute, path: '/n/$slug/$number/propose', component: ProposeChapterPage,
         validateSearch: teamSearch, beforeLoad: requireSignedIn, head: title('Правка глави'),

@@ -14,6 +14,12 @@ public interface Images {
      */
     StoredImage store(long ownerAccountId, ImageKind kind, byte[] content);
 
+    /**
+     * Stores an upload like {@link #store} and remembers the file's name: «Мої картинки» show it,
+     * and «27-5.png» tells where the picture goes (chapter 27, after the fifth paragraph).
+     */
+    StoredImage store(long ownerAccountId, ImageKind kind, byte[] content, String fileName);
+
     /** Downloads a picture by an https link (safely, see RemoteImages) and stores it like an upload. */
     StoredImage storeFromUrl(long ownerAccountId, ImageKind kind, String url);
 

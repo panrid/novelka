@@ -2,7 +2,7 @@
 // Loaded only when someone picks the set; see ui/icons.tsx.
 
 import type { ComponentType, ReactElement } from 'react';
-import { Archive, ArrowClockwise, ArrowCounterClockwise, ArrowLeft, ArrowsClockwise, ArrowsDownUp, ArrowsLeftRight, Bell, BellRinging, BookOpen, BookmarkSimple, CaretDown, CaretLeft, CaretRight, CaretUp, ChatCircle, Check, ClockCounterClockwise, DotsThree, FileArrowUp, Flag, House, ImageSquare, Info, Link, List, MagnifyingGlass, Medal, Minus, PaperPlaneRight, PencilSimple, Plus, SlidersHorizontal, Sparkle, TextAa, Translate, Trash, Tray, User, Users, X } from '@phosphor-icons/react';
+import { Archive, ArrowClockwise, ArrowCounterClockwise, ArrowLeft, ArrowsClockwise, ArrowsDownUp, ArrowsLeftRight, Bell, BellRinging, BookOpen, BookmarkSimple, CaretDown, CaretLeft, CaretRight, CaretUp, ChatCircle, Check, ClockCounterClockwise, DotsThree, FileArrowUp, Flag, House, ImageSquare, Images, Info, Link, List, MagnifyingGlass, Medal, Minus, PaperPlaneRight, PencilSimple, Plus, SlidersHorizontal, Sparkle, TextAa, Translate, Trash, Tray, User, Users, X } from '@phosphor-icons/react';
 import type { SetIconProps } from '../icons';
 
 /** Phosphor has weights instead of a line width: the closest one to the chosen width. */
@@ -33,6 +33,7 @@ const ICONS: Record<string, ComponentType<Record<string, unknown>>> = {
     History: ClockCounterClockwise,
     Home: House,
     ImagePlus: ImageSquare,
+    Images: Images,
     Inbox: Tray,
     Info: Info,
     Languages: Translate,

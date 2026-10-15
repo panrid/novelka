@@ -39,6 +39,7 @@ export function MeRail() {
             {item('/me', 'Огляд')}
             {item('/studio', 'Студія')}
             {item('/me/suggestions', 'Мої правки')}
+            {item('/me/pictures', 'Мої картинки')}
             {me.role === 'owner' && item('/me/wallet', 'Шаги й автопереклад')}
             {me.role !== 'owner' && hasShahs && item('/me/shahs', `Шаги · ${shahs.data!.available} ${shahWord(shahs.data!.available)}`)}
             <div className={styles.label}>Налаштування</div>

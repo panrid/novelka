@@ -47,7 +47,7 @@ class ImageService implements Images {
         this.remote = remote;
         this.json = json;
         this.clock = clock;
-        this.uploads = new RateLimiter(60, Duration.ofHours(1), clock);
+        this.uploads = new RateLimiter(300, Duration.ofHours(1), clock);
     }
 
     @Override
@@ -57,6 +57,19 @@ class ImageService implements Images {
             throw UserFacingException.tooManyRequests();
         }
         return save(ownerAccountId, kind, content);
+    }
+
+    @Override
+    @Transactional
+    public StoredImage store(long ownerAccountId, ImageKind kind, byte[] content, String fileName) {
+        StoredImage image = store(ownerAccountId, kind, content);
+        String name = fileName == null ? "" : fileName.replace('\\', '/');
+        name = name.substring(name.lastIndexOf('/') + 1).strip();
+        if (!name.isEmpty()) {
+            db.update(IMAGE).set(IMAGE.FILE_NAME, name.length() > 200 ? name.substring(0, 200) : name)
+                    .where(IMAGE.ID.eq(image.id())).execute();
+        }
+        return image;
     }
 
     @Override

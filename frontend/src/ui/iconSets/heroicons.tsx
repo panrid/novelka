@@ -28,6 +28,7 @@ const NAMES: Record<string, string> = {
     History: 'ClockIcon',
     Home: 'HomeIcon',
     ImagePlus: 'PhotoIcon',
+    Images: 'PhotoIcon',
     Inbox: 'InboxIcon',
     Info: 'InformationCircleIcon',
     Languages: 'LanguageIcon',

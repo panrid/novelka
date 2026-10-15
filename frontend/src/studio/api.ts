@@ -131,7 +131,9 @@ export const studioApi = {
     },
     contributions: (id: number) => api<{ nick: string; revisions: number; blocksChanged: number; charsChanged: number }[]>(`${edition(id)}/contributions`),
     uploadImage: (file: Blob, kind: 'illustration' | 'cover') => {
-        const request = upload('/api/media/images', file, kind === 'cover' ? 'cover.jpg' : 'picture.jpg', { kind });
+        // A file keeps its name: «Мої картинки» show it, and «27-5.png» says where it goes.
+        const name = file instanceof File && file.name ? file.name : kind === 'cover' ? 'cover.jpg' : 'picture.jpg';
+        const request = upload('/api/media/images', file, name, { kind });
         return api<{ id: number; url: string }>(request.path, request.init);
     },
     imageFromUrl: (url: string) => api<{ id: number; url: string }>('/api/media/images/from-url', json('POST', { url, kind: 'illustration' })),
