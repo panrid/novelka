@@ -232,13 +232,13 @@ textarea.input {
     flex-wrap: wrap;
     justify-content: center;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
 }
 
 .pagerRow button {
-    min-width: 38px;
-    height: 38px;
-    padding: 0 8px;
+    min-width: 34px;
+    height: 36px;
+    padding: 0 6px;
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
     background: none;
@@ -261,7 +261,7 @@ textarea.input {
 }
 
 .pagerGap {
-    min-width: 16px;
+    min-width: 14px;
     text-align: center;
 }
 

@@ -37,11 +37,11 @@ export function Pager({ page, total, size, onPage, range }: {
     );
 }
 
-/** All pages up to seven; otherwise the first, the last and the ones around the current, gaps as null. */
+/** All pages up to seven; otherwise (so that a phone fits them in one row) the first, the last and the ones around the current, gaps as null. */
 function numbers(page: number, pages: number): (number | null)[] {
     if (pages <= 7) return Array.from({ length: pages }, (_, index) => index + 1);
-    const from = Math.max(2, Math.min(page - 1, pages - 4));
-    const to = Math.min(pages - 1, Math.max(page + 1, 5));
+    const from = Math.max(2, Math.min(page - 1, pages - 3));
+    const to = Math.min(pages - 1, Math.max(page + 1, 4));
     const middle = Array.from({ length: to - from + 1 }, (_, index) => from + index);
     return [1, ...(from > 2 ? [null] : []), ...middle, ...(to < pages - 1 ? [null] : []), pages];
 }
