@@ -7,6 +7,8 @@ const ME = {
     id: 1, nick: 'mika', email: 'mika@example.com', emailVerified: true, role: 'reader', bio: '', avatarUrl: null,
     dmPolicy: 'everyone', showReading: true, adultConfirmed: false, showShah: true,
 };
+/** Autotranslate is the site owner's while етап 19 is being made. */
+const OWNER = { ...ME, role: 'owner' };
 const EDITOR = {
     number: 3, title: 'Нічний ринок', revisionId: 41, published: true, draft: null, role: 'translator', mayAddPictures: true,
     previous: 2, next: null,
@@ -140,9 +142,9 @@ describe('new publication', () => {
 });
 
 describe('machine translation', () => {
-    it('leads any translator with шаги to the autotranslation, not only the site owner', async () => {
+    it('leads the site owner to the autotranslation, and hides it from a translator with шаги (етап 19)', async () => {
         await renderAt('/studio/12', {
-            'GET /api/me': { body: ME },
+            'GET /api/me': { body: OWNER },
             'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
             'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner', ...COUNTS } },
             'GET /api/studio/editions/12/chapters': { body: NO_CHAPTERS },
@@ -151,6 +153,19 @@ describe('machine translation', () => {
 
         expect(await screen.findByRole('link', { name: 'Автопереклад' })).toHaveAttribute('href', '/studio/12/translate');
         expect(screen.getByRole('link', { name: 'Словник' })).toBeInTheDocument();
+    });
+
+    it('is not offered to a translator with шаги while етап 19 is being made', async () => {
+        await renderAt('/studio/12', {
+            'GET /api/me': { body: ME },
+            'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
+            'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner', ...COUNTS } },
+            'GET /api/studio/editions/12/chapters': { body: NO_CHAPTERS },
+            'GET /api/studio/editions/12/contributions': { body: [] },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Нова глава' }));
+        expect(screen.queryByRole('radio', { name: /Автопереклад/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Автопереклад' })).not.toBeInTheDocument();
     });
 });
 
@@ -174,7 +189,7 @@ describe('without шаги', () => {
 describe('studio side menu', () => {
     it('lists the translations, and the open one has its sections as tabs', async () => {
         await renderAt('/studio/12', {
-            'GET /api/me': { body: ME },
+            'GET /api/me': { body: OWNER },
             'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
             'GET /api/studio': { body: [
                 { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', coverUrl: null, kind: 'machine', status: 'ongoing', chapterCount: 2,
@@ -199,7 +214,7 @@ describe('studio side menu', () => {
 describe('new chapter', () => {
     const EDITION = (kind: string) => ({ editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind, status: 'ongoing', adult: false, coverUrl: null, chapterCount: 2, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner', ...COUNTS });
     const base = (kind: string) => ({
-        'GET /api/me': { body: ME },
+        'GET /api/me': { body: OWNER },
         'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
         'GET /api/studio/editions/12': { body: EDITION(kind) },
         'GET /api/studio/editions/12/chapters': { body: NO_CHAPTERS },

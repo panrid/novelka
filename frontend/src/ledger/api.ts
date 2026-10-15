@@ -26,10 +26,15 @@ export function useMyShahs() {
 }
 
 /**
- * Whether autotranslation and drawing are offered at all: the site owner always, others while
- * they have шаги — to spend or held by a run still going, so they can follow it to the end.
+ * Autotranslate and the AI tools of translating: the site owner's alone while етап 19 is being
+ * made (translating from the original's site stays the owner's for good).
  */
 export function useCanRun(): boolean {
+    return useMe()?.role === 'owner';
+}
+
+/** «Намалювати сцену»: for anyone with шаги, and the site owner. */
+export function useCanDraw(): boolean {
     const me = useMe();
     const shahs = useMyShahs();
     return me?.role === 'owner' || (shahs.data?.available ?? 0) > 0 || (shahs.data?.reserved ?? 0) > 0;

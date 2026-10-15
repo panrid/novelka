@@ -86,12 +86,13 @@ describe('шаги without payments', () => {
         expect(screen.queryByText('Автопереклад із Syosetu')).not.toBeInTheDocument();
     });
 
-    it('keeps autotranslation while шаги are held by a run still going', async () => {
+    it('offers the import from Syosetu to the site owner alone, not to people with шаги (етап 19)', async () => {
         await renderAt('/studio/new', {
             'GET /api/me': { body: person('reader') },
-            'GET /api/me/shahs': { body: { ...MINE, available: 0, reserved: 2 } },
+            'GET /api/me/shahs': { body: { ...MINE, available: 5, reserved: 2 } },
             'GET /api/me/teams': { body: [] },
         });
-        expect(await screen.findByText('Автопереклад із Syosetu')).toBeInTheDocument();
+        expect(await screen.findByText('Свій переклад')).toBeInTheDocument();
+        expect(screen.queryByText('Автопереклад із Syosetu')).not.toBeInTheDocument();
     });
 });

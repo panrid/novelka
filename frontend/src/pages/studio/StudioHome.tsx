@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Plus } from '../../ui/icons';
 import { useState } from 'react';
-import { useMe } from '../../auth/me';
 import { useCanRun, useMyShahs } from '../../ledger/api';
 import { Cover } from '../../reading/Cover';
 import { chaptersWord } from '../../reading/api';
@@ -17,11 +16,10 @@ import styles from './studio.module.css';
 const SEARCH_FROM = 6;
 
 export function StudioHome() {
-    const me = useMe();
     const shahs = useMyShahs();
     const canRun = useCanRun();
     const hasShahs = Boolean(shahs.data && (shahs.data.available > 0 || shahs.data.reserved > 0 || shahs.data.history.length > 0));
-    const runs = me?.role === 'owner' || hasShahs;
+    const runs = canRun || hasShahs;
     const mine = useQuery({ queryKey: ['studio'], queryFn: studioApi.mine });
     const active = useQuery({
         queryKey: ['processes', 'active-count'],

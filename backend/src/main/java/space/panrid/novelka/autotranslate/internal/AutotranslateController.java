@@ -81,9 +81,12 @@ class AutotranslateController {
         return access.requireSiteRole(SiteRole.OWNER);
     }
 
-    /** A translator of the edition; who pays is decided by {@link #personal}. */
+    /**
+     * The site owner as a translator of the edition. Translating from the original's site is the
+     * owner's alone (етап 19): the site fetches nobody else's texts.
+     */
     private Viewer ownerTranslating(long editionId) {
-        Viewer viewer = access.requireSignedIn();
+        Viewer viewer = owner();
         access.requireTranslator(editionId);
         return viewer;
     }
@@ -102,10 +105,7 @@ class AutotranslateController {
 
     @PostMapping("/autotranslate/prepare")
     Prepared prepare(@RequestBody PrepareRequest body) {
-        Viewer viewer = access.requireSignedIn();
-        if (personal(viewer) && ledger.balance(viewer.accountId()).available() < 1) {
-            throw UserFacingException.badRequest("Автопереклад запускається за шаги, а у вас їх поки немає. Шаги нараховує власник сайту.");
-        }
+        Viewer viewer = owner();
         SourceLink link = sources.link(body.url());
         long teamId = body.team() == null || body.team().isBlank()
                 ? teams.personalTeam(viewer.accountId())

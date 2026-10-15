@@ -11,7 +11,7 @@ import { Notice } from '../../ui/Notice';
 import { relativeTime } from '../../lib/dates';
 import styles from './editor.module.css';
 import { askConfirm } from '../../ui/ask';
-import { useCanRun } from '../../ledger/api';
+import { useCanDraw } from '../../ledger/api';
 import { useWide } from '../../lib/useWide';
 
 const AUTOSAVE_MS = 1500;
@@ -33,7 +33,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
     const client = useQueryClient();
     // Opening a chapter with my draft continues the draft; otherwise the published text.
     const [title, setTitle] = useState(view.draft?.title || view.title);
-    const canDraw = useCanRun();
+    const canDraw = useCanDraw();
     const navigate = useNavigate();
     const removeChapter = useMutation({
         mutationFn: () => studioApi.deleteChapter(editionId, view.number),

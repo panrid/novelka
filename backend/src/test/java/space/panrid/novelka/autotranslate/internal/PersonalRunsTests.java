@@ -26,7 +26,12 @@ import space.panrid.novelka.support.TestMailbox;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Рішення 29: the owner grants шаги, a person spends them on runs charged what they really cost. */
+/**
+ * Рішення 29: the owner grants шаги, a person spends them on runs charged what they really cost.
+ * Runs from the original's site are the owner's alone since етап 19; people's runs come back
+ * with the translation of pasted text (етап 19, пункт 3), and these tests with them.
+ */
+@org.junit.jupiter.api.Disabled("етап 19: запуски людей повернуться з перекладом вставленого тексту")
 @IntegrationTest
 class PersonalRunsTests {
 

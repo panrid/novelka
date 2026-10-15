@@ -103,14 +103,15 @@ class ProposalFlowTests {
         assertThat(corrected.path("description").size()).isEqualTo(2);
         assertThat(corrected.path("mine").asBoolean()).isTrue();
 
-        // «Беру перекладати»: the edition gets the corrected page, the model is not asked again.
+        // «Беру перекладати»: the edition gets the corrected page, the model is not asked again. Only the
+        // site owner's translations come from the original's site (етап 19): this one is by hand.
         JsonNode taken = read(translator.browser().post("/api/proposals/" + id + "/take", json("team", "")));
         long edition = taken.path("editionId").asLong();
         assertThat(model.calls).hasSize(1);
         JsonNode about = read(translator.browser().get("/api/studio/editions/" + edition));
         assertThat(about.path("title").asString()).isEqualTo("Доглядач маяка");
-        assertThat(read(translator.browser().get("/api/studio/editions/" + edition + "/autotranslate")).path("sourceChapters").asInt())
-                .isEqualTo(4);
+        assertThat(about.path("sourceChapters").isNull()).as("nothing fetched from the original's site").isTrue();
+        assertThat(translator.browser().get("/api/studio/editions/" + edition + "/autotranslate").status()).isEqualTo(403);
 
         JsonNode done = find(guest, "taken", id);
         assertThat(done.path("taken").path("novelSlug").asString()).isEqualTo(taken.path("novelSlug").asString());

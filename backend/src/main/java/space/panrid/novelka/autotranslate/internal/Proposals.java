@@ -322,14 +322,16 @@ class Proposals {
         Record row = open(id);
         List<Block> description = json.readValue(row.get(PROPOSAL.DESCRIPTION).data(), BLOCKS);
         EditionRef ref;
-        if (readable(row.get(PROPOSAL.SOURCE))) {
+        // Only the site owner's translations come from the original's site (етап 19): the site
+        // fetches nobody else's texts; others translate what they paste themselves.
+        if (readable(row.get(PROPOSAL.SOURCE)) && viewer.role() == SiteRole.OWNER) {
             SourceLink link = new SourceLink(row.get(PROPOSAL.SOURCE), row.get(PROPOSAL.SOURCE_KEY), row.get(PROPOSAL.SOURCE_URL),
                     row.get(PROPOSAL.ADULT));
             SourceNovel novel = sources.novel(link);
             ref = preparation.importWith(novel, new Preparation.Metadata(row.get(PROPOSAL.TITLE), row.get(PROPOSAL.AUTHOR), description),
                     teamId);
         } else {
-            // A site the site cannot read: the team translates by hand; the link stays on the novel's page.
+            // A site the site cannot read, or a translator who is not the owner: by hand; the link stays on the novel's page.
             ref = catalog.createNovel(new NewNovel(row.get(PROPOSAL.TITLE), row.get(PROPOSAL.AUTHOR), description, List.of(), "human",
                     row.get(PROPOSAL.ADULT), teamId, null, row.get(PROPOSAL.SOURCE_URL)));
         }
