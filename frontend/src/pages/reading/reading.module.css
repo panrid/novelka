@@ -310,6 +310,8 @@
         display: grid;
         grid-template-columns: 260px minmax(0, 1fr);
         grid-template-areas: 'side search' 'side results';
+        /* The filters are taller than the search: the extra height goes under the results, not above them. */
+        grid-template-rows: auto 1fr;
         gap: 0 40px;
         align-items: start;
         padding-top: 20px;
