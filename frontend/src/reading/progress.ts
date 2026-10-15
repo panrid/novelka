@@ -24,6 +24,15 @@ export function saveLocalProgress(slug: string, team: string, saved: Saved) {
     }
 }
 
+/** «Скинути прогрес читання» for a guest: this browser forgets the place in the novel. */
+export function clearLocalProgress(slug: string, team: string) {
+    try {
+        localStorage.removeItem(key(slug, team));
+    } catch {
+        // Storage blocked: there was nothing kept either.
+    }
+}
+
 /** Read this far, a chapter counts as read and an earlier one is the place again (the server has the same rules). */
 const FINISHED = 0.9;
 /** Read this far into a later chapter, it becomes the place: opening one is not reading it. */

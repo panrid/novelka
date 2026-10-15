@@ -50,10 +50,10 @@ describe('run journal', () => {
         const first = (await screen.findAllByText(/Глава \d+/))[0];
         expect(first).toHaveTextContent('Глава 142');
         expect(screen.getByText(/витратила всю довжину/)).toBeVisible();
-        expect(screen.getByText('сторінка 1 з 3')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Сторінка 1/, current: 'page' })).toBeInTheDocument();
         await userEvent.click(screen.getByRole('radio', { name: 'Спершу перші' }));
         expect(calls.some((call) => call.path.endsWith('/jobs/18/log') && call.query.includes('order=asc'))).toBe(true);
-        await userEvent.click(screen.getByRole('button', { name: 'Наступна →' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Наступна сторінка' }));
         expect(calls.some((call) => call.query.includes('page=2') && call.query.includes('order=asc'))).toBe(true);
     });
 });

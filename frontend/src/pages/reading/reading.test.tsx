@@ -216,12 +216,45 @@ describe('chapters 20 to a page', () => {
             },
             'GET /api/editions/7/comments/count': { body: { count: 0 } },
         });
-        expect(await screen.findByText('сторінка 2 з 3')).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: /^Сторінка 2/, current: 'page' })).toBeInTheDocument();
         expect(await screen.findByText('тут зупинились')).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('button', { name: 'Наступна →' }));
-        expect(await screen.findByText('сторінка 3 з 3')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Наступна сторінка' }));
+        expect(await screen.findByRole('button', { name: /^Сторінка 3/, current: 'page' })).toBeInTheDocument();
         expect(calls.filter((call) => call.path.endsWith('/chapters')).map((call) => new URLSearchParams(call.query).get('page')))
             .toEqual(['2', '3']);
+    });
+});
+
+describe('the chapter list from the last chapter, and a guest\'s place', () => {
+    const row = (number: number) => ({ number, title: `Глава ${number}`, publishedAt: '2026-09-20T10:00:00Z', label: null });
+
+    it('opens the page with the place in either order', async () => {
+        const { calls } = await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': { body: { ...NOVEL, viewer: { list: 'reading', chapterNumber: 5, position: 0.3, teamRole: null, myRating: null, chapterLabel: null, relayAsked: false } } },
+            'GET /api/novels/mah-vody/chapters': { body: { items: [row(5)], page: 1, hasMore: true } },
+            'GET /api/editions/7/comments/count': { body: { count: 0 } },
+        });
+        expect(await screen.findByRole('button', { name: /^Сторінка 1/, current: 'page' })).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: /від першої/ }));
+        // 44 chapters from the last: chapter 5 is the 40th, on the second page.
+        expect(await screen.findByRole('button', { name: 'Сторінка 2, глави 24–5', current: 'page' })).toBeInTheDocument();
+        await vi.waitFor(() => expect(calls.some((call) => call.path.endsWith('/chapters') && call.query.includes('order=desc') && call.query.includes('page=2'))).toBe(true));
+    });
+
+    it('lets a guest forget the place kept in this browser', async () => {
+        window.localStorage.setItem('novelka:progress:mah-vody:panrid', JSON.stringify({ number: 12, position: 0.5 }));
+        await renderAt('/n/mah-vody', {
+            'GET /api/novels/mah-vody': { body: NOVEL },
+            'GET /api/novels/mah-vody/chapters': { body: { items: [row(12)], page: 1, hasMore: false } },
+            'GET /api/editions/7/comments/count': { body: { count: 0 } },
+        });
+        expect(await screen.findByRole('link', { name: 'Продовжити · гл. 12' })).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Ще' }));
+        await userEvent.click(await screen.findByRole('button', { name: 'Скинути прогрес читання' }));
+        await userEvent.click(await screen.findByRole('button', { name: 'Скинути' }));
+        expect(await screen.findByRole('link', { name: 'Почати читати' })).toBeInTheDocument();
+        expect(window.localStorage.getItem('novelka:progress:mah-vody:panrid')).toBeNull();
     });
 });
 

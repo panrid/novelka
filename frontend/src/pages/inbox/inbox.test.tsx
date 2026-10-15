@@ -55,9 +55,9 @@ describe('inbox', () => {
             'GET /api/conversations': { body: { items: [], unread: 0 } },
             'POST /api/notifications/read': { body: { unread: 0 } },
         });
-        expect(await screen.findByText('сторінка 2 з 3')).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: /^Сторінка 2/, current: 'page' })).toBeInTheDocument();
         expect(calls.find((call) => call.path === '/api/notifications')?.query).toContain('page=2');
-        await userEvent.click(screen.getByRole('button', { name: 'Наступна →' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Наступна сторінка' }));
         await vi.waitFor(() => expect(router.state.location.search).toEqual({ page: 3 }));
         await vi.waitFor(() => expect(calls.some((call) => call.path === '/api/notifications' && call.query.includes('page=3'))).toBe(true));
     });

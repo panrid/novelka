@@ -14,7 +14,7 @@ import { Cover } from '../../reading/Cover';
 import { LIST_LABELS, SOURCE_STATUS_LABELS, chapterHeading, chaptersWord, otherNames, readingApi, translationStatus, volumeTitle, type ChapterRow as ChapterRowType, type ContentsVolume, type ListName, type NovelPage as Novel } from '../../reading/api';
 import { relayApi, teamApi } from '../../studio/api';
 import { Segmented } from '../../ui/Segmented';
-import { localProgress } from '../../reading/progress';
+import { clearLocalProgress, localProgress } from '../../reading/progress';
 import { novelQuery } from '../../reading/queries';
 import { Button } from '../../ui/Button';
 import { Pager } from '../../ui/Pager';
@@ -69,6 +69,8 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
     const comments = useCommentCount(edition.editionId);
     // The place kept in this browser is a guest's: a signed-in reader (viewer is theirs) has their own on the
     // server, and a new account must not take up where someone else stopped in the same browser.
+    // A guest's «Скинути прогрес» empties the browser's copy; drawing anew reads it again.
+    const [, setForgotten] = useState(0);
     const local = novel.viewer ? null : localProgress(novel.slug, edition.teamHandle);
     const resume = novel.viewer?.chapterNumber ?? local?.number ?? null;
     // The chapter's own number (0, 31.1); a place remembered only in this browser has just its position.
@@ -98,7 +100,7 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                     </LinkButton>
                     <LibraryButton novel={novel} />
                     <BellButton novel={novel} />
-                    <MoreButton novel={novel} />
+                    <MoreButton novel={novel} onGuestReset={local ? () => setForgotten((n) => n + 1) : undefined} />
                 </div>
             </div>
             <div className={styles.content}>
@@ -188,7 +190,11 @@ function About({ novel }: { novel: Novel }) {
  * «⋯»: what is needed now and then — other translations, translating it oneself, the reading
  * progress, a report; for the team, managing it; for administrators, hiding it.
  */
-function MoreButton({ novel }: { novel: Novel }) {
+function MoreButton({ novel, onGuestReset }: {
+    novel: Novel;
+    /** A guest with a place kept in this browser can forget it too. */
+    onGuestReset: (() => void) | undefined;
+}) {
     const me = useMe();
     const navigate = useNavigate();
     const [open, setOpen] = useState(false);
@@ -244,11 +250,21 @@ function MoreButton({ novel }: { novel: Novel }) {
                         </button>
                     )}
                     {relay.asked && <div className={`${styles.sheetItem} ${styles.muted}`}>Запит продовжити переклад надіслано, чекаємо відповіді власника.</div>}
-                    {novel.viewer?.chapterNumber != null && (
+                    {(novel.viewer?.chapterNumber != null || onGuestReset) && (
                         <button type="button" className={styles.sheetItem} onClick={() => close(() => void askConfirm({
-                            title: 'Скинути прогрес?', text: 'Місце читання й позначки «прочитано» зникнуть. Новела лишиться в бібліотеці.',
+                            title: 'Скинути прогрес?',
+                            text: novel.viewer
+                                ? 'Місце читання й позначки «прочитано» зникнуть. Новела лишиться в бібліотеці.'
+                                : 'Місце читання, збережене в цьому браузері, зникне — читання почнеться з першої глави.',
                             confirmLabel: 'Скинути', danger: true,
-                        }).then((yes) => { if (yes) reset.mutate(); }))}>
+                        }).then((yes) => {
+                            if (!yes) return;
+                            if (novel.viewer) reset.mutate();
+                            else {
+                                clearLocalProgress(novel.slug, edition.teamHandle);
+                                onGuestReset?.();
+                            }
+                        }))}>
                             Скинути прогрес читання
                         </button>
                     )}
@@ -570,7 +586,7 @@ function ChapterList({ slug, team, current, total, editionId }: {
                         initiallyOpen={holds(volume) || current === null && volume === shown[0]}
                         current={current} />
                 ))
-                : <AllChapters slug={slug} team={team} order={order} total={total} current={current} row={row} top={top} />}
+                : <AllChapters key={order} slug={slug} team={team} order={order} total={total} current={current} row={row} top={top} />}
             {marking && (
                 <Sheet open onClose={() => setMarking(null)} title={chapterHeading(marking)}>
                     <div className={styles.markSheet}>
@@ -603,14 +619,32 @@ function remember(key: string, value: string) {
     try { window.localStorage.setItem(key, value); } catch { /* the list works without it */ }
 }
 
+/**
+ * The page that holds the chapter the reader stopped at, in either order. Chapters are counted
+ * from `first` one after another — near enough where numbering has gaps or extras (31.1).
+ */
+function pageOf(current: number | null, first: number, count: number, order: 'asc' | 'desc'): number {
+    const pages = Math.max(1, Math.ceil(count / CHAPTERS_PER_PAGE));
+    if (current === null) return 1;
+    const at = Math.min(count, Math.max(1, current - first + 1));
+    const place = order === 'asc' ? at : count - at + 1;
+    return Math.min(pages, Math.ceil(place / CHAPTERS_PER_PAGE));
+}
+
+/** «глави 41–60» (or «822–803» from the last) for the jump between pages. */
+function pageRange(page: number, first: number, count: number, order: 'asc' | 'desc'): string {
+    const start = (page - 1) * CHAPTERS_PER_PAGE;
+    const end = Math.min(count, page * CHAPTERS_PER_PAGE) - 1;
+    const [a, b] = order === 'asc' ? [first + start, first + end] : [first + count - 1 - start, first + count - 1 - end];
+    return a === b ? `глава ${a}` : `глави ${a}–${b}`;
+}
+
 /** «Усі глави»: 20 to a page as before, volume headings between them. */
 function AllChapters({ slug, team, order, total, current, row, top }: {
     slug: string; team: string | undefined; order: 'asc' | 'desc'; total: number; current: number | null;
     row: (item: ChapterRowType) => React.ReactNode; top: React.RefObject<HTMLDivElement | null>;
 }) {
-    const pages = Math.max(1, Math.ceil(total / CHAPTERS_PER_PAGE));
-    const [page, setPage] = useState(() => (current && order === 'asc'
-        ? Math.min(pages, Math.max(1, Math.ceil(current / CHAPTERS_PER_PAGE))) : 1));
+    const [page, setPage] = useState(() => pageOf(current, 1, total, order));
     const chapters = useQuery({
         queryKey: ['chapters', slug, team ?? '', order, page],
         queryFn: () => readingApi.chapters(slug, team, order, page),
@@ -634,7 +668,7 @@ function AllChapters({ slug, team, order, total, current, row, top }: {
                     </Fragment>
                 ))}
             </ol>
-            <Pager page={page} total={total} size={CHAPTERS_PER_PAGE} onPage={turn} />
+            <Pager page={page} total={total} size={CHAPTERS_PER_PAGE} onPage={turn} range={(item) => pageRange(item, 1, total, order)} />
         </>
     );
 }
@@ -645,11 +679,7 @@ function VolumeSection({ volume, slug, team, order, row, initiallyOpen, current 
     row: (item: ChapterRowType) => React.ReactNode; initiallyOpen: boolean; current: number | null;
 }) {
     const [open, setOpen] = useState(initiallyOpen);
-    const pages = Math.max(1, Math.ceil(volume.chapters / CHAPTERS_PER_PAGE));
-    const [page, setPage] = useState(() => {
-        if (current === null || !initiallyOpen || order !== 'asc') return 1;
-        return Math.min(pages, Math.max(1, Math.ceil((current - volume.firstNumber + 1) / CHAPTERS_PER_PAGE)));
-    });
+    const [page, setPage] = useState(() => (initiallyOpen ? pageOf(current, volume.firstNumber, volume.chapters, order) : 1));
     const chapters = useQuery({
         queryKey: ['chapters', slug, team ?? '', order, page, volume.firstNumber],
         queryFn: () => readingApi.chapters(slug, team, order, page, volume.firstNumber, volume.lastNumber ?? undefined),
@@ -672,7 +702,8 @@ function VolumeSection({ volume, slug, team, order, row, initiallyOpen, current 
                 <>
                     {chapters.isError && <Notice tone="error">{chapters.error.message}</Notice>}
                     <ol className={styles.list}>{(chapters.data?.items ?? []).map((item) => row(item))}</ol>
-                    <Pager page={page} total={volume.chapters} size={CHAPTERS_PER_PAGE} onPage={setPage} />
+                    <Pager page={page} total={volume.chapters} size={CHAPTERS_PER_PAGE} onPage={setPage}
+                        range={(item) => pageRange(item, volume.firstNumber, volume.chapters, order)} />
                 </>
             )}
         </section>
