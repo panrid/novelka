@@ -13,7 +13,19 @@ function stem(word: string): string {
 
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/** Any case of a letter: [аА]. */
+const either = (letter: string) => (letter.toLowerCase() === letter.toUpperCase() ? escape(letter) : `[${letter.toLowerCase()}${letter.toUpperCase()}]`);
+
+/**
+ * A word with a capital is found only with that capital («То», a country, is not «тож»); one in
+ * lower case also at the start of a sentence. A short word (up to three letters) only as it is.
+ */
 export function wordPattern(form: string): RegExp {
-    const words = form.trim().split(/\s+/).map((word) => `${escape(stem(word))}${LETTER}{0,3}`);
-    return new RegExp(`(?<!${LETTER})${words.join('\\s+')}(?!${LETTER})`, 'giu');
+    const words = form.trim().split(/\s+/).map((word) => {
+        const [first = '', ...rest] = [...stem(word)];
+        const start = first === first.toLowerCase() ? either(first) : escape(first);
+        const extra = [...word].length <= 3 ? '' : `${LETTER}{0,3}`;
+        return `${start}${rest.map(either).join('')}${extra}`;
+    });
+    return new RegExp(`(?<!${LETTER})${words.join('\\s+')}(?!${LETTER})`, 'gu');
 }

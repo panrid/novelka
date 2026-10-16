@@ -28,4 +28,12 @@ class WordFormsTests {
         assertThat(WordForms.replace("Вона взяла Крижаний спис.", "Крижаний спис", "Спис"))
                 .as("another number of words: the whole term as written").isEqualTo("Вона взяла Спис.");
     }
+
+    @org.junit.jupiter.api.Test
+    void aShortNameOrOneWithACapitalIsNotAnEverydayWord() {
+        String text = "Тож зваримо юшку, то й годі. Той, хто з То, тому й радий. Корабель із То прибув.";
+        assertThat(WordForms.find(text, "То")).as("only the country itself").hasSize(2);
+        assertThat(WordForms.find("ґоблін і Ґобліна", "ґоблін")).as("a lower-case word also opens a sentence").hasSize(2);
+        assertThat(WordForms.find("Мавка та мавки", "Мавка")).as("a capital stays a capital").hasSize(1);
+    }
 }

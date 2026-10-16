@@ -30,6 +30,11 @@ final class WordForms {
                 ? word.substring(0, word.length() - 1) : word;
     }
 
+    /**
+     * A word with a capital is found only with that capital («То», a country, is not «тож» or
+     * «то»); one in lower case also at the start of a sentence. A short word (up to three letters)
+     * is found only as it is: «То» does not grow into «Тому».
+     */
     static Pattern pattern(String form) {
         String[] words = form.strip().split("\\s+");
         StringBuilder regex = new StringBuilder("(?<!").append(LETTER).append(")");
@@ -37,10 +42,17 @@ final class WordForms {
             if (i > 0) {
                 regex.append("\\s+");
             }
-            regex.append("(").append(Pattern.quote(stem(words[i]))).append(LETTER).append("{0,3})");
+            String word = words[i];
+            String stem = stem(word);
+            String first = stem.substring(0, stem.offsetByCodePoints(0, 1));
+            String rest = stem.substring(first.length());
+            String start = first.equals(first.toLowerCase(Locale.ROOT))
+                    ? "[" + Pattern.quote(first) + Pattern.quote(first.toUpperCase(Locale.ROOT)) + "]" : Pattern.quote(first);
+            regex.append("(").append(start).append("(?iu:").append(rest.isEmpty() ? "" : Pattern.quote(rest)).append(")")
+                    .append(word.codePointCount(0, word.length()) <= 3 ? "" : LETTER + "{0,3}").append(")");
         }
         regex.append("(?!").append(LETTER).append(")");
-        return Pattern.compile(regex.toString(), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+        return Pattern.compile(regex.toString(), Pattern.UNICODE_CASE);
     }
 
     /** Where the form occurs in a text: [start, end) of each match. */
