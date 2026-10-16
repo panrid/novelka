@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router';
 import { Fragment, useState } from 'react';
 import { useDebounced } from '../../lib/useDebounced';
 import {
-    KIND_LABELS, autotranslateApi, inLanguage, type Gender, type GlossaryOccurrences, type GlossaryItem, type GlossaryKind, type GlossaryStatus,
+    KIND_LABELS, autotranslateApi, inLanguage, type Gender, type GlossaryOccurrences, type GlossaryFact, type GlossaryItem, type GlossaryKind, type GlossaryStatus,
 } from '../../studio/autotranslate';
 import { Button } from '../../ui/Button';
 import { Sheet } from '../../ui/Sheet';
@@ -136,6 +136,7 @@ export function GlossaryPage() {
                                 {KIND_LABELS[entry.kind]}
                                 {entry.gender && entry.gender !== 'unknown' ? ` · ${GENDER_LABELS[entry.gender]}` : ''}
                                 {entry.note ? ` · ${entry.note}` : ''}
+                                {entry.facts > 0 ? ` · фактів: ${entry.facts}` : ''}
                             </div>
                         </button>
                         {!selecting && entry.status !== 'approved' && (
@@ -208,6 +209,7 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
                 </label>
             </div>
             <TextInput label="Примітка" value={note} onChange={setNote} hint="Хто це або що це — підказка для перекладу." />
+            <FactsBox editionId={editionId} entry={entry} />
             <OriginalBox editionId={editionId} entry={entry} />
             <p className={styles.muted}>Збережений запис стає затвердженим.</p>
             {rewriting && <RewriteSheet editionId={editionId} entryId={entry.id} old={rewriting} to={ukrainian.trim()} onDone={afterRewrite} />}
@@ -221,6 +223,67 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
                 <Button variant="secondary" onPress={onDone}>Скасувати</Button>
             </div>
         </form>
+    );
+}
+
+/**
+ * «Хто це»: what the novel tells about the entry, fact by fact from the chapter it is told in.
+ * Readers see the facts up to their chapter; the team corrects, adds and removes them.
+ */
+function FactsBox({ editionId, entry }: { editionId: number; entry: GlossaryItem }) {
+    const client = useQueryClient();
+    const facts = useQuery({ queryKey: ['glossary-facts', editionId, entry.id], queryFn: () => autotranslateApi.facts(editionId, entry.id) });
+    const refresh = () => void client.invalidateQueries({ queryKey: ['glossary-facts', editionId, entry.id] });
+    const [editing, setEditing] = useState<number | 'new' | null>(null);
+    const remove = useMutation({ meta: { errorToast: true },
+        mutationFn: (factId: number) => autotranslateApi.deleteFact(editionId, entry.id, factId), onSuccess: refresh });
+    const list = facts.data ?? [];
+    return (
+        <div className={styles.facts}>
+            <div className={styles.label}>Хто це — опис для читачів і для малювання</div>
+            {facts.isError && <Notice tone="error">{facts.error.message}</Notice>}
+            {facts.isSuccess && list.length === 0 && (
+                <p className={styles.muted}>Поки нічого. Факти додаються під час аналізу глав, а можна й самому.</p>
+            )}
+            <ul className={styles.factList}>
+                {list.map((fact) => editing === fact.id
+                    ? <FactForm key={fact.id} editionId={editionId} entryId={entry.id} fact={fact} onDone={() => { setEditing(null); refresh(); }} />
+                    : (
+                        <li key={fact.id}>
+                            <span className={styles.badge}>гл. {fact.chapter}</span>
+                            <span className={styles.grow}>{fact.text}</span>
+                            <button type="button" className={styles.linkButton} onClick={() => setEditing(fact.id)}>Змінити</button>
+                            <button type="button" className={styles.iconButton} aria-label={`Видалити факт: ${fact.text}`}
+                                onClick={() => remove.mutate(fact.id)}><X size={16} aria-hidden /></button>
+                        </li>
+                    ))}
+            </ul>
+            {editing === 'new'
+                ? <FactForm editionId={editionId} entryId={entry.id} fact={null} onDone={() => { setEditing(null); refresh(); }} />
+                : <button type="button" className={styles.linkButton} onClick={() => setEditing('new')}>＋ Додати факт</button>}
+        </div>
+    );
+}
+
+function FactForm({ editionId, entryId, fact, onDone }: { editionId: number; entryId: number; fact: GlossaryFact | null; onDone: () => void }) {
+    const [text, setText] = useState(fact?.text ?? '');
+    const [chapter, setChapter] = useState(String(fact?.chapter ?? ''));
+    const save = useMutation({
+        mutationFn: () => (fact
+            ? autotranslateApi.changeFact(editionId, entryId, fact.id, Number(chapter || 0), text)
+            : autotranslateApi.addFact(editionId, entryId, Number(chapter || 0), text)),
+        onSuccess: onDone,
+    });
+    return (
+        <li className={styles.factForm}>
+            <TextInput label="Факт" value={text} onChange={setText} hint="Одне-два речення: зовнішність, роль, що це за місце чи річ." />
+            <TextInput label="З глави" value={chapter} onChange={setChapter} inputMode="numeric" hint="Читачі побачать його з цієї глави; 0 — з самого початку." />
+            {save.isError && <Notice tone="error">{save.error.message}</Notice>}
+            <div className={styles.actions}>
+                <Button onPress={() => save.mutate()} pending={save.isPending} isDisabled={!text.trim()}>Зберегти факт</Button>
+                <Button variant="secondary" onPress={onDone}>Скасувати</Button>
+            </div>
+        </li>
     );
 }
 

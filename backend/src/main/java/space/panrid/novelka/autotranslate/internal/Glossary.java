@@ -4,6 +4,7 @@ import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.CHAPTER_ANALYSIS;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_ENTRY;
+import static space.panrid.novelka.jooq.Tables.GLOSSARY_FACT;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_FORM;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.REVISION;
@@ -84,6 +85,15 @@ class Glossary {
             out.append(']');
             if (note != null && !note.isBlank()) {
                 out.append(" — ").append(note);
+            }
+            return out.toString();
+        }
+
+        /** A line for analysis: the entry under its number, with what is known of it already. */
+        String analysisLine(List<String> facts) {
+            StringBuilder out = new StringBuilder("#").append(id).append(' ').append(line());
+            if (!facts.isEmpty()) {
+                out.append(" Known: ").append(String.join(" ", facts));
             }
             return out.toString();
         }
@@ -253,6 +263,130 @@ class Glossary {
             });
         }
         return added;
+    }
+
+    // ---- facts: what the novel tells about an entry, chapter by chapter --------------------------
+
+    /** A fact analysis found: about entry {@code id}, or (id 0) about a new entry by its {@code original} form. */
+    record ProposedFact(long id, String original, String fact) {
+    }
+
+    record Fact(long id, int chapter, String text, boolean manual) {
+    }
+
+    static final int FACTS_PER_CHAPTER = 3;
+    static final int FACT_MAX = 300;
+    /** Facts analysis is shown for an entry, so it does not repeat them: the latest ones. */
+    static final int FACTS_SHOWN = 4;
+
+    /** The latest facts of each entry, oldest first, for the analysis prompt. */
+    Map<Long, List<String>> recentFacts(java.util.Collection<Long> entryIds) {
+        Map<Long, List<String>> out = new java.util.HashMap<>();
+        if (entryIds.isEmpty()) {
+            return out;
+        }
+        var rank = DSL.rowNumber().over(DSL.partitionBy(GLOSSARY_FACT.ENTRY_ID).orderBy(GLOSSARY_FACT.CHAPTER.desc(), GLOSSARY_FACT.ID.desc()));
+        var ranked = DSL.select(GLOSSARY_FACT.ENTRY_ID, GLOSSARY_FACT.CHAPTER, GLOSSARY_FACT.ID, GLOSSARY_FACT.FACT, rank.as("rank"))
+                .from(GLOSSARY_FACT).where(GLOSSARY_FACT.ENTRY_ID.in(entryIds)).asTable("ranked");
+        db.select(ranked.field(GLOSSARY_FACT.ENTRY_ID), ranked.field(GLOSSARY_FACT.FACT)).from(ranked)
+                .where(ranked.field("rank", Integer.class).le(FACTS_SHOWN))
+                .orderBy(ranked.field(GLOSSARY_FACT.CHAPTER), ranked.field(GLOSSARY_FACT.ID))
+                .forEach(r -> out.computeIfAbsent(r.value1(), key -> new ArrayList<>()).add(r.value2()));
+        return out;
+    }
+
+    /**
+     * Facts from analysis of chapter {@code chapter}. An entry is taken by a number analysis was
+     * shown, or a new one by its form in this language; a fact the entry has already is skipped.
+     *
+     * @return how many were added
+     */
+    int addFacts(long editionId, int chapter, Set<Long> shown, List<ProposedFact> facts) {
+        Scope scope = scope(editionId);
+        Map<Long, Integer> perEntry = new java.util.HashMap<>();
+        int added = 0;
+        for (ProposedFact proposed : facts) {
+            String text = proposed.fact() == null ? "" : proposed.fact().strip();
+            if (text.isEmpty() || text.length() > FACT_MAX) {
+                continue;
+            }
+            Long entryId = proposed.id() > 0 ? (shown.contains(proposed.id()) ? proposed.id() : null) : byOriginal(scope, proposed.original());
+            if (entryId == null || perEntry.merge(entryId, 1, Integer::sum) > FACTS_PER_CHAPTER) {
+                continue;
+            }
+            boolean known = db.fetchExists(GLOSSARY_FACT, GLOSSARY_FACT.ENTRY_ID.eq(entryId),
+                    DSL.lower(GLOSSARY_FACT.FACT).eq(text.toLowerCase(java.util.Locale.ROOT)));
+            if (!known) {
+                db.insertInto(GLOSSARY_FACT).set(GLOSSARY_FACT.ENTRY_ID, entryId).set(GLOSSARY_FACT.CHAPTER, chapter)
+                        .set(GLOSSARY_FACT.FACT, text).execute();
+                added++;
+            }
+        }
+        return added;
+    }
+
+    private Long byOriginal(Scope scope, String original) {
+        String form = original == null ? "" : original.strip();
+        if (form.isEmpty()) {
+            return null;
+        }
+        return db.select(GLOSSARY_FORM.ENTRY_ID).from(GLOSSARY_FORM)
+                .where(GLOSSARY_FORM.NOVEL_ID.eq(scope.novelId()), GLOSSARY_FORM.LANGUAGE.eq(scope.language()),
+                        GLOSSARY_FORM.ORIGINAL.eq(form).or(DSL.condition("jsonb_exists({0}, {1})", GLOSSARY_FORM.ALIASES, DSL.val(form))))
+                .limit(1).fetchOne(GLOSSARY_FORM.ENTRY_ID);
+    }
+
+    Map<Long, Integer> factCounts(java.util.Collection<Long> entryIds) {
+        Map<Long, Integer> out = new java.util.HashMap<>();
+        if (!entryIds.isEmpty()) {
+            db.select(GLOSSARY_FACT.ENTRY_ID, DSL.count()).from(GLOSSARY_FACT).where(GLOSSARY_FACT.ENTRY_ID.in(entryIds))
+                    .groupBy(GLOSSARY_FACT.ENTRY_ID).forEach(r -> out.put(r.value1(), r.value2()));
+        }
+        return out;
+    }
+
+    /** All facts of an entry of this novel, in the order the novel tells them. */
+    List<Fact> facts(long editionId, long entryId) {
+        requireEntry(editionId, entryId);
+        return db.select(GLOSSARY_FACT.ID, GLOSSARY_FACT.CHAPTER, GLOSSARY_FACT.FACT, GLOSSARY_FACT.MANUAL).from(GLOSSARY_FACT)
+                .where(GLOSSARY_FACT.ENTRY_ID.eq(entryId)).orderBy(GLOSSARY_FACT.CHAPTER, GLOSSARY_FACT.ID)
+                .fetch(r -> new Fact(r.value1(), r.value2(), r.value3(), r.value4()));
+    }
+
+    /** The team adds a fact by hand, or corrects one. */
+    Fact saveFact(long editionId, long entryId, Long factId, int chapter, String text, long accountId) {
+        requireEntry(editionId, entryId);
+        String fact = text == null ? "" : text.strip();
+        if (fact.isEmpty() || fact.length() > FACT_MAX) {
+            throw UserFacingException.badRequest("Факт — одне-два речення, до %d знаків.".formatted(FACT_MAX));
+        }
+        if (chapter < 0) {
+            throw UserFacingException.badRequest("Глава — від 0 (відомо з самого початку).");
+        }
+        if (factId == null) {
+            long id = db.insertInto(GLOSSARY_FACT).set(GLOSSARY_FACT.ENTRY_ID, entryId).set(GLOSSARY_FACT.CHAPTER, chapter)
+                    .set(GLOSSARY_FACT.FACT, fact).set(GLOSSARY_FACT.MANUAL, true).set(GLOSSARY_FACT.ADDED_BY, accountId)
+                    .returning(GLOSSARY_FACT.ID).fetchOne(GLOSSARY_FACT.ID);
+            return new Fact(id, chapter, fact, true);
+        }
+        int changed = db.update(GLOSSARY_FACT).set(GLOSSARY_FACT.CHAPTER, chapter).set(GLOSSARY_FACT.FACT, fact)
+                .set(GLOSSARY_FACT.MANUAL, true).set(GLOSSARY_FACT.ADDED_BY, accountId)
+                .where(GLOSSARY_FACT.ID.eq(factId), GLOSSARY_FACT.ENTRY_ID.eq(entryId)).execute();
+        if (changed == 0) {
+            throw UserFacingException.notFound("Такого факту немає.");
+        }
+        return new Fact(factId, chapter, fact, true);
+    }
+
+    void deleteFact(long editionId, long entryId, long factId) {
+        requireEntry(editionId, entryId);
+        db.deleteFrom(GLOSSARY_FACT).where(GLOSSARY_FACT.ID.eq(factId), GLOSSARY_FACT.ENTRY_ID.eq(entryId)).execute();
+    }
+
+    private void requireEntry(long editionId, long entryId) {
+        if (!db.fetchExists(GLOSSARY_ENTRY, GLOSSARY_ENTRY.ID.eq(entryId), GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId()))) {
+            throw UserFacingException.notFound("Такого запису в словнику немає.");
+        }
     }
 
     /** @param original the form exactly as the original writes it */

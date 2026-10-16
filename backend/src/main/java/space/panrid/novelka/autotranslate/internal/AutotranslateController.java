@@ -358,8 +358,9 @@ class AutotranslateController {
 
     // ---- glossary: the team reviews it; the original only behind «Оригінал» (рішення 30) --------
 
+    /** {@code facts}: how many facts of its «хто це» card the novel has told so far. */
     record GlossaryItem(long id, String ukrainian, String kind, String gender, String note, Integer chapter, boolean manual,
-            String status) {
+            String status, int facts) {
     }
 
     record GlossaryPage(List<GlossaryItem> items, int total, int page, boolean hasMore, List<Integer> chapters,
@@ -372,9 +373,10 @@ class AutotranslateController {
             @RequestParam(defaultValue = "alpha") String sort, @RequestParam(defaultValue = "1") int page) {
         access.requireTextEditor(editionId);
         Glossary.Page found = glossary.page(editionId, status != null && Glossary.STATUSES.contains(status) ? status : null, chapter, q, sort, page);
+        java.util.Map<Long, Integer> facts = glossary.factCounts(found.items().stream().map(Glossary.Entry::id).toList());
         return new GlossaryPage(found.items().stream()
                 .map(entry -> new GlossaryItem(entry.id(), entry.ukrainian(), entry.kind(), entry.gender(), entry.note(),
-                        entry.sourceChapter(), entry.manual(), entry.status()))
+                        entry.sourceChapter(), entry.manual(), entry.status(), facts.getOrDefault(entry.id(), 0)))
                 .toList(), found.total(), found.page(), found.hasMore(), found.chapters(), found.labels(), found.counts());
     }
 
@@ -470,6 +472,37 @@ class AutotranslateController {
     void deleteEntry(@PathVariable long editionId, @PathVariable long entryId) {
         access.requireTranslator(editionId);
         glossary.delete(editionId, entryId);
+    }
+
+    // ---- facts of an entry: its «хто це» card ---------------------------------------------------
+
+    record FactRequest(int chapter, String text) {
+    }
+
+    @GetMapping("/editions/{editionId}/glossary/{entryId}/facts")
+    List<Glossary.Fact> facts(@PathVariable long editionId, @PathVariable long entryId) {
+        access.requireTextEditor(editionId);
+        return glossary.facts(editionId, entryId);
+    }
+
+    @PostMapping("/editions/{editionId}/glossary/{entryId}/facts")
+    @ResponseStatus(HttpStatus.CREATED)
+    Glossary.Fact addFact(@PathVariable long editionId, @PathVariable long entryId, @RequestBody FactRequest body) {
+        Viewer viewer = access.requireTextEditor(editionId).viewer();
+        return glossary.saveFact(editionId, entryId, null, body.chapter(), body.text(), viewer.accountId());
+    }
+
+    @PutMapping("/editions/{editionId}/glossary/{entryId}/facts/{factId}")
+    Glossary.Fact changeFact(@PathVariable long editionId, @PathVariable long entryId, @PathVariable long factId,
+            @RequestBody FactRequest body) {
+        Viewer viewer = access.requireTextEditor(editionId).viewer();
+        return glossary.saveFact(editionId, entryId, factId, body.chapter(), body.text(), viewer.accountId());
+    }
+
+    @DeleteMapping("/editions/{editionId}/glossary/{entryId}/facts/{factId}")
+    void deleteFact(@PathVariable long editionId, @PathVariable long entryId, @PathVariable long factId) {
+        access.requireTextEditor(editionId);
+        glossary.deleteFact(editionId, entryId, factId);
     }
 
     private boolean showShah(Viewer viewer) {

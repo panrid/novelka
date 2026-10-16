@@ -36,6 +36,32 @@ const EDITION4 = { editionId: 4, novelSlug: 'mah-vody', title: 'Маг води'
 
 afterEach(() => vi.unstubAllGlobals());
 
+describe('«хто це» facts of a glossary entry', () => {
+    it('shows what the novel told chapter by chapter and lets the team add a fact', async () => {
+        let added = false;
+        const { calls } = await renderAt('/studio/4/glossary', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/4/glossary': { body: { items: [{ id: 2, ukrainian: 'Рьо', kind: 'character', gender: 'male', note: 'Головний герой.', chapter: 1, manual: false, status: 'approved', facts: 1 }],
+                total: 1, page: 1, hasMore: false, chapters: [1], labels: { 1: '0' }, counts: { new: 0, approved: 1, rejected: 0 } } },
+            'GET /api/studio/editions/4/glossary/2/facts': () => ({ body: [
+                { id: 7, chapter: 1, text: 'Має чорне волосся.', manual: false },
+                ...(added ? [{ id: 8, chapter: 3, text: 'Учень мага.', manual: true }] : []),
+            ] }),
+            'POST /api/studio/editions/4/glossary/2/facts': () => { added = true; return { status: 201, body: { id: 8, chapter: 3, text: 'Учень мага.', manual: true } }; },
+        });
+        expect(await screen.findByText(/фактів: 1/)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: /^Рьо/ }));
+        expect(await screen.findByText('Має чорне волосся.')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: '＋ Додати факт' }));
+        await userEvent.type(screen.getByLabelText('Факт'), 'Учень мага.');
+        await userEvent.type(screen.getByLabelText('З глави'), '3');
+        await userEvent.click(screen.getByRole('button', { name: 'Зберегти факт' }));
+        expect(await screen.findByText('Учень мага.')).toBeInTheDocument();
+        expect(calls.find((call) => call.method === 'POST' && call.path.endsWith('/facts'))?.body).toEqual({ chapter: 3, text: 'Учень мага.' });
+    });
+});
+
 describe('glossary word in the chapters', () => {
     it('offers to change the old form in the translated chapters after an edit', async () => {
         const { calls } = await renderAt('/studio/4/glossary', {

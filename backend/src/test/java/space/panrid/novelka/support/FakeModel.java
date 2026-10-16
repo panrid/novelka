@@ -150,7 +150,11 @@ public class FakeModel implements AiTransport {
                                 : List.of(),
                         "known", english && unlinked.find()
                                 ? List.of(Map.of("id", Long.parseLong(unlinked.group(1)), "original", "Yuki"))
-                                : List.of());
+                                : List.of(),
+                        // Facts for «хто це»: about a new entry by its form, about a known one by its
+                        // number (the same fact again, which the site skips), and one about a number
+                        // it was never shown.
+                        "facts", facts(user));
             }
             case "agreement" -> {
                 // Puts «Мірелєю» right; asked about a paragraph marked ЗАЙВЕ, it rewrites the whole thing.
@@ -202,5 +206,16 @@ public class FakeModel implements AiTransport {
                 "choices", List.of(Map.of("message", Map.of("role", "assistant", "content", content),
                         "finish_reason", trouble == Trouble.CUT ? "length" : "stop")),
                 "usage", Map.of("prompt_tokens", 100, "completion_tokens", 50, "cost", 0.001))));
+    }
+
+    private static List<Map<String, Object>> facts(String user) {
+        java.util.regex.Matcher known = java.util.regex.Pattern.compile("#(\\d+) ユキ").matcher(user);
+        if (known.find()) {
+            long id = Long.parseLong(known.group(1));
+            return List.of(Map.of("id", id, "original", "", "fact", "Носить старий ліхтар."),
+                    Map.of("id", id, "original", "", "fact", "Має сріблясте волосся."),
+                    Map.of("id", 999_999L, "original", "", "fact", "Чужий номер."));
+        }
+        return user.contains("ユキ") ? List.of(Map.of("id", 0, "original", "ユキ", "fact", "Носить старий ліхтар.")) : List.of();
     }
 }

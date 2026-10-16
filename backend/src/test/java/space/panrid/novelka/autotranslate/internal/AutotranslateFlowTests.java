@@ -491,6 +491,24 @@ class AutotranslateFlowTests {
         read(owner.browser().post(base + "/glossary/status", json("ids", ids, "status", "approved")));
         assertThat(read(owner.browser().get(base + "/glossary?status=new")).path("total").asInt()).isZero();
 
+        // «Хто це»: analysis tells facts chapter by chapter; a repeated one or a number it was not shown is skipped.
+        JsonNode yukiItem = java.util.stream.StreamSupport.stream(read(owner.browser().get(base + "/glossary")).path("items").spliterator(), false)
+                .filter(item -> item.path("ukrainian").asString().equals("Юкі")).findFirst().orElseThrow();
+        String facts = base + "/glossary/" + yukiItem.path("id").asLong() + "/facts";
+        JsonNode told = read(owner.browser().get(facts));
+        assertThat(told).extracting(fact -> fact.path("text").asString()).containsExactly("Носить старий ліхтар.", "Має сріблясте волосся.");
+        assertThat(told.path(0).path("chapter").asInt()).isLessThan(told.path(1).path("chapter").asInt());
+        assertThat(yukiItem.path("facts").asInt()).isEqualTo(2);
+        assertThat(db.fetchCount(space.panrid.novelka.jooq.Tables.GLOSSARY_FACT,
+                space.panrid.novelka.jooq.Tables.GLOSSARY_FACT.FACT.eq("Чужий номер."))).isZero();
+        // The team corrects, adds and removes facts by hand.
+        long added = read(owner.browser().post(facts, json("chapter", 3, "text", "Сестра доглядача маяка."))).path("id").asLong();
+        read(owner.browser().put(facts + "/" + added, json("chapter", 2, "text", "Молодша сестра доглядача маяка.")));
+        assertThat(read(owner.browser().get(facts)).path(2).path("text").asString()).isEqualTo("Молодша сестра доглядача маяка.");
+        assertThat(owner.browser().post(facts, json("chapter", 1, "text", " ")).status()).isEqualTo(400);
+        read(owner.browser().delete(facts + "/" + added));
+        assertThat(read(owner.browser().get(facts)).size()).isEqualTo(2);
+
         model.reset();
         owner.browser().post(base + "/autotranslate/jobs", json("to", 4));
         worker.drain();

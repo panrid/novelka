@@ -621,3 +621,46 @@
     padding: 10px 0;
     border-bottom: 1px solid var(--line);
 }
+
+/* «Хто це»: facts of a glossary entry. */
+.facts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.factList {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.factList > li:not(.factForm) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.factForm {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+}
+
+.linkButton {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    align-self: flex-start;
+}

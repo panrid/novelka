@@ -133,11 +133,21 @@ class Pipeline {
             for (JsonNode item : answer.path("known")) {
                 known.add(new Glossary.Known(item.path("id").asLong(0), item.path("original").asString("")));
             }
+            // Numbers the model was shown (the entries the text mentions, those with no form in this
+            // language yet), before this part adds new ones: a fact may only name one of these.
+            Set<Long> shown = new java.util.HashSet<>();
+            glossary.mentionedIn(editionId, joined(bigParts.get(part))).forEach(entry -> shown.add(entry.id()));
+            glossary.unlinked(editionId).forEach(entry -> shown.add(entry.id()));
             int linked = glossary.link(editionId, known);
             List<String> added = new ArrayList<>();
             glossary.addFromAnalysis(editionId, number, proposed, added);
+            List<Glossary.ProposedFact> facts = new ArrayList<>();
+            for (JsonNode item : answer.path("facts")) {
+                facts.add(new Glossary.ProposedFact(item.path("id").asLong(0), item.path("original").asString(""), item.path("fact").asString("")));
+            }
+            int learned = glossary.addFacts(editionId, number, shown, facts);
             journal.add(job.getId(), number, "analysis", Map.of("part", part, "added", added, "linked", linked,
-                    "title", part == 0 && checkpoint.title != null ? checkpoint.title : ""));
+                    "title", part == 0 && checkpoint.title != null ? checkpoint.title : "", "facts", learned));
             checkpoint.analyzed.add(part);
             save(step, "analyze", checkpoint);
         }
@@ -316,7 +326,14 @@ class Pipeline {
     private JsonNode analyze(Calls calls, long editionId, int part, String title, List<Block> blocks) {
         String text = joined(blocks);
         StringBuilder user = new StringBuilder();
-        user.append("Glossary (already known, do not repeat):\n").append(glossaryLines(editionId, text)).append("\n\n");
+        List<Glossary.Entry> mentioned = glossary.mentionedIn(editionId, text);
+        Map<Long, List<String>> facts = glossary.recentFacts(mentioned.stream().map(Glossary.Entry::id).toList());
+        user.append("Glossary (already known, do not repeat):\n");
+        if (mentioned.isEmpty()) {
+            user.append("(empty)\n");
+        }
+        mentioned.forEach(entry -> user.append(entry.analysisLine(facts.getOrDefault(entry.id(), List.of()))).append('\n'));
+        user.append('\n');
         List<Glossary.Entry> unlinked = glossary.unlinked(editionId);
         if (!unlinked.isEmpty()) {
             user.append("Glossary entries with no form in this language yet:\n");
@@ -325,7 +342,7 @@ class Pipeline {
         }
         user.append("Chapter title: ").append(title.isBlank() ? "(none)" : title).append("\n\nText:\n").append(text);
         return calls.ask("analyze", part, Prompts.ANALYZE, user.toString(), "glossary", Prompts.analyzeSchema(),
-                Math.min(16_000, 2_000 + blocks.size() * 40), answer -> null);
+                Math.min(18_000, 3_500 + blocks.size() * 40), answer -> null);
     }
 
     record Translated(List<Line> lines, String summary) {

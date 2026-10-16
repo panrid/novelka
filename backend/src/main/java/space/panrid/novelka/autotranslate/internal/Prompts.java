@@ -58,6 +58,14 @@ final class Prompts {
             the name, such as Пролог, Епілог, Інтерлюдія, Побічна історія. If the title is only a number or none
             is given, return "".
             Readings may appear in the text as 漢字《かんじ》; they are hints, not part of the name.
+            Also collect facts for the readers' «who is this» card. For glossary entries (by their #number) and for
+            your new entries (by the original form, with id 0) about which THIS text says something new and lasting,
+            give short facts in Ukrainian, one plain sentence each, only what the text states: for characters —
+            looks, age, occupation or rank, family and relations to others, abilities, character; for places — what
+            and where it is, what it looks like; for organizations, items, skills and other terms — what it is and
+            what it does. No plot events unless they change who the entry is (became a knight, lost an arm, died).
+            No guesses, nothing the glossary line already says («Known: …»). At most three facts per entry; none for
+            an entry the text only mentions. Use the Ukrainian forms of the glossary for names inside a fact.
             Entries listed as «#number → Ukrainian» are already in the glossary but have no form in this text's
             language yet. When the text names one of them, return it in «known» with its number and the form
             exactly as written here, and do not list it again among the new entries.
@@ -164,10 +172,12 @@ final class Prompts {
                 "gender", Map.of("type", "string", "enum", List.of("male", "female", "unknown")),
                 "note", string()));
         Map<String, Object> known = object(Map.of("id", Map.of("type", "integer"), "original", string()));
+        Map<String, Object> fact = object(Map.of("id", Map.of("type", "integer"), "original", string(), "fact", string()));
         Map<String, Object> narrator = object(Map.of("name", string(),
                 "gender", Map.of("type", "string", "enum", List.of("male", "female", "unknown"))));
         return object(Map.of("title", string(), "entries", Map.of("type", "array", "items", entry),
-                "known", Map.of("type", "array", "items", known), "narrator", narrator));
+                "known", Map.of("type", "array", "items", known), "narrator", narrator,
+                "facts", Map.of("type", "array", "items", fact)));
     }
 
     /** What the translation and the proofreading are told about the narrator; empty when analysis found none. */

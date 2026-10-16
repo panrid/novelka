@@ -64,7 +64,11 @@ export type GlossaryStatus = 'new' | 'approved' | 'rejected';
 export type GlossaryItem = {
     id: number; ukrainian: string; kind: GlossaryKind; gender: Gender | null; note: string | null; chapter: number | null; manual: boolean;
     status: GlossaryStatus;
+    /** Facts of its «хто це» card the novel has told so far. */
+    facts: number;
 };
+/** One thing the novel tells about an entry, from chapter {@code chapter} on. */
+export type GlossaryFact = { id: number; chapter: number; text: string; manual: boolean };
 /** What «Оригінал» shows the team (рішення 30); the original's language is not assumed. */
 export type GlossaryOriginal = {
     /** The form in the original the novel is taken from now; null until its analysis names the entry. */
@@ -164,6 +168,13 @@ export const autotranslateApi = {
     rewrite: (id: number, entryId: number, from: string, apply: boolean, ai = false) =>
         api<{ paragraphs: number; chapters: number }>(`${base(id)}/glossary/${entryId}/rewrite`, json('POST', { from, apply, ai })),
     deleteEntry: (id: number, entryId: number) => api<void>(`${base(id)}/glossary/${entryId}`, { method: 'DELETE' }),
+    facts: (id: number, entryId: number) => api<GlossaryFact[]>(`${base(id)}/glossary/${entryId}/facts`),
+    addFact: (id: number, entryId: number, chapter: number, text: string) =>
+        api<GlossaryFact>(`${base(id)}/glossary/${entryId}/facts`, json('POST', { chapter, text })),
+    changeFact: (id: number, entryId: number, factId: number, chapter: number, text: string) =>
+        api<GlossaryFact>(`${base(id)}/glossary/${entryId}/facts/${factId}`, json('PUT', { chapter, text })),
+    deleteFact: (id: number, entryId: number, factId: number) =>
+        api<void>(`${base(id)}/glossary/${entryId}/facts/${factId}`, { method: 'DELETE' }),
     wallet: (days = 30) => api<Wallet>(`/api/studio/autotranslate/wallet?days=${days}`),
     saveSettings: (settings: Settings) => api<void>('/api/studio/autotranslate/settings', json('PUT', settings)),
 };
