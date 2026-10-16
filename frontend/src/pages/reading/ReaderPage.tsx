@@ -187,6 +187,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     const [editMode, setEditMode] = useState(false);
     const [editing, setEditing] = useState<string | null>(null);
     const [replacing, setReplacing] = useState<string | null>(null);
+    const [asking, setAsking] = useState<string | null>(null);
     const [reviewing, setReviewing] = useState(false);
     useEffect(() => {
         if (reviewing) lookOnly.current = true;
@@ -427,10 +428,14 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
             </article>
             )}
 
-            {me && !reviewing && (
-                <SelectionBar onEdit={setEditing} onReplace={setReplacing}
-                    onQuote={(blockId, text) => { setQuote({ blockId, text }); setTalking(true); }} />
+            {!reviewing && (
+                <SelectionBar onWho={setAsking}
+                    {...(me ? {
+                        onEdit: setEditing, onReplace: setReplacing,
+                        onQuote: (blockId: string, text: string) => { setQuote({ blockId, text }); setTalking(true); },
+                    } : {})} />
             )}
+            {asking && <WhoSheet slug={chapter.novelSlug} team={team} chapter={chapter.number} text={asking} onClose={() => setAsking(null)} />}
             {editingBlock && (
                 <EditSheet chapter={chapter} block={editingBlock} onClose={() => setEditing(null)} onSaved={mine.refresh}
                     existing={mine.items.find((item) => item.kind === 'block' && item.blockId === editingBlock.id && item.state === 'draft')} />
@@ -491,6 +496,37 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
 }
 
 /** «Аа»: the reader's own look — the same form as in «Налаштування», every change shows at once. */
+/**
+ * «Хто це»: the names and terms of the selection, with what the novel has told about them by
+ * this chapter — so a reader never meets a spoiler here.
+ */
+function WhoSheet({ slug, team, chapter, text, onClose }: { slug: string; team: string | undefined; chapter: number; text: string; onClose: () => void }) {
+    const cards = useQuery({ queryKey: ['who', slug, team ?? '', chapter, text], queryFn: () => readingApi.who(slug, team, chapter, text) });
+    return (
+        <Sheet open onClose={onClose} title="Хто це" peek>
+            <div className={styles.who}>
+                {cards.isPending && <p className={styles.whoMuted}>Шукаємо в словнику…</p>}
+                {cards.isError && <Notice tone="error">{cards.error.message}</Notice>}
+                {cards.data?.length === 0 && (
+                    <p className={styles.whoMuted}>«{text.length > 60 ? `${text.slice(0, 60)}…` : text}» — у словнику цього перекладу такого немає.</p>
+                )}
+                {cards.data?.map((card) => (
+                    <section key={card.id} className={styles.whoCard}>
+                        <h3>{card.ukrainian} <span className={styles.whoMuted}>· {WHO_KINDS[card.kind] ?? 'інше'}</span></h3>
+                        {card.facts.length > 0
+                            ? <ul>{card.facts.map((fact, index) => <li key={index}>{fact}</li>)}</ul>
+                            : <p className={styles.whoMuted}>Поки що про це нічого не відомо.</p>}
+                    </section>
+                ))}
+            </div>
+        </Sheet>
+    );
+}
+
+const WHO_KINDS: Record<string, string> = {
+    character: 'персонаж', place: 'місце', organization: 'організація', term: 'термін', other: 'інше',
+};
+
 function TextSettings() {
     const [open, setOpen] = useState(false);
     return (

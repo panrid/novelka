@@ -38,7 +38,7 @@ import tools.jackson.databind.json.JsonMapper;
  * text mentions go into a prompt.
  */
 @Component
-class Glossary {
+class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
 
     static final Set<String> KINDS = Set.of("character", "place", "organization", "term", "other");
     static final Set<String> GENDERS = Set.of("male", "female", "unknown");
@@ -343,6 +343,44 @@ class Glossary {
                     .groupBy(GLOSSARY_FACT.ENTRY_ID).forEach(r -> out.put(r.value1(), r.value2()));
         }
         return out;
+    }
+
+    static final int CARDS = 4;
+    private static final int SELECTION_MAX = 300;
+
+    @Override
+    public List<Card> named(long editionId, int chapter, String selection) {
+        String text = selection == null ? "" : selection.strip();
+        if (text.isEmpty() || text.length() > SELECTION_MAX) {
+            return List.of();
+        }
+        long novelId = scope(editionId).novelId();
+        List<GlossaryEntryRecord> found = db.selectFrom(GLOSSARY_ENTRY)
+                .where(GLOSSARY_ENTRY.NOVEL_ID.eq(novelId), GLOSSARY_ENTRY.STATUS.ne("rejected"))
+                .fetch().stream()
+                .filter(entry -> !WordForms.find(text, entry.getUkrainian()).isEmpty())
+                // «Крижаний спис» before «спис»; then the one the novel met first.
+                .sorted(java.util.Comparator.comparingInt((GlossaryEntryRecord entry) -> -entry.getUkrainian().length())
+                        .thenComparing(entry -> entry.getSourceChapter() == null ? 0 : entry.getSourceChapter()))
+                .limit(CARDS).toList();
+        if (found.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, List<String>> facts = new java.util.HashMap<>();
+        db.select(GLOSSARY_FACT.ENTRY_ID, GLOSSARY_FACT.FACT).from(GLOSSARY_FACT)
+                .where(GLOSSARY_FACT.ENTRY_ID.in(found.stream().map(GlossaryEntryRecord::getId).toList()), GLOSSARY_FACT.CHAPTER.le(chapter))
+                .orderBy(GLOSSARY_FACT.CHAPTER, GLOSSARY_FACT.ID)
+                .forEach(r -> facts.computeIfAbsent(r.value1(), key -> new ArrayList<>()).add(r.value2()));
+        return found.stream().map(entry -> {
+            List<String> told = new ArrayList<>();
+            // The first note is what analysis said when the entry appeared: shown from that chapter on.
+            if (entry.getNote() != null && !entry.getNote().isBlank()
+                    && (entry.getSourceChapter() == null || entry.getSourceChapter() <= chapter)) {
+                told.add(entry.getNote());
+            }
+            told.addAll(facts.getOrDefault(entry.getId(), List.of()));
+            return new Card(entry.getId(), entry.getUkrainian(), entry.getKind(), entry.getGender(), told);
+        }).toList();
     }
 
     /** All facts of an entry of this novel, in the order the novel tells them. */

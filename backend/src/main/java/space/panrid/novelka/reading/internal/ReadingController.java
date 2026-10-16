@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import space.panrid.novelka.account.CurrentUser;
 import space.panrid.novelka.account.Viewer;
+import space.panrid.novelka.autotranslate.GlossaryCards;
 import space.panrid.novelka.catalog.Relay;
 import space.panrid.novelka.catalog.RelayState;
 import space.panrid.novelka.platform.web.UserFacingException;
@@ -46,8 +47,11 @@ class ReadingController {
     private final CurrentUser currentUser;
     private final Relay relay;
     private final Downloads downloads;
+    private final GlossaryCards cards;
 
-    ReadingController(ReadingQueries queries, LibraryService library, CurrentUser currentUser, Relay relay, Downloads downloads) {
+    ReadingController(ReadingQueries queries, LibraryService library, CurrentUser currentUser, Relay relay, Downloads downloads,
+            GlossaryCards cards) {
+        this.cards = cards;
         this.queries = queries;
         this.library = library;
         this.currentUser = currentUser;
@@ -159,6 +163,17 @@ class ReadingController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(book.name()).build().toString())
                 .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
                 .body(book.content());
+    }
+
+    /**
+     * «Хто це»: the names and terms of the translation's glossary in the selected text, with what
+     * the novel has told about them by {@code chapter} (no spoilers from later ones).
+     */
+    @GetMapping("/novels/{slug}/who")
+    List<GlossaryCards.Card> who(@PathVariable String slug, @RequestParam(required = false) String t,
+            @RequestParam int chapter, @RequestParam String q) {
+        EditionRow edition = pick(visibleEditions(queries.novel(slug).orElseThrow(ReadingController::noNovel), currentUser.viewer()), t);
+        return cards.named(edition.id(), chapter, q);
     }
 
     @GetMapping("/novels/{slug}/chapters")

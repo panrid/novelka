@@ -125,3 +125,26 @@ describe('my suggestions', () => {
         expect(screen.getByText(/відхилено .* команда: «так в оригіналі»/)).toBeInTheDocument();
     });
 });
+
+describe('«хто це» in the reader', () => {
+    it('shows a guest who the selected name is, as far as their chapter tells', async () => {
+        const { calls } = await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { status: 204 },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'GET /api/novels/mah-vody/who': { body: [{ id: 3, ukrainian: 'Ліжко', kind: 'term', gender: null, facts: ['Старе й скрипуче.'] }] },
+        });
+        await screen.findByRole('heading', { name: '12. Спокійне життя' });
+        const paragraph = screen.getByText('Ліжко скрипнуло.');
+        const range = document.createRange();
+        range.selectNodeContents(paragraph.firstChild!);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(range);
+        document.dispatchEvent(new Event('selectionchange'));
+        expect(screen.queryByRole('button', { name: '⇄ Замінити в главі' })).not.toBeInTheDocument();
+        await userEvent.click(await screen.findByRole('button', { name: '? Хто це' }));
+        expect(await screen.findByText('Старе й скрипуче.')).toBeInTheDocument();
+        const query = new URLSearchParams(calls.find((call) => call.path === '/api/novels/mah-vody/who')!.query);
+        expect(query.get('chapter')).toBe('12');
+        expect(query.get('q')).toBe('Ліжко скрипнуло.');
+    });
+});

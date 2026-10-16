@@ -171,7 +171,15 @@ function query(params: Record<string, string | number | string[] | undefined>) {
 
 const novelPath = (slug: string) => `/api/novels/${encodeURIComponent(slug)}`;
 
+/** A name or term of the translation's glossary and what the novel told about it by the reader's chapter. */
+export type WhoCard = { id: number; ukrainian: string; kind: string; gender: string | null; facts: string[] };
+
 export const readingApi = {
+    who: (slug: string, team: string | undefined, chapter: number, text: string) => {
+        const params = new URLSearchParams({ chapter: String(chapter), q: text });
+        if (team) params.set('t', team);
+        return api<WhoCard[]>(`/api/novels/${encodeURIComponent(slug)}/who?${params}`);
+    },
     works: (nick: string) => api<Card[]>(`/api/users/${encodeURIComponent(nick)}/works`),
     activity: (nick: string) => api<{ reading: Card[]; acceptedSuggestions: number }>(`/api/users/${encodeURIComponent(nick)}/activity`),
     home: () => api<Home>('/api/home'),

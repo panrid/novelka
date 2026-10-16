@@ -8,8 +8,20 @@
     border-radius: var(--radius);
     background: var(--surface-2);
     box-shadow: var(--shadow);
-    overflow: hidden;
+    /* On a phone the actions may not all fit: the bar scrolls sideways instead of running off the screen. */
+    max-width: calc(100vw - 24px);
+    overflow-x: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
     white-space: nowrap;
+}
+
+.selectionBar::-webkit-scrollbar {
+    display: none;
+}
+
+.selectionBar button {
+    flex: none;
 }
 
 .selectionBar button {

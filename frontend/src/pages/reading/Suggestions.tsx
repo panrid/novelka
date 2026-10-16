@@ -34,9 +34,13 @@ export function useMySuggestions(chapter: ReaderChapter, signedIn: boolean) {
     return { items: mine.data?.items ?? [], drafts: mine.data?.draftsInEdition ?? 0, overlay, submit, refresh };
 }
 
-/** Appears while text in one paragraph is selected: fix the paragraph or replace the fragment in the chapter. */
-export function SelectionBar({ onEdit, onReplace, onQuote }: {
-    onEdit: (blockId: string) => void; onReplace: (find: string) => void; onQuote?: (blockId: string, text: string) => void;
+/**
+ * Appears while text in one paragraph is selected: who or what it names (for everyone), and for
+ * a signed-in reader — fix the paragraph, replace the fragment in the chapter, quote it.
+ */
+export function SelectionBar({ onWho, onEdit, onReplace, onQuote }: {
+    onWho: (text: string) => void;
+    onEdit?: (blockId: string) => void; onReplace?: (find: string) => void; onQuote?: (blockId: string, text: string) => void;
 }) {
     const [selection, setSelection] = useState<{ blockId: string; text: string } | null>(null);
     useEffect(() => {
@@ -57,9 +61,14 @@ export function SelectionBar({ onEdit, onReplace, onQuote }: {
     }, []);
     if (!selection) return null;
     return (
-        <div className={styles.selectionBar} role="toolbar" aria-label="Правка виділеного">
-            <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onEdit(selection.blockId)}>✎ Виправити абзац</button>
-            <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onReplace(selection.text.slice(0, 200))}>⇄ Замінити в главі</button>
+        <div className={styles.selectionBar} role="toolbar" aria-label="Дії з виділеним">
+            <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onWho(selection.text.slice(0, 300))}>? Хто це</button>
+            {onEdit && (
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onEdit(selection.blockId)}>✎ Виправити абзац</button>
+            )}
+            {onReplace && (
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onReplace(selection.text.slice(0, 200))}>⇄ Замінити в главі</button>
+            )}
             {onQuote && (
                 <button type="button" onMouseDown={(event) => event.preventDefault()}
                     onClick={() => { onQuote(selection.blockId, selection.text); window.getSelection()?.removeAllRanges(); }}>❝ Цитувати</button>
