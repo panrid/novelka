@@ -16,7 +16,8 @@ public interface GlossaryCards {
     }
 
     /** A word the reader's «лампочка» marks in the text: the reader may ask who it is. */
-    record Term(long id, String ukrainian, String kind) {
+    /** @param looseForms found as before: any ending and any case (a short name that declines) */
+    record Term(long id, String ukrainian, String kind, boolean looseForms) {
     }
 
     /** Entries the novel has met by {@code chapter} and told something about (a note or a fact). */

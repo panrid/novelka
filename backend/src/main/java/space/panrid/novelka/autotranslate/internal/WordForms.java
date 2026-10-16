@@ -36,6 +36,14 @@ final class WordForms {
      * is found only as it is: «То» does not grow into «Тому».
      */
     static Pattern pattern(String form) {
+        return pattern(form, false);
+    }
+
+    /** @param loose as before: any ending and any case, for a short name that declines («Ян» → «Яна») */
+    static Pattern pattern(String form, boolean loose) {
+        if (loose) {
+            return loosePattern(form);
+        }
         String[] words = form.strip().split("\\s+");
         StringBuilder regex = new StringBuilder("(?<!").append(LETTER).append(")");
         for (int i = 0; i < words.length; i++) {
@@ -55,13 +63,30 @@ final class WordForms {
         return Pattern.compile(regex.toString(), Pattern.UNICODE_CASE);
     }
 
+    private static Pattern loosePattern(String form) {
+        String[] words = form.strip().split("\\s+");
+        StringBuilder regex = new StringBuilder("(?<!").append(LETTER).append(")");
+        for (int i = 0; i < words.length; i++) {
+            if (i > 0) {
+                regex.append("\\s+");
+            }
+            regex.append("(").append(Pattern.quote(stem(words[i]))).append(LETTER).append("{0,3})");
+        }
+        regex.append("(?!").append(LETTER).append(")");
+        return Pattern.compile(regex.toString(), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    }
+
     /** Where the form occurs in a text: [start, end) of each match. */
     static List<int[]> find(String text, String form) {
+        return find(text, form, false);
+    }
+
+    static List<int[]> find(String text, String form, boolean loose) {
         List<int[]> out = new ArrayList<>();
         if (form == null || form.isBlank()) {
             return out;
         }
-        Matcher matcher = pattern(form).matcher(text);
+        Matcher matcher = pattern(form, loose).matcher(text);
         while (matcher.find()) {
             out.add(new int[] {matcher.start(), matcher.end()});
         }
@@ -70,9 +95,13 @@ final class WordForms {
 
     /** The text with every form of {@code from} turned into the same form of {@code to}. */
     static String replace(String text, String from, String to) {
+        return replace(text, from, to, false);
+    }
+
+    static String replace(String text, String from, String to, boolean loose) {
         String[] oldWords = from.strip().split("\\s+");
         String[] newWords = to.strip().split("\\s+");
-        Matcher matcher = pattern(from).matcher(text);
+        Matcher matcher = pattern(from, loose).matcher(text);
         StringBuilder out = new StringBuilder();
         while (matcher.find()) {
             String replaced;

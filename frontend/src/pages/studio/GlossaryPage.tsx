@@ -173,12 +173,13 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
     const [kind, setKind] = useState<GlossaryKind>(entry.kind);
     const [gender, setGender] = useState<Gender>(entry.gender ?? 'unknown');
     const [note, setNote] = useState(entry.note ?? '');
+    const [looseForms, setLooseForms] = useState(entry.looseForms);
     const [rewriting, setRewriting] = useState<GlossaryOccurrences | null>(null);
     const [regendering, setRegendering] = useState(false);
     const genderChanged = gender !== (entry.gender ?? 'unknown') && gender !== 'unknown';
     const save = useMutation({
         mutationFn: async () => {
-            await autotranslateApi.updateEntry(editionId, entry.id, { ukrainian, kind, gender, note });
+            await autotranslateApi.updateEntry(editionId, entry.id, { ukrainian, kind, gender, note, looseForms });
             // A new Ukrainian form: offer to change the old one in the chapters already translated.
             return ukrainian.trim() !== entry.ukrainian ? autotranslateApi.occurrences(editionId, entry.id, entry.ukrainian) : null;
         },
@@ -209,6 +210,14 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
                 </label>
             </div>
             <TextInput label="Примітка" value={note} onChange={setNote} hint="Хто це або що це — підказка для перекладу." />
+            <div>
+                <Toggle label="Шукати всі форми слова, як раніше" isSelected={looseForms} onChange={setLooseForms} />
+                <p className={styles.muted}>
+                    Звичайно коротке слово (до трьох літер) шукається лише як є, а слово з великої літери — лише з великої: «То» не плутається з «тож».
+                    Увімкніть для короткого імені, що відмінюється («Ян» → «Яна»): тоді будь-яке закінчення й будь-яка літера.
+                    Діє на лампочку й «Хто це» в читалці й на заміну слова в главах.
+                </p>
+            </div>
             <FactsBox editionId={editionId} entry={entry} />
             <OriginalBox editionId={editionId} entry={entry} />
             <p className={styles.muted}>Збережений запис стає затвердженим.</p>

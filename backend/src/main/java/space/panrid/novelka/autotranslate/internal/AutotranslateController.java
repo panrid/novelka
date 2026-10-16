@@ -360,7 +360,7 @@ class AutotranslateController {
 
     /** {@code facts}: how many facts of its «хто це» card the novel has told so far. */
     record GlossaryItem(long id, String ukrainian, String kind, String gender, String note, Integer chapter, boolean manual,
-            String status, int facts) {
+            String status, int facts, boolean looseForms) {
     }
 
     record GlossaryPage(List<GlossaryItem> items, int total, int page, boolean hasMore, List<Integer> chapters,
@@ -376,7 +376,7 @@ class AutotranslateController {
         java.util.Map<Long, Integer> facts = glossary.factCounts(found.items().stream().map(Glossary.Entry::id).toList());
         return new GlossaryPage(found.items().stream()
                 .map(entry -> new GlossaryItem(entry.id(), entry.ukrainian(), entry.kind(), entry.gender(), entry.note(),
-                        entry.sourceChapter(), entry.manual(), entry.status(), facts.getOrDefault(entry.id(), 0)))
+                        entry.sourceChapter(), entry.manual(), entry.status(), facts.getOrDefault(entry.id(), 0), entry.looseForms()))
                 .toList(), found.total(), found.page(), found.hasMore(), found.chapters(), found.labels(), found.counts());
     }
 
@@ -390,13 +390,14 @@ class AutotranslateController {
         return java.util.Map.of("changed", glossary.setStatus(editionId, body.ids(), body.status()));
     }
 
-    record GlossaryChange(String ukrainian, String kind, String gender, String note) {
+    /** @param looseForms null keeps it as it was */
+    record GlossaryChange(String ukrainian, String kind, String gender, String note, Boolean looseForms) {
     }
 
     @PutMapping("/editions/{editionId}/glossary/{entryId}")
     void updateEntry(@PathVariable long editionId, @PathVariable long entryId, @RequestBody GlossaryChange body) {
         access.requireTranslator(editionId);
-        glossary.update(editionId, entryId, body.ukrainian(), body.kind(), body.gender(), body.note());
+        glossary.update(editionId, entryId, body.ukrainian(), body.kind(), body.gender(), body.note(), body.looseForms());
     }
 
     /** The original behind an entry, for the team only (рішення 30). */
@@ -413,7 +414,7 @@ class AutotranslateController {
         access.requireTextEditor(editionId);
         Glossary.Occurrences current = glossary.occurrences(editionId, entryId);
         // Another form (the one before an edit) is looked up the same way, to say what changing it touches.
-        return form == null || form.isBlank() ? current : glossary.occurrencesOf(editionId, form.strip());
+        return form == null || form.isBlank() ? current : glossary.occurrencesOf(editionId, form.strip(), glossary.looseForms(entryId));
     }
 
     /**
@@ -432,7 +433,7 @@ class AutotranslateController {
         Viewer viewer = access.requireTextEditor(editionId).viewer();
         String to = glossary.occurrences(editionId, entryId).form();
         Map<String, String> originals = new java.util.HashMap<>();
-        List<space.panrid.novelka.suggestion.Suggestions.BlockChange> changes = glossary.rewrite(editionId, body.from(), to, originals);
+        List<space.panrid.novelka.suggestion.Suggestions.BlockChange> changes = glossary.rewrite(editionId, body.from(), to, glossary.looseForms(entryId), originals);
         if (Boolean.TRUE.equals(body.ai()) && !changes.isEmpty()) {
             // The site owner's runs are the site's; anyone else pays from their шаги (рішення 29).
             Long payer = personal(viewer) ? viewer.accountId() : null;
@@ -461,7 +462,7 @@ class AutotranslateController {
         if (payer != null && ledger.balance(payer).available() < 1) {
             throw UserFacingException.badRequest("Вичитка ШІ — за шаги, а у вас їх поки немає.");
         }
-        List<space.panrid.novelka.suggestion.Suggestions.BlockChange> paragraphs = glossary.naming(editionId, entry.ukrainian());
+        List<space.panrid.novelka.suggestion.Suggestions.BlockChange> paragraphs = glossary.naming(editionId, entry.ukrainian(), entry.looseForms());
         List<space.panrid.novelka.suggestion.Suggestions.BlockChange> changes = paragraphs.isEmpty() ? List.of()
                 : agreement.regender(paragraphs, entry.ukrainian(), entry.gender(), payer);
         int count = suggestions.propose(viewer, editionId, changes, "Словник: рід «%s»".formatted(entry.ukrainian()), body.apply());

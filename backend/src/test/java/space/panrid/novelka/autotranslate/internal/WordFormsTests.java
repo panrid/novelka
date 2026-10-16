@@ -36,4 +36,11 @@ class WordFormsTests {
         assertThat(WordForms.find("ґоблін і Ґобліна", "ґоблін")).as("a lower-case word also opens a sentence").hasSize(2);
         assertThat(WordForms.find("Мавка та мавки", "Мавка")).as("a capital stays a capital").hasSize(1);
     }
+
+    @org.junit.jupiter.api.Test
+    void anEntrySetToBeFoundAsBeforeTakesAnyEndingAndCase() {
+        assertThat(WordForms.find("Ян і Яна", "Ян")).hasSize(1);
+        assertThat(WordForms.find("Ян і Яна", "Ян", true)).hasSize(2);
+        assertThat(WordForms.replace("Яна чекали", "Ян", "Іван", true)).isEqualTo("Івана чекали");
+    }
 }

@@ -17,3 +17,10 @@ describe('a glossary word in any of its forms', () => {
         expect(all('Мавка', 'Мавка та мавки')).toEqual(['Мавка']);
     });
 });
+
+describe('a glossary word set to be found as before', () => {
+    it('takes any ending and any case', () => {
+        expect([...'Ян і Яна, Янковський'.matchAll(wordPattern('Ян', true))].map((match) => match[0])).toEqual(['Ян', 'Яна']);
+        expect([...'Ян і Яна'.matchAll(wordPattern('Ян'))].map((match) => match[0])).toEqual(['Ян']);
+    });
+});

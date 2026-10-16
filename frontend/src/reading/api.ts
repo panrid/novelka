@@ -173,7 +173,7 @@ const novelPath = (slug: string) => `/api/novels/${encodeURIComponent(slug)}`;
 
 /** A name or term of the translation's glossary and what the novel told about it by the reader's chapter. */
 /** A word «лампочка» marks: an entry of the glossary the reader may ask about. */
-export type GlossaryTerm = { id: number; ukrainian: string; kind: string };
+export type GlossaryTerm = { id: number; ukrainian: string; kind: string; looseForms: boolean };
 
 export type WhoCard = { id: number; ukrainian: string; kind: string; gender: string | null; facts: string[] };
 

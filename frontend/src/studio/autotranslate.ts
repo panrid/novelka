@@ -66,6 +66,8 @@ export type GlossaryItem = {
     status: GlossaryStatus;
     /** Facts of its «хто це» card the novel has told so far. */
     facts: number;
+    /** Found in the text as before: any ending and any case (a short name that declines, «Ян» → «Яна»). */
+    looseForms: boolean;
 };
 /** One thing the novel tells about an entry, from chapter {@code chapter} on. */
 export type GlossaryFact = { id: number; chapter: number; text: string; manual: boolean };
@@ -155,7 +157,7 @@ export const autotranslateApi = {
     },
     setStatus: (id: number, ids: number[], status: GlossaryStatus) =>
         api<{ changed: number }>(`${base(id)}/glossary/status`, json('POST', { ids, status })),
-    updateEntry: (id: number, entryId: number, body: { ukrainian: string; kind: GlossaryKind; gender: Gender | null; note: string }) =>
+    updateEntry: (id: number, entryId: number, body: { ukrainian: string; kind: GlossaryKind; gender: Gender | null; note: string; looseForms?: boolean }) =>
         api<void>(`${base(id)}/glossary/${entryId}`, json('PUT', body)),
     original: (id: number, entryId: number) => api<GlossaryOriginal>(`${base(id)}/glossary/${entryId}/original`),
     /** Chapters using the entry's Ukrainian form (or {@code form}, such as the one before an edit), in any case. */

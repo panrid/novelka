@@ -52,7 +52,7 @@ export function useGlossaryHints({ enabled, slug, team, chapter, layoutKey }: {
         const found: Mark[] = [];
         // Longest names first: «Крижаний спис» is one mark, not «спис» inside it.
         const patterns = [...terms.data].sort((a, b) => b.ukrainian.length - a.ukrainian.length)
-            .map((term) => ({ term, pattern: wordPattern(term.ukrainian) }));
+            .map((term) => ({ term, pattern: wordPattern(term.ukrainian, term.looseForms) }));
         document.querySelectorAll('article [data-block-id]').forEach((block) => {
             const nodes: { node: Text; start: number }[] = [];
             let text = '';

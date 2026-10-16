@@ -69,8 +69,9 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
      * @param original the form in the original's current language, or null when the entry
      *                 came from another language and this one has not named it yet
      */
+    /** @param looseForms the Ukrainian form is found as before: any ending, any case (WordForms) */
     record Entry(long id, String original, String reading, List<String> aliases, String ukrainian, String kind,
-            String gender, String note, Integer sourceChapter, boolean manual, String status) {
+            String gender, String note, Integer sourceChapter, boolean manual, String status, boolean looseForms) {
 
         /** One line for a prompt. */
         String line() {
@@ -352,12 +353,12 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
     public List<Term> known(long editionId, int chapter) {
         var told = DSL.exists(DSL.selectOne().from(GLOSSARY_FACT)
                 .where(GLOSSARY_FACT.ENTRY_ID.eq(GLOSSARY_ENTRY.ID), GLOSSARY_FACT.CHAPTER.le(chapter)));
-        return db.select(GLOSSARY_ENTRY.ID, GLOSSARY_ENTRY.UKRAINIAN, GLOSSARY_ENTRY.KIND).from(GLOSSARY_ENTRY)
+        return db.select(GLOSSARY_ENTRY.ID, GLOSSARY_ENTRY.UKRAINIAN, GLOSSARY_ENTRY.KIND, GLOSSARY_ENTRY.LOOSE_FORMS).from(GLOSSARY_ENTRY)
                 .where(GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId()), GLOSSARY_ENTRY.STATUS.ne("rejected"),
                         GLOSSARY_ENTRY.SOURCE_CHAPTER.isNull().or(GLOSSARY_ENTRY.SOURCE_CHAPTER.le(chapter)),
                         GLOSSARY_ENTRY.NOTE.isNotNull().and(GLOSSARY_ENTRY.NOTE.ne("")).or(told))
                 .orderBy(DSL.length(GLOSSARY_ENTRY.UKRAINIAN).desc())
-                .fetch(r -> new Term(r.value1(), r.value2(), r.value3()));
+                .fetch(r -> new Term(r.value1(), r.value2(), r.value3(), r.value4()));
     }
 
     @Override
@@ -370,7 +371,7 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
         List<GlossaryEntryRecord> found = db.selectFrom(GLOSSARY_ENTRY)
                 .where(GLOSSARY_ENTRY.NOVEL_ID.eq(novelId), GLOSSARY_ENTRY.STATUS.ne("rejected"))
                 .fetch().stream()
-                .filter(entry -> !WordForms.find(text, entry.getUkrainian()).isEmpty())
+                .filter(entry -> !WordForms.find(text, entry.getUkrainian(), entry.getLooseForms()).isEmpty())
                 // «Крижаний спис» before «спис»; then the one the novel met first.
                 .sorted(java.util.Comparator.comparingInt((GlossaryEntryRecord entry) -> -entry.getUkrainian().length())
                         .thenComparing(entry -> entry.getSourceChapter() == null ? 0 : entry.getSourceChapter()))
@@ -475,7 +476,8 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
     }
 
     /** The team's correction: the Ukrainian form, kind, gender and note. */
-    void update(long editionId, long entryId, String ukrainian, String kind, String gender, String note) {
+    /** @param looseForms null keeps it as it was */
+    void update(long editionId, long entryId, String ukrainian, String kind, String gender, String note, Boolean looseForms) {
         String name = ukrainian == null ? "" : ukrainian.strip();
         if (name.isEmpty() || name.length() > 100) {
             throw UserFacingException.badRequest("Вкажіть, як писати українською (до 100 знаків).");
@@ -488,6 +490,7 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
                 .set(GLOSSARY_ENTRY.KIND, kind)
                 .set(GLOSSARY_ENTRY.GENDER, gender == null ? "unknown" : gender)
                 .set(GLOSSARY_ENTRY.NOTE, limit(blankToNull(note), 300))
+                .set(GLOSSARY_ENTRY.LOOSE_FORMS, looseForms == null ? GLOSSARY_ENTRY.LOOSE_FORMS : DSL.val(looseForms))
                 .set(GLOSSARY_ENTRY.MANUAL, true)
                 // A corrected entry is an approved one.
                 .set(GLOSSARY_ENTRY.STATUS, "approved")
@@ -582,10 +585,16 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
         String form = db.select(GLOSSARY_ENTRY.UKRAINIAN).from(GLOSSARY_ENTRY)
                 .where(GLOSSARY_ENTRY.ID.eq(entryId), GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId())).fetchOptional(GLOSSARY_ENTRY.UKRAINIAN)
                 .orElseThrow(() -> UserFacingException.notFound("Такого запису немає."));
-        return occurrencesOf(editionId, form);
+        return occurrencesOf(editionId, form, looseForms(entryId));
     }
 
-    Occurrences occurrencesOf(long editionId, String form) {
+    /** Whether the entry is found as before: any ending, any case. */
+    boolean looseForms(long entryId) {
+        return Boolean.TRUE.equals(db.select(GLOSSARY_ENTRY.LOOSE_FORMS).from(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.ID.eq(entryId))
+                .fetchOne(GLOSSARY_ENTRY.LOOSE_FORMS));
+    }
+
+    Occurrences occurrencesOf(long editionId, String form, boolean loose) {
         List<Occurrence> found = new ArrayList<>();
         int total = 0;
         for (Published chapter : published(editionId)) {
@@ -593,7 +602,7 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
             List<String> snippets = new ArrayList<>();
             for (var block : chapter.blocks()) {
                 String text = block.text();
-                for (int[] at : WordForms.find(text, form)) {
+                for (int[] at : WordForms.find(text, form, loose)) {
                     count++;
                     if (snippets.size() < 3) {
                         int from = Math.max(0, at[0] - AROUND);
@@ -613,15 +622,15 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
 
     /** Every paragraph of the translation where {@code from} would become {@code to}, as it would read. */
     List<space.panrid.novelka.suggestion.Suggestions.BlockChange> rewrite(long editionId, String from, String to) {
-        return rewrite(editionId, from, to, new java.util.HashMap<>());
+        return rewrite(editionId, from, to, false, new java.util.HashMap<>());
     }
 
     /** Paragraphs that name the form, as they are, for a model to look through (gender, етап 17). */
-    List<space.panrid.novelka.suggestion.Suggestions.BlockChange> naming(long editionId, String form) {
+    List<space.panrid.novelka.suggestion.Suggestions.BlockChange> naming(long editionId, String form, boolean loose) {
         List<space.panrid.novelka.suggestion.Suggestions.BlockChange> out = new ArrayList<>();
         for (Published chapter : published(editionId)) {
             for (var block : chapter.blocks()) {
-                if (block.content() != null && block.content().size() == 1 && !WordForms.find(block.text(), form).isEmpty()) {
+                if (block.content() != null && block.content().size() == 1 && !WordForms.find(block.text(), form, loose).isEmpty()) {
                     out.add(new space.panrid.novelka.suggestion.Suggestions.BlockChange(chapter.number(), block.id(), block.content()));
                 }
             }
@@ -630,7 +639,7 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
     }
 
     /** @param originals filled with each changed paragraph's text before the change, by «chapter:block» */
-    List<space.panrid.novelka.suggestion.Suggestions.BlockChange> rewrite(long editionId, String from, String to,
+    List<space.panrid.novelka.suggestion.Suggestions.BlockChange> rewrite(long editionId, String from, String to, boolean loose,
             Map<String, String> originals) {
         List<space.panrid.novelka.suggestion.Suggestions.BlockChange> changes = new ArrayList<>();
         if (from == null || from.isBlank() || to == null || to.isBlank() || from.strip().equals(to.strip())) {
@@ -638,11 +647,11 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
         }
         for (Published chapter : published(editionId)) {
             for (var block : chapter.blocks()) {
-                if (block.content() == null || WordForms.find(block.text(), from).isEmpty()) {
+                if (block.content() == null || WordForms.find(block.text(), from, loose).isEmpty()) {
                     continue;
                 }
                 List<space.panrid.novelka.platform.text.Span> spans = block.content().stream()
-                        .map(span -> new space.panrid.novelka.platform.text.Span(WordForms.replace(span.text(), from, to), span.marks()))
+                        .map(span -> new space.panrid.novelka.platform.text.Span(WordForms.replace(span.text(), from, to, loose), span.marks()))
                         .toList();
                 if (!spans.equals(block.content())) {
                     changes.add(new space.panrid.novelka.suggestion.Suggestions.BlockChange(chapter.number(), block.id(), spans));
@@ -679,7 +688,8 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
         return new Entry(row.get(GLOSSARY_ENTRY.ID), row.get(GLOSSARY_FORM.ORIGINAL), row.get(GLOSSARY_FORM.READING),
                 aliases == null ? List.of() : json.readValue(aliases.data(), STRINGS), row.get(GLOSSARY_ENTRY.UKRAINIAN),
                 row.get(GLOSSARY_ENTRY.KIND), row.get(GLOSSARY_ENTRY.GENDER), row.get(GLOSSARY_ENTRY.NOTE),
-                row.get(GLOSSARY_ENTRY.SOURCE_CHAPTER), row.get(GLOSSARY_ENTRY.MANUAL), row.get(GLOSSARY_ENTRY.STATUS));
+                row.get(GLOSSARY_ENTRY.SOURCE_CHAPTER), row.get(GLOSSARY_ENTRY.MANUAL), row.get(GLOSSARY_ENTRY.STATUS),
+                row.get(GLOSSARY_ENTRY.LOOSE_FORMS));
     }
 
     private static String blankToNull(String value) {
