@@ -22,8 +22,9 @@ spring:
       lifecycle-management: start-only
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 6MB
+      # An .epub of a whole book (етап 19); pictures keep their own 5 MB limit (ImageService).
+      max-file-size: 30MB
+      max-request-size: 31MB
   session:
     timeout: 30d
     jdbc:

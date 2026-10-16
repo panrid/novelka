@@ -8,7 +8,7 @@ import { Notice } from '../../ui/Notice';
 import { useEditionId } from './EditionPage';
 import styles from './editionShell.module.css';
 
-export type EditionTab = 'overview' | 'chapters' | 'translate' | 'words' | 'suggestions' | 'settings';
+export type EditionTab = 'overview' | 'chapters' | 'originals' | 'translate' | 'words' | 'suggestions' | 'settings';
 
 const KIND_LABELS: Record<string, string> = {
     machine: 'машинний переклад', mixed: 'машинний з правками', human: 'переклад', original: 'власний твір',
@@ -27,6 +27,8 @@ export function editionTabs(edition: Overview, canRun: boolean) {
     return {
         translate: machine && edition.role !== 'editor',
         words: machine,
+        // The text a translation is made from (етап 19): not for own works, not for a team's editor.
+        originals: canRun && edition.kind !== 'original' && edition.role !== 'editor',
     };
 }
 
@@ -66,6 +68,7 @@ export function EditionShell({ tab, children }: { tab: EditionTab; children: Rea
             <nav className={styles.tabs} aria-label="Розділи перекладу">
                 {item('overview', 'Огляд', '/studio/$editionId')}
                 {item('chapters', 'Глави', '/studio/$editionId/chapters')}
+                {shown.originals && item('originals', 'Оригінал', '/studio/$editionId/originals')}
                 {shown.translate && item('translate', 'Автопереклад', '/studio/$editionId/translate')}
                 {shown.words && item('words', <>Словник{edition.newWords > 0 && <span className={styles.count}>{edition.newWords}</span>}</>, '/studio/$editionId/glossary')}
                 {item('suggestions', <>Правки{edition.pendingSuggestions > 0 && <span className={styles.count}>{edition.pendingSuggestions}</span>}</>, '/studio/$editionId/suggestions')}

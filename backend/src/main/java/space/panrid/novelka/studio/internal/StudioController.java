@@ -2,6 +2,7 @@ package space.panrid.novelka.studio.internal;
 
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.EDITION;
+import static space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL;
 import static space.panrid.novelka.jooq.Tables.EDITOR_DRAFT;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.IMAGE;
@@ -332,7 +333,7 @@ class StudioController {
         return new EditorView(number, state.title(), studioBlocks(state.blocks()), state.revisionId(), state.published(),
                 draft == null ? null : new EditorDraft(draft.title(), studioBlocks(draft.blocks()), draft.baseRevisionId(), draft.updatedAt()),
                 who.role().code(), who.role().translates(), neighbour(editionId, number, false), neighbour(editionId, number, true),
-                state.label(), sourceChapterId(editionId, number) != null);
+                state.label(), sourceChapterId(editionId, number) != null || pastedOriginal(editionId, number) != null);
     }
 
     /**
@@ -343,8 +344,9 @@ class StudioController {
     OriginalView original(@PathVariable long editionId, @PathVariable int number) {
         access.requireTextEditor(editionId);
         Long sourceId = sourceChapterId(editionId, number);
-        var source = sourceId == null ? null : db.select(SOURCE_CHAPTER.TITLE, SOURCE_CHAPTER.BLOCKS).from(SOURCE_CHAPTER)
-                .where(SOURCE_CHAPTER.ID.eq(sourceId)).fetchOne();
+        // The site's original of the owner's translation, or the one the team pasted (етап 19).
+        var source = sourceId == null ? pastedOriginal(editionId, number)
+                : db.select(SOURCE_CHAPTER.TITLE, SOURCE_CHAPTER.BLOCKS).from(SOURCE_CHAPTER).where(SOURCE_CHAPTER.ID.eq(sourceId)).fetchOne();
         if (source == null) {
             throw UserFacingException.notFound("Ця глава не перекладена з оригіналу.");
         }
@@ -373,6 +375,11 @@ class StudioController {
     Volumes.Structure saveStructure(@PathVariable long editionId, @RequestBody Volumes.Change body) {
         access.requireTranslator(editionId);
         return volumes.save(editionId, body);
+    }
+
+    private org.jooq.Record2<String, org.jooq.JSONB> pastedOriginal(long editionId, int number) {
+        return db.select(EDITION_ORIGINAL.TITLE, EDITION_ORIGINAL.BLOCKS).from(EDITION_ORIGINAL)
+                .where(EDITION_ORIGINAL.EDITION_ID.eq(editionId), EDITION_ORIGINAL.NUMBER.eq(number)).fetchOne();
     }
 
     private Long sourceChapterId(long editionId, int number) {

@@ -305,3 +305,47 @@ describe('the novel’s data', () => {
         }));
     });
 });
+
+describe('the original of a translation (етап 19)', () => {
+    const EDITION = { editionId: 12, novelSlug: 'mayak', title: 'Доглядач маяка', author: '', description: [], tags: [], kind: 'human', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner', ...COUNTS };
+    const EMPTY = { items: [], total: 0, page: 1, nextNumber: 1, languages: {} };
+
+    it('splits pasted text into chapters, shows the split and saves it with its language', async () => {
+        let saved = false;
+        const { calls } = await renderAt('/studio/12/originals', {
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/12': { body: EDITION },
+            'GET /api/studio/editions/12/originals': () => ({ body: saved
+                ? { items: [{ number: 1, title: '第1話', chars: 9, language: 'en', translated: false, updatedAt: '2026-10-16T10:00:00Z' }], total: 1, page: 1, nextNumber: 2, languages: { en: 1 } }
+                : EMPTY }),
+            'POST /api/studio/editions/12/originals/preview': { body: { firstNumber: 1, nextNumber: 1, chapters: [
+                { number: 1, title: '第1話', chars: 9, paragraphs: 1, pictures: 0, start: '灯台の火が消えた夜。', replaces: false, translated: false },
+            ] } },
+            'POST /api/studio/editions/12/originals': () => { saved = true; return { status: 201, body: { saved: 1, from: 1, to: 1 } }; },
+        });
+        expect(await screen.findByRole('link', { name: 'Оригінал' })).toHaveAttribute('aria-current', 'page');
+        await userEvent.click(screen.getByRole('textbox', { name: /Текст однієї чи кількох глав/ }));
+        await userEvent.paste('第1話\n灯台の火が消えた夜。');
+        await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Мова оригіналу' }), 'en');
+        await userEvent.click(screen.getByRole('button', { name: 'Поділити на глави' }));
+        expect(await screen.findByText('灯台の火が消えた夜。')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: /^Зберегти 1 глав/ }));
+        expect(await screen.findByText('Збережено глави 1.')).toBeInTheDocument();
+        const sent = calls.find((call) => call.method === 'POST' && call.path === '/api/studio/editions/12/originals')!.body as FormData;
+        expect(sent.get('language')).toBe('en');
+        expect(sent.get('text')).toBe('第1話\n灯台の火が消えた夜。');
+        expect(await screen.findByText('англ.')).toBeInTheDocument();
+    });
+
+    it('is not offered to others while the stage is being made', async () => {
+        await renderAt('/studio/12', {
+            'GET /api/me': { body: ME },
+            'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
+            'GET /api/studio/editions/12': { body: EDITION },
+            'GET /api/studio/editions/12/chapters': { body: NO_CHAPTERS },
+            'GET /api/studio/editions/12/contributions': { body: [] },
+        });
+        expect(await screen.findByRole('link', { name: 'Глави' })).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Оригінал' })).not.toBeInTheDocument();
+    });
+});

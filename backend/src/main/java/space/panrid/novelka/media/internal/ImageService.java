@@ -53,6 +53,9 @@ class ImageService implements Images {
     @Override
     @Transactional
     public StoredImage store(long ownerAccountId, ImageKind kind, byte[] content) {
+        if (content.length > RemoteImages.MAX_BYTES) {
+            throw UserFacingException.badRequest("Картинка завелика: до 5 МБ.");
+        }
         if (!uploads.tryAcquire(Long.toString(ownerAccountId))) {
             throw UserFacingException.tooManyRequests();
         }

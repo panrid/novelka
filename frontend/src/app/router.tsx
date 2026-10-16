@@ -37,6 +37,7 @@ import { NewPublication } from '../pages/studio/NewPublication';
 import { AutotranslatePage } from '../pages/studio/AutotranslatePage';
 import { JobLogPage } from '../pages/studio/JobLogPage';
 import { GlossaryPage } from '../pages/studio/GlossaryPage';
+import { OriginalsPage } from '../pages/studio/OriginalsPage';
 import { ProcessesPage } from '../pages/studio/ProcessesPage';
 import { TitlesPage } from '../pages/studio/TitlesPage';
 import { WalletPage } from '../pages/me/WalletPage';
@@ -179,6 +180,7 @@ const routeTree = rootRoute.addChildren([
     studio('/studio/$editionId/translate', AutotranslatePage, 'Автопереклад'),
     studio('/studio/$editionId/translate/jobs/$jobId', JobLogPage, 'Журнал запуску'),
     studio('/studio/$editionId/glossary', GlossaryPage, 'Словник'),
+    studio('/studio/$editionId/originals', OriginalsPage, 'Оригінал'),
     studio('/studio/$editionId/titles', TitlesPage, 'Назви глав'),
     studio('/studio/processes', ProcessesPage, 'Процеси'),
     studio('/me/wallet', WalletPage, 'Шаги'),
