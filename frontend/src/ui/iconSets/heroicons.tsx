@@ -32,6 +32,7 @@ const NAMES: Record<string, string> = {
     Inbox: 'InboxIcon',
     Info: 'InformationCircleIcon',
     Languages: 'LanguageIcon',
+    Lightbulb: 'LightBulbIcon',
     Link2: 'LinkIcon',
     List: 'ListBulletIcon',
     MessageCircle: 'ChatBubbleOvalLeftIcon',

@@ -349,6 +349,18 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
     private static final int SELECTION_MAX = 300;
 
     @Override
+    public List<Term> known(long editionId, int chapter) {
+        var told = DSL.exists(DSL.selectOne().from(GLOSSARY_FACT)
+                .where(GLOSSARY_FACT.ENTRY_ID.eq(GLOSSARY_ENTRY.ID), GLOSSARY_FACT.CHAPTER.le(chapter)));
+        return db.select(GLOSSARY_ENTRY.ID, GLOSSARY_ENTRY.UKRAINIAN, GLOSSARY_ENTRY.KIND).from(GLOSSARY_ENTRY)
+                .where(GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId()), GLOSSARY_ENTRY.STATUS.ne("rejected"),
+                        GLOSSARY_ENTRY.SOURCE_CHAPTER.isNull().or(GLOSSARY_ENTRY.SOURCE_CHAPTER.le(chapter)),
+                        GLOSSARY_ENTRY.NOTE.isNotNull().and(GLOSSARY_ENTRY.NOTE.ne("")).or(told))
+                .orderBy(DSL.length(GLOSSARY_ENTRY.UKRAINIAN).desc())
+                .fetch(r -> new Term(r.value1(), r.value2(), r.value3()));
+    }
+
+    @Override
     public List<Card> named(long editionId, int chapter, String selection) {
         String text = selection == null ? "" : selection.strip();
         if (text.isEmpty() || text.length() > SELECTION_MAX) {

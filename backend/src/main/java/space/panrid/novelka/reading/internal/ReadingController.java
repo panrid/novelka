@@ -176,6 +176,13 @@ class ReadingController {
         return cards.named(edition.id(), chapter, q);
     }
 
+    /** «Лампочка» in the reader: the glossary's words a reader at {@code chapter} may ask about. */
+    @GetMapping("/novels/{slug}/terms")
+    List<GlossaryCards.Term> terms(@PathVariable String slug, @RequestParam(required = false) String t, @RequestParam int chapter) {
+        EditionRow edition = pick(visibleEditions(queries.novel(slug).orElseThrow(ReadingController::noNovel), currentUser.viewer()), t);
+        return cards.known(edition.id(), chapter);
+    }
+
     @GetMapping("/novels/{slug}/chapters")
     Views.Page<Views.ChapterRow> chapters(@PathVariable String slug, @RequestParam(required = false) String t,
             @RequestParam(defaultValue = "asc") String order, @RequestParam(defaultValue = "1") int page,

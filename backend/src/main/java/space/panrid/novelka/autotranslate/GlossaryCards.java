@@ -15,6 +15,13 @@ public interface GlossaryCards {
     record Card(long id, String ukrainian, String kind, String gender, List<String> facts) {
     }
 
+    /** A word the reader's «лампочка» marks in the text: the reader may ask who it is. */
+    record Term(long id, String ukrainian, String kind) {
+    }
+
+    /** Entries the novel has met by {@code chapter} and told something about (a note or a fact). */
+    List<Term> known(long editionId, int chapter);
+
     /** Entries named in {@code selection} (in any of their Ukrainian forms), the longest names first; at most a few. */
     List<Card> named(long editionId, int chapter, String selection);
 }

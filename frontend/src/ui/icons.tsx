@@ -89,6 +89,7 @@ export const Images = icon('Images');
 export const Inbox = icon('Inbox');
 export const Info = icon('Info');
 export const Languages = icon('Languages');
+export const Lightbulb = icon('Lightbulb');
 export const Link2 = icon('Link2');
 export const List = icon('List');
 export const MessageCircle = icon('MessageCircle');

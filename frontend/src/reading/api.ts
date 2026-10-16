@@ -172,9 +172,17 @@ function query(params: Record<string, string | number | string[] | undefined>) {
 const novelPath = (slug: string) => `/api/novels/${encodeURIComponent(slug)}`;
 
 /** A name or term of the translation's glossary and what the novel told about it by the reader's chapter. */
+/** A word «лампочка» marks: an entry of the glossary the reader may ask about. */
+export type GlossaryTerm = { id: number; ukrainian: string; kind: string };
+
 export type WhoCard = { id: number; ukrainian: string; kind: string; gender: string | null; facts: string[] };
 
 export const readingApi = {
+    terms: (slug: string, team: string | undefined, chapter: number) => {
+        const params = new URLSearchParams({ chapter: String(chapter) });
+        if (team) params.set('t', team);
+        return api<GlossaryTerm[]>(`/api/novels/${encodeURIComponent(slug)}/terms?${params}`);
+    },
     who: (slug: string, team: string | undefined, chapter: number, text: string) => {
         const params = new URLSearchParams({ chapter: String(chapter), q: text });
         if (team) params.set('t', team);

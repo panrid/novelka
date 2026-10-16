@@ -111,3 +111,10 @@ nav [data-icon],
 header [data-icon] {
     color: var(--icon-color, currentColor);
 }
+
+/* «Лампочка» in the reader: words of the glossary a tap explains (reading/useGlossaryHints.ts). */
+::highlight(glossary) {
+    background-color: color-mix(in srgb, var(--accent) 24%, transparent);
+    text-decoration: underline dotted color-mix(in srgb, var(--accent) 80%, transparent);
+    text-underline-offset: 3px;
+}

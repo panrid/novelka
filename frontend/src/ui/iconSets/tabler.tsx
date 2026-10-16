@@ -2,7 +2,7 @@
 // Loaded only when someone picks the set; see ui/icons.tsx.
 
 import type { ComponentType, ReactElement } from 'react';
-import { IconAdjustmentsHorizontal, IconArchive, IconRestore, IconArrowBackUp, IconArrowForwardUp, IconArrowLeft, IconArrowsLeftRight, IconArrowsSort, IconAward, IconBell, IconBellRinging, IconBook, IconBookmarkPlus, IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconChevronUp, IconDots, IconFileUpload, IconFlag, IconHistory, IconHome, IconInbox, IconInfoCircle, IconLanguage, IconLink, IconList, IconMessageCircle, IconMinus, IconPencil, IconPhotoPlus, IconLibraryPhoto, IconPlus, IconRefresh, IconSearch, IconSend, IconSparkles, IconTrash, IconTypography, IconUser, IconUsers, IconX } from '@tabler/icons-react';
+import { IconAdjustmentsHorizontal, IconArchive, IconRestore, IconArrowBackUp, IconArrowForwardUp, IconArrowLeft, IconArrowsLeftRight, IconArrowsSort, IconAward, IconBell, IconBellRinging, IconBook, IconBookmarkPlus, IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconChevronUp, IconDots, IconFileUpload, IconFlag, IconHistory, IconHome, IconInbox, IconInfoCircle, IconLanguage, IconBulb, IconLink, IconList, IconMessageCircle, IconMinus, IconPencil, IconPhotoPlus, IconLibraryPhoto, IconPlus, IconRefresh, IconSearch, IconSend, IconSparkles, IconTrash, IconTypography, IconUser, IconUsers, IconX } from '@tabler/icons-react';
 import type { SetIconProps } from '../icons';
 
 function draw(Icon: ComponentType<Record<string, unknown>>, { size, stroke }: SetIconProps) {
@@ -35,6 +35,7 @@ const ICONS: Record<string, ComponentType<Record<string, unknown>>> = {
     Inbox: IconInbox,
     Info: IconInfoCircle,
     Languages: IconLanguage,
+    Lightbulb: IconBulb,
     Link2: IconLink,
     List: IconList,
     MessageCircle: IconMessageCircle,

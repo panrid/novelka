@@ -1,7 +1,8 @@
 import { DiffModeSwitch } from '../../ui/WordDiff';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
-import { ArrowLeft, ChevronLeft, ChevronRight, List, MessageCircle, Type } from '../../ui/icons';
+import { ArrowLeft, ChevronLeft, ChevronRight, Lightbulb, List, MessageCircle, Type } from '../../ui/icons';
+import { hintsRemembered, rememberHints, useGlossaryHints } from '../../reading/useGlossaryHints';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useMe } from '../../auth/me';
 import { Discussion, useCommentCount } from '../../community/Discussion';
@@ -188,6 +189,8 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     const [editing, setEditing] = useState<string | null>(null);
     const [replacing, setReplacing] = useState<string | null>(null);
     const [asking, setAsking] = useState<string | null>(null);
+    // «Лампочка»: the glossary's words marked in the text, a tap on one says who or what it is.
+    const [hintsOn, setHintsOn] = useState(hintsRemembered);
     const [reviewing, setReviewing] = useState(false);
     useEffect(() => {
         if (reviewing) lookOnly.current = true;
@@ -204,6 +207,11 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     function toggleBars(event: MouseEvent) {
         const target = event.target as HTMLElement;
         if (target.closest('a, button') || window.getSelection()?.toString()) return;
+        const term = hints.at(event.clientX, event.clientY);
+        if (term && !editMode) {
+            setAsking(term.ukrainian);
+            return;
+        }
         const block = target.closest('p[data-block-id], h2[data-block-id]');
         if (editMode && block) {
             setEditing(block.getAttribute('data-block-id'));
@@ -239,6 +247,10 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     }, [paged]);
     const frame = useRef<HTMLDivElement>(null);
     const textRef = useRef<HTMLElement>(null);
+    const hints = useGlossaryHints({
+        enabled: hintsOn, slug: chapter.novelSlug, team, chapter: chapter.number,
+        layoutKey: [chapter.number, paged, editMode, chapter.blocks.length, mine.drafts, review.items.length, Object.keys(mine.overlay).length].join(':'),
+    });
     const pages = usePages({
         enabled: paged, frame, text: textRef, turnStyle: view.pageAnim, position: () => place.current,
         layoutKey: [view.font, view.size, view.lineHeight, view.margin, view.width, view.align, view.paragraphs,
@@ -280,6 +292,11 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                     <div className={styles.novel}>{chapter.novelTitle}</div>
                     <div className={styles.count}>{chapter.label === null ? `Глава ${chapter.number}` : chapter.number} з {chapter.edition.chapterCount}</div>
                 </div>
+                <button type="button" className={`${styles.icon} ${hintsOn ? styles.iconOn : ''}`} aria-pressed={hintsOn}
+                    aria-label="Підказки зі словника" title={hintsOn ? 'Підказки зі словника: увімкнено' : 'Підказки зі словника'}
+                    onClick={() => { setHintsOn(!hintsOn); rememberHints(!hintsOn); }}>
+                    <Lightbulb size={22} aria-hidden />
+                </button>
                 <TextSettings />
                 <Link to="/n/$slug" params={{ slug: chapter.novelSlug }} search={search} hash="chapters" className={styles.icon} aria-label="Зміст">
                     <List size={22} aria-hidden />
@@ -495,7 +512,6 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     );
 }
 
-/** «Аа»: the reader's own look — the same form as in «Налаштування», every change shows at once. */
 /**
  * «Хто це»: the names and terms of the selection, with what the novel has told about them by
  * this chapter — so a reader never meets a spoiler here.
@@ -527,6 +543,7 @@ const WHO_KINDS: Record<string, string> = {
     character: 'персонаж', place: 'місце', organization: 'організація', term: 'термін', other: 'інше',
 };
 
+/** «Аа»: the reader's own look — the same form as in «Налаштування», every change shows at once. */
 function TextSettings() {
     const [open, setOpen] = useState(false);
     return (

@@ -319,3 +319,7 @@
     color: var(--muted);
     font: 400 14px var(--font-ui);
 }
+
+.iconOn {
+    color: var(--accent);
+}

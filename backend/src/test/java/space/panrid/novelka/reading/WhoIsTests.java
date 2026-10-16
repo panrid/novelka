@@ -80,6 +80,21 @@ class WhoIsTests {
         assertThat(who(guest, 3, "стіл").size()).isZero();
     }
 
+    @Test
+    void theLampMarksOnlyWordsTheReadersChapterHasMetAndToldAbout() {
+        Browser guest = new Browser(port);
+        assertThat(terms(guest, 1)).containsExactly("Рьо");
+        assertThat(terms(guest, 3)).as("the longest first; a rejected entry never").containsExactly("Крижаний спис", "Рьо");
+    }
+
+    private java.util.List<String> terms(Browser browser, int chapter) {
+        Response response = browser.get("/api/novels/" + slug + "/terms?chapter=" + chapter);
+        assertThat(response.status()).as(response.body()).isEqualTo(200);
+        java.util.List<String> names = new java.util.ArrayList<>();
+        JSON.readTree(response.body()).forEach(term -> names.add(term.path("ukrainian").asString()));
+        return names;
+    }
+
     private JsonNode who(Browser browser, int chapter, String text) {
         Response response = browser.get("/api/novels/" + slug + "/who?chapter=" + chapter + "&q=" + URLEncoder.encode(text, StandardCharsets.UTF_8));
         assertThat(response.status()).as(response.body()).isEqualTo(200);
