@@ -173,3 +173,34 @@ describe('the team ties a word to the glossary from the reader', () => {
             .toEqual({ blockId: 'b2', entryId: 4, form: 'Ліжко скрипнуло.', linked: true }));
     });
 });
+
+describe('a paragraph fixed by the team', () => {
+    it('saves it in the chapter at once instead of adding it to the batch', async () => {
+        const { calls, queryClient } = await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody/chapters/12': { body: { ...CHAPTER, teamRole: 'editor' } },
+            'GET /api/suggestions/mine': { body: { items: [], draftsInEdition: 0 } },
+            'GET /api/studio/editions/7/chapters/12/suggestions': { body: [] },
+            'POST /api/studio/editions/7/chapters/12/blocks/apply': { status: 204 },
+        });
+        await screen.findByRole('heading', { name: '12. Спокійне життя' });
+
+        const paragraph = screen.getByText('Ліжко скрипнуло.');
+        const range = document.createRange();
+        range.selectNodeContents(paragraph.firstChild!);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(range);
+        document.dispatchEvent(new Event('selectionchange'));
+        await userEvent.click(await screen.findByRole('button', { name: '✎ Виправити абзац' }));
+
+        const dialog = await screen.findByRole('dialog');
+        expect(within(dialog).queryByRole('button', { name: 'Додати до пакета' })).not.toBeInTheDocument();
+        await userEvent.click(within(dialog).getByRole('button', { name: 'Зберегти в главі' }));
+
+        await waitFor(() => expect(calls.find((call) => call.path === '/api/studio/editions/7/chapters/12/blocks/apply')?.body)
+            .toMatchObject({ blockId: 'b2', content: [{ text: 'Ліжко скрипнуло.', marks: [] }] }));
+        // The reader shows the new text without waiting for the cached chapter to go stale.
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        expect(queryClient.getQueryState(['chapter', 'mah-vody', '', 12])?.dataUpdateCount).toBeGreaterThan(1);
+    });
+});

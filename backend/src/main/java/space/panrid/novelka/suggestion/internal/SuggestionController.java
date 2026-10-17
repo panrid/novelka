@@ -226,6 +226,16 @@ class SuggestionController {
         return service.review(who.viewer(), editionId, number, body.decisions() == null ? List.of() : body.decisions(), body.note());
     }
 
+    record ApplyBlock(String blockId, List<Span> content, String note) {
+    }
+
+    @PostMapping("/api/studio/editions/{editionId}/chapters/{number}/blocks/apply")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void applyBlock(@PathVariable long editionId, @PathVariable int number, @RequestBody ApplyBlock body) {
+        var who = access.requireTextEditor(editionId);
+        service.applyBlock(who.viewer(), editionId, number, body.blockId(), body.content(), body.note());
+    }
+
     private String preview(String kind, String proposed, String find, String replacement) {
         return switch (kind) {
             case "block" -> json.readValue(proposed, SPANS).stream().map(Span::text).reduce("", String::concat);
