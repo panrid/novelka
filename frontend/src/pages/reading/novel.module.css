@@ -620,6 +620,12 @@
     font: 600 28px var(--font-reading);
 }
 
+.characterMentions {
+    margin-top: -4px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
 .characterName {
     max-width: 100%;
     overflow: hidden;

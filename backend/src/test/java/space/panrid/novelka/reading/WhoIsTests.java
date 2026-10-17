@@ -117,9 +117,9 @@ class WhoIsTests {
         assertThat(read(admin.browser().get(base + "roles")).path("characters").asInt()).as("all sorted").isZero();
 
         Browser guest = new Browser(port);
-        assertThat(JSON.readTree(guest.get("/api/novels/" + slug + "/characters?all=true").body()))
+        assertThat(JSON.readTree(guest.get("/api/novels/" + slug + "/characters?all=true&sort=appearance").body()))
                 .extracting(card -> card.path("ukrainian").asString()).as("one name per character, no creatures").containsExactly("Рьо", "Лілія");
-        assertThat(JSON.readTree(guest.get("/api/novels/" + slug + "/characters?chapter=3").body()))
+        assertThat(JSON.readTree(guest.get("/api/novels/" + slug + "/characters?chapter=3&sort=appearance").body()))
                 .extracting(card -> card.path("ukrainian").asString()).as("her name is not told yet").containsExactly("Рьо", "дружина Лота");
         assertThat(who(guest, 7, "Міхара Рьо").path(0).path("ukrainian").asString()).as("another name, the main card").isEqualTo("Рьо");
         assertThat(who(guest, 7, "Міхара Рьо").path(0).path("facts").toString()).contains("Повне ім'я героя.").contains("Головний герой.");
@@ -127,11 +127,50 @@ class WhoIsTests {
 
         // Her name is the main one now; then the full name goes its own way again.
         read(admin.browser().post(base + wife + "/main", "{}"));
-        assertThat(JSON.readTree(guest.get("/api/novels/" + slug + "/characters?all=true").body()))
+        assertThat(JSON.readTree(guest.get("/api/novels/" + slug + "/characters?all=true&sort=appearance").body()))
                 .extracting(card -> card.path("ukrainian").asString()).containsExactly("Рьо", "дружина Лота");
         read(admin.browser().delete(base + fullName + "/same-as"));
         read(admin.browser().put(base + fullName + "/in-story", "{\"inStory\":false}"));
         assertThat(JSON.readTree(guest.get("/api/novels/" + slug).body()).path("characters").asInt()).isEqualTo(2);
+    }
+
+    @Test
+    void charactersAreSortedByMentionsUpToTheReadersChapterOrByName() {
+        long edition = db.select(space.panrid.novelka.jooq.Tables.EDITION.ID).from(space.panrid.novelka.jooq.Tables.EDITION)
+                .where(space.panrid.novelka.jooq.Tables.EDITION.NOVEL_ID.eq(novelId)).fetchSingle().value1();
+        long ryo = db.select(GLOSSARY_ENTRY.ID).from(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.NOVEL_ID.eq(novelId), GLOSSARY_ENTRY.UKRAINIAN.eq("Рьо"))
+                .fetchSingle().value1();
+        long yuko = entry("Юко", "character", "Подруга Рьо.", 1, "approved");
+        long full = entry("Юко-сан", "character", "Так її кличуть.", 2, "approved");
+        db.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.SAME_AS, yuko).where(GLOSSARY_ENTRY.ID.eq(full)).execute();
+        form(ryo, "涼");
+        form(yuko, "ユコ");
+        form(full, "ユコさん");
+        // Chapter 1 is counted in the translation (Рьо once), chapter 2 in its original:
+        // «ユコさん» is one mention, not also «ユコ»; both names count for Юко.
+        db.insertInto(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL)
+                .set(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL.EDITION_ID, edition)
+                .set(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL.NUMBER, 2)
+                .set(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL.TITLE, "第2話")
+                .set(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL.BLOCKS, org.jooq.JSONB.valueOf(
+                        "[{\"id\":\"a\",\"type\":\"paragraph\",\"content\":[{\"text\":\"ユコさんとユコ、ユコ。涼。\",\"marks\":[]}]}]"))
+                .set(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL.CHARS, 12)
+                .set(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL.LANGUAGE, "ja").execute();
+
+        Browser guest = new Browser(port);
+        JsonNode all = read(guest.get("/api/novels/" + slug + "/characters?all=true"));
+        assertThat(all).extracting(card -> card.path("ukrainian").asString()).as("the most named first").containsExactly("Юко", "Рьо");
+        assertThat(all).extracting(card -> card.path("mentions").asInt()).containsExactly(3, 2);
+        assertThat(read(guest.get("/api/novels/" + slug + "/characters?chapter=1")))
+                .extracting(card -> card.path("mentions").asInt()).as("only what the reader has read").containsExactly(1, 0);
+        assertThat(read(guest.get("/api/novels/" + slug + "/characters?all=true&sort=name")))
+                .extracting(card -> card.path("ukrainian").asString()).containsExactly("Рьо", "Юко");
+
+        // A name added later is counted again.
+        long abel = entry("Абель-сан", "character", "Мечник.", 2, "approved");
+        form(abel, "ユコさんとユコ");
+        assertThat(read(guest.get("/api/novels/" + slug + "/characters?all=true")))
+                .extracting(card -> card.path("ukrainian").asString() + card.path("mentions").asInt()).as("equals in the order met").containsExactly("Рьо2", "Юко1", "Абель-сан1");
     }
 
     @Test

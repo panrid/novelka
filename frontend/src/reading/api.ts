@@ -188,7 +188,10 @@ export type GlossaryHints = {
     links: { blockId: string; entryId: number; text: string | null; linked: boolean }[];
 };
 
-export type WhoCard = { id: number; ukrainian: string; kind: string; gender: string | null; facts: string[] };
+/** {@code mentions}: how often the novel named it by the reader's chapter («Персонажі»; elsewhere 0). */
+export type WhoCard = { id: number; ukrainian: string; kind: string; gender: string | null; facts: string[]; mentions?: number };
+
+export type CharacterSort = 'mentions' | 'name' | 'appearance';
 
 export const readingApi = {
     terms: (slug: string, team: string | undefined, chapter: number) => {
@@ -201,9 +204,9 @@ export const readingApi = {
         if (team) params.set('t', team);
         return api<GlossaryHints>(`/api/novels/${encodeURIComponent(slug)}/hints?${params}`);
     },
-    /** «Персонажі»: met by the reader's chapter, or all of them (spoilers) when asked. */
-    characters: (slug: string, team: string | undefined, chapter: number, all: boolean) => {
-        const params = new URLSearchParams({ chapter: String(chapter) });
+    /** «Персонажі»: met by the reader's chapter, or all of them (spoilers) when asked; the most named first by default. */
+    characters: (slug: string, team: string | undefined, chapter: number, all: boolean, sort: CharacterSort = 'mentions') => {
+        const params = new URLSearchParams({ chapter: String(chapter), sort });
         if (all) params.set('all', 'true');
         if (team) params.set('t', team);
         return api<WhoCard[]>(`/api/novels/${encodeURIComponent(slug)}/characters?${params}`);

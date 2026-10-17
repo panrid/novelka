@@ -12,9 +12,19 @@ public interface GlossaryCards {
 
     /**
      * @param kind  character, place, organization, term or other
-     * @param facts what is known by the chapter, in the order the novel told it
+     * @param facts    what is known by the chapter, in the order the novel told it
+     * @param mentions how often the novel named it by the chapter (all its names); 0 where not counted
      */
-    record Card(long id, String ukrainian, String kind, String gender, List<String> facts) {
+    record Card(long id, String ukrainian, String kind, String gender, List<String> facts, int mentions) {
+
+        public Card(long id, String ukrainian, String kind, String gender, List<String> facts) {
+            this(id, ukrainian, kind, gender, facts, 0);
+        }
+    }
+
+    /** How «Персонажі» are ordered: the most named first, by name, or in the order the novel met them. */
+    enum Sort {
+        MENTIONS, NAME, APPEARANCE
     }
 
     /**
@@ -43,11 +53,11 @@ public interface GlossaryCards {
     }
 
     /**
-     * «Персонажі» on the novel page: the characters the novel has met by {@code chapter}, in the
-     * order it met them, each with what it told by then; {@code chapter} null — all of them, with
+     * «Персонажі» on the novel page: the characters the novel has met by {@code chapter}, each with
+     * what it told by then and how often it named them; {@code chapter} null — all of them, with
      * everything (spoilers, the reader asked for it).
      */
-    List<Card> characters(long editionId, Integer chapter);
+    List<Card> characters(long editionId, Integer chapter, Sort sort);
 
     /** How many characters the glossary has: the novel page shows «Персонажі» when there are some. */
     int characterCount(long editionId);

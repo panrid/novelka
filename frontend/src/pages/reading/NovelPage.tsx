@@ -12,7 +12,7 @@ import { Sheet } from '../../ui/Sheet';
 import { Toggle } from '../../ui/Toggle';
 import { Blocks } from '../../reading/Blocks';
 import { Cover } from '../../reading/Cover';
-import { LIST_LABELS, SOURCE_STATUS_LABELS, chapterHeading, chaptersWord, otherNames, readingApi, translationStatus, volumeTitle, type ChapterRow as ChapterRowType, type ContentsVolume, type ListName, type NovelPage as Novel, type WhoCard } from '../../reading/api';
+import { LIST_LABELS, SOURCE_STATUS_LABELS, chapterHeading, chaptersWord, otherNames, readingApi, translationStatus, volumeTitle, type ChapterRow as ChapterRowType, type ContentsVolume, type ListName, type NovelPage as Novel, type WhoCard, type CharacterSort } from '../../reading/api';
 import { relayApi, teamApi } from '../../studio/api';
 import { Segmented } from '../../ui/Segmented';
 import { clearLocalProgress, localProgress } from '../../reading/progress';
@@ -722,11 +722,20 @@ function VolumeSection({ volume, slug, team, order, row, initiallyOpen, current 
  */
 function Characters({ slug, team, chapter }: { slug: string; team: string | undefined; chapter: number }) {
     const [all, setAll] = useState(false);
+    const [sort, setSort] = useState<CharacterSort>('mentions');
     const [open, setOpen] = useState<WhoCard | null>(null);
-    const list = useQuery({ queryKey: ['characters', slug, team ?? '', chapter, all], queryFn: () => readingApi.characters(slug, team, chapter, all) });
+    const list = useQuery({ queryKey: ['characters', slug, team ?? '', chapter, all, sort], queryFn: () => readingApi.characters(slug, team, chapter, all, sort),
+        placeholderData: (previous) => previous });
     const people = list.data ?? [];
     return (
         <div className={styles.characters}>
+            {(people.length > 1 || sort !== 'mentions') && (
+                <Segmented label="Порядок" value={sort} onChange={setSort} options={[
+                    { value: 'mentions', label: 'Частіше згадані' },
+                    { value: 'name', label: 'За іменем' },
+                    { value: 'appearance', label: 'За появою' },
+                ]} />
+            )}
             {list.isError && <Notice tone="error">{list.error.message}</Notice>}
             {list.isSuccess && people.length === 0 && (
                 <p className={styles.muted}>{chapter === 0 ? 'Почніть читати — тут з’являться персонажі, яких ви вже зустріли.' : 'Поки що нікого.'}</p>
@@ -739,6 +748,7 @@ function Characters({ slug, team, chapter }: { slug: string; team: string | unde
                                 {[...person.ukrainian][0]?.toUpperCase()}
                             </span>
                             <span className={styles.characterName}>{person.ukrainian}</span>
+                            {person.mentions ? <span className={styles.characterMentions}>{mentions(person.mentions)}</span> : null}
                         </button>
                     </li>
                 ))}
@@ -753,6 +763,14 @@ function Characters({ slug, team, chapter }: { slug: string; team: string | unde
             )}
         </div>
     );
+}
+
+/** «12 згадок», «1 згадка», «3 згадки». */
+function mentions(count: number): string {
+    const tens = count % 100;
+    const ones = count % 10;
+    const word = tens >= 11 && tens <= 14 ? 'згадок' : ones === 1 ? 'згадка' : ones >= 2 && ones <= 4 ? 'згадки' : 'згадок';
+    return `${count} ${word}`;
 }
 
 /** The reader's own stars (tap the same star again to take them back); the average is in the heading. */

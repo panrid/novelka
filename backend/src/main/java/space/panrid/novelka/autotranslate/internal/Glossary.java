@@ -8,6 +8,8 @@ import static space.panrid.novelka.jooq.Tables.GLOSSARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_FACT;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_FORM;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_LINK;
+import static space.panrid.novelka.jooq.Tables.GLOSSARY_MENTION;
+import static space.panrid.novelka.jooq.Tables.GLOSSARY_MENTION_SCAN;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.REVISION;
 import static space.panrid.novelka.jooq.Tables.SOURCE_CHAPTER;
@@ -421,7 +423,7 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
     }
 
     @Override
-    public List<Card> characters(long editionId, Integer chapter) {
+    public List<Card> characters(long editionId, Integer chapter, Sort sort) {
         int upTo = chapter == null ? Integer.MAX_VALUE : chapter;
         // Acting characters only (monsters, people only mentioned or thought of stay in the hints),
         // a group once — met when any of its names was met, in the order the novel met them.
@@ -434,7 +436,168 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
                 .mapToInt(entry -> entry.getSourceChapter() == null ? 0 : entry.getSourceChapter()).min().orElse(0);
         List<GlossaryEntryRecord> met = mains.stream().filter(main -> firstMet.applyAsInt(main) <= upTo)
                 .sorted(java.util.Comparator.comparingInt(firstMet).thenComparing(GlossaryEntryRecord::getId)).toList();
-        return cards(met, upTo);
+        Map<Long, Integer> named = mentions(editionId, upTo, groups);
+        List<Card> out = cards(met, upTo).stream()
+                .map(card -> new Card(card.id(), card.ukrainian(), card.kind(), card.gender(), card.facts(), named.getOrDefault(card.id(), 0)))
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        // Sorting is stable: equals stay in the order the novel met them.
+        switch (sort) {
+            case MENTIONS -> out.sort(java.util.Comparator.comparingInt(card -> -card.mentions()));
+            case NAME -> {
+                java.text.Collator collator = java.text.Collator.getInstance(java.util.Locale.of("uk"));
+                out.sort(java.util.Comparator.comparing(Card::ukrainian, collator));
+            }
+            case APPEARANCE -> {
+            }
+        }
+        return out;
+    }
+
+    // ---- mentions: how often the novel names each character ---------------------------------------
+
+    /** Mentions of each character group in chapters up to {@code upTo}, all its names together. */
+    private Map<Long, Integer> mentions(long editionId, int upTo, Map<Long, List<GlossaryEntryRecord>> groups) {
+        countMentions(editionId);
+        Map<Long, Long> mainOf = new java.util.HashMap<>();
+        groups.forEach((main, members) -> members.forEach(entry -> mainOf.put(entry.getId(), main)));
+        Map<Long, Integer> out = new java.util.HashMap<>();
+        db.select(GLOSSARY_MENTION.ENTRY_ID, DSL.sum(GLOSSARY_MENTION.MENTIONS)).from(GLOSSARY_MENTION)
+                .where(GLOSSARY_MENTION.EDITION_ID.eq(editionId), GLOSSARY_MENTION.CHAPTER_NUMBER.le(upTo))
+                .groupBy(GLOSSARY_MENTION.ENTRY_ID)
+                .forEach(r -> {
+                    Long main = mainOf.get(r.value1());
+                    if (main != null) {
+                        out.merge(main, r.value2().intValue(), Integer::sum);
+                    }
+                });
+        return out;
+    }
+
+    private record Named(long entryId, String form) {
+    }
+
+    /**
+     * Counts the chapters not counted yet, or counted with other names or another text: in the
+     * original by the characters' original forms, without one in the translation by their
+     * Ukrainian forms. A longer name takes its place first: «Лісія Фаргайт» is not also «Лісія».
+     */
+    private void countMentions(long editionId) {
+        long novelId = scope(editionId).novelId();
+        List<GlossaryEntryRecord> characters = db.selectFrom(GLOSSARY_ENTRY)
+                .where(GLOSSARY_ENTRY.NOVEL_ID.eq(novelId), GLOSSARY_ENTRY.STATUS.ne("rejected"), GLOSSARY_ENTRY.KIND.eq("character"))
+                .orderBy(GLOSSARY_ENTRY.ID).fetch();
+        List<Named> originals = new ArrayList<>();
+        if (!characters.isEmpty()) {
+            db.select(GLOSSARY_FORM.ENTRY_ID, GLOSSARY_FORM.ORIGINAL, GLOSSARY_FORM.ALIASES).from(GLOSSARY_FORM)
+                    .where(GLOSSARY_FORM.ENTRY_ID.in(characters.stream().map(GlossaryEntryRecord::getId).toList()))
+                    .orderBy(GLOSSARY_FORM.ENTRY_ID, GLOSSARY_FORM.LANGUAGE)
+                    .forEach(r -> {
+                        List<String> all = new ArrayList<>();
+                        all.add(r.value2());
+                        if (r.value3() != null) {
+                            all.addAll(json.readValue(r.value3().data(), STRINGS));
+                        }
+                        all.stream().filter(form -> form != null && !form.isBlank()).distinct()
+                                .forEach(form -> originals.add(new Named(r.value1(), form.strip())));
+                    });
+        }
+        originals.sort(java.util.Comparator.comparingInt((Named named) -> -named.form().length()));
+        List<GlossaryEntryRecord> byLength = characters.stream()
+                .sorted(java.util.Comparator.comparingInt((GlossaryEntryRecord entry) -> -entry.getUkrainian().length())).toList();
+        int names = java.util.Objects.hash(originals, characters.stream()
+                .map(entry -> entry.getId() + ":" + entry.getUkrainian() + ":" + entry.getLooseForms()).toList());
+
+        Map<Integer, String> originalAt = new java.util.HashMap<>();
+        db.select(EDITION_ORIGINAL.NUMBER, EDITION_ORIGINAL.UPDATED_AT).from(EDITION_ORIGINAL).where(EDITION_ORIGINAL.EDITION_ID.eq(editionId))
+                .forEach(r -> originalAt.put(r.value1(), "o" + r.value2()));
+        Map<Integer, String> texts = new java.util.TreeMap<>(originalAt);
+        db.select(CHAPTER.NUMBER, CHAPTER.SOURCE_CHAPTER_ID, CHAPTER.PUBLISHED_REVISION_ID).from(CHAPTER).where(CHAPTER.EDITION_ID.eq(editionId))
+                .forEach(r -> {
+                    if (r.value2() != null) {
+                        texts.put(r.value1(), "s" + r.value2());
+                    } else if (!originalAt.containsKey(r.value1()) && r.value3() != null) {
+                        texts.put(r.value1(), "r" + r.value3());
+                    }
+                });
+        Map<Integer, Integer> scanned = db.select(GLOSSARY_MENTION_SCAN.CHAPTER_NUMBER, GLOSSARY_MENTION_SCAN.FINGERPRINT).from(GLOSSARY_MENTION_SCAN)
+                .where(GLOSSARY_MENTION_SCAN.EDITION_ID.eq(editionId)).fetchMap(GLOSSARY_MENTION_SCAN.CHAPTER_NUMBER, GLOSSARY_MENTION_SCAN.FINGERPRINT);
+        texts.forEach((number, text) -> {
+            int fingerprint = java.util.Objects.hash(names, text);
+            if (Integer.valueOf(fingerprint).equals(scanned.get(number))) {
+                return;
+            }
+            Map<Long, Integer> counted = new java.util.HashMap<>();
+            var original = originalBlocks(editionId, number);
+            if (original.isPresent()) {
+                for (String paragraph : original.get().values()) {
+                    boolean[] taken = new boolean[paragraph.length()];
+                    for (Named named : originals) {
+                        for (int at = paragraph.indexOf(named.form()); at >= 0; at = paragraph.indexOf(named.form(), at + 1)) {
+                            int end = at + named.form().length();
+                            if (wordAt(paragraph, at, end) && take(taken, at, end)) {
+                                counted.merge(named.entryId(), 1, Integer::sum);
+                            }
+                        }
+                    }
+                }
+            } else if (text.startsWith("r")) {
+                JSONB blocks = db.select(REVISION.BLOCKS).from(REVISION).where(REVISION.ID.eq(Long.parseLong(text.substring(1))))
+                        .fetchOne(REVISION.BLOCKS);
+                for (var block : blocks == null ? List.<space.panrid.novelka.platform.text.Block>of() : json.readValue(blocks.data(), BLOCKS)) {
+                    String paragraph = block.text();
+                    boolean[] taken = new boolean[paragraph.length()];
+                    for (GlossaryEntryRecord entry : byLength) {
+                        for (int[] at : WordForms.find(paragraph, entry.getUkrainian(), Boolean.TRUE.equals(entry.getLooseForms()))) {
+                            if (take(taken, at[0], at[1])) {
+                                counted.merge(entry.getId(), 1, Integer::sum);
+                            }
+                        }
+                    }
+                }
+            }
+            db.transaction(trx -> {
+                DSLContext tx = trx.dsl();
+                tx.deleteFrom(GLOSSARY_MENTION).where(GLOSSARY_MENTION.EDITION_ID.eq(editionId), GLOSSARY_MENTION.CHAPTER_NUMBER.eq(number)).execute();
+                if (!counted.isEmpty()) {
+                    var insert = tx.insertInto(GLOSSARY_MENTION, GLOSSARY_MENTION.EDITION_ID, GLOSSARY_MENTION.CHAPTER_NUMBER,
+                            GLOSSARY_MENTION.ENTRY_ID, GLOSSARY_MENTION.MENTIONS);
+                    counted.forEach((entryId, times) -> insert.values(editionId, number, entryId, times));
+                    insert.onConflictDoNothing().execute();
+                }
+                tx.insertInto(GLOSSARY_MENTION_SCAN).set(GLOSSARY_MENTION_SCAN.EDITION_ID, editionId)
+                        .set(GLOSSARY_MENTION_SCAN.CHAPTER_NUMBER, number).set(GLOSSARY_MENTION_SCAN.FINGERPRINT, fingerprint)
+                        .onConflict(GLOSSARY_MENTION_SCAN.EDITION_ID, GLOSSARY_MENTION_SCAN.CHAPTER_NUMBER).doUpdate()
+                        .set(GLOSSARY_MENTION_SCAN.FINGERPRINT, fingerprint).set(GLOSSARY_MENTION_SCAN.SCANNED_AT, DSL.currentOffsetDateTime())
+                        .execute();
+            });
+        });
+    }
+
+    /** A name in letters of an alphabet stands as a whole word («Al» is not in «Also»); kanji and kana stand anywhere. */
+    private static boolean wordAt(String text, int from, int to) {
+        boolean spaced = Character.isAlphabetic(text.charAt(from)) && !isIdeographic(text.charAt(from));
+        if (!spaced) {
+            return true;
+        }
+        return (from == 0 || !Character.isLetterOrDigit(text.charAt(from - 1)))
+                && (to >= text.length() || !Character.isLetterOrDigit(text.charAt(to)));
+    }
+
+    private static boolean isIdeographic(char c) {
+        Character.UnicodeScript script = Character.UnicodeScript.of(c);
+        return script == Character.UnicodeScript.HAN || script == Character.UnicodeScript.HIRAGANA
+                || script == Character.UnicodeScript.KATAKANA || script == Character.UnicodeScript.HANGUL;
+    }
+
+    /** Marks the place as taken by a name, unless a longer name already stands there. */
+    private static boolean take(boolean[] taken, int from, int to) {
+        for (int i = from; i < to; i++) {
+            if (taken[i]) {
+                return false;
+            }
+        }
+        java.util.Arrays.fill(taken, from, to, true);
+        return true;
     }
 
     @Override

@@ -536,7 +536,7 @@ describe('read marks', () => {
 
 describe('«Персонажі» on the novel page', () => {
     it('shows those met by the reader\'s chapter, tells who one is, and all of them only when asked', async () => {
-        const ryo = { id: 3, ukrainian: 'Рьо', kind: 'character', gender: 'male', facts: ['Головний герой.'] };
+        const ryo = { id: 3, ukrainian: 'Рьо', kind: 'character', gender: 'male', facts: ['Головний герой.'], mentions: 21 };
         let served = 0;
         const { calls } = await renderAt('/n/mah-vody', {
             'GET /api/me': { body: ME },
@@ -555,5 +555,10 @@ describe('«Персонажі» on the novel page', () => {
         await userEvent.click(screen.getByRole('switch', { name: /Показати всіх/ }));
         expect(await screen.findByRole('button', { name: /Абель/ })).toBeInTheDocument();
         expect(calls.filter((call) => call.path.endsWith('/characters')).at(-1)!.query).toContain('all=true');
+        expect(screen.getAllByText('21 згадка')).toHaveLength(2);
+        // The most named first, unless the reader asks otherwise.
+        expect(new URLSearchParams(calls.find((call) => call.path.endsWith('/characters'))!.query).get('sort')).toBe('mentions');
+        await userEvent.click(screen.getByRole('radio', { name: 'За іменем' }));
+        await waitFor(() => expect(new URLSearchParams(calls.filter((call) => call.path.endsWith('/characters')).at(-1)!.query).get('sort')).toBe('name'));
     });
 });

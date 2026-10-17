@@ -178,13 +178,20 @@ class ReadingController {
 
     /**
      * «Персонажі» on the novel page: those met by the reader's {@code chapter} (0 — not started),
-     * or with {@code all} every one with everything told — spoilers, by the reader's choice.
+     * or with {@code all} every one with everything told — spoilers, by the reader's choice; the
+     * most named first unless {@code sort} is {@code name} or {@code appearance}.
      */
     @GetMapping("/novels/{slug}/characters")
     List<GlossaryCards.Card> characters(@PathVariable String slug, @RequestParam(required = false) String t,
-            @RequestParam(defaultValue = "0") int chapter, @RequestParam(defaultValue = "false") boolean all) {
+            @RequestParam(defaultValue = "0") int chapter, @RequestParam(defaultValue = "false") boolean all,
+            @RequestParam(defaultValue = "mentions") String sort) {
         EditionRow edition = pick(visibleEditions(queries.novel(slug).orElseThrow(ReadingController::noNovel), currentUser.viewer()), t);
-        return cards.characters(edition.id(), all ? null : Math.max(0, chapter));
+        GlossaryCards.Sort order = switch (sort) {
+            case "name" -> GlossaryCards.Sort.NAME;
+            case "appearance" -> GlossaryCards.Sort.APPEARANCE;
+            default -> GlossaryCards.Sort.MENTIONS;
+        };
+        return cards.characters(edition.id(), all ? null : Math.max(0, chapter), order);
     }
 
     /** «Лампочка»: the glossary's words in the chapter, tied to the paragraphs whose original names them. */
