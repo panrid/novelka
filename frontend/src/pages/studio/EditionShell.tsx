@@ -23,7 +23,8 @@ export function useEditionOverview(id: number) {
  * those who can run them (шаги or the site owner); the editor of a team does not start runs.
  */
 export function editionTabs(edition: Overview, canRun: boolean) {
-    const machine = canRun && (edition.kind === 'machine' || edition.kind === 'mixed');
+    // A translation by hand with pasted originals (етап 19) is translated from them, with a glossary.
+    const machine = canRun && (edition.kind === 'machine' || edition.kind === 'mixed' || edition.kind !== 'original' && edition.originals > 0);
     return {
         translate: machine && edition.role !== 'editor',
         words: machine,

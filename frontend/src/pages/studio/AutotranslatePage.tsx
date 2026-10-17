@@ -43,6 +43,7 @@ function AutotranslateTab() {
     const [to, setTo] = useState('');
     const [from, setFrom] = useState('');
     const [redo, setRedo] = useState(false);
+    const [publish, setPublish] = useState(true);
     const [models, setModels] = useState<NonNullable<Plan['models']>>({});
     const [preset, setPreset] = useState<number | null>(null);
     const [withWeak, setWithWeak] = useState(false);
@@ -60,6 +61,7 @@ function AutotranslateTab() {
         kind, steps, to: number(to)!,
         ...(number(from) !== undefined ? { from: number(from)! } : {}),
         ...(redo && kind !== 'proofread' ? { redo: true } : {}),
+        ...(!publish && kind === 'translate' ? { publish: false } : {}),
         ...(preset !== null ? { preset } : {}),
         ...(Object.keys(models).length > 0 ? { models } : {}),
     };
@@ -72,7 +74,11 @@ function AutotranslateTab() {
     let problem: string | null = null;
     if (data && settled.trim() && !typing) {
         if (target === undefined) problem = 'Вкажіть номер глави числом.';
-        else if (target > data.sourceChapters) problem = `В оригіналі поки ${data.sourceChapters} ${chaptersWord(data.sourceChapters)}.`;
+        else if (target > data.sourceChapters) {
+            problem = !data.pasted ? `В оригіналі поки ${data.sourceChapters} ${chaptersWord(data.sourceChapters)}.`
+                : data.sourceChapters === 0 ? 'Спершу вставте оригінал глав на вкладці «Оригінал».'
+                    : `Оригінал вставлено до глави ${data.sourceChapters}.`;
+        }
         else if (target < start && kind !== 'proofread' && !(redo || number(from) !== undefined)) {
             problem = `Глави до ${firstOpen - 1} уже ${kind === 'analyze' ? 'проаналізовано' : 'перекладено'}. `
                 + 'Щоб повторити їх, увімкніть «Зробити заново» або вкажіть, з якої глави.';
@@ -106,14 +112,17 @@ function AutotranslateTab() {
     return (
         <>
             <p className={styles.muted}>
-                В оригіналі {data.sourceChapters} {chaptersWord(data.sourceChapters)}, перекладено {data.publishedChapters}
+                {data.pasted
+                    ? <>Перекладаємо з оригіналу, вставленого на вкладці <Link to="/studio/$editionId/originals" params={{ editionId: String(id) }}>«Оригінал»</Link>{' '}
+                        (до глави {data.sourceChapters})</>
+                    : <>В оригіналі {data.sourceChapters} {chaptersWord(data.sourceChapters)}</>}, перекладено {data.publishedChapters}
                 {data.lastAnalyzed > 0 && <>, проаналізовано до {data.lastAnalyzed}</>}.
                 {data.personal
                     ? <> У вас <b>{data.balance?.shah ?? 0} {shahWord(data.balance?.shah ?? 0)}</b>{data.reserved > 0 && <>, ще {data.reserved} у резерві запусків</>}.</>
                     : data.balance && <> Баланс: <b>{money(data.balance.shah, data.balance.usd, show)}</b>.</>}
             </p>
             {!data.configured && <Notice tone="error">Ключ OpenRouter не налаштовано на сервері.</Notice>}
-            <SourceBell editionId={id} />
+            {!data.pasted && <SourceBell editionId={id} />}
 
             {job && <h2 className={styles.sectionTitle}>{busy ? 'Зараз іде' : 'Останній запуск'}</h2>}
             {job && <JobCard job={job} editionId={id} showShah={show} usdPerShah={data.usdPerShah}
@@ -137,8 +146,18 @@ function AutotranslateTab() {
                     <div className={styles.range}>
                         <TextInput label="З глави" value={from} onChange={setFrom} inputMode="numeric" placeholder={String(firstOpen)} />
                         <TextInput label="По главу" value={to} onChange={setTo} inputMode="numeric" error={fieldError}
-                            hint={`Щонайбільше ${data.sourceChapters}.`} />
+                            hint={data.pasted ? `Вставлено до глави ${data.sourceChapters}; глави без оригіналу пропускаємо.` : `Щонайбільше ${data.sourceChapters}.`} />
                     </div>
+                    {kind === 'translate' && (
+                        <>
+                            <Toggle label="Одразу опублікувати" isSelected={publish} onChange={setPublish} />
+                            {!publish && (
+                                <p className={styles.muted}>
+                                    Глави збережуться вашими чернетками: їх видно лише вам у редакторі, поки ви їх не опублікуєте.
+                                </p>
+                            )}
+                        </>
+                    )}
                     {kind !== 'proofread' && <Toggle label="Зробити заново вже опрацьовані глави" isSelected={redo} onChange={setRedo} />}
                     {redo && kind !== 'proofread' && (
                         <p className={styles.muted}>

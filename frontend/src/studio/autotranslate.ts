@@ -13,6 +13,8 @@ export type Plan = {
     /** A ready set of models; models given too change single steps of it. */
     preset?: number;
     models?: { analyze?: string; translate?: string; proofread?: string; proofreadEnabled?: boolean };
+    /** false: translated chapters stay drafts of the one who started the run. */
+    publish?: boolean;
 };
 /**
  * A ready set of models with a judged result (1–5, by halves). analysisUsd: its analysis of
@@ -48,6 +50,8 @@ export type AutotranslateOverview = {
     personal: boolean; reserved: number;
     /** Ready sets of models: only the site owner picks models, so others get none. */
     presets: Preset[];
+    /** Translated from the originals the team pasted (етап 19): sourceChapters is the last one pasted. */
+    pasted: boolean;
 };
 /** One step of a run as the journal tells it; the payload depends on the kind. */
 export type JobEvent = { id: number; chapter: number; kind: string; payload: Record<string, unknown>; at: string };

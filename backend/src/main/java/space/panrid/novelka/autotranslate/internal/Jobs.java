@@ -4,6 +4,7 @@ import static space.panrid.novelka.jooq.Tables.AI_CALL;
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.CHAPTER_ANALYSIS;
 import static space.panrid.novelka.jooq.Tables.EDITION;
+import static space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL;
 import static space.panrid.novelka.jooq.Tables.JOB;
 import static space.panrid.novelka.jooq.Tables.JOB_STEP;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
@@ -114,8 +115,10 @@ class Jobs {
     /**
      * @param nextNumber   first chapter not yet translated
      * @param lastAnalyzed last chapter whose analysis is ready (0 if none)
+     * @param pasted       translated from the originals the team pasted (етап 19), not from the original's site;
+     *                     {@code sourceChapters} is then the last chapter pasted
      */
-    record Novel(long novelId, int sourceChapters, int nextNumber, int publishedChapters, int lastAnalyzed) {
+    record Novel(long novelId, int sourceChapters, int nextNumber, int publishedChapters, int lastAnalyzed, boolean pasted) {
 
         int nextToAnalyze() {
             return Math.max(nextNumber, lastAnalyzed + 1);
@@ -127,28 +130,41 @@ class Jobs {
                 .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
                 .where(EDITION.ID.eq(editionId)).fetchOptional()
                 .orElseThrow(() -> UserFacingException.notFound("Такої новели немає."));
-        if ("manual".equals(row.get(NOVEL.SOURCE)) || "original".equals(row.get(NOVEL.SOURCE))) {
-            throw UserFacingException.badRequest("Автопереклад доступний лише для новел, узятих із сайту-джерела.");
+        if ("original".equals(row.get(NOVEL.SOURCE))) {
+            throw UserFacingException.badRequest("Власний твір не перекладають.");
         }
+        boolean pasted = Originals.pasted(row.get(NOVEL.SOURCE));
         int last = db.select(DSL.coalesce(DSL.max(CHAPTER.NUMBER), 0)).from(CHAPTER)
                 .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull()).fetchOne(0, Integer.class);
         int published = db.fetchCount(CHAPTER, CHAPTER.EDITION_ID.eq(editionId).and(CHAPTER.PUBLISHED_REVISION_ID.isNotNull()));
-        Integer count = row.get(NOVEL.SOURCE_CHAPTER_COUNT);
+        Integer count = pasted
+                ? db.select(DSL.max(EDITION_ORIGINAL.NUMBER)).from(EDITION_ORIGINAL).where(EDITION_ORIGINAL.EDITION_ID.eq(editionId))
+                        .fetchOne(0, Integer.class)
+                : row.get(NOVEL.SOURCE_CHAPTER_COUNT);
         return new Novel(row.get(NOVEL.ID), count == null ? 0 : count, Math.max(last + 1, row.get(EDITION.FIRST_NUMBER)), published,
                 db.select(DSL.coalesce(DSL.max(CHAPTER_ANALYSIS.NUMBER), 0)).from(CHAPTER_ANALYSIS)
-                        .where(CHAPTER_ANALYSIS.EDITION_ID.eq(editionId)).fetchOne(0, Integer.class));
+                        .where(CHAPTER_ANALYSIS.EDITION_ID.eq(editionId)).fetchOne(0, Integer.class), pasted);
     }
 
     /**
      * What to run. {@code from} absent: the first chapter not done yet. {@code redo}: chapters
      * already done are done again (new answers, not the saved ones); otherwise they are skipped.
      * {@code models} replace the site's models for this run only; {@code preset} picks a ready
-     * set of them, and {@code models} given too change single steps of it.
+     * set of them, and {@code models} given too change single steps of it. {@code publish} false
+     * leaves translated chapters as drafts of the one who started the run.
      */
-    record Plan(String kind, Integer from, Integer to, Boolean redo, Models models, Long preset, List<String> steps) {
+    record Plan(String kind, Integer from, Integer to, Boolean redo, Models models, Long preset, List<String> steps, Boolean publish) {
 
         Plan(String kind, Integer from, Integer to, Boolean redo, Models models, Long preset) {
-            this(kind, from, to, redo, models, preset, null);
+            this(kind, from, to, redo, models, preset, null, null);
+        }
+
+        Plan(String kind, Integer from, Integer to, Boolean redo, Models models, Long preset, List<String> steps) {
+            this(kind, from, to, redo, models, preset, steps, null);
+        }
+
+        boolean publishes() {
+            return !Boolean.FALSE.equals(publish);
         }
 
         /**
@@ -250,8 +266,16 @@ class Jobs {
             throw UserFacingException.badRequest("Перевірте діапазон: «з» не може бути більшим за «по».");
         }
         if (to > novel.sourceChapters()) {
-            throw UserFacingException.badRequest("В оригіналі поки %d глав.".formatted(novel.sourceChapters()));
+            throw UserFacingException.badRequest(novel.pasted()
+                    ? novel.sourceChapters() == 0 ? "Спершу вставте оригінал глав на вкладці «Оригінал»."
+                            : "Оригінал вставлено до глави %d.".formatted(novel.sourceChapters())
+                    : "В оригіналі поки %d глав.".formatted(novel.sourceChapters()));
         }
+        // Pasted originals: the chapters with an original only; a gap is left alone.
+        Map<Integer, Integer> pastedChars = novel.pasted()
+                ? db.select(EDITION_ORIGINAL.NUMBER, EDITION_ORIGINAL.CHARS).from(EDITION_ORIGINAL)
+                        .where(EDITION_ORIGINAL.EDITION_ID.eq(editionId)).fetchMap(EDITION_ORIGINAL.NUMBER, EDITION_ORIGINAL.CHARS)
+                : Map.of();
         Set<Integer> published = new HashSet<>(db.select(CHAPTER.NUMBER).from(CHAPTER)
                 .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull(), CHAPTER.NUMBER.between(from, to))
                 .fetch(CHAPTER.NUMBER));
@@ -261,7 +285,8 @@ class Jobs {
                 : published);
         List<Integer> numbers = new ArrayList<>();
         for (int number = from; number <= to; number++) {
-            boolean wanted = proofreadOnly ? published.contains(number) : plan.again() || !done.contains(number);
+            boolean wanted = (proofreadOnly ? published.contains(number) : plan.again() || !done.contains(number))
+                    && (!novel.pasted() || pastedChars.containsKey(number));
             if (wanted) {
                 numbers.add(number);
             }
@@ -282,8 +307,9 @@ class Jobs {
         }
         boolean analyzeStep = settings.analyze().enabled();
         boolean proofreadStep = settings.proofread().enabled();
-        Map<Integer, Integer> known = db.select(SOURCE_CHAPTER.NUMBER, SOURCE_CHAPTER.CHARS).from(SOURCE_CHAPTER)
-                .where(SOURCE_CHAPTER.NOVEL_ID.eq(novel.novelId())).fetchMap(SOURCE_CHAPTER.NUMBER, SOURCE_CHAPTER.CHARS);
+        Map<Integer, Integer> known = novel.pasted() ? pastedChars
+                : db.select(SOURCE_CHAPTER.NUMBER, SOURCE_CHAPTER.CHARS).from(SOURCE_CHAPTER)
+                        .where(SOURCE_CHAPTER.NOVEL_ID.eq(novel.novelId())).fetchMap(SOURCE_CHAPTER.NUMBER, SOURCE_CHAPTER.CHARS);
         int guess = known.isEmpty() ? UNKNOWN_CHAPTER_CHARS
                 : (int) Math.round(known.values().stream().mapToInt(Integer::intValue).average().orElse(UNKNOWN_CHAPTER_CHARS));
         Set<Integer> analyzed = new HashSet<>(db.select(CHAPTER_ANALYSIS.NUMBER).from(CHAPTER_ANALYSIS)
@@ -439,6 +465,7 @@ class Jobs {
                 .set(JOB.QUOTE_SHAH, personal ? quote.reserveShah() : quote.shah())
                 .set(JOB.HOLD_TX_ID, hold)
                 .set(JOB.SETTINGS, JSONB.valueOf(json.writeValueAsString(settings)))
+                .set(JOB.PUBLISH, plan.publishes())
                 .returning(JOB.ID).fetchSingle().getId();
         for (int number : prepared.numbers()) {
             db.insertInto(JOB_STEP).set(JOB_STEP.JOB_ID, jobId).set(JOB_STEP.CHAPTER_NUMBER, number).execute();
@@ -599,19 +626,23 @@ class Jobs {
     List<CostRow> report(int days) {
         var cost = DSL.sum(DSL.coalesce(AI_CALL.COST_ACTUAL_MUSD, AI_CALL.COST_ESTIMATED_MUSD)).cast(Long.class).as("cost");
         var model = DSL.field("{0} -> 'translate' ->> 'model'", String.class, JOB.SETTINGS).as("model");
-        var perChapter = db.select(model, JOB_STEP.CHAPTER_NUMBER, JOB.ID, SOURCE_CHAPTER.CHARS, cost)
+        // The original's length, fetched from its site or pasted by the team.
+        var chars = DSL.coalesce(SOURCE_CHAPTER.CHARS, EDITION_ORIGINAL.CHARS).as("chars");
+        var perChapter = db.select(model, JOB_STEP.CHAPTER_NUMBER, JOB.ID, chars, cost)
                 .from(JOB_STEP)
                 .join(JOB).on(JOB.ID.eq(JOB_STEP.JOB_ID))
                 .join(EDITION).on(EDITION.ID.eq(JOB.EDITION_ID))
-                .join(SOURCE_CHAPTER).on(SOURCE_CHAPTER.NOVEL_ID.eq(EDITION.NOVEL_ID), SOURCE_CHAPTER.NUMBER.eq(JOB_STEP.CHAPTER_NUMBER))
+                .leftJoin(SOURCE_CHAPTER).on(SOURCE_CHAPTER.NOVEL_ID.eq(EDITION.NOVEL_ID), SOURCE_CHAPTER.NUMBER.eq(JOB_STEP.CHAPTER_NUMBER))
+                .leftJoin(EDITION_ORIGINAL).on(EDITION_ORIGINAL.EDITION_ID.eq(JOB.EDITION_ID), EDITION_ORIGINAL.NUMBER.eq(JOB_STEP.CHAPTER_NUMBER))
                 .join(AI_CALL).on(AI_CALL.JOB_ID.eq(JOB.ID), AI_CALL.CHAPTER_NUMBER.eq(JOB_STEP.CHAPTER_NUMBER))
-                .where(JOB_STEP.STAGE.eq("done"), JOB_STEP.UPDATED_AT.gt(OffsetDateTime.now().minusDays(days)))
-                .groupBy(model, JOB_STEP.CHAPTER_NUMBER, JOB.ID, SOURCE_CHAPTER.CHARS)
+                .where(JOB_STEP.STAGE.eq("done"), JOB_STEP.UPDATED_AT.gt(OffsetDateTime.now().minusDays(days)),
+                        DSL.coalesce(SOURCE_CHAPTER.CHARS, EDITION_ORIGINAL.CHARS).isNotNull())
+                .groupBy(model, JOB_STEP.CHAPTER_NUMBER, JOB.ID, SOURCE_CHAPTER.CHARS, EDITION_ORIGINAL.CHARS)
                 .fetch();
         Map<String, List<long[]>> byModel = new java.util.TreeMap<>();
         for (Record row : perChapter) {
             byModel.computeIfAbsent(row.get(model), key -> new ArrayList<>())
-                    .add(new long[] {row.get(cost), row.get(SOURCE_CHAPTER.CHARS)});
+                    .add(new long[] {row.get(cost), row.get(chars)});
         }
         List<CostRow> rows = new ArrayList<>();
         byModel.forEach((name, chapters) -> {
@@ -643,6 +674,10 @@ class Jobs {
     int averageChars(long editionId) {
         Double average = db.select(DSL.avg(SOURCE_CHAPTER.CHARS).cast(Double.class)).from(SOURCE_CHAPTER)
                 .join(EDITION).on(EDITION.NOVEL_ID.eq(SOURCE_CHAPTER.NOVEL_ID)).where(EDITION.ID.eq(editionId)).fetchOne(0, Double.class);
+        if (average == null) {
+            average = db.select(DSL.avg(EDITION_ORIGINAL.CHARS).cast(Double.class)).from(EDITION_ORIGINAL)
+                    .where(EDITION_ORIGINAL.EDITION_ID.eq(editionId)).fetchOne(0, Double.class);
+        }
         return average == null ? UNKNOWN_CHAPTER_CHARS : (int) Math.round(average);
     }
 

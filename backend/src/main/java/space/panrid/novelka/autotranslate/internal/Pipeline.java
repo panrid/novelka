@@ -1,7 +1,9 @@
 package space.panrid.novelka.autotranslate.internal;
 
+import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.JOB;
 import static space.panrid.novelka.jooq.Tables.JOB_STEP;
+import static space.panrid.novelka.jooq.Tables.NOVEL;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -66,9 +68,11 @@ class Pipeline {
 
     private final JobLog journal;
     private final Shutdown shutdown;
+    private final Originals originals;
 
     Pipeline(DSLContext db, Ai ai, Sources sources, Chapters chapters, Images images, Glossary glossary, Analyses analyses,
-            JsonMapper json, Clock clock, Progress progress, JobLog journal, Shutdown shutdown) {
+            JsonMapper json, Clock clock, Progress progress, JobLog journal, Shutdown shutdown, Originals originals) {
+        this.originals = originals;
         this.shutdown = shutdown;
         this.journal = journal;
         this.progress = progress;
@@ -83,24 +87,53 @@ class Pipeline {
         this.clock = clock;
     }
 
+    /** The revision a chapter left as a draft «has»: none was published. */
+    static final long DRAFTED = 0L;
+
+    /**
+     * A chapter's original: fetched from its site ({@code sourceId}) or pasted by the team
+     * ({@code pasted}, known by its {@code hash}), and the language it is in.
+     */
+    record Original(Long sourceId, String title, List<Block> blocks, int chars, String hash, String language, boolean pasted) {
+
+        /** Whether an analysis was made of this very text. */
+        boolean madeOf(Analyses.Analysis analysis) {
+            return pasted ? hash.equals(analysis.originalHash()) : sourceId.equals(analysis.sourceChapterId());
+        }
+    }
+
+    private Original fetched(long novelId, int number) {
+        SourceText text = sources.chapter(novelId, number);
+        return new Original(text.id(), text.title(), text.blocks(), text.chars(), text.hash(), "ja", false);
+    }
+
+    private Original pasted(long editionId, long novelId, int number) {
+        Originals.Text text = originals.text(editionId, number).orElseThrow(() -> UserFacingException.notFound(
+                "Оригіналу глави %d немає — його прибрали з вкладки «Оригінал». Вставте його знову й натисніть «Продовжити».".formatted(number)));
+        // The glossary looks for the forms of the language the novel's original is in now.
+        db.update(NOVEL).set(NOVEL.SOURCE_LANGUAGE, text.language())
+                .where(NOVEL.ID.eq(novelId), NOVEL.SOURCE_LANGUAGE.isDistinctFrom(text.language())).execute();
+        return new Original(null, text.title(), text.blocks(), text.chars(), text.hash(), text.language(), true);
+    }
+
     void run(JobRecord job, JobStepRecord step) {
         Settings settings = json.readValue(job.getSettings().data(), Settings.class);
         Checkpoint checkpoint = json.readValue(step.getCheckpoint().data(), Checkpoint.class);
         long editionId = job.getEditionId();
         int number = step.getChapterNumber();
-        long novelId = db.select(space.panrid.novelka.jooq.Tables.EDITION.NOVEL_ID)
-                .from(space.panrid.novelka.jooq.Tables.EDITION)
-                .where(space.panrid.novelka.jooq.Tables.EDITION.ID.eq(editionId)).fetchSingle().value1();
+        var novel = db.select(EDITION.NOVEL_ID, NOVEL.SOURCE).from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
+                .where(EDITION.ID.eq(editionId)).fetchSingle();
+        long novelId = novel.value1();
 
-        SourceText source = sources.chapter(novelId, number);
-        if (checkpoint.sourceId == null) {
-            checkpoint.sourceId = source.id();
+        Original source = Originals.pasted(novel.value2()) ? pasted(editionId, novelId, number) : fetched(novelId, number);
+        if (checkpoint.chars == null) {
+            checkpoint.sourceId = source.sourceId();
             checkpoint.chars = source.chars();
             save(step, "analyze", checkpoint);
             journal.add(job.getId(), number, "start", Map.of("chars", source.chars(), "paragraphs", source.blocks().size()));
         }
         List<Block> text = source.blocks().stream().filter(block -> !block.text().isBlank()).toList();
-        Calls calls = new Calls(job, settings, number);
+        Calls calls = new Calls(job, settings, number, source.language());
 
         // Analysis done earlier (maybe by an «analysis only» job, maybe corrected since) is reused.
         // «Зробити заново» for analysis asks the model again even where an analysis exists.
@@ -108,7 +141,7 @@ class Pipeline {
         boolean redoAnalysis = settings.redo() != null && ("analyze".equals(job.getKind()) || settings.analyze().enabled());
         boolean skipAnalysis = "proofread".equals(job.getKind()) && !settings.analyze().enabled();
         boolean analyzedBefore = skipAnalysis || !redoAnalysis
-                && analyses.find(editionId, number).filter(done -> done.sourceChapterId() == source.id()).isPresent();
+                && analyses.find(editionId, number).filter(source::madeOf).isPresent();
         List<List<Block>> bigParts = parts(text, settings.segmentChars() * 3);
         for (int part = 0; part < bigParts.size() && !analyzedBefore; part++) {
             if (checkpoint.analyzed.contains(part)) {
@@ -157,12 +190,21 @@ class Pipeline {
             checkpoint.reusedNoted = true;
         }
         if (!analyzedBefore) {
-            String label = analyses.label(novelId, source.title());
+            String label = source.pasted() ? analyses.pastedLabel(editionId, source.title()) : analyses.label(novelId, source.title());
             String title = checkpoint.title == null ? "" : checkpoint.title;
-            if (label != null && !label.isEmpty() || ChapterLabels.fromJapanese(source.title()).isPresent()) {
+            if (label != null && !label.isEmpty() || ChapterLabels.fromOriginal(source.title()).isPresent()) {
                 title = ChapterLabels.withoutNumber(title);
             }
-            analyses.save(editionId, number, source.id(), title, label, checkpoint.narrator, checkpoint.narratorGender, job.getId());
+            if (ChapterLabels.isArcEpisode(source.title())) {
+                title = ChapterLabels.withoutArcEpisode(title);
+            }
+            if (UNTRANSLATED_TITLE.matcher(title).find()) {
+                // Asked three times and still in the original's language: better «Глава 12» than Japanese.
+                journal.add(job.getId(), number, "title_untranslated", Map.of("title", title));
+                title = "";
+            }
+            analyses.save(editionId, number, source.sourceId(), source.pasted() ? source.hash() : null, title, label,
+                    checkpoint.narrator, checkpoint.narratorGender, job.getId());
         }
         if ("analyze".equals(job.getKind())) {
             save(step, "done", checkpoint);
@@ -240,10 +282,19 @@ class Pipeline {
             }
             Analyses.Analysis analysis = analyses.find(editionId, number).orElseThrow();
             checkpoint.summary = summary(checkpoint, parts.size());
-            checkpoint.revisionId = chapters.publishMachine(editionId, number, analysis.label(), analysis.title(), blocks,
-                    source.id(), source.chars(), job.getId(), source.hash());
-            journal.add(job.getId(), number, "published", Map.of("title", analysis.title(),
-                    "label", analysis.label() == null ? String.valueOf(number) : analysis.label(), "paragraphs", blocks.size()));
+            if (Boolean.FALSE.equals(job.getPublish())) {
+                // «Не публікувати»: the one who started the run finds the chapter among their drafts.
+                boolean saved = chapters.saveMachineDraft(editionId, number, job.getRequestedBy(), analysis.label(), analysis.title(), blocks);
+                checkpoint.revisionId = DRAFTED;
+                journal.add(job.getId(), number, saved ? "drafted" : "draft_kept", Map.of("title", analysis.title(), "paragraphs", blocks.size()));
+            } else {
+                checkpoint.revisionId = chapters.publishMachine(editionId, number, analysis.label(), analysis.title(), blocks,
+                        source.sourceId(), source.chars(), job.getId(), source.hash());
+                // A translation made by people that now has machine chapters says so to its readers.
+                db.update(EDITION).set(EDITION.KIND, "mixed").where(EDITION.ID.eq(editionId), EDITION.KIND.eq("human")).execute();
+                journal.add(job.getId(), number, "published", Map.of("title", analysis.title(),
+                        "label", analysis.label() == null ? String.valueOf(number) : analysis.label(), "paragraphs", blocks.size()));
+            }
         }
         save(step, "done", checkpoint);
     }
@@ -254,7 +305,7 @@ class Pipeline {
      * meanwhile is not overwritten: the run notes it and goes on.
      */
     private void proofreadPublished(JobRecord job, JobStepRecord step, Checkpoint checkpoint, Calls calls, Settings settings,
-            long editionId, int number, SourceText source, List<Block> text) {
+            long editionId, int number, Original source, List<Block> text) {
         EditorModels.CurrentText current = chapters.current(editionId, number);
         if (checkpoint.baseRevisionId == null) {
             checkpoint.baseRevisionId = current.revisionId();
@@ -341,8 +392,9 @@ class Pipeline {
             user.append('\n');
         }
         user.append("Chapter title: ").append(title.isBlank() ? "(none)" : title).append("\n\nText:\n").append(text);
-        return calls.ask("analyze", part, Prompts.ANALYZE, user.toString(), "glossary", Prompts.analyzeSchema(),
-                Math.min(18_000, 3_500 + blocks.size() * 40), answer -> null);
+        return calls.ask("analyze", part, Prompts.analyze(calls.language), user.toString(), "glossary", Prompts.analyzeSchema(),
+                Math.min(18_000, 3_500 + blocks.size() * 40),
+                answer -> UNTRANSLATED_TITLE.matcher(answer.path("title").asString("")).find() ? TITLE_UNTRANSLATED : null);
     }
 
     record Translated(List<Line> lines, String summary) {
@@ -356,7 +408,7 @@ class Pipeline {
     private Translated translate(Calls calls, long editionId, int part, List<Block> blocks, String context, List<Line> before) {
         JsonNode answer;
         try {
-            answer = calls.ask("translate", part, Prompts.TRANSLATE, translateRequest(editionId, calls.narrator, blocks, context, before),
+            answer = calls.ask("translate", part, Prompts.translate(calls.language), translateRequest(editionId, calls.narrator, blocks, context, before),
                     "translation", Prompts.blocksSchema(true), maxTokens(joined(blocks)), reply -> usable(reply, blocks));
         } catch (BadOutput unusable) {
             if (blocks.size() < MIN_SPLIT) {
@@ -377,7 +429,7 @@ class Pipeline {
         if (!missing.isEmpty()) {
             log.info("Chapter {} part {}: {} lines left out, asking for them alone", calls.number, part, missing.size());
             journal.add(calls.job.getId(), calls.number, "missing", Map.of("part", part, "lines", missing.size()));
-            JsonNode extra = calls.ask("translate", part, Prompts.TRANSLATE, translateRequest(editionId, calls.narrator, missing, context, lines),
+            JsonNode extra = calls.ask("translate", part, Prompts.translate(calls.language), translateRequest(editionId, calls.narrator, missing, context, lines),
                     "translation", Prompts.blocksSchema(true), maxTokens(joined(missing)), reply -> complete(reply, missing));
             lines = merged(blocks, lines, lines(extra));
         }
@@ -420,7 +472,7 @@ class Pipeline {
                 + (calls.narrator.isEmpty() ? "" : calls.narrator + "\n\n") + "Blocks (JSON):\n" + json.writeValueAsString(pairs);
         JsonNode answer;
         try {
-            answer = calls.ask("proofread", part, Prompts.PROOFREAD, user, "proofread", Prompts.blocksSchema(false),
+            answer = calls.ask("proofread", part, Prompts.proofread(calls.language), user, "proofread", Prompts.blocksSchema(false),
                     maxTokens(text), reply -> edits(reply, blocks));
         } catch (BadOutput unusable) {
             // Better the draft than an edit that lost its place.
@@ -437,6 +489,11 @@ class Pipeline {
      */
     /** Speech and narration in each other's places: usually a slip by a line, sometimes a narrator answering in thought. */
     static final String MISPLACED = "репліки й оповідь не на своїх місцях";
+
+    /** A chapter title the model left in Japanese or Chinese (Haiku did, «Майстер магічної інженерії» 3, 5–7). */
+    static final String TITLE_UNTRANSLATED = "назва глави лишилася мовою оригіналу";
+    private static final java.util.regex.Pattern UNTRANSLATED_TITLE =
+            java.util.regex.Pattern.compile("[\\p{IsHiragana}\\p{IsKatakana}\\p{IsHan}]");
 
     static String usable(JsonNode answer, List<Block> blocks) {
         JsonNode lines = answer.path("blocks");
@@ -734,10 +791,13 @@ class Pipeline {
         private final JobRecord job;
         private final Settings settings;
         private final int number;
+        /** The original's language: the prompts are written for it. */
+        private final String language;
         /** What the prompts say about the chapter's first-person narrator; known once analysis is done. */
         private String narrator = "";
 
-        Calls(JobRecord job, Settings settings, int number) {
+        Calls(JobRecord job, Settings settings, int number, String language) {
+            this.language = language;
             this.job = job;
             this.settings = settings;
             this.number = number;
@@ -778,6 +838,11 @@ class Pipeline {
                 }
                 String wrong = problem.apply(parsed);
                 if (wrong == null) {
+                    return parsed;
+                }
+                if (wrong.equals(TITLE_UNTRANSLATED) && attempt == ATTEMPTS - 1) {
+                    // The glossary and facts of the answer are good; the title is left out when it is published.
+                    journal.add(job.getId(), number, "accepted", Map.of("stage", stage, "part", part, "reason", wrong));
                     return parsed;
                 }
                 if (wrong.startsWith(MISPLACED) && attempt == ATTEMPTS - 1) {
@@ -985,6 +1050,10 @@ class Pipeline {
     }
 
     private java.util.Optional<Block> picture(JobRecord job, Block block) {
+        if (block.imageId() != null) {
+            // A picture of a pasted .epub, stored on the site when the original was saved.
+            return java.util.Optional.of(new Block(block.id(), "image", List.of(), block.imageId(), null));
+        }
         if (block.sourceUrl() == null) {
             return java.util.Optional.empty();
         }

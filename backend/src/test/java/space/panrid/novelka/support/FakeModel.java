@@ -143,10 +143,16 @@ public class FakeModel implements AiTransport {
                 boolean english = user.contains("Yuki");
                 yield Map.of(
                         // Like a real model, it sometimes keeps the number the site must strip.
-                        "title", user.contains("Chapter title: (none)") ? "" : user.contains("閑話") ? "Інтерлюдія" : "Глава 9. Світло",
+                        // A weak model that leaves an author's reference page untitled in Ukrainian.
+                        "title", user.contains("Chapter title: (none)") ? "" : user.contains("閑話") ? "Інтерлюдія"
+                                : user.contains("参考資料") ? "参考資料（図面）" : "Глава 9. Світло",
                         "entries", user.contains("ユキ") && !user.contains("→ Юкі")
                                 ? List.of(Map.of("original", "ユキ", "reading", "ゆき", "ukrainian", "Юкі", "kind", "character",
                                         "gender", "female", "note", "Головна героїня."))
+                                // A pasted English original names its hero.
+                                : user.contains("Zorian") && !user.contains("Зоріан")
+                                ? List.of(Map.of("original", "Zorian", "reading", "", "ukrainian", "Зоріан", "kind", "character",
+                                        "gender", "male", "note", "Учень магічної академії."))
                                 : List.of(),
                         "known", english && unlinked.find()
                                 ? List.of(Map.of("id", Long.parseLong(unlinked.group(1)), "original", "Yuki"))

@@ -37,6 +37,9 @@ export type OriginalChapter = { number: number; title: string; language: Origina
 /** What the person gives: pasted text or a file. */
 export type OriginalInput = { text: string } | { file: File };
 
+/** A chapter in its own fields (one chapter, or each of several in its own): nothing is split off it. */
+export type GivenChapter = { title: string; text: string };
+
 const base = (id: number) => `/api/studio/editions/${id}/originals`;
 
 function form(input: OriginalInput, fields: Record<string, string | number | undefined>): FormData {
@@ -54,6 +57,12 @@ export const originalsApi = {
         api<OriginalPreview>(`${base(id)}/preview`, { method: 'POST', body: form(input, { first }) }),
     save: (id: number, input: OriginalInput, language: OriginalLanguage, first?: number) =>
         api<{ saved: number; from: number; to: number }>(base(id), { method: 'POST', body: form(input, { first, language }) }),
+    previewSeparate: (id: number, chapters: GivenChapter[], first?: number) =>
+        api<OriginalPreview>(`${base(id)}/separate/preview`, { method: 'POST', body: JSON.stringify({ chapters, first }) }),
+    saveSeparate: (id: number, chapters: GivenChapter[], language: OriginalLanguage, first?: number) =>
+        api<{ saved: number; from: number; to: number }>(`${base(id)}/separate`, {
+            method: 'POST', body: JSON.stringify({ chapters, first, language }),
+        }),
     changeLanguage: (id: number, from: number, to: number, language: OriginalLanguage) =>
         api<OriginalList>(`${base(id)}/language`, { method: 'PATCH', body: JSON.stringify({ from, to, language }) }),
     remove: (id: number, number: number) => api<void>(`${base(id)}/${number}`, { method: 'DELETE' }),

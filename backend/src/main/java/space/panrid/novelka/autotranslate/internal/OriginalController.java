@@ -3,6 +3,9 @@ package space.panrid.novelka.autotranslate.internal;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -65,6 +68,27 @@ class OriginalController {
         return originals.save(editionId, who.viewer().accountId(), parse(file, text), first, language);
     }
 
+    /** A chapter in its own fields: the title and the text. */
+    record Given(String title, String text) {
+    }
+
+    /** Chapters given one by one, each in its own fields, or one chapter edited. */
+    record Separate(List<Given> chapters, Integer first, String language) {
+    }
+
+    @PostMapping("/separate/preview")
+    Originals.Preview previewSeparate(@PathVariable long editionId, @RequestBody Separate body) {
+        translator(editionId);
+        return originals.preview(editionId, separate(body), body.first());
+    }
+
+    @PostMapping("/separate")
+    @ResponseStatus(HttpStatus.CREATED)
+    Originals.Saved saveSeparate(@PathVariable long editionId, @RequestBody Separate body) {
+        EditionAccess who = translator(editionId);
+        return originals.save(editionId, who.viewer().accountId(), separate(body), body.first(), body.language());
+    }
+
     @GetMapping
     Originals.Listing list(@PathVariable long editionId, @RequestParam(defaultValue = "1") int page) {
         translator(editionId);
@@ -98,6 +122,25 @@ class OriginalController {
     void deleteAll(@PathVariable long editionId) {
         translator(editionId);
         originals.delete(editionId, null);
+    }
+
+    private static OriginalFiles.Parsed separate(Separate body) {
+        List<Given> given = body.chapters() == null ? List.of() : body.chapters();
+        if (given.size() > OriginalFiles.MAX_CHAPTERS) {
+            throw UserFacingException.badRequest("Забагато глав за раз: до %d.".formatted(OriginalFiles.MAX_CHAPTERS));
+        }
+        List<OriginalFiles.Chapter> chapters = new ArrayList<>();
+        for (int i = 0; i < given.size(); i++) {
+            OriginalFiles.Chapter chapter = OriginalFiles.one(given.get(i).title(), given.get(i).text());
+            if (chapter.blocks().isEmpty()) {
+                throw UserFacingException.badRequest(given.size() == 1 ? "Вставте текст глави." : "У главі %d немає тексту.".formatted(i + 1));
+            }
+            chapters.add(chapter);
+        }
+        if (chapters.isEmpty()) {
+            throw UserFacingException.badRequest("Вставте текст глави.");
+        }
+        return new OriginalFiles.Parsed(chapters, Map.of());
     }
 
     private static OriginalFiles.Parsed parse(MultipartFile file, String text) {

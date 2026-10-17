@@ -93,6 +93,13 @@ class AutotranslateController {
         return viewer;
     }
 
+    /** Watching the original is for novels taken from its site, not for pasted ones. */
+    private void fromSite(long editionId) {
+        if (jobs.novel(editionId).pasted()) {
+            throw UserFacingException.badRequest("У цієї новели немає сайту оригіналу: її глави вставляє команда.");
+        }
+    }
+
     /** Everyone but the site owner pays with their own шаги. */
     private static boolean personal(Viewer viewer) {
         return viewer.role() != SiteRole.OWNER;
@@ -124,10 +131,11 @@ class AutotranslateController {
      * @param personal runs are paid from the viewer's шаги: {@code balance} is theirs and
      *                 {@code reserved} is what their runs hold; otherwise the balance is OpenRouter's
      * @param presets  ready sets of models; only the site owner picks models, so others get none
+     * @param pasted   translated from the originals the team pasted: {@code sourceChapters} is the last one pasted
      */
     record Overview(boolean configured, boolean showShah, int sourceChapters, int nextNumber, int publishedChapters,
             int lastAnalyzed, int nextToAnalyze, int averageChars, Jobs.Balance balance, BigDecimal usdPerShah, Settings settings,
-            List<Jobs.JobView> jobs, boolean personal, int reserved, List<PresetView> presets) {
+            List<Jobs.JobView> jobs, boolean personal, int reserved, List<PresetView> presets, boolean pasted) {
     }
 
     /**
@@ -158,13 +166,13 @@ class AutotranslateController {
             return new Overview(ai.configured(), true, novel.sourceChapters(), novel.nextNumber(), novel.publishedChapters(),
                     novel.lastAnalyzed(), novel.nextToAnalyze(), jobs.averageChars(editionId),
                     new Jobs.Balance(mine.available(), Settings.usdOfMicro(mine.available() * price)), Settings.usdOfMicro(price),
-                    settings.paidBy(price), jobs.jobs(editionId), true, mine.reserved(), List.of());
+                    settings.paidBy(price), jobs.jobs(editionId), true, mine.reserved(), List.of(), novel.pasted());
         }
         int averageChars = jobs.averageChars(editionId);
         return new Overview(ai.configured(), showShah(viewer), novel.sourceChapters(), novel.nextNumber(), novel.publishedChapters(),
                 novel.lastAnalyzed(), novel.nextToAnalyze(), averageChars,
                 jobs.balance().orElse(null), Settings.usdOfMicro(settings.microUsdPerShah()), settings, jobs.jobs(editionId), false, 0,
-                presets(averageChars));
+                presets(averageChars), novel.pasted());
     }
 
     /** The Studio's bell for the original: whether this person hears of its new chapters, and when it was last looked at. */
@@ -184,6 +192,7 @@ class AutotranslateController {
     @PutMapping("/editions/{editionId}/source-watch")
     SourceWatchView changeSourceWatch(@PathVariable long editionId, @RequestBody WatchChange body) {
         Viewer viewer = ownerTranslating(editionId);
+        fromSite(editionId);
         watch.watch(viewer.accountId(), editionId, body.watching());
         return sourceWatch(editionId);
     }
@@ -192,6 +201,7 @@ class AutotranslateController {
     @PostMapping("/editions/{editionId}/source-check")
     SourceWatchView checkSource(@PathVariable long editionId) {
         Viewer viewer = ownerTranslating(editionId);
+        fromSite(editionId);
         SourceWatch.Checked checked;
         try {
             checked = watch.check(jobs.novel(editionId).novelId());

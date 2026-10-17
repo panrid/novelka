@@ -25,9 +25,19 @@ public final class ChapterLabels {
     private static final Pattern UKRAINIAN_WORD = Pattern.compile(
             "^(?:глава|розділ|епізод|серія|chapter|episode)\\s*№?\\s*(" + NUMBER + ")(?:\\s*[.:)\\-–—]\\s*|\\s+|$)",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    /** «Chapter 12», «Ch. 12: …», «Episode 3», «제12화», «12화». */
+    private static final Pattern OTHER_LANGUAGES = Pattern.compile(
+            "^(?:(?:chapter|ch\\.?|episode|ep\\.?)\\s*([0-9]{1,5}(?:[.\\-][0-9]{1,3})?)|제?\\s*([0-9]{1,5})\\s*[화장])(?=$|[\\s:.\\-–—(\\[])",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    /**
+     * «01-14　カイナ村»: an arc and an episode in it («Майстер магічної інженерії»), not chapter 1.14;
+     * such chapters are numbered by their place, and the arcs become volumes.
+     */
+    private static final Pattern ARC_EPISODE = Pattern.compile("^[0-9]{2}\\s*-\\s*[0-9]{2,3}(?![0-9])");
     /** Chapters that are not numbered on purpose. */
     private static final Pattern SPECIAL = Pattern.compile(
-            "プロローグ|エピローグ|序章|終章|幕間|閑話|番外|間章|断章|外伝|おまけ|あとがき|登場人物|人物紹介|設定|特別編|ＳＳ|SS");
+            "プロローグ|エピローグ|序章|終章|幕間|閑話|番外|間章|断章|外伝|おまけ|あとがき|登場人物|人物紹介|設定|特別編|ＳＳ|SS"
+                    + "|^(?i:prologue|epilogue|interlude|side story|afterword|extra)\\b|프롤로그|에필로그|序幕|尾声|尾聲");
 
     private ChapterLabels() {
     }
@@ -35,6 +45,9 @@ public final class ChapterLabels {
     /** The number in an original (Japanese) title, if it starts with one. */
     public static Optional<String> fromJapanese(String title) {
         String text = Normalizer.normalize(title == null ? "" : title, Normalizer.Form.NFKC).strip();
+        if (ARC_EPISODE.matcher(text).find()) {
+            return Optional.empty();
+        }
         Matcher digits = JAPANESE_DIGITS.matcher(text);
         if (digits.find()) {
             return Optional.of(clean(digits.group(1)));
@@ -47,6 +60,27 @@ public final class ChapterLabels {
             }
         }
         return Optional.empty();
+    }
+
+    /** The number in an original title in any of the languages pasted (етап 19): Japanese and Chinese first, then English and Korean. */
+    public static Optional<String> fromOriginal(String title) {
+        Optional<String> japanese = fromJapanese(title);
+        if (japanese.isPresent()) {
+            return japanese;
+        }
+        Matcher other = OTHER_LANGUAGES.matcher(Normalizer.normalize(title == null ? "" : title, Normalizer.Form.NFKC).strip());
+        return other.find() ? Optional.of(clean(other.group(1) != null ? other.group(1) : other.group(2))) : Optional.empty();
+    }
+
+    /** Whether an original title opens with an arc and an episode («01-14»). */
+    public static boolean isArcEpisode(String title) {
+        return ARC_EPISODE.matcher(Normalizer.normalize(title == null ? "" : title, Normalizer.Form.NFKC).strip()).find();
+    }
+
+    /** A translated title without the arc and episode a model kept («01-14 Село Кайна» → «Село Кайна»). */
+    public static String withoutArcEpisode(String title) {
+        String text = title == null ? "" : title.strip();
+        return text.replaceFirst("^[0-9]{1,3}\\s*[-‐–—]\\s*[0-9]{1,3}[\\s.:]*", "").strip();
     }
 
     public static boolean isSpecial(String japaneseTitle) {

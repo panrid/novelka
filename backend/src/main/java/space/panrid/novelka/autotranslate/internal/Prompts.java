@@ -53,9 +53,10 @@ final class Prompts {
             Say who tells the text in the first person (僕, 俺, 私, あたし): «narrator» is their Ukrainian name as in
             the glossary, or "" when the text is told in the third person or the narrator is not clear, and their
             gender (僕 and 俺 usually mean a male narrator; else "unknown" unless the text shows it).
-            Also translate the chapter title when one is given, WITHOUT its numbering: drop 第3話, 其の三, 003, 3.,
-            Episode 3 and the like and return only the name (the site shows the number itself). Keep words that are
-            the name, such as Пролог, Епілог, Інтерлюдія, Побічна історія. If the title is only a number or none
+            Also translate the chapter title into Ukrainian when one is given (never leave it in Japanese),
+            WITHOUT its numbering: drop 第3話, 其の三, 003, 3., 01-14, Episode 3 and the like and return only the
+            name (the site shows the number itself). Keep words that are the name, such as Пролог, Епілог,
+            Інтерлюдія, Побічна історія. If the title is only a number or none
             is given, return "".
             Readings may appear in the text as 漢字《かんじ》; they are hints, not part of the name.
             For each new character say its role: «acting» — a person who takes part in the story (speaks, acts,
@@ -131,6 +132,151 @@ final class Prompts {
             when nothing needs fixing, return an empty list. If drafts slipped by a line, return every block
             you put back. Never move text between blocks.
             Readings written as 漢字《かんじ》 are hints; they never appear in the translation.""";
+
+    // ---- originals in other languages (етап 19: pasted English, Chinese, Korean) ---------------
+
+    /** The instructions for the original's language; Japanese has its own, the rest share one set. */
+    static String analyze(String language) {
+        return "ja".equals(language) ? ANALYZE : ANALYZE_OTHER.formatted(languageName(language)) + names(language);
+    }
+
+    static String translate(String language) {
+        return "ja".equals(language) ? TRANSLATE : TRANSLATE_OTHER.formatted(languageName(language)) + names(language);
+    }
+
+    static String proofread(String language) {
+        return "ja".equals(language) ? PROOFREAD : PROOFREAD_OTHER.formatted(languageName(language)) + names(language);
+    }
+
+    static String languageName(String language) {
+        return switch (language == null ? "ja" : language) {
+            case "en" -> "English";
+            case "zh" -> "Chinese";
+            case "ko" -> "Korean";
+            default -> "Japanese";
+        };
+    }
+
+    private static String names(String language) {
+        return switch (language == null ? "ja" : language) {
+            case "zh" -> """
+                    Chinese names go into Ukrainian by the Ukrainian practical transcription of pinyin: zh → чж, ch → ч,
+                    sh → ш, j → цз, q → ц, x → с, r → ж, z → цз, c → ц, -ng → н (Zhang Wei → Чжан Вей, Xu → Сюй,
+                    Qin → Цінь); the surname comes first and a two-syllable given name is one word (Сяолун).
+                    Courtesy words (gege, shixiong, daren) become Ukrainian forms of address (брате, старший брате, пане)
+                    or are left out.""";
+            case "ko" -> """
+                    Korean names go into Ukrainian by the Ukrainian practical transcription (Kim → Кім, Park → Пак,
+                    Lee → Лі, Choi → Чхве); the surname comes first. Honorifics (-ssi, -nim, oppa, hyung, unni, noona)
+                    are not kept: they become пане / пані, брате, сестро or the plain name.""";
+            default -> """
+                    English names are written in Ukrainian as they sound, by the usual Ukrainian practice (Jonathan →
+                    Джонатан, Ashley → Ешлі, Hermione → Герміона); invented fantasy names are written as an English reader
+                    would say them, short and readable; a name with a settled Ukrainian form keeps it. Titles and forms of
+                    address are translated: Mr. / Mrs. / Miss → пан / пані / панна, Sir → сер, Lady → леді, Lord → лорд.""";
+        };
+    }
+
+    static final String ANALYZE_OTHER = """
+            You prepare the glossary for translating a %s web novel into Ukrainian.
+            From the given text list proper names (characters, places, organizations) and recurring special terms
+            (skills, titles, magic, races, items) that are NOT in the given glossary yet.
+            For each: the original form exactly as written in the text, its reading as "" (it is not needed), the
+            Ukrainian form, the kind, the gender for characters if the text shows it (else "unknown"), and a short
+            Ukrainian note (who or what it is, at most one sentence). Never guess a gender.
+            The Ukrainian form is exactly what the translation will write: ONE form, no parentheses, no
+            alternatives, no Latin letters. Transliterate only proper names; skills, spells, items, titles and other
+            meaningful terms are translated into Ukrainian words (Fire Lance → Вогняний спис, the Mage Guild →
+            Гільдія магів). Capital letters only for names of people, places, organizations and named spells,
+            skills and items; races, monsters, animals, minerals, materials and common terms are lowercase
+            (goblin → ґоблін). A part of a name already listed (a given name, a surname, a nickname) is not a new
+            person: add it as the same person only if the glossary lacks it, with the same Ukrainian name. Skip
+            everyday words that need no fixed translation, family words and ordinary nouns.
+            Follow the glossary you are given: a name it already has keeps its Ukrainian form inside a new term, and
+            a new term is rendered the way the glossary renders its kin. Never list a second entry with a Ukrainian
+            form already used, in the glossary or in your answer. Skip real-world places and people the novel only
+            compares with, one-off descriptions that are not names, and food and clothes that need no fixed form.
+            Write correct Ukrainian, never Russian forms.
+            Say who tells the text in the first person: «narrator» is their Ukrainian name as in the glossary, or ""
+            when the text is told in the third person or the narrator is not clear, and their gender ("unknown"
+            unless the text shows it: «I» alone says nothing of it).
+            Also translate the chapter title when one is given, WITHOUT its numbering: drop Chapter 3, Ch. 3,
+            Episode 3, 第3章, 제3화, 003, 3. and the like and return only the name (the site shows the number itself).
+            Keep words that are the name, such as Пролог, Епілог, Інтерлюдія, Побічна історія. If the title is only
+            a number or none is given, return "".
+            For each new character say its role: «acting» — a person who takes part in the story (speaks, acts,
+            meets the hero), «mentioned» — someone only talked about, remembered or thought of, «creature» — a
+            monster or beast; «none» for entries that are not characters.
+            Also collect facts for the readers' «who is this» card. For glossary entries (by their #number) and for
+            your new entries (by the original form, with id 0) about which THIS text says something new and lasting,
+            give short facts in Ukrainian, one plain sentence each, only what the text states: for characters —
+            looks, age, occupation or rank, family and relations to others, abilities, character; for places — what
+            and where it is, what it looks like; for organizations, items, skills and other terms — what it is and
+            what it does. No plot events unless they change who the entry is (became a knight, lost an arm, died).
+            No guesses, nothing the glossary line already says («Known: …»). At most three facts per entry; none for
+            an entry the text only mentions. Use the Ukrainian forms of the glossary for names inside a fact.
+            Entries listed as «#number → Ukrainian» are already in the glossary but have no form in this text's
+            language yet. When the text names one of them, return it in «known» with its number and the form
+            exactly as written here, and do not list it again among the new entries.
+            """;
+
+    static final String TRANSLATE_OTHER = """
+            You are a literary translator from %s into Ukrainian. Translate the chapter part into natural, fluent
+            Ukrainian prose that reads as if written in Ukrainian: keep the meaning, tone, humour and the voices of
+            the characters; restructure sentences where the original syntax would sound foreign in Ukrainian.
+            Rules:
+            - Return every block id exactly once, in the same order, each with its full translation. Never merge,
+              split, skip or add blocks.
+            - Each block is translated only from its own original text: never move words or sentences into
+              another block, even when a sentence goes on in the next block.
+            - For each block also return «start»: the first 4 characters of that block's original text, copied
+              exactly. It shows the translation stayed with its own line.
+            - Use the glossary forms for names and terms, declined by Ukrainian grammar. Keep gender agreement,
+              also for the narrator when the request says who tells the text.
+            - A name in direct address takes the vocative case (Джоне, Маріє, пане Сміте).
+            - Dialogue follows Ukrainian rules: a block that opens with a quoted speech starts with a dash, and the
+              author's words inside it are set off by dashes: “Good morning!” she said. “Get up.” → — Доброго ранку! —
+              сказала вона. — Вставай. A quote inside narration, a title or recalled words become «»; thoughts in
+              italics or quotes become «» or stay as narration, as the original marks them.
+            - ти and ви (English «you»): choose by who speaks to whom — family, friends, children and the young among
+              themselves say ти; strangers, superiors and polite speech say ви; keep the same choice for the same two
+              people all through.
+            - Never add words the original does not have: no speaker tags, no explanations. Speaker tags the
+              original has are kept.
+            - Write Ukrainian, not Russian calques and not English word order: крамниця (not магазин for a small
+              shop), трохи (not немножко); English idioms become Ukrainian ones with the same meaning.
+            - Units and measures stay as the original has them; do not convert them.
+            - Onomatopoeia becomes Ukrainian onomatopoeia or a short description.
+            - Blocks of type preface and afterword are the author's notes; translate them fully too.
+            - No notes, no comments, no untranslated %1$s words (proper names are written in Cyrillic).
+            Also write a short summary (2–4 sentences, Ukrainian) of what happens in this part, for the next part's context.
+            """;
+
+    static final String PROOFREAD_OTHER = """
+            You are a Ukrainian literary editor. You get the %s original and its Ukrainian draft translation,
+            block by block. First check that each block's draft translates its own original and not a neighbour's:
+            if the drafts have slipped by a line, put each translation back with its own original. Then fix:
+            - mistranslations (meaning turned around, a lost negation, wrong speaker, wrong subject), omissions, and
+              words the original does not have (added speaker tags);
+            - names and terms: use the glossary forms, declined by Ukrainian grammar; follow the glossary notes —
+              they say how a character addresses others and which of two similar terms is meant (keep them apart);
+            - gender agreement (also the narrator's, when the request names them), the vocative case in direct
+              address;
+            - ти and ви: a character keeps the same form of address to the same person all through;
+            - dialogue: a block that opens with speech starts with a dash, the author's words inside it are set off
+              by dashes (— Так, — сказав він. — Ходімо.); narration never starts with a dash; no English quotes “”
+              around speech;
+            - calques of the original, stiff word-for-word phrasing and the original's word order: rewrite such a
+              sentence into natural Ukrainian prose with the same meaning; keep sentences that already read well;
+            - Russian forms and calques;
+            - punctuation: an ellipsis is one «…» (after ? or ! write «?..», «!..»), no space before a punctuation
+              mark, «» for quotes;
+            - typos, Latin letters inside Ukrainian words, words of the original left untranslated.
+            Return ONLY the blocks you change, in their order, each with its full final Ukrainian text and «start»:
+            the first 4 characters of that block's original, copied exactly. A block left out keeps its draft;
+            when nothing needs fixing, return an empty list. If drafts slipped by a line, return every block
+            you put back. Never move text between blocks.
+            """;
 
     /** After a glossary word was changed in finished chapters: agreement only, nothing else. */
     static String agreement(String from, String to) {

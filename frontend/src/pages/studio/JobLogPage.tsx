@@ -69,7 +69,7 @@ export function JobLogPage() {
                         {events.map((event) => (
                             <li key={event.id}>
                                 <span className={styles.time}>{messageTime(new Date(event.at))}</span>
-                                <Line event={event} slug={edition.data?.novelSlug} team={edition.data?.teamHandle} />
+                                <Line event={event} slug={edition.data?.novelSlug} team={edition.data?.teamHandle} editionId={id} />
                             </li>
                         ))}
                     </ol>
@@ -104,7 +104,7 @@ function summaryOf(events: JobEvent[]): string {
 const list = (value: unknown): string[] => (Array.isArray(value) ? value.map(String) : []);
 
 /** One event in plain words. */
-function Line({ event, slug, team }: { event: JobEvent; slug: string | undefined; team: string | undefined }) {
+function Line({ event, slug, team, editionId }: { event: JobEvent; slug: string | undefined; team: string | undefined; editionId: number }) {
     const p = event.payload;
     const part = typeof p.part === 'number' ? (typeof p.of === 'number' && p.of > 1 ? ` (частина ${p.part + 1} з ${p.of})` : '') : '';
     switch (event.kind) {
@@ -135,6 +135,9 @@ function Line({ event, slug, team }: { event: JobEvent; slug: string | undefined
         case 'retry':
             return <span className={styles.warn}>Повтор ({STAGES[String(p.stage)] ?? String(p.stage)}{part}): {String(p.reason)}.</span>;
         case 'accepted':
+            if (String(p.reason).startsWith('назва глави')) {
+                return <span className={styles.warn}>Модель тричі не переклала назву глави — глава вийде без назви, її можна дописати в редакторі.</span>;
+            }
             return <span className={styles.warn}>Прийнято з третьої спроби ({STAGES[String(p.stage)] ?? String(p.stage)}{part}): {String(p.reason)}. Абзаци від своїх оригіналів, тире розставлено за оригіналом — варто глянути при вичитці.</span>;
         case 'split':
             return <span className={styles.warn}>Частину поділено навпіл ({String(p.lines)} рядків): {String(p.reason)}.</span>;
@@ -149,6 +152,20 @@ function Line({ event, slug, team }: { event: JobEvent; slug: string | undefined
                 <span>
                     Опубліковано: глава {String(p.label)}{p.title ? ` «${String(p.title)}»` : ''}.{' '}
                     {slug && <Link to="/n/$slug/$number" params={{ slug, number: String(event.chapter) }} search={team ? { t: team, look: true } : { look: true }}>Читати ›</Link>}
+                </span>
+            );
+        case 'title_untranslated':
+            return <span className={styles.warn}>Назву глави лишено порожньою: модель повернула її мовою оригіналу («{String(p.title)}»).</span>;
+        case 'drafted':
+        case 'draft_kept':
+            return (
+                <span className={event.kind === 'draft_kept' ? styles.warn : undefined}>
+                    {event.kind === 'drafted'
+                        ? <>Збережено чернеткою, не опубліковано{p.title ? ` — «${String(p.title)}»` : ''}.{' '}</>
+                        : <>У вас уже була своя чернетка цієї глави — її не замінено, переклад не збережено.{' '}</>}
+                    <Link to="/studio/$editionId/chapters/$number" params={{ editionId: String(editionId), number: String(event.chapter) }}>
+                        Відкрити в редакторі ›
+                    </Link>
                 </span>
             );
         default:

@@ -68,6 +68,35 @@ class Originals {
     record Original(int number, String title, String language, List<Block> blocks) {
     }
 
+    /**
+     * A novel the site did not take from an original's site (one the team added by hand): it is
+     * translated from the originals the team pasted.
+     */
+    static boolean pasted(String novelSource) {
+        return "manual".equals(novelSource);
+    }
+
+    /** A pasted chapter as the translation reads it; the hash tells whether it changed since its analysis. */
+    record Text(int number, String title, String language, List<Block> blocks, int chars, String hash) {
+    }
+
+    java.util.Optional<Text> text(long editionId, int number) {
+        return db.select(EDITION_ORIGINAL.TITLE, EDITION_ORIGINAL.LANGUAGE, EDITION_ORIGINAL.BLOCKS, EDITION_ORIGINAL.CHARS)
+                .from(EDITION_ORIGINAL).where(EDITION_ORIGINAL.EDITION_ID.eq(editionId), EDITION_ORIGINAL.NUMBER.eq(number))
+                .fetchOptional(row -> new Text(number, row.value1(), row.value2(),
+                        json.readValue(row.value3().data(), new TypeReference<List<Block>>() { }), row.value4(),
+                        hash(row.value1() + "\n" + row.value3().data())));
+    }
+
+    private static String hash(String text) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256").digest(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException(impossible);
+        }
+    }
+
     /** Own works have no original; the rest may. */
     void requireTranslation(long editionId) {
         String kind = db.select(EDITION.KIND).from(EDITION).where(EDITION.ID.eq(editionId)).fetchOne(EDITION.KIND);

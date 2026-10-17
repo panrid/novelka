@@ -387,6 +387,25 @@ public final class OriginalFiles {
         return out;
     }
 
+    /**
+     * One chapter given as its title and its text, each in its own field: every line of the text is
+     * a paragraph, headings included — nothing is split off. A blank title stays blank.
+     */
+    public static Chapter one(String title, String text) {
+        Draft draft = new Draft(title == null ? "" : title(title));
+        for (String raw : (text == null ? "" : text).replace("\r\n", "\n").replace('\r', '\n').replace("﻿", "").split("\n", -1)) {
+            String line = raw.strip();
+            if (!line.isEmpty()) {
+                draft.add(line);
+            }
+        }
+        Chapter chapter = draft.finish("");
+        if (chapter.chars() > MAX_CHAPTER_CHARS) {
+            throw UserFacingException.badRequest("Глава «%s» задовга: до %d знаків.".formatted(chapter.title(), MAX_CHAPTER_CHARS));
+        }
+        return chapter;
+    }
+
     /** Pasted text. */
     public static List<Chapter> parseText(String text) {
         return parse(null, text.getBytes(StandardCharsets.UTF_8)).chapters();

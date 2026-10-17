@@ -16,7 +16,7 @@ const EDITOR = {
     blocks: [{ id: 'b1', type: 'paragraph', content: [{ text: 'Ліхтарі спалахнули.', marks: [] }], imageId: null, imageUrl: null }],
 };
 
-const COUNTS = { sourceChapters: null, pendingSuggestions: 0, drafts: 0, newWords: 0, originalUrl: null };
+const COUNTS = { sourceChapters: null, pendingSuggestions: 0, drafts: 0, newWords: 0, originalUrl: null, originals: 0 };
 const NO_CHAPTERS = { items: [], total: 0, page: 1, hasMore: false };
 
 afterEach(() => vi.unstubAllGlobals());
@@ -322,31 +322,60 @@ describe('the original of a translation (етап 19)', () => {
     const EDITION = { editionId: 12, novelSlug: 'mayak', title: 'Доглядач маяка', author: '', description: [], tags: [], kind: 'human', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner', ...COUNTS };
     const EMPTY = { items: [], total: 0, page: 1, nextNumber: 1, languages: {} };
 
-    it('splits pasted text into chapters, shows the split and saves it with its language', async () => {
+    it('takes one chapter in its own fields: the title and the text', async () => {
         let saved = false;
         const { calls } = await renderAt('/studio/12/originals', {
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/12': { body: EDITION },
             'GET /api/studio/editions/12/originals': () => ({ body: saved
-                ? { items: [{ number: 1, title: '第1話', chars: 9, language: 'en', translated: false, updatedAt: '2026-10-16T10:00:00Z' }], total: 1, page: 1, nextNumber: 2, languages: { en: 1 } }
+                ? { items: [{ number: 1, title: 'Chapter 1: Good Morning Brother', chars: 30, language: 'en', translated: false, updatedAt: '2026-10-16T10:00:00Z' }], total: 1, page: 1, nextNumber: 2, languages: { en: 1 } }
                 : EMPTY }),
-            'POST /api/studio/editions/12/originals/preview': { body: { firstNumber: 1, nextNumber: 1, chapters: [
-                { number: 1, title: '第1話', chars: 9, paragraphs: 1, pictures: 0, start: '灯台の火が消えた夜。', replaces: false, translated: false },
+            'POST /api/studio/editions/12/originals/separate/preview': { body: { firstNumber: 1, nextNumber: 1, chapters: [
+                { number: 1, title: 'Chapter 1: Good Morning Brother', chars: 30, paragraphs: 2, pictures: 0, start: 'Zorian woke up.', replaces: false, translated: false },
             ] } },
-            'POST /api/studio/editions/12/originals': () => { saved = true; return { status: 201, body: { saved: 1, from: 1, to: 1 } }; },
+            'POST /api/studio/editions/12/originals/separate': () => { saved = true; return { status: 201, body: { saved: 1, from: 1, to: 1 } }; },
         });
         expect(await screen.findByRole('link', { name: 'Оригінал' })).toHaveAttribute('aria-current', 'page');
-        await userEvent.click(screen.getByRole('textbox', { name: /Текст однієї чи кількох глав/ }));
-        await userEvent.paste('第1話\n灯台の火が消えた夜。');
-        await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Мова оригіналу' }), 'en');
+        await userEvent.type(screen.getByRole('textbox', { name: 'Заголовок' }), 'Chapter 1: Good Morning Brother');
+        await userEvent.click(screen.getByRole('textbox', { name: 'Текст глави' }));
+        await userEvent.paste('Zorian woke up.\n“Morning!” Kirielle shouted.');
+        await userEvent.click(screen.getByRole('button', { name: 'Далі' }));
+        expect(await screen.findByText('Zorian woke up.')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Зберегти главу' }));
+        expect(await screen.findByText(/Збережено главу 1\./)).toBeInTheDocument();
+        expect(screen.getAllByRole('link', { name: 'Перекласти →' })[0]).toHaveAttribute('href', '/studio/12/translate');
+        expect(calls.find((call) => call.method === 'POST' && call.path === '/api/studio/editions/12/originals/separate')!.body).toEqual({
+            chapters: [{ title: 'Chapter 1: Good Morning Brother', text: 'Zorian woke up.\n“Morning!” Kirielle shouted.' }], first: 1, language: 'en',
+        });
+        expect(await screen.findByText('англ.')).toBeInTheDocument();
+    });
+
+    it('takes several chapters in one field, split by their headings, and says how', async () => {
+        const { calls } = await renderAt('/studio/12/originals', {
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/12': { body: EDITION },
+            'GET /api/studio/editions/12/originals': { body: EMPTY },
+            'POST /api/studio/editions/12/originals/preview': { body: { firstNumber: 1, nextNumber: 1, chapters: [
+                { number: 1, title: 'Chapter 1', chars: 9, paragraphs: 1, pictures: 0, start: 'One.', replaces: false, translated: false },
+                { number: 2, title: 'Chapter 2', chars: 9, paragraphs: 1, pictures: 0, start: 'Two.', replaces: false, translated: false },
+            ] } },
+            'POST /api/studio/editions/12/originals': { status: 201, body: { saved: 2, from: 1, to: 2 } },
+        });
+        await userEvent.click(await screen.findByRole('radio', { name: 'Кілька глав' }));
+        expect(screen.getByRole('radio', { name: 'Кожна окремо' })).toBeChecked();
+        expect(screen.getAllByRole('textbox', { name: 'Текст глави' })).toHaveLength(2);
+        await userEvent.click(screen.getByRole('radio', { name: 'Усі в одне поле' }));
+        expect(screen.getByText('Як сайт ділить текст на глави')).toBeInTheDocument();
+        expect(screen.getByText(/Chapter 1: Good Morning Brother/)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('textbox', { name: /Текст кількох глав/ }));
+        await userEvent.paste('Chapter 1\nOne.\nChapter 2\nTwo.');
         await userEvent.click(screen.getByRole('button', { name: 'Поділити на глави' }));
-        expect(await screen.findByText('灯台の火が消えた夜。')).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('button', { name: /^Зберегти 1 глав/ }));
-        expect(await screen.findByText('Збережено глави 1.')).toBeInTheDocument();
+        expect(await screen.findByText('Two.')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: /^Зберегти 2 глав/ }));
+        expect(await screen.findByText(/Збережено глави 1–2\./)).toBeInTheDocument();
         const sent = calls.find((call) => call.method === 'POST' && call.path === '/api/studio/editions/12/originals')!.body as FormData;
         expect(sent.get('language')).toBe('en');
-        expect(sent.get('text')).toBe('第1話\n灯台の火が消えた夜。');
-        expect(await screen.findByText('англ.')).toBeInTheDocument();
+        expect(sent.get('text')).toBe('Chapter 1\nOne.\nChapter 2\nTwo.');
     });
 
     it('is not offered to others while the stage is being made', async () => {

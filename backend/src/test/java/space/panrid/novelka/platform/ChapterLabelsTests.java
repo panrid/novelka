@@ -28,6 +28,30 @@ class ChapterLabelsTests {
     }
 
     @Test
+    void anArcAndAnEpisodeAreNotAChapterNumber() {
+        assertThat(ChapterLabels.fromJapanese("01-14　ゴーレムのゴン")).isEmpty();
+        assertThat(ChapterLabels.fromJapanese("00-01　プロローグ１　二つの世界でのエピローグ")).isEmpty();
+        assertThat(ChapterLabels.isArcEpisode("01-14　ゴーレムのゴン")).isTrue();
+        assertThat(ChapterLabels.isArcEpisode("31-1 続き")).isFalse();
+        assertThat(ChapterLabels.withoutArcEpisode("01-14 Ґолем Ґон")).isEqualTo("Ґолем Ґон");
+        assertThat(ChapterLabels.withoutArcEpisode("Ґолем Ґон")).isEqualTo("Ґолем Ґон");
+    }
+
+    @Test
+    void pastedOriginalsInOtherLanguagesHaveTheirNumbersToo() {
+        assertThat(ChapterLabels.fromOriginal("Chapter 001 Good Morning Brother")).contains("1");
+        assertThat(ChapterLabels.fromOriginal("Ch. 12.5: The Gate")).contains("12.5");
+        assertThat(ChapterLabels.fromOriginal("Episode 7")).contains("7");
+        assertThat(ChapterLabels.fromOriginal("제12화 시작")).contains("12");
+        assertThat(ChapterLabels.fromOriginal("第3話　灯り")).contains("3");
+        assertThat(ChapterLabels.fromOriginal("Chapters of my life")).isEmpty();
+        assertThat(ChapterLabels.fromOriginal("Good Morning Brother")).isEmpty();
+        assertThat(ChapterLabels.isSpecial("Prologue")).isTrue();
+        assertThat(ChapterLabels.isSpecial("Side Story: The Twins")).isTrue();
+        assertThat(ChapterLabels.isSpecial("Extraordinary day")).isFalse();
+    }
+
+    @Test
     void translatedTitlesLoseTheirNumber() {
         assertThat(ChapterLabels.withoutNumber("Глава 3. Світло")).isEqualTo("Світло");
         assertThat(ChapterLabels.withoutNumber("Розділ 31.1: Продовження")).isEqualTo("Продовження");

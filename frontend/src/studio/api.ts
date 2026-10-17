@@ -34,6 +34,8 @@ export type Overview = {
     pausedUntil: string | null;
     /** syosetu, manual or original. */
     source: string;
+    /** Chapters of the original the team pasted (етап 19). */
+    originals: number;
     facts: NovelFacts;
     /** Readers may download the translation as EPUB. */
     downloadAllowed: boolean;

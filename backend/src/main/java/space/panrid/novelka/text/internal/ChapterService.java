@@ -105,7 +105,7 @@ class ChapterService implements Chapters {
     @Override
     @Transactional
     public long publishMachine(long editionId, int number, String label, String title, List<Block> blocks,
-            long sourceChapterId, int sourceChars, long jobId, String sourceHash) {
+            Long sourceChapterId, int sourceChars, long jobId, String sourceHash) {
         blocks = BlockRules.normalize(blocks);
         // A machine chapter may have only a number («第12話»): then readers see «Глава 12».
         title = title == null || title.isBlank() ? "" : BlockRules.title(title);
@@ -181,6 +181,28 @@ class ChapterService implements Chapters {
         db.update(CHAPTER).set(CHAPTER.LABEL, value).set(CHAPTER.LABEL_MANUAL, value != null).set(CHAPTER.UPDATED_AT, now())
                 .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(number)).execute();
         volumes.renumber(editionId);
+    }
+
+    @Override
+    @Transactional
+    public boolean saveMachineDraft(long editionId, int number, long accountId, String label, String title, List<Block> blocks) {
+        List<Block> normalized = BlockRules.normalize(blocks);
+        String name = title == null || title.isBlank() ? "" : BlockRules.title(title);
+        db.execute("SELECT 1 FROM edition WHERE id = ? FOR UPDATE", editionId);
+        ChapterRecord chapter = db.selectFrom(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(editionId).and(CHAPTER.NUMBER.eq(number))).fetchOne();
+        if (chapter == null) {
+            boolean numbered = ChapterLabels.valid(label);
+            db.insertInto(CHAPTER).set(CHAPTER.EDITION_ID, editionId).set(CHAPTER.NUMBER, number)
+                    .set(CHAPTER.LABEL, numbered ? label : null).set(CHAPTER.LABEL_MANUAL, numbered && label != null)
+                    .set(CHAPTER.UPDATED_AT, now()).execute();
+            volumes.renumber(editionId);
+            chapter = db.selectFrom(CHAPTER).where(CHAPTER.EDITION_ID.eq(editionId).and(CHAPTER.NUMBER.eq(number))).fetchSingle();
+        } else if (db.fetchExists(EDITOR_DRAFT, EDITOR_DRAFT.CHAPTER_ID.eq(chapter.getId()).and(EDITOR_DRAFT.ACCOUNT_ID.eq(accountId)))) {
+            return false;
+        }
+        saveDraft(editionId, number, accountId, name, normalized, chapter.getPublishedRevisionId());
+        return true;
     }
 
     @Override

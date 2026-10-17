@@ -1,6 +1,7 @@
 package space.panrid.novelka.autotranslate.internal;
 
 import static space.panrid.novelka.jooq.Tables.CHAPTER_ANALYSIS;
+import static space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL;
 import static space.panrid.novelka.jooq.Tables.SOURCE_CHAPTER;
 
 import java.util.List;
@@ -26,14 +27,18 @@ class Analyses {
         this.db = db;
     }
 
-    /** @param narrator who tells the chapter in the first person (Ukrainian name), or null */
-    record Analysis(int number, long sourceChapterId, String title, String label, boolean edited, String narrator,
-            String narratorGender) {
+    /**
+     * @param narrator         who tells the chapter in the first person (Ukrainian name), or null
+     * @param sourceChapterId  the original fetched from its site; null for a pasted one
+     * @param originalHash     the pasted original it was made from; null for a fetched one
+     */
+    record Analysis(int number, Long sourceChapterId, String title, String label, boolean edited, String narrator,
+            String narratorGender, String originalHash) {
     }
 
     private static Analysis analysis(space.panrid.novelka.jooq.tables.records.ChapterAnalysisRecord r) {
         return new Analysis(r.getNumber(), r.getSourceChapterId(), r.getTitle(), r.getLabel(), r.getEdited(), r.getNarrator(),
-                r.getNarratorGender());
+                r.getNarratorGender(), r.getOriginalHash());
     }
 
     Optional<Analysis> find(long editionId, int number) {
@@ -73,7 +78,18 @@ class Analyses {
      * the novel numbers its chapters but this one has no number; otherwise the position.
      */
     String label(long novelId, String originalTitle) {
-        Optional<String> number = ChapterLabels.fromJapanese(originalTitle);
+        return labelAmong(() -> db.select(SOURCE_CHAPTER.TITLE).from(SOURCE_CHAPTER).where(SOURCE_CHAPTER.NOVEL_ID.eq(novelId))
+                .fetch(SOURCE_CHAPTER.TITLE), originalTitle);
+    }
+
+    /** The same for a pasted original, among the titles of the originals the team pasted. */
+    String pastedLabel(long editionId, String originalTitle) {
+        return labelAmong(() -> db.select(EDITION_ORIGINAL.TITLE).from(EDITION_ORIGINAL).where(EDITION_ORIGINAL.EDITION_ID.eq(editionId))
+                .fetch(EDITION_ORIGINAL.TITLE), originalTitle);
+    }
+
+    private static String labelAmong(java.util.function.Supplier<List<String>> all, String originalTitle) {
+        Optional<String> number = ChapterLabels.fromOriginal(originalTitle);
         if (number.isPresent()) {
             return number.get();
         }
@@ -82,13 +98,12 @@ class Analyses {
         }
         // The novel numbers its chapters in the titles when most of them carry a number; one title
         // that happens to start like one («第二の魔法…») must not leave all the others without numbers.
-        List<String> titles = db.select(SOURCE_CHAPTER.TITLE).from(SOURCE_CHAPTER).where(SOURCE_CHAPTER.NOVEL_ID.eq(novelId))
-                .fetch(SOURCE_CHAPTER.TITLE);
-        long numbered = titles.stream().filter(title -> ChapterLabels.fromJapanese(title).isPresent()).count();
+        List<String> titles = all.get();
+        long numbered = titles.stream().filter(title -> ChapterLabels.fromOriginal(title).isPresent()).count();
         return numbered * 2 > titles.size() ? "" : null;
     }
 
-    void save(long editionId, int number, long sourceChapterId, String title, String label, String narrator,
+    void save(long editionId, int number, Long sourceChapterId, String originalHash, String title, String label, String narrator,
             String narratorGender, long jobId) {
         String name = narrator == null || narrator.isBlank() ? null : narrator.strip();
         if (name != null && name.length() > 100) {
@@ -99,6 +114,7 @@ class Analyses {
                 .set(CHAPTER_ANALYSIS.EDITION_ID, editionId)
                 .set(CHAPTER_ANALYSIS.NUMBER, number)
                 .set(CHAPTER_ANALYSIS.SOURCE_CHAPTER_ID, sourceChapterId)
+                .set(CHAPTER_ANALYSIS.ORIGINAL_HASH, originalHash)
                 .set(CHAPTER_ANALYSIS.TITLE, title)
                 .set(CHAPTER_ANALYSIS.LABEL, label)
                 .set(CHAPTER_ANALYSIS.NARRATOR, name)
@@ -106,6 +122,7 @@ class Analyses {
                 .set(CHAPTER_ANALYSIS.JOB_ID, jobId)
                 .onConflict(CHAPTER_ANALYSIS.EDITION_ID, CHAPTER_ANALYSIS.NUMBER).doUpdate()
                 .set(CHAPTER_ANALYSIS.SOURCE_CHAPTER_ID, sourceChapterId)
+                .set(CHAPTER_ANALYSIS.ORIGINAL_HASH, originalHash)
                 .set(CHAPTER_ANALYSIS.TITLE, title)
                 .set(CHAPTER_ANALYSIS.LABEL, label)
                 .set(CHAPTER_ANALYSIS.NARRATOR, name)

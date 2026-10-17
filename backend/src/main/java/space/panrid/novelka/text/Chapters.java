@@ -25,7 +25,16 @@ public interface Chapters {
      * chapter under that number if it does not exist yet. Pictures must already be stored.
      */
     long publishMachine(long editionId, int number, String label, String title, List<Block> blocks,
-            long sourceChapterId, int sourceChars, long jobId, String sourceHash);
+            Long sourceChapterId, int sourceChars, long jobId, String sourceHash);
+
+    /**
+     * A machine translation left unpublished: the draft of {@code accountId} in the editor, the
+     * chapter created under that number if it does not exist yet. A draft the person has of this
+     * chapter already is theirs and is not replaced.
+     *
+     * @return false when the person's own draft was kept
+     */
+    boolean saveMachineDraft(long editionId, int number, long accountId, String label, String title, List<Block> blocks);
 
     /**
      * The number readers see: «0», «31.1»; empty for none («Пролог»); null for the position.
