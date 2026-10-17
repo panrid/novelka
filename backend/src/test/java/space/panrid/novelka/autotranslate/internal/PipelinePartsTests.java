@@ -200,6 +200,15 @@ class PipelinePartsTests {
     }
 
     @Test
+    void readersSeeNotesWithoutTheOriginal() {
+        assertThat(Glossary.forReaders("Магія Сіона (魔法); магію демонів (魔術) звуть «чаклунство».")).isEqualTo("Магія Сіона; магію демонів звуть «чаклунство».");
+        assertThat(Glossary.forReaders("War kobold: бойовий різновид (ゴブリンウォーリアー).")).isEqualTo("War kobold: бойовий різновид.");
+        assertThat(Glossary.forReaders("Те саме, що 選ばれし者: з великої літери.")).as("for the team only").isNull();
+        assertThat(Glossary.forReaders("Головний герой.")).isEqualTo("Головний герой.");
+        assertThat(Glossary.forReaders(null)).isNull();
+    }
+
+    @Test
     void theNarratorIsToldWithTheGrammarTheirGenderNeeds() {
         assertThat(Prompts.narrator("Сіон", "male")).contains("Сіон").contains("я думав");
         assertThat(Prompts.narrator("Каталіна", "female")).contains("я думала");

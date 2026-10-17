@@ -15,5 +15,8 @@ class AiErrorsTests {
         assertThat(AiService.moderated("{\"error\":{\"code\":403,\"message\":\"Key limit exceeded\"}}")).isFalse();
         assertThat(AiService.openRouterMessage("{\"error\":{\"code\":403,\"message\":\"Key limit exceeded\"}}")).isEqualTo("Key limit exceeded");
         assertThat(AiService.openRouterMessage("<html>Forbidden</html>")).isNull();
+        assertThat(AiService.openRouterMessage("{\"error\":{\"message\":\"Provider returned error\",\"code\":403,\"metadata\":{\"raw\":"
+                + "\"{\\\"code\\\":\\\"The caller does not have permission\\\"}\",\"provider_name\":\"xAI\"}}}"))
+                .as("the provider's own words").isEqualTo("xAI: {\"code\":\"The caller does not have permission\"}");
     }
 }

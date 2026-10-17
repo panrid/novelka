@@ -715,8 +715,9 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
             List<String> told = new ArrayList<>();
             for (GlossaryEntryRecord entry : met) {
                 // The first note is what analysis said when the entry appeared: shown from that chapter on.
-                if (entry.getNote() != null && !entry.getNote().isBlank() && !told.contains(entry.getNote())) {
-                    told.add(entry.getNote());
+                String note = forReaders(entry.getNote());
+                if (note != null && !told.contains(note)) {
+                    told.add(note);
                 }
             }
             for (GlossaryEntryRecord entry : members) {
@@ -725,6 +726,22 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
             out.add(new Card(mainId, shown.getUkrainian(), main.getKind(), main.getGender(), told));
         }
         return out;
+    }
+
+    private static final java.util.regex.Pattern CJK_ASIDE = java.util.regex.Pattern.compile(
+            "\\s*[(（][^)）]*[\\p{IsHiragana}\\p{IsKatakana}\\p{IsHan}\\p{IsHangul}][^)）]*[)）]");
+
+    /**
+     * A note as readers see it: the team writes the original into it («магія (魔法)»); the
+     * asides in brackets go, and a note that still needs the original («Те саме, що 選ばれし者») is
+     * for the team only.
+     */
+    static String forReaders(String note) {
+        if (note == null || note.isBlank()) {
+            return null;
+        }
+        String clean = CJK_ASIDE.matcher(note).replaceAll("").strip();
+        return clean.isEmpty() || untranslated(clean) ? null : clean;
     }
 
     private static boolean metBy(GlossaryEntryRecord entry, int chapter) {
