@@ -36,6 +36,9 @@ export const suggestionApi = {
     history: (page = 1) => api<{ items: MySuggestion[]; total: number; page: number; hasMore: boolean }>(`/api/me/suggestions?page=${page}`),
     queue: (editionId: number) => api<{ number: number; label: string | null; title: string; pending: number }[]>(`/api/studio/editions/${editionId}/suggestions`),
     pending: (editionId: number, number: number) => api<ReviewItem[]>(studio(editionId, number)),
+    apply: (editionId: number, number: number, blockId: string, content: Span[], note: string) =>
+        api<void>(`/api/studio/editions/${editionId}/chapters/${number}/blocks/apply`,
+            { method: 'POST', body: JSON.stringify({ blockId, content, note }) }),
     review: (editionId: number, number: number, decisions: { id: number; accept: boolean; content?: Span[] }[]) =>
         api<{ revisionId: number | null; accepted: number; rejected: number; stale: number }>(`${studio(editionId, number)}/review`,
             { method: 'POST', body: JSON.stringify({ decisions }) }),

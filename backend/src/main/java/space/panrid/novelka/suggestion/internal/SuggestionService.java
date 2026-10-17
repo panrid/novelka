@@ -80,18 +80,45 @@ class SuggestionService implements space.panrid.novelka.suggestion.Suggestions {
     @Transactional
     long draftBlock(Viewer viewer, long editionId, int number, String blockId, List<Span> content, String note) {
         CurrentText text = readable(viewer, editionId, number);
-        Block block = text.blocks().stream().filter(b -> b.id().equals(blockId)).findFirst()
+        Block block = block(text, blockId);
+        List<Span> proposed = changed(block, content);
+        return upsert(viewer, text, "block", blockId, block.text(), JSONB.valueOf(json.writeValueAsString(proposed)),
+                null, null, note, SUGGESTION.BLOCK_ID.eq(blockId));
+    }
+
+    /**
+     * The team fixes a paragraph in the reader at once: no batch and no review, yet still a
+     * suggestion accepted by its author, so the change shows in the chapter's history. The
+     * author's own draft for this paragraph is no longer needed.
+     */
+    @Transactional
+    void applyBlock(Viewer editor, long editionId, int number, String blockId, List<Span> content, String note) {
+        CurrentText text = readable(editor, editionId, number);
+        changed(block(text, blockId), content);
+        db.update(SUGGESTION)
+                .set(SUGGESTION.STATE, "withdrawn")
+                .set(SUGGESTION.UPDATED_AT, now())
+                .where(SUGGESTION.AUTHOR_ID.eq(editor.accountId()).and(SUGGESTION.CHAPTER_ID.eq(text.chapterId()))
+                        .and(SUGGESTION.STATE.eq("draft")).and(SUGGESTION.KIND.eq("block")).and(SUGGESTION.BLOCK_ID.eq(blockId)))
+                .execute();
+        propose(editor, editionId, List.of(new BlockChange(number, blockId, content)), note, true);
+    }
+
+    private static Block block(CurrentText text, String blockId) {
+        return text.blocks().stream().filter(b -> b.id().equals(blockId)).findFirst()
                 .orElseThrow(() -> UserFacingException.badRequest("Цього абзацу вже немає. Оновіть сторінку."));
+    }
+
+    /** The paragraph as proposed, if it differs from {@code block} and is not empty. */
+    private static List<Span> changed(Block block, List<Span> content) {
         List<Span> proposed = spans(content);
-        String proposedText = plain(proposed);
-        if (proposedText.isBlank()) {
+        if (plain(proposed).isBlank()) {
             throw UserFacingException.badRequest("Абзац не може бути порожнім.");
         }
         if (proposed.equals(block.content())) {
             throw UserFacingException.badRequest("Текст не змінився.");
         }
-        return upsert(viewer, text, "block", blockId, block.text(), JSONB.valueOf(json.writeValueAsString(proposed)),
-                null, null, note, SUGGESTION.BLOCK_ID.eq(blockId));
+        return proposed;
     }
 
     @Transactional
