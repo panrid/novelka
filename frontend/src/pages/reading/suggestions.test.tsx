@@ -143,6 +143,7 @@ describe('«хто це» in the reader', () => {
         expect(screen.queryByRole('button', { name: '⇄ Замінити в главі' })).not.toBeInTheDocument();
         await userEvent.click(await screen.findByRole('button', { name: '? Хто це' }));
         expect(await screen.findByText('Старе й скрипуче.')).toBeInTheDocument();
+        expect(screen.getByText('Що це')).toBeInTheDocument(); // a thing, not a person
         const query = new URLSearchParams(calls.find((call) => call.path === '/api/novels/mah-vody/who')!.query);
         expect(query.get('chapter')).toBe('12');
         expect(query.get('q')).toBe('Ліжко скрипнуло.');

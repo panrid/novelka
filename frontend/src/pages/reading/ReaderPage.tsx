@@ -544,7 +544,7 @@ function WhoSheet({ slug, team, chapter, text, blockId, editionId, onClose }: {
         },
     });
     return (
-        <Sheet open onClose={onClose} title="Хто це" peek>
+        <Sheet open onClose={onClose} title={whoTitle(cards.data)} peek>
             <div className={styles.who}>
                 {cards.isPending && <p className={styles.whoMuted}>Шукаємо в словнику…</p>}
                 {cards.isError && <Notice tone="error">{cards.error.message}</Notice>}
@@ -606,6 +606,13 @@ function LinkSheet({ slug, editionId, chapter, text, blockId, onClose }: {
             </div>
         </Sheet>
     );
+}
+
+/** «Хто це» for people, «Що це» for places, terms and things, both when the selection names both. */
+function whoTitle(cards: { kind: string }[] | undefined): string {
+    if (!cards || cards.length === 0) return 'Хто чи що це';
+    const people = cards.filter((card) => card.kind === 'character').length;
+    return people === cards.length ? 'Хто це' : people === 0 ? 'Що це' : 'Хто й що це';
 }
 
 const WHO_KINDS: Record<string, string> = {
