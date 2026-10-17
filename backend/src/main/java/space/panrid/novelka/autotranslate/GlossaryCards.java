@@ -42,6 +42,16 @@ public interface GlossaryCards {
     record Hints(boolean byOriginal, List<Term> terms, List<BlockLink> links) {
     }
 
+    /**
+     * «Персонажі» on the novel page: the characters the novel has met by {@code chapter}, in the
+     * order it met them, each with what it told by then; {@code chapter} null — all of them, with
+     * everything (spoilers, the reader asked for it).
+     */
+    List<Card> characters(long editionId, Integer chapter);
+
+    /** How many characters the glossary has: the novel page shows «Персонажі» when there are some. */
+    int characterCount(long editionId);
+
     /** Entries the novel has met by {@code chapter} and told something about (a note or a fact). */
     List<Term> known(long editionId, int chapter);
 

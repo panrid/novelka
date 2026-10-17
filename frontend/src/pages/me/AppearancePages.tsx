@@ -122,6 +122,8 @@ export function SiteAppearancePage() {
                     options={[{ value: 'compact', label: 'Компактно' }, { value: 'normal', label: 'Звичайно' }, { value: 'airy', label: 'Просторо' }]} />
                 <Choice label="Картки" value={look.cards} onPick={(cards) => setSite({ cards })}
                     options={[{ value: 'flat', label: 'Пласкі' }, { value: 'border', label: 'З рамкою' }, { value: 'shadow', label: 'З тінню' }]} />
+                <Choice label="Портрети персонажів" value={look.portraits} onPick={(portraits) => setSite({ portraits })}
+                    options={[{ value: 'round', label: 'Кола' }, { value: 'square', label: 'Квадрати' }]} />
                 <Choice label="Анімації" value={look.anim} onPick={(anim) => setSite({ anim })}
                     options={[{ value: 'system', label: 'Як у системі' }, { value: 'full', label: 'Увімкнені' }, { value: 'light', label: 'Лише легкі' }, { value: 'off', label: 'Вимкнені' }]} />
             </div>

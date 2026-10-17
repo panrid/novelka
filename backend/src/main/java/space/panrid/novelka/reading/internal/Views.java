@@ -95,7 +95,7 @@ final class Views {
     record NovelPage(String slug, String title, String author, String origin, String language, List<ReaderBlock> description,
             List<String> tags, EditionSummary edition, List<EditionSummary> editions, boolean adult,
             OffsetDateTime lastPublishedAt, ViewerState viewer, Relay relay, String originalUrl,
-            space.panrid.novelka.catalog.NovelFacts facts) {
+            space.panrid.novelka.catalog.NovelFacts facts, int characters) {
     }
 
     /** «Естафета» on the novel page: free to continue and who continues already. */

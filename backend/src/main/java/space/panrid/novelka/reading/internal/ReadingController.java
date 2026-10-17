@@ -139,7 +139,7 @@ class ReadingController {
                 queries.readerBlocks(edition.description() != null ? edition.description() : novel.description()),
                 queries.allTags(novel.id()), chosen, summaries, edition.adult(), edition.lastPublishedAt(),
                 viewer.map(v -> queries.viewer(v.accountId(), edition.id())).orElse(null), relay(edition.id()), novel.url(),
-                novel.facts());
+                novel.facts(), cards.characterCount(edition.id()));
     }
 
     /** The volumes «Завантажити EPUB» offers besides the whole translation. */
@@ -174,6 +174,17 @@ class ReadingController {
             @RequestParam int chapter, @RequestParam String q, @RequestParam(required = false) String block) {
         EditionRow edition = pick(visibleEditions(queries.novel(slug).orElseThrow(ReadingController::noNovel), currentUser.viewer()), t);
         return cards.named(edition.id(), chapter, q, block);
+    }
+
+    /**
+     * «Персонажі» on the novel page: those met by the reader's {@code chapter} (0 — not started),
+     * or with {@code all} every one with everything told — spoilers, by the reader's choice.
+     */
+    @GetMapping("/novels/{slug}/characters")
+    List<GlossaryCards.Card> characters(@PathVariable String slug, @RequestParam(required = false) String t,
+            @RequestParam(defaultValue = "0") int chapter, @RequestParam(defaultValue = "false") boolean all) {
+        EditionRow edition = pick(visibleEditions(queries.novel(slug).orElseThrow(ReadingController::noNovel), currentUser.viewer()), t);
+        return cards.characters(edition.id(), all ? null : Math.max(0, chapter));
     }
 
     /** «Лампочка»: the glossary's words in the chapter, tied to the paragraphs whose original names them. */

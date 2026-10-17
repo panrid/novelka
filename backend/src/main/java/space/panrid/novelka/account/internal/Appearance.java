@@ -40,6 +40,7 @@ final class Appearance {
             Map.entry("cards", oneOf("flat", "border", "shadow")),
             Map.entry("nav", oneOf("top", "side")),
             Map.entry("catalog", oneOf("rows", "grid", "shelf")),
+            Map.entry("portraits", oneOf("round", "square")),
             Map.entry("anim", oneOf("system", "full", "light", "off")));
 
     private static final Map<String, Predicate<JsonNode>> READER = Map.ofEntries(

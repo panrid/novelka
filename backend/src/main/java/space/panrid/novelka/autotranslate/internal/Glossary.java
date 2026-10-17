@@ -418,6 +418,23 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
     }
 
     @Override
+    public List<Card> characters(long editionId, Integer chapter) {
+        int upTo = chapter == null ? Integer.MAX_VALUE : chapter;
+        List<GlossaryEntryRecord> met = db.selectFrom(GLOSSARY_ENTRY)
+                .where(GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId()), GLOSSARY_ENTRY.STATUS.ne("rejected"),
+                        GLOSSARY_ENTRY.KIND.eq("character"),
+                        chapter == null ? DSL.noCondition() : GLOSSARY_ENTRY.SOURCE_CHAPTER.isNull().or(GLOSSARY_ENTRY.SOURCE_CHAPTER.le(chapter)))
+                .orderBy(GLOSSARY_ENTRY.SOURCE_CHAPTER.asc().nullsFirst(), GLOSSARY_ENTRY.ID).fetch();
+        return cards(met, upTo);
+    }
+
+    @Override
+    public int characterCount(long editionId) {
+        return db.fetchCount(GLOSSARY_ENTRY, GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId()),
+                GLOSSARY_ENTRY.STATUS.ne("rejected"), GLOSSARY_ENTRY.KIND.eq("character"));
+    }
+
+    @Override
     public Hints hints(long editionId, int chapter) {
         List<Term> terms = new ArrayList<>(known(editionId, chapter));
         List<BlockLink> links = new ArrayList<>();
@@ -483,6 +500,11 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
                 .sorted(java.util.Comparator.comparingInt((GlossaryEntryRecord entry) -> -entry.getUkrainian().length())
                         .thenComparing(entry -> entry.getSourceChapter() == null ? 0 : entry.getSourceChapter()))
                 .limit(CARDS).toList();
+        return cards(found, chapter);
+    }
+
+    /** What the novel told about each entry by {@code chapter}: its first note from the chapter it appeared, then the facts. */
+    private List<Card> cards(List<GlossaryEntryRecord> found, int chapter) {
         if (found.isEmpty()) {
             return List.of();
         }

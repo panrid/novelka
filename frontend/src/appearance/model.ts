@@ -34,6 +34,8 @@ export type SiteLook = {
     nav: 'top' | 'side';
     /** Novels in the catalog and on the home page: rows, a grid of covers, or a shelf. */
     catalog: 'rows' | 'grid' | 'shelf';
+    /** Pictures of characters (the novel's «Персонажі»): circles or squares. */
+    portraits: 'round' | 'square';
 };
 export type SiteAppearance = Partial<SiteLook>;
 
@@ -103,7 +105,7 @@ export const SITE_ACCENTS = ['#8fb07f', '#4f7a40', '#2f4a6b', '#4fb3d9', '#6c7ae
 const SITE_DEFAULTS: SiteLook = {
     preset: 'default', custom: false, base: 'dark', bg: 0, accent: '#8fb07f', ui: 'inter', head: 'literata', scale: 1,
     radius: 12, density: 'normal', cards: 'flat', anim: 'system', icons: 'lucide', iconWeight: 1.75, iconColor: 'text', iconFill: false,
-    nav: 'top', catalog: 'rows',
+    nav: 'top', catalog: 'rows', portraits: 'round',
 };
 
 export const ICON_SETS: { value: SiteLook['icons']; label: string; fill: boolean }[] = [
@@ -316,6 +318,7 @@ const SITE_ONE_OF: { [K in keyof SiteLook]?: readonly unknown[] } = {
     iconColor: ['text', 'accent', 'muted'],
     nav: ['top', 'side'],
     catalog: ['rows', 'grid', 'shelf'],
+    portraits: ['round', 'square'],
     scale: SITE_SCALES,
 };
 const SITE_RANGE: { [K in keyof SiteLook]?: [number, number] } = { bg: [0, 5], radius: [0, 24] };

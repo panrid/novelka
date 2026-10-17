@@ -82,6 +82,18 @@ class WhoIsTests {
     }
 
     @Test
+    void theNovelPageListsTheCharactersMetSoFarAndAllOfThemOnlyWhenAsked() {
+        Browser guest = new Browser(port);
+        assertThat(JSON.readTree(guest.get("/api/novels/" + slug).body()).path("characters").asInt()).as("Абель is rejected").isEqualTo(1);
+        assertThat(JSON.readTree(guest.get("/api/novels/" + slug + "/characters").body()).size()).as("not started yet").isZero();
+        JsonNode met = JSON.readTree(guest.get("/api/novels/" + slug + "/characters?chapter=3").body());
+        assertThat(met).extracting(card -> card.path("ukrainian").asString()).containsExactly("Рьо");
+        assertThat(met.path(0).path("facts")).extracting(JsonNode::asString).containsExactly("Головний герой.", "Має чорне волосся.");
+        JsonNode all = JSON.readTree(guest.get("/api/novels/" + slug + "/characters?all=true").body());
+        assertThat(all.path(0).path("facts").size()).as("spoilers, as asked").isEqualTo(3);
+    }
+
+    @Test
     void theLampMarksOnlyWordsTheReadersChapterHasMetAndToldAbout() {
         Browser guest = new Browser(port);
         assertThat(terms(guest, 1)).containsExactly("Рьо");

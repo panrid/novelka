@@ -9,9 +9,10 @@ import { Discussion, useCommentCount } from '../../community/Discussion';
 import { commentApi } from '../../community/api';
 import { adminApi } from '../../admin/api';
 import { Sheet } from '../../ui/Sheet';
+import { Toggle } from '../../ui/Toggle';
 import { Blocks } from '../../reading/Blocks';
 import { Cover } from '../../reading/Cover';
-import { LIST_LABELS, SOURCE_STATUS_LABELS, chapterHeading, chaptersWord, otherNames, readingApi, translationStatus, volumeTitle, type ChapterRow as ChapterRowType, type ContentsVolume, type ListName, type NovelPage as Novel } from '../../reading/api';
+import { LIST_LABELS, SOURCE_STATUS_LABELS, chapterHeading, chaptersWord, otherNames, readingApi, translationStatus, volumeTitle, type ChapterRow as ChapterRowType, type ContentsVolume, type ListName, type NovelPage as Novel, type WhoCard } from '../../reading/api';
 import { relayApi, teamApi } from '../../studio/api';
 import { Segmented } from '../../ui/Segmented';
 import { clearLocalProgress, localProgress } from '../../reading/progress';
@@ -53,7 +54,7 @@ export function NovelPage() {
     return <NovelView novel={novel.data} team={t} />;
 }
 
-type NovelTab = 'about' | 'chapters' | 'talk';
+type NovelTab = 'about' | 'chapters' | 'characters' | 'talk';
 
 function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) {
     const edition = novel.edition;
@@ -121,8 +122,12 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                     <TabList aria-label="Розділи новели" className={styles.tabs}>
                         <Tab id="about" className={styles.tab}>Про новелу</Tab>
                         <Tab id="chapters" className={styles.tab}>Глави · {edition.chapterCount}</Tab>
+                        {(novel.characters ?? 0) > 0 && <Tab id="characters" className={styles.tab}>Персонажі</Tab>}
                         <Tab id="talk" className={styles.tab}>Обговорення{comments > 0 ? ` · ${comments}` : ''}</Tab>
                     </TabList>
+                    <TabPanel id="characters" className={styles.panel}>
+                        <Characters slug={novel.slug} team={team} chapter={resume ?? 0} />
+                    </TabPanel>
                     <TabPanel id="about" className={styles.panel}>
                         <About novel={novel} />
                     </TabPanel>
@@ -707,6 +712,46 @@ function VolumeSection({ volume, slug, team, order, row, initiallyOpen, current 
                 </>
             )}
         </section>
+    );
+}
+
+/**
+ * «Персонажі»: the characters the reader has met so far, a portrait (a letter until there are
+ * pictures; circles or squares as «Вигляд» says) and the name; a tap tells who it is as of the
+ * reader's chapter. «Показати всіх» lifts the limit — spoilers, by the reader's choice.
+ */
+function Characters({ slug, team, chapter }: { slug: string; team: string | undefined; chapter: number }) {
+    const [all, setAll] = useState(false);
+    const [open, setOpen] = useState<WhoCard | null>(null);
+    const list = useQuery({ queryKey: ['characters', slug, team ?? '', chapter, all], queryFn: () => readingApi.characters(slug, team, chapter, all) });
+    const people = list.data ?? [];
+    return (
+        <div className={styles.characters}>
+            {list.isError && <Notice tone="error">{list.error.message}</Notice>}
+            {list.isSuccess && people.length === 0 && (
+                <p className={styles.muted}>{chapter === 0 ? 'Почніть читати — тут з’являться персонажі, яких ви вже зустріли.' : 'Поки що нікого.'}</p>
+            )}
+            <ul className={styles.characterGrid}>
+                {people.map((person) => (
+                    <li key={person.id}>
+                        <button type="button" className={styles.character} onClick={() => setOpen(person)}>
+                            <span className={styles.portrait} style={{ background: `hsl(${(person.id * 47) % 360} 35% 32%)` }} aria-hidden>
+                                {[...person.ukrainian][0]?.toUpperCase()}
+                            </span>
+                            <span className={styles.characterName}>{person.ukrainian}</span>
+                        </button>
+                    </li>
+                ))}
+            </ul>
+            <Toggle label="Показати всіх — можливі спойлери" isSelected={all} onChange={setAll} />
+            {open && (
+                <Sheet open onClose={() => setOpen(null)} title={open.ukrainian} peek>
+                    {open.facts.length > 0
+                        ? <ul className={styles.characterFacts}>{open.facts.map((fact, index) => <li key={index}>{fact}</li>)}</ul>
+                        : <p className={styles.muted}>Поки що про цього персонажа нічого не відомо.</p>}
+                </Sheet>
+            )}
+        </div>
     );
 }
 

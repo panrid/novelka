@@ -30,6 +30,7 @@ export function siteVars(look: SiteLook): Record<string, string> {
         '--radius': `${r}px`,
         '--radius-lg': `${Math.round(r * 1.5)}px`,
         '--density': String(density),
+        '--portrait-radius': look.portraits === 'square' ? `${Math.round(r * 0.7)}px` : '50%',
         '--icon-color': look.iconColor === 'accent' ? look.accent : look.iconColor === 'muted' ? tone.muted : 'currentColor',
         '--shelf': dark ? '#3a2e22' : '#b08b5e',
         '--gutter': `${Math.round(16 * density)}px`,

@@ -104,6 +104,8 @@ export type NovelPage = {
     /** The original's page, when the site knows it. */
     originalUrl?: string | null;
     facts?: NovelFacts;
+    /** Characters in the translation's glossary: «Персонажі» shows when there are some. */
+    characters?: number;
 };
 
 export type Continuation = { teamHandle: string; teamName: string; firstNumber: number };
@@ -198,6 +200,13 @@ export const readingApi = {
         const params = new URLSearchParams({ chapter: String(chapter) });
         if (team) params.set('t', team);
         return api<GlossaryHints>(`/api/novels/${encodeURIComponent(slug)}/hints?${params}`);
+    },
+    /** «Персонажі»: met by the reader's chapter, or all of them (spoilers) when asked. */
+    characters: (slug: string, team: string | undefined, chapter: number, all: boolean) => {
+        const params = new URLSearchParams({ chapter: String(chapter) });
+        if (all) params.set('all', 'true');
+        if (team) params.set('t', team);
+        return api<WhoCard[]>(`/api/novels/${encodeURIComponent(slug)}/characters?${params}`);
     },
     who: (slug: string, team: string | undefined, chapter: number, text: string, block?: string) => {
         const params = new URLSearchParams({ chapter: String(chapter), q: text });

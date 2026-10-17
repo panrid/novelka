@@ -533,3 +533,27 @@ describe('read marks', () => {
         expect(screen.queryByRole('button', { name: 'Скинути прогрес читання' })).not.toBeInTheDocument();
     });
 });
+
+describe('«Персонажі» on the novel page', () => {
+    it('shows those met by the reader\'s chapter, tells who one is, and all of them only when asked', async () => {
+        const ryo = { id: 3, ukrainian: 'Рьо', kind: 'character', gender: 'male', facts: ['Головний герой.'] };
+        let served = 0;
+        const { calls } = await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': { body: { ...NOVEL, characters: 2, viewer: { list: 'reading', chapterNumber: 7, position: 0.3, teamRole: null, myRating: null, chapterLabel: null, relayAsked: false } } },
+            'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
+            'GET /api/editions/7/comments/count': { body: { count: 0 } },
+            // The first list is the reader's; the next one comes after «Показати всіх».
+            'GET /api/novels/mah-vody/characters': () => ({ body: ++served > 1 ? [ryo, { ...ryo, id: 4, ukrainian: 'Абель' }] : [ryo] }),
+        });
+        await userEvent.click(await screen.findByRole('tab', { name: 'Персонажі' }));
+        await userEvent.click(await screen.findByRole('button', { name: /Рьо/ }));
+        expect(await screen.findByText('Головний герой.')).toBeInTheDocument();
+        expect(new URLSearchParams(calls.find((call) => call.path.endsWith('/characters'))!.query).get('chapter')).toBe('7');
+        await userEvent.keyboard('{Escape}');
+        expect(screen.queryByRole('button', { name: /Абель/ })).not.toBeInTheDocument();
+        await userEvent.click(screen.getByRole('switch', { name: /Показати всіх/ }));
+        expect(await screen.findByRole('button', { name: /Абель/ })).toBeInTheDocument();
+        expect(calls.filter((call) => call.path.endsWith('/characters')).at(-1)!.query).toContain('all=true');
+    });
+});
