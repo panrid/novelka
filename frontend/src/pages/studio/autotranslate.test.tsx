@@ -193,6 +193,22 @@ describe('autotranslate', () => {
         expect(calls.find((call) => call.path.endsWith('/jobs'))?.body).toEqual({ kind: 'proofread', steps: ['proofread'], to: 3 });
     });
 
+    it('copies the original\'s pictures the published chapters lack, chapter by chapter', async () => {
+        const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/4/autotranslate': { body: OVERVIEW },
+            'GET /api/studio/editions/4/source-pictures': { body: [{ number: 1, pictures: 12 }, { number: 10, pictures: 30 }] },
+            'POST /api/studio/editions/4/source-pictures/1': { body: { added: 12, failed: 0 } },
+            'POST /api/studio/editions/4/source-pictures/10': { body: { added: 29, failed: 1 } },
+        });
+        expect(await screen.findByText(/42 у 2 гл\. \(1, 10\)/)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Довантажити' }));
+        expect(await screen.findByText('Глав: 2 з 2 · додано картинок: 41 · не вдалося: 1')).toBeInTheDocument();
+        expect(calls.filter((call) => call.path.includes('/source-pictures/')).map((call) => call.path))
+            .toEqual(['/api/studio/editions/4/source-pictures/1', '/api/studio/editions/4/source-pictures/10']);
+    });
+
     it('fills the bar part by part while a long chapter is translated and turns once per refresh', async () => {
         const running = { ...FAILED_JOB, id: 10, state: 'running', from: 51, to: 60, done: 0, error: null,
             current: { number: 51, stage: 'translate', state: 'running', error: null, part: 2, parts: 7, progress: 0.27 } };

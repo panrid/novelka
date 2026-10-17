@@ -20,9 +20,10 @@ import space.panrid.novelka.platform.web.UserFacingException;
 
 /**
  * Downloads a picture someone pasted a link to, so the site keeps its own copy. Guards
- * against SSRF: https only, no redirects, every address of the host must be public, and
- * the body is capped at 5 MB. A DNS answer changing between the check and the request
- * (rebinding) remains a theoretical gap; redirects are refused to keep it narrow.
+ * against SSRF: https only, every address of every host must be public, and the body is
+ * capped at 5 MB. Redirects are followed by hand, a few at most, each checked the same way
+ * (mitemin, where Syosetu's pictures live, always answers with one). A DNS answer changing
+ * between the check and the request (rebinding) remains a theoretical gap.
  */
 @Component
 class RemoteImages {
@@ -34,15 +35,27 @@ class RemoteImages {
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 
+    private static final int MAX_REDIRECTS = 3;
+
     byte[] fetch(String rawUrl) {
         URI uri = parse(rawUrl);
-        requirePublicHost(uri.getHost());
         try {
-            HttpResponse<InputStream> response = http.send(HttpRequest.newBuilder(uri)
-                    .timeout(Duration.ofSeconds(10))
-                    .header("User-Agent", "Novelka image fetcher")
-                    .header("Accept", "image/*")
-                    .GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+            HttpResponse<InputStream> response = null;
+            for (int hop = 0; hop <= MAX_REDIRECTS; hop++) {
+                requirePublicHost(uri.getHost());
+                response = http.send(HttpRequest.newBuilder(uri)
+                        .timeout(Duration.ofSeconds(10))
+                        .header("User-Agent", "Novelka image fetcher")
+                        .header("Accept", "image/*")
+                        .GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+                int status = response.statusCode();
+                var location = response.headers().firstValue("Location");
+                if (status < 300 || status >= 400 || location.isEmpty() || hop == MAX_REDIRECTS) {
+                    break;
+                }
+                response.body().close();
+                uri = parse(uri.resolve(location.get()).toString());
+            }
             try (InputStream body = response.body()) {
                 if (response.statusCode() != 200) {
                     throw UserFacingException.badRequest("За посиланням немає картинки (сайт відповів %d).".formatted(response.statusCode()));

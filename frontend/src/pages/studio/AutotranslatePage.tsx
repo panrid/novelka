@@ -123,6 +123,7 @@ function AutotranslateTab() {
             </p>
             {!data.configured && <Notice tone="error">Ключ OpenRouter не налаштовано на сервері.</Notice>}
             {!data.pasted && <SourceBell editionId={id} />}
+            {!data.pasted && <SourcePictures editionId={id} />}
 
             {job && <h2 className={styles.sectionTitle}>{busy ? 'Зараз іде' : 'Останній запуск'}</h2>}
             {job && <JobCard job={job} editionId={id} showShah={show} usdPerShah={data.usdPerShah}
@@ -289,6 +290,58 @@ function SourceBell({ editionId }: { editionId: number }) {
                 </div>
             )}
             {(check.isError || toggle.isError) && <Notice tone="error">{(check.error ?? toggle.error)!.message}</Notice>}
+        </div>
+    );
+}
+
+/**
+ * «Картинки з оригіналу»: pictures of the original's site the published chapters lack (they were
+ * translated while the site could not fetch them); copied chapter by chapter, where the original has them.
+ */
+function SourcePictures({ editionId }: { editionId: number }) {
+    const client = useQueryClient();
+    const missing = useQuery({ queryKey: ['source-pictures', editionId], queryFn: () => autotranslateApi.missingPictures(editionId) });
+    const [progress, setProgress] = useState<{ done: number; of: number; added: number; failed: number } | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const list = missing.data ?? [];
+    if (list.length === 0 && !progress) return null;
+    const total = list.reduce((sum, chapter) => sum + chapter.pictures, 0);
+    const run = async () => {
+        setError(null);
+        let added = 0;
+        let failed = 0;
+        setProgress({ done: 0, of: list.length, added, failed });
+        try {
+            for (const [index, chapter] of list.entries()) {
+                const filled = await autotranslateApi.fillPictures(editionId, chapter.number);
+                added += filled.added;
+                failed += filled.failed;
+                setProgress({ done: index + 1, of: list.length, added, failed });
+            }
+        } catch (caught) {
+            setError(caught instanceof Error ? caught.message : 'Не вдалося довантажити картинки.');
+        }
+        void client.invalidateQueries({ queryKey: ['source-pictures', editionId] });
+    };
+    const working = progress !== null && progress.done < progress.of && !error;
+    return (
+        <div className={styles.sourceBell}>
+            {list.length > 0 && (
+                <div>
+                    В оригіналі є картинки, яких немає в опублікованих главах: {total} у {list.length} гл. (
+                    {list.slice(0, 8).map((chapter) => chapter.number).join(', ')}{list.length > 8 ? '…' : ''}).{' '}
+                    <button type="button" className={styles.link} onClick={() => void run()} disabled={working}>
+                        {working ? 'Довантажуємо…' : 'Довантажити'}
+                    </button>
+                </div>
+            )}
+            {progress && (
+                <div className={styles.muted} role="status">
+                    Глав: {progress.done} з {progress.of} · додано картинок: {progress.added}
+                    {progress.failed > 0 ? ` · не вдалося: ${progress.failed}` : ''}
+                </div>
+            )}
+            {error && <Notice tone="error">{error}</Notice>}
         </div>
     );
 }
