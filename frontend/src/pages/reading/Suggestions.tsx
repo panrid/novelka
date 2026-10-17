@@ -83,10 +83,12 @@ export function SelectionBar({ onWho, onLink, onEdit, onReplace, onQuote }: {
     );
 }
 
-/** Rewrite one paragraph; the draft joins the batch. */
+/** Rewrite one paragraph; the draft joins the batch, or the team saves it in the chapter at once. */
 export function EditSheet({ chapter, block, existing, onClose, onSaved }: {
     chapter: ReaderChapter; block: TextBlock; existing: MineItem | undefined; onClose: () => void; onSaved: () => void;
 }) {
+    const client = useQueryClient();
+    const team = chapter.teamRole !== null && chapter.teamRole !== undefined;
     const start: StudioBlock[] = [{ id: block.id, type: 'paragraph', content: existing?.proposed ?? block.content }];
     const [blocks, setBlocks] = useState<StudioBlock[]>(start);
     const [note, setNote] = useState(existing?.note ?? '');
@@ -97,7 +99,20 @@ export function EditSheet({ chapter, block, existing, onClose, onSaved }: {
         mutationFn: () => suggestionApi.block(chapter.edition.editionId, chapter.number, block.id, joined(editor.current?.read() ?? blocks), note),
         onSuccess: () => { onSaved(); onClose(); },
     });
+    const apply = useMutation({
+        mutationFn: () => suggestionApi.apply(chapter.edition.editionId, chapter.number, block.id, joined(editor.current?.read() ?? blocks), note),
+        onSuccess: () => {
+            // Readers see the new text now: this chapter wherever it is cached, and the Studio's lists.
+            for (const stale of [['chapter', chapter.novelSlug], ['studio-editor', chapter.edition.editionId, chapter.number],
+                ['studio-chapters', chapter.edition.editionId], ['studio-edition', chapter.edition.editionId]]) {
+                void client.invalidateQueries({ queryKey: stale });
+            }
+            onSaved();
+            onClose();
+        },
+    });
     const withdraw = useMutation({ meta: { errorToast: true }, mutationFn: () => suggestionApi.withdraw(existing!.id), onSuccess: () => { onSaved(); onClose(); } });
+    const failed = save.error ?? apply.error;
     return (
         <Sheet open onClose={onClose} title="Правка абзацу">
             <TextEditor handle={editor} mode="description" blocks={blocks} onChange={setBlocks} label="Текст абзацу" />
@@ -108,13 +123,20 @@ export function EditSheet({ chapter, block, existing, onClose, onSaved }: {
                 </>
             )}
             <TextInput label="Пояснення (необовʼязково)" value={note} onChange={setNote} />
-            {save.isError && <Notice tone="error">{save.error.message}</Notice>}
+            {failed && <Notice tone="error">{failed.message}</Notice>}
             <div className={styles.buttons}>
                 {existing ? <Button variant="danger" onPress={() => withdraw.mutate()}>Скасувати правку</Button>
                     : <Button variant="secondary" onPress={onClose}>Скасувати</Button>}
-                <Button onPress={() => save.mutate()} pending={save.isPending} pendingLabel="Зберігаємо…">Додати до пакета</Button>
+                {team ? (
+                    <Button onPress={() => apply.mutate()} pending={apply.isPending} pendingLabel="Зберігаємо…">Зберегти в главі</Button>
+                ) : (
+                    <Button onPress={() => save.mutate()} pending={save.isPending} pendingLabel="Зберігаємо…">Додати до пакета</Button>
+                )}
             </div>
-            <p className={styles.hint}>Правки збираються в пакет. Надіслати його можна з панелі читалки або наприкінці глави.</p>
+            <p className={styles.hint}>
+                {team ? 'Ви в команді перекладу: абзац зміниться для читачів одразу, а зміна залишиться в історії глави.'
+                    : 'Правки збираються в пакет. Надіслати його можна з панелі читалки або наприкінці глави.'}
+            </p>
         </Sheet>
     );
 }

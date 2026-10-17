@@ -144,6 +144,30 @@ class SuggestionFlowTests {
         assertThat(JSON.readTree(missing.body()).path("detail").asString()).isEqualTo("У цій главі немає такого фрагмента.");
     }
 
+    @Test
+    void theTeamFixesAParagraphAtOnce() {
+        String apply = "/api/studio/editions/" + edition + "/chapters/1/blocks/apply";
+        String fix = """
+                {"blockId":"b1","note":"рід","content":[{"text":"Але це не було розкішне ліжко.","marks":[]}]}""";
+        read(owner.browser().put("/api/suggestions/draft/block", """
+                {"editionId":%d,"number":1,"blockId":"b1","content":[{"text":"Чернетка.","marks":[]}]}""".formatted(edition)));
+        assertThat(reader.browser().post(apply, fix).status()).as("readers suggest, not apply").isEqualTo(403);
+
+        assertThat(owner.browser().post(apply, fix).status()).isEqualTo(204);
+        JsonNode text = read(new Browser(port).get("/api/novels/" + slug + "/chapters/1")).path("blocks");
+        assertThat(text.get(0).path("content").get(0).path("text").asString()).isEqualTo("Але це не було розкішне ліжко.");
+        JsonNode history = read(owner.browser().get("/api/studio/editions/" + edition + "/chapters/1/revisions"));
+        assertThat(history).hasSize(2);
+        assertThat(history.get(0).path("origin").asString()).isEqualTo("suggestion");
+        assertThat(read(owner.browser().get("/api/suggestions/mine?editionId=" + edition + "&number=1")).path("items"))
+                .as("the draft for the same paragraph is gone").isEmpty();
+        assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/suggestions"))).as("nothing left to review").isEmpty();
+
+        Response same = owner.browser().post(apply, fix);
+        assertThat(same.status()).isEqualTo(400);
+        assertThat(JSON.readTree(same.body()).path("detail").asString()).isEqualTo("Текст не змінився.");
+    }
+
     private static JsonNode read(Response response) {
         assertThat(response.status()).as(response.body()).isBetween(200, 299);
         return JSON.readTree(response.body());
