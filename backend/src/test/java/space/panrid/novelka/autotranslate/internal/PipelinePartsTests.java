@@ -184,6 +184,19 @@ class PipelinePartsTests {
         assertThat(Pipeline.leftover("s1", "Він сказав: まあいいか.")).isNotNull();
         assertThat(Pipeline.leftover("s1", "Дякую! (^^)ノ")).as("a kana in a smiley is not untranslated text").isNull();
         assertThat(Pipeline.leftover("s1", "— Флер!")).isNull();
+        assertThat(Pipeline.leftover("s1", "Голем 700672号 рушив.")).as("even one character is asked again")
+                .startsWith(Pipeline.FEW_UNTRANSLATED).contains("号");
+    }
+
+    @Test
+    void anAnalysisWithTheOriginalsCharactersInTheGlossaryIsAskedAgain() {
+        tools.jackson.databind.json.JsonMapper json = tools.jackson.databind.json.JsonMapper.builder().build();
+        assertThat(Pipeline.analysisProblem(json.readTree("{\"title\":\"Голем\",\"entries\":[{\"ukrainian\":\"700672号\"}]}")))
+                .startsWith(Pipeline.GLOSSARY_UNTRANSLATED).contains("700672号");
+        assertThat(Pipeline.analysisProblem(json.readTree("{\"title\":\"\",\"entries\":[],\"facts\":[{\"fact\":\"Носить 剣.\"}]}")))
+                .startsWith(Pipeline.GLOSSARY_UNTRANSLATED);
+        assertThat(Pipeline.analysisProblem(json.readTree("{\"title\":\"Голем\",\"entries\":[{\"ukrainian\":\"№ 700672\"}]}"))).isNull();
+        assertThat(Glossary.untranslated("Рьо")).isFalse();
     }
 
     @Test

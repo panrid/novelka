@@ -216,7 +216,7 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
         for (Proposed entry : proposed) {
             String original = entry.original() == null ? "" : entry.original().strip();
             String ukrainian = entry.ukrainian() == null ? "" : entry.ukrainian().strip();
-            if (original.isEmpty() || ukrainian.isEmpty() || original.length() > 100 || ukrainian.length() > 100) {
+            if (original.isEmpty() || ukrainian.isEmpty() || original.length() > 100 || ukrainian.length() > 100 || untranslated(ukrainian)) {
                 continue;
             }
             String kind = KINDS.contains(entry.kind()) ? entry.kind() : "other";
@@ -309,13 +309,20 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
      *
      * @return how many were added
      */
+    private static final java.util.regex.Pattern CJK = java.util.regex.Pattern.compile("[\\p{IsHiragana}\\p{IsKatakana}\\p{IsHan}\\p{IsHangul}]");
+
+    /** Characters of the original left in Ukrainian text («700672号»): the glossary never keeps them. */
+    static boolean untranslated(String text) {
+        return text != null && CJK.matcher(text).find();
+    }
+
     int addFacts(long editionId, int chapter, Set<Long> shown, List<ProposedFact> facts) {
         Scope scope = scope(editionId);
         Map<Long, Integer> perEntry = new java.util.HashMap<>();
         int added = 0;
         for (ProposedFact proposed : facts) {
             String text = proposed.fact() == null ? "" : proposed.fact().strip();
-            if (text.isEmpty() || text.length() > FACT_MAX) {
+            if (text.isEmpty() || text.length() > FACT_MAX || untranslated(text)) {
                 continue;
             }
             Long entryId = proposed.id() > 0 ? (shown.contains(proposed.id()) ? proposed.id() : null) : byOriginal(scope, proposed.original());
@@ -913,6 +920,9 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
         String name = ukrainian == null ? "" : ukrainian.strip();
         if (name.isEmpty() || name.length() > 100) {
             throw UserFacingException.badRequest("Вкажіть, як писати українською (до 100 знаків).");
+        }
+        if (untranslated(name)) {
+            throw UserFacingException.badRequest("В українській формі лишилися ієрогліфи — перекладіть їх (号 — «№»).");
         }
         if (kind == null || !KINDS.contains(kind) || (gender != null && !GENDERS.contains(gender))) {
             throw UserFacingException.badRequest("Невідомий вид запису.");

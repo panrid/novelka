@@ -126,9 +126,15 @@ class AiService implements Ai {
             finish(id, "failed", reply.body(), 0L, "HTTP 402");
             throw new AiException(Kind.FAILED, "На рахунку OpenRouter закінчилися кошти.");
         }
+        if (status == 403 && moderated(reply.body())) {
+            finish(id, "failed", reply.body(), 0L, "HTTP 403");
+            throw new AiException(Kind.FAILED, "Постачальник моделі відхилив текст (модерація). Спробуйте іншу модель для цієї глави.");
+        }
         if (status == 401 || status == 403) {
             finish(id, "failed", reply.body(), 0L, "HTTP " + status);
-            throw new AiException(Kind.FAILED, "OpenRouter не приймає ключ.");
+            String said = openRouterMessage(reply.body());
+            throw new AiException(Kind.FAILED, status == 401 || said == null ? "OpenRouter не приймає ключ."
+                    : "OpenRouter відмовив (HTTP 403): " + said);
         }
         if (status == 404 && reply.body() != null && reply.body().contains("No endpoints found")) {
             finish(id, "failed", reply.body(), 0L, "HTTP 404");
@@ -464,5 +470,24 @@ class AiService implements Ai {
         } catch (NoSuchAlgorithmException impossible) {
             throw new IllegalStateException(impossible);
         }
+    }
+
+    /** OpenRouter's 403 for a text a provider's moderation flagged (not a key problem). */
+    static boolean moderated(String body) {
+        String text = body == null ? "" : body.toLowerCase(java.util.Locale.ROOT);
+        return text.contains("moderation") || text.contains("flagged");
+    }
+
+    /** OpenRouter's own words in an error body, shortened; null when there are none. */
+    static String openRouterMessage(String body) {
+        if (body == null) {
+            return null;
+        }
+        java.util.regex.Matcher message = java.util.regex.Pattern.compile("\"message\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").matcher(body);
+        if (!message.find() || message.group(1).isBlank()) {
+            return null;
+        }
+        String said = message.group(1);
+        return said.length() > 200 ? said.substring(0, 200) + "…" : said;
     }
 }
