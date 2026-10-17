@@ -58,6 +58,9 @@ final class Prompts {
             the name, such as Пролог, Епілог, Інтерлюдія, Побічна історія. If the title is only a number or none
             is given, return "".
             Readings may appear in the text as 漢字《かんじ》; they are hints, not part of the name.
+            For each new character say its role: «acting» — a person who takes part in the story (speaks, acts,
+            meets the hero), «mentioned» — someone only talked about, remembered or thought of (a general of the
+            hero's old world, a legend), «creature» — a monster or beast; «none» for entries that are not characters.
             Also collect facts for the readers' «who is this» card. For glossary entries (by their #number) and for
             your new entries (by the original form, with id 0) about which THIS text says something new and lasting,
             give short facts in Ukrainian, one plain sentence each, only what the text states: for characters —
@@ -161,6 +164,20 @@ final class Prompts {
         return Map.of("type", "string");
     }
 
+    static final String STORY_ROLES = """
+            You sort the characters of a web novel's glossary for a reader's «Characters» page. For each entry
+            (its number, Ukrainian name and what is known of it) say its role: «acting» — a person who takes part in
+            the story (speaks, acts, meets the hero); «mentioned» — someone only talked about, remembered or thought
+            of (a general of the hero's old world, a legend, a god only named); «creature» — a monster or beast, a
+            kind of creature rather than a person. When unsure between acting and mentioned, say acting.
+            """;
+
+    static Map<String, Object> storyRolesSchema() {
+        Map<String, Object> item = object(Map.of("id", Map.of("type", "integer"),
+                "role", Map.of("type", "string", "enum", List.of("acting", "mentioned", "creature"))));
+        return object(Map.of("roles", Map.of("type", "array", "items", item)));
+    }
+
     static Map<String, Object> metadataSchema() {
         return object(Map.of("title", string(), "author", string(), "description", string()));
     }
@@ -170,7 +187,8 @@ final class Prompts {
                 "original", string(), "reading", string(), "ukrainian", string(),
                 "kind", Map.of("type", "string", "enum", List.of("character", "place", "organization", "term", "other")),
                 "gender", Map.of("type", "string", "enum", List.of("male", "female", "unknown")),
-                "note", string()));
+                "note", string(),
+                "role", Map.of("type", "string", "enum", List.of("acting", "mentioned", "creature", "none"))));
         Map<String, Object> known = object(Map.of("id", Map.of("type", "integer"), "original", string()));
         Map<String, Object> fact = object(Map.of("id", Map.of("type", "integer"), "original", string(), "fact", string()));
         Map<String, Object> narrator = object(Map.of("name", string(),

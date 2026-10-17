@@ -82,6 +82,7 @@ export function GlossaryPage() {
     return (
         <EditionShell tab="words">
             <WordsSwitch editionId={id} at="glossary" />
+            <SortRoles editionId={id} onDone={refresh} />
             <p className={styles.muted} style={{ marginBottom: 12 }}>
                 Імена й терміни, які автопереклад пише однаково в усіх главах. Словник спільний для всіх перекладів цієї новели.
                 Відхилені до перекладу не потрапляють; виправлення діє з наступної перекладеної глави.
@@ -137,6 +138,8 @@ export function GlossaryPage() {
                                 {entry.gender && entry.gender !== 'unknown' ? ` · ${GENDER_LABELS[entry.gender]}` : ''}
                                 {entry.note ? ` · ${entry.note}` : ''}
                                 {entry.facts > 0 ? ` · фактів: ${entry.facts}` : ''}
+                                {entry.main ? ` · інша назва для «${entry.main.ukrainian}»` : ''}
+                                {entry.kind === 'character' && entry.inStory === false ? ' · не діє в історії' : ''}
                             </div>
                         </button>
                         {!selecting && entry.status !== 'approved' && (
@@ -218,6 +221,7 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
                     Діє на лампочку й «Хто це» в читалці й на заміну слова в главах.
                 </p>
             </div>
+            <NamesBox editionId={editionId} entry={entry} />
             <FactsBox editionId={editionId} entry={entry} />
             <OriginalBox editionId={editionId} entry={entry} />
             <p className={styles.muted}>Збережений запис стає затвердженим.</p>
@@ -232,6 +236,91 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
                 <Button variant="secondary" onPress={onDone}>Скасувати</Button>
             </div>
         </form>
+    );
+}
+
+/**
+ * Other names of one entry, for the hints only (the translation keeps each as it is): «Міхара Рьо»
+ * and «Рьо», «дружина Лота» and, once the novel tells it, her name. The main entry names the card
+ * and stands in «Персонажі». And for a character: whether they act in the story.
+ */
+function NamesBox({ editionId, entry }: { editionId: number; entry: GlossaryItem }) {
+    const client = useQueryClient();
+    const [query, setQuery] = useState('');
+    const [inStory, setInStory] = useState(entry.inStory !== false);
+    const refresh = () => void client.invalidateQueries({ queryKey: ['glossary', editionId] });
+    const act = useMutation({ meta: { errorToast: true }, mutationFn: (run: () => Promise<void>) => run(), onSuccess: refresh });
+    const found = useQuery({
+        queryKey: ['glossary', editionId, 'same-as', query],
+        queryFn: () => autotranslateApi.glossary(editionId, { q: query.trim(), sort: 'alpha', page: 1 }),
+        enabled: query.trim().length > 1,
+    });
+    return (
+        <div className={styles.facts}>
+            <div className={styles.label}>Інші назви — для підказок</div>
+            {entry.main ? (
+                <>
+                    <p className={styles.muted}>Інша назва для «{entry.main.ukrainian}»: підказки ведуть до його картки, у «Персонажах» стоїть головна назва.</p>
+                    <div className={styles.actions}>
+                        <Button variant="secondary" onPress={() => act.mutate(() => autotranslateApi.makeMain(editionId, entry.id))}>Зробити головною</Button>
+                        <Button variant="quiet" onPress={() => act.mutate(() => autotranslateApi.separate(editionId, entry.id))}>Окремий запис</Button>
+                    </div>
+                </>
+            ) : (
+                <>
+                    {(entry.others ?? []).length > 0 && (
+                        <ul className={styles.factList}>
+                            {(entry.others ?? []).map((other) => (
+                                <li key={other.id}>
+                                    <span className={styles.grow}>{other.ukrainian}</span>
+                                    <button type="button" className={styles.linkButton} onClick={() => act.mutate(() => autotranslateApi.makeMain(editionId, other.id))}>Зробити головною</button>
+                                    <button type="button" className={styles.linkButton} onClick={() => act.mutate(() => autotranslateApi.separate(editionId, other.id))}>Окремо</button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    <TextInput label="Це той самий, що…" value={query} onChange={setQuery} hint="Знайдіть головний запис: цей стане його іншою назвою. Переклад не зміниться." />
+                    {found.data?.items.filter((item) => item.id !== entry.id).map((item) => (
+                        <button key={item.id} type="button" className={styles.linkButton}
+                            onClick={() => { act.mutate(() => autotranslateApi.sameAs(editionId, entry.id, item.id)); setQuery(''); }}>
+                            → {item.ukrainian}
+                        </button>
+                    ))}
+                    {entry.kind === 'character' && (
+                        <div>
+                            <Toggle label="Діє в історії" isSelected={inStory}
+                                onChange={(value) => { setInStory(value); act.mutate(() => autotranslateApi.setInStory(editionId, entry.id, value)); }} />
+                            <p className={styles.muted}>Вимкніть для монстра чи того, кого лише згадують: у «Персонажах» новели його не буде, а підказка лишиться.</p>
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
+}
+
+/** «Розібрати персонажів ШІ»: one ask for the characters nobody sorted yet — acting, mentioned or a creature. */
+function SortRoles({ editionId, onDone }: { editionId: number; onDone: () => void }) {
+    const canRun = useCanRun();
+    const quote = useQuery({ queryKey: ['glossary-roles', editionId], queryFn: () => autotranslateApi.rolesQuote(editionId), enabled: canRun });
+    const run = useMutation({ meta: { errorToast: true },
+        mutationFn: () => autotranslateApi.sortRoles(editionId),
+        onSuccess: () => { void quote.refetch(); onDone(); },
+    });
+    if (!canRun || !quote.data || quote.data.characters === 0) {
+        return run.data ? <Notice tone="info">Розібрано {run.data.characters}: діють {run.data.acting}, решта — згадані чи істоти. Витрачено ${run.data.usd}.</Notice> : null;
+    }
+    return (
+        <div className={styles.actions} style={{ marginBottom: 12 }}>
+            <Button variant="secondary" pending={run.isPending} pendingLabel="Розбираємо…"
+                onPress={() => void askConfirm({
+                    title: 'Розібрати персонажів ШІ?',
+                    text: `Нерозібраних персонажів: ${quote.data!.characters}. Модель аналізу скаже, хто діє в історії, а хто лише згаданий чи монстр. Орієнтовно $${quote.data!.usd}.`,
+                    confirmLabel: 'Розібрати',
+                }).then((yes) => { if (yes) run.mutate(); })}>
+                Розібрати персонажів ШІ · {quote.data.characters}
+            </Button>
+        </div>
     );
 }
 

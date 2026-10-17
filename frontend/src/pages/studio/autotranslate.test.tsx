@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderAt } from '../../test/render';
@@ -59,6 +59,28 @@ describe('«хто це» facts of a glossary entry', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Зберегти факт' }));
         expect(await screen.findByText('Учень мага.')).toBeInTheDocument();
         expect(calls.find((call) => call.method === 'POST' && call.path.endsWith('/facts'))?.body).toEqual({ chapter: 3, text: 'Учень мага.' });
+    });
+});
+
+describe('other names of one entry and who acts in the story', () => {
+    it('makes an entry another name of a main one, and marks a monster as not acting', async () => {
+        const item = (id: number, ukrainian: string) => ({ id, ukrainian, kind: 'character', gender: 'male', note: null, chapter: 1, manual: false, status: 'approved', facts: 0, looseForms: false, main: null, others: [], inStory: null });
+        const { calls } = await renderAt('/studio/4/glossary', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/4/glossary/roles': { body: { characters: 0, usd: 0 } },
+            'GET /api/studio/editions/4/glossary': { body: { items: [item(2, 'Міхара Рьо'), item(3, 'Рьо')],
+                total: 2, page: 1, hasMore: false, chapters: [1], labels: { 1: '1' }, counts: { new: 0, approved: 2, rejected: 0 } } },
+            'GET /api/studio/editions/4/glossary/2/facts': { body: [] },
+            'POST /api/studio/editions/4/glossary/2/same-as': { status: 200 },
+            'PUT /api/studio/editions/4/glossary/2/in-story': { status: 200 },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: /^Міхара Рьо/ }));
+        await userEvent.type(screen.getByLabelText('Це той самий, що…'), 'Рь');
+        await userEvent.click(await screen.findByRole('button', { name: '→ Рьо' }));
+        await waitFor(() => expect(calls.find((call) => call.path.endsWith('/same-as'))?.body).toEqual({ mainId: 3 }));
+        await userEvent.click(screen.getByRole('switch', { name: 'Діє в історії' }));
+        await waitFor(() => expect(calls.find((call) => call.path.endsWith('/in-story'))?.body).toEqual({ inStory: false }));
     });
 });
 

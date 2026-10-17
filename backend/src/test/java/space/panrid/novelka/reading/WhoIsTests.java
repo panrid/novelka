@@ -94,6 +94,47 @@ class WhoIsTests {
     }
 
     @Test
+    void otherNamesLeadToOneCardAndOnlyActingCharactersAreListed() {
+        db.update(ACCOUNT).set(ACCOUNT.SITE_ROLE, "reader").where(ACCOUNT.SITE_ROLE.eq("owner")).execute();
+        db.update(ACCOUNT).set(ACCOUNT.SITE_ROLE, "owner").where(ACCOUNT.NICK.eq(admin.nick())).execute();
+        long edition = db.select(space.panrid.novelka.jooq.Tables.EDITION.ID).from(space.panrid.novelka.jooq.Tables.EDITION)
+                .where(space.panrid.novelka.jooq.Tables.EDITION.NOVEL_ID.eq(novelId)).fetchSingle().value1();
+        long ryo = db.select(GLOSSARY_ENTRY.ID).from(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.NOVEL_ID.eq(novelId), GLOSSARY_ENTRY.UKRAINIAN.eq("Рьо"))
+                .fetchSingle().value1();
+        long fullName = entry("Міхара Рьо", "character", "Повне ім'я героя.", 4, "approved");
+        long wife = entry("дружина Лота", "character", "Дружина торговця Лота.", 2, "approved");
+        long lily = entry("Лілія", "character", "Має руде волосся.", 6, "approved");
+        long goblin = entry("Ґоблін", "character", "Зелений монстр.", 1, "approved");
+        String base = "/api/studio/editions/" + edition + "/glossary/";
+        read(admin.browser().post(base + fullName + "/same-as", "{\"mainId\":" + ryo + "}"));
+        read(admin.browser().post(base + wife + "/same-as", "{\"mainId\":" + lily + "}"));
+
+        // The model sorts those not sorted yet: the goblin is a creature, not a character of the story.
+        JsonNode quote = read(admin.browser().get(base + "roles"));
+        assertThat(quote.path("characters").asInt()).as("main entries only").isEqualTo(3);
+        JsonNode done = read(admin.browser().post(base + "roles", "{}"));
+        assertThat(done.path("acting").asInt()).isEqualTo(2);
+        assertThat(read(admin.browser().get(base + "roles")).path("characters").asInt()).as("all sorted").isZero();
+
+        Browser guest = new Browser(port);
+        assertThat(JSON.readTree(guest.get("/api/novels/" + slug + "/characters?all=true").body()))
+                .extracting(card -> card.path("ukrainian").asString()).as("one name per character, no creatures").containsExactly("Рьо", "Лілія");
+        assertThat(JSON.readTree(guest.get("/api/novels/" + slug + "/characters?chapter=3").body()))
+                .extracting(card -> card.path("ukrainian").asString()).as("her name is not told yet").containsExactly("Рьо", "дружина Лота");
+        assertThat(who(guest, 7, "Міхара Рьо").path(0).path("ukrainian").asString()).as("another name, the main card").isEqualTo("Рьо");
+        assertThat(who(guest, 7, "Міхара Рьо").path(0).path("facts").toString()).contains("Повне ім'я героя.").contains("Головний герой.");
+        assertThat(who(guest, 7, "Ґоблін").path(0).path("ukrainian").asString()).as("still a hint").isEqualTo("Ґоблін");
+
+        // Her name is the main one now; then the full name goes its own way again.
+        read(admin.browser().post(base + wife + "/main", "{}"));
+        assertThat(JSON.readTree(guest.get("/api/novels/" + slug + "/characters?all=true").body()))
+                .extracting(card -> card.path("ukrainian").asString()).containsExactly("Рьо", "дружина Лота");
+        read(admin.browser().delete(base + fullName + "/same-as"));
+        read(admin.browser().put(base + fullName + "/in-story", "{\"inStory\":false}"));
+        assertThat(JSON.readTree(guest.get("/api/novels/" + slug).body()).path("characters").asInt()).isEqualTo(2);
+    }
+
+    @Test
     void theLampMarksOnlyWordsTheReadersChapterHasMetAndToldAbout() {
         Browser guest = new Browser(port);
         assertThat(terms(guest, 1)).containsExactly("Рьо");

@@ -73,7 +73,8 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
      */
     /** @param looseForms the Ukrainian form is found as before: any ending, any case (WordForms) */
     record Entry(long id, String original, String reading, List<String> aliases, String ukrainian, String kind,
-            String gender, String note, Integer sourceChapter, boolean manual, String status, boolean looseForms) {
+            String gender, String note, Integer sourceChapter, boolean manual, String status, boolean looseForms, Long sameAs,
+            Boolean inStory) {
 
         /** One line for a prompt. */
         String line() {
@@ -257,6 +258,8 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
                         .set(GLOSSARY_ENTRY.GENDER, GENDERS.contains(entry.gender()) ? entry.gender() : "unknown")
                         .set(GLOSSARY_ENTRY.NOTE, limit(blankToNull(entry.note()), 300))
                         .set(GLOSSARY_ENTRY.SOURCE_CHAPTER, chapter)
+                        .set(GLOSSARY_ENTRY.IN_STORY, kind.equals("character") && entry.role() != null
+                                ? (Boolean) "acting".equals(entry.role()) : null)
                         .returning(GLOSSARY_ENTRY.ID).fetchOne(GLOSSARY_ENTRY.ID);
                 addForm(tx, scope, id, original, blankToNull(entry.reading()));
                 if (twin == null) {
@@ -420,18 +423,25 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
     @Override
     public List<Card> characters(long editionId, Integer chapter) {
         int upTo = chapter == null ? Integer.MAX_VALUE : chapter;
-        List<GlossaryEntryRecord> met = db.selectFrom(GLOSSARY_ENTRY)
+        // Acting characters only (monsters, people only mentioned or thought of stay in the hints),
+        // a group once — met when any of its names was met, in the order the novel met them.
+        List<GlossaryEntryRecord> mains = db.selectFrom(GLOSSARY_ENTRY)
                 .where(GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId()), GLOSSARY_ENTRY.STATUS.ne("rejected"),
-                        GLOSSARY_ENTRY.KIND.eq("character"),
-                        chapter == null ? DSL.noCondition() : GLOSSARY_ENTRY.SOURCE_CHAPTER.isNull().or(GLOSSARY_ENTRY.SOURCE_CHAPTER.le(chapter)))
-                .orderBy(GLOSSARY_ENTRY.SOURCE_CHAPTER.asc().nullsFirst(), GLOSSARY_ENTRY.ID).fetch();
+                        GLOSSARY_ENTRY.KIND.eq("character"), GLOSSARY_ENTRY.SAME_AS.isNull(), GLOSSARY_ENTRY.IN_STORY.isDistinctFrom(false))
+                .fetch();
+        Map<Long, List<GlossaryEntryRecord>> groups = groups(mains.stream().map(GlossaryEntryRecord::getId).toList());
+        java.util.function.ToIntFunction<GlossaryEntryRecord> firstMet = main -> groups.getOrDefault(main.getId(), List.of(main)).stream()
+                .mapToInt(entry -> entry.getSourceChapter() == null ? 0 : entry.getSourceChapter()).min().orElse(0);
+        List<GlossaryEntryRecord> met = mains.stream().filter(main -> firstMet.applyAsInt(main) <= upTo)
+                .sorted(java.util.Comparator.comparingInt(firstMet).thenComparing(GlossaryEntryRecord::getId)).toList();
         return cards(met, upTo);
     }
 
     @Override
     public int characterCount(long editionId) {
         return db.fetchCount(GLOSSARY_ENTRY, GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId()),
-                GLOSSARY_ENTRY.STATUS.ne("rejected"), GLOSSARY_ENTRY.KIND.eq("character"));
+                GLOSSARY_ENTRY.STATUS.ne("rejected"), GLOSSARY_ENTRY.KIND.eq("character"), GLOSSARY_ENTRY.SAME_AS.isNull(),
+                GLOSSARY_ENTRY.IN_STORY.isDistinctFrom(false));
     }
 
     @Override
@@ -508,21 +518,147 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
         if (found.isEmpty()) {
             return List.of();
         }
+        // Another name of a main entry leads to the main one's card.
+        List<Long> mains = found.stream().map(entry -> entry.getSameAs() != null ? entry.getSameAs() : entry.getId()).distinct().toList();
+        Map<Long, List<GlossaryEntryRecord>> groups = groups(mains);
         Map<Long, List<String>> facts = new java.util.HashMap<>();
-        db.select(GLOSSARY_FACT.ENTRY_ID, GLOSSARY_FACT.FACT).from(GLOSSARY_FACT)
-                .where(GLOSSARY_FACT.ENTRY_ID.in(found.stream().map(GlossaryEntryRecord::getId).toList()), GLOSSARY_FACT.CHAPTER.le(chapter))
-                .orderBy(GLOSSARY_FACT.CHAPTER, GLOSSARY_FACT.ID)
-                .forEach(r -> facts.computeIfAbsent(r.value1(), key -> new ArrayList<>()).add(r.value2()));
-        return found.stream().map(entry -> {
-            List<String> told = new ArrayList<>();
-            // The first note is what analysis said when the entry appeared: shown from that chapter on.
-            if (entry.getNote() != null && !entry.getNote().isBlank()
-                    && (entry.getSourceChapter() == null || entry.getSourceChapter() <= chapter)) {
-                told.add(entry.getNote());
+        List<Long> everyone = groups.values().stream().flatMap(List::stream).map(GlossaryEntryRecord::getId).toList();
+        if (!everyone.isEmpty()) {
+            db.select(GLOSSARY_FACT.ENTRY_ID, GLOSSARY_FACT.FACT).from(GLOSSARY_FACT)
+                    .where(GLOSSARY_FACT.ENTRY_ID.in(everyone), GLOSSARY_FACT.CHAPTER.le(chapter))
+                    .orderBy(GLOSSARY_FACT.CHAPTER, GLOSSARY_FACT.ID)
+                    .forEach(r -> facts.computeIfAbsent(r.value1(), key -> new ArrayList<>()).add(r.value2()));
+        }
+        Set<Long> foundIds = found.stream().map(GlossaryEntryRecord::getId).collect(java.util.stream.Collectors.toSet());
+        List<Card> out = new ArrayList<>();
+        for (long mainId : mains) {
+            List<GlossaryEntryRecord> members = groups.getOrDefault(mainId, List.of());
+            if (members.isEmpty()) {
+                continue;
             }
-            told.addAll(facts.getOrDefault(entry.getId(), List.of()));
-            return new Card(entry.getId(), entry.getUkrainian(), entry.getKind(), entry.getGender(), told);
-        }).toList();
+            List<GlossaryEntryRecord> met = members.stream().filter(entry -> metBy(entry, chapter)).toList();
+            GlossaryEntryRecord main = members.getFirst();
+            // The main name once the novel has told it; before that, the name the reader knows («дружина Лота»),
+            // or the selected word itself when the novel has not met any of them by this chapter.
+            GlossaryEntryRecord shown = met.contains(main) ? main : !met.isEmpty() ? met.getFirst()
+                    : members.stream().filter(entry -> foundIds.contains(entry.getId())).findFirst().orElse(main);
+            List<String> told = new ArrayList<>();
+            for (GlossaryEntryRecord entry : met) {
+                // The first note is what analysis said when the entry appeared: shown from that chapter on.
+                if (entry.getNote() != null && !entry.getNote().isBlank() && !told.contains(entry.getNote())) {
+                    told.add(entry.getNote());
+                }
+            }
+            for (GlossaryEntryRecord entry : members) {
+                facts.getOrDefault(entry.getId(), List.of()).stream().filter(fact -> !told.contains(fact)).forEach(told::add);
+            }
+            out.add(new Card(mainId, shown.getUkrainian(), main.getKind(), main.getGender(), told));
+        }
+        return out;
+    }
+
+    private static boolean metBy(GlossaryEntryRecord entry, int chapter) {
+        return entry.getSourceChapter() == null || entry.getSourceChapter() <= chapter;
+    }
+
+    /** Each main entry with its other names: the main one first, the rest in the order the novel met them. */
+    private Map<Long, List<GlossaryEntryRecord>> groups(java.util.Collection<Long> mains) {
+        Map<Long, List<GlossaryEntryRecord>> out = new java.util.HashMap<>();
+        if (mains.isEmpty()) {
+            return out;
+        }
+        db.selectFrom(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.ID.in(mains).or(GLOSSARY_ENTRY.SAME_AS.in(mains)), GLOSSARY_ENTRY.STATUS.ne("rejected"))
+                .orderBy(GLOSSARY_ENTRY.SOURCE_CHAPTER.asc().nullsFirst(), GLOSSARY_ENTRY.ID)
+                .forEach(entry -> {
+                    long main = entry.getSameAs() != null ? entry.getSameAs() : entry.getId();
+                    List<GlossaryEntryRecord> group = out.computeIfAbsent(main, key -> new ArrayList<>());
+                    if (entry.getId() == main) {
+                        group.addFirst(entry);
+                    } else {
+                        group.add(entry);
+                    }
+                });
+        // A group whose main entry was rejected (or is itself another name) has no card.
+        out.values().removeIf(group -> group.isEmpty() || group.getFirst().getSameAs() != null || !mains.contains(group.getFirst().getId()));
+        return out;
+    }
+
+    // ---- groups: other names of one entry, for the hints only ------------------------------------
+
+    /** «Це той самий, що…»: the entry becomes another name of {@code mainId} (or of the main entry that one belongs to). */
+    void mergeInto(long editionId, long entryId, long mainId) {
+        requireEntry(editionId, entryId);
+        requireEntry(editionId, mainId);
+        Long further = db.select(GLOSSARY_ENTRY.SAME_AS).from(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.ID.eq(mainId)).fetchOne(GLOSSARY_ENTRY.SAME_AS);
+        long main = further != null ? further : mainId;
+        if (main == entryId) {
+            throw UserFacingException.badRequest("Це вже головний запис цієї групи.");
+        }
+        db.transaction(trx -> {
+            DSLContext tx = trx.dsl();
+            // Names that pointed to this entry now point to the main one: a group has one main entry.
+            tx.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.SAME_AS, main).where(GLOSSARY_ENTRY.SAME_AS.eq(entryId)).execute();
+            tx.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.SAME_AS, main).set(GLOSSARY_ENTRY.UPDATED_AT, DSL.currentOffsetDateTime())
+                    .where(GLOSSARY_ENTRY.ID.eq(entryId)).execute();
+        });
+    }
+
+    /** «Окремий запис»: the entry leaves its group. */
+    void separate(long editionId, long entryId) {
+        requireEntry(editionId, entryId);
+        db.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.SAME_AS, (Long) null).where(GLOSSARY_ENTRY.ID.eq(entryId)).execute();
+    }
+
+    /** «Зробити головним»: the group's card and «Персонажі» take this name (her name, once the novel told it). */
+    void makeMain(long editionId, long entryId) {
+        requireEntry(editionId, entryId);
+        Long old = db.select(GLOSSARY_ENTRY.SAME_AS).from(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.ID.eq(entryId)).fetchOne(GLOSSARY_ENTRY.SAME_AS);
+        if (old == null) {
+            return;
+        }
+        db.transaction(trx -> {
+            DSLContext tx = trx.dsl();
+            // The old main entry decided whether the character acts in the story; the new one keeps that.
+            Boolean inStory = tx.select(GLOSSARY_ENTRY.IN_STORY).from(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.ID.eq(old)).fetchOne(GLOSSARY_ENTRY.IN_STORY);
+            tx.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.SAME_AS, entryId)
+                    .where(GLOSSARY_ENTRY.SAME_AS.eq(old).and(GLOSSARY_ENTRY.ID.ne(entryId)).or(GLOSSARY_ENTRY.ID.eq(old))).execute();
+            tx.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.SAME_AS, (Long) null).set(GLOSSARY_ENTRY.IN_STORY, inStory)
+                    .where(GLOSSARY_ENTRY.ID.eq(entryId)).execute();
+        });
+    }
+
+    /** The team says whether a character acts in the story («Персонажі») or is a monster or only mentioned. */
+    void setInStory(long editionId, long entryId, boolean inStory) {
+        requireEntry(editionId, entryId);
+        db.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.IN_STORY, inStory).where(GLOSSARY_ENTRY.ID.eq(entryId)).execute();
+    }
+
+    /** For the glossary page: the main entry of another name, and a main entry's other names. */
+    record Name(long id, String ukrainian) {
+    }
+
+    record Group(Name main, List<Name> others) {
+    }
+
+    Map<Long, Group> groupsOf(java.util.Collection<Long> entryIds) {
+        Map<Long, Group> out = new java.util.HashMap<>();
+        if (entryIds.isEmpty()) {
+            return out;
+        }
+        var rows = db.select(GLOSSARY_ENTRY.ID, GLOSSARY_ENTRY.UKRAINIAN, GLOSSARY_ENTRY.SAME_AS).from(GLOSSARY_ENTRY)
+                .where(GLOSSARY_ENTRY.ID.in(entryIds).or(GLOSSARY_ENTRY.SAME_AS.in(entryIds))).fetch();
+        List<Long> mainIds = rows.stream().map(r -> r.value3()).filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, String> names = new java.util.HashMap<>();
+        if (!mainIds.isEmpty()) {
+            db.select(GLOSSARY_ENTRY.ID, GLOSSARY_ENTRY.UKRAINIAN).from(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.ID.in(mainIds))
+                    .forEach(r -> names.put(r.value1(), r.value2()));
+        }
+        for (long id : entryIds) {
+            Long main = rows.stream().filter(r -> r.value1() == id).map(r -> r.value3()).filter(java.util.Objects::nonNull).findFirst().orElse(null);
+            List<Name> others = rows.stream().filter(r -> java.util.Objects.equals(r.value3(), id)).map(r -> new Name(r.value1(), r.value2())).toList();
+            out.put(id, new Group(main == null ? null : new Name(main, names.get(main)), others));
+        }
+        return out;
     }
 
     /** All facts of an entry of this novel, in the order the novel tells them. */
@@ -570,7 +706,11 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
     }
 
     /** @param original the form exactly as the original writes it */
-    record Proposed(String original, String reading, String ukrainian, String kind, String gender, String note) {
+    /** @param role for a character: acting (in the story), mentioned or creature; null — not said */
+    record Proposed(String original, String reading, String ukrainian, String kind, String gender, String note, String role) {
+        Proposed(String original, String reading, String ukrainian, String kind, String gender, String note) {
+            this(original, reading, ukrainian, kind, gender, note, null);
+        }
     }
 
     /** Analysis says how this language writes a known entry («запис №12 тут — Ryo»). */
@@ -818,7 +958,7 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
                 aliases == null ? List.of() : json.readValue(aliases.data(), STRINGS), row.get(GLOSSARY_ENTRY.UKRAINIAN),
                 row.get(GLOSSARY_ENTRY.KIND), row.get(GLOSSARY_ENTRY.GENDER), row.get(GLOSSARY_ENTRY.NOTE),
                 row.get(GLOSSARY_ENTRY.SOURCE_CHAPTER), row.get(GLOSSARY_ENTRY.MANUAL), row.get(GLOSSARY_ENTRY.STATUS),
-                row.get(GLOSSARY_ENTRY.LOOSE_FORMS));
+                row.get(GLOSSARY_ENTRY.LOOSE_FORMS), row.get(GLOSSARY_ENTRY.SAME_AS), row.get(GLOSSARY_ENTRY.IN_STORY));
     }
 
     private static String blankToNull(String value) {

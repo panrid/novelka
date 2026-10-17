@@ -127,7 +127,7 @@ class Pipeline {
             for (JsonNode entry : answer.path("entries")) {
                 proposed.add(new Glossary.Proposed(entry.path("original").asString(""), entry.path("reading").asString(""),
                         entry.path("ukrainian").asString(""), entry.path("kind").asString(""),
-                        entry.path("gender").asString(""), entry.path("note").asString("")));
+                        entry.path("gender").asString(""), entry.path("note").asString(""), entry.path("role").asString(null)));
             }
             List<Glossary.Known> known = new ArrayList<>();
             for (JsonNode item : answer.path("known")) {

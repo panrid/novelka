@@ -55,10 +55,12 @@ class AutotranslateController {
     private final Presets presets;
     private final ModelCosts costs;
     private final SourceWatch watch;
+    private final StoryRoles storyRoles;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
             Teams teams, Analyses analyses, Ledger ledger, Sources sources, space.panrid.novelka.suggestion.Suggestions suggestions,
-            Agreement agreement, JobLog journal, Presets presets, ModelCosts costs, SourceWatch watch) {
+            Agreement agreement, JobLog journal, Presets presets, ModelCosts costs, SourceWatch watch, StoryRoles storyRoles) {
+        this.storyRoles = storyRoles;
         this.watch = watch;
         this.costs = costs;
         this.presets = presets;
@@ -363,7 +365,7 @@ class AutotranslateController {
 
     /** {@code facts}: how many facts of its «хто це» card the novel has told so far. */
     record GlossaryItem(long id, String ukrainian, String kind, String gender, String note, Integer chapter, boolean manual,
-            String status, int facts, boolean looseForms) {
+            String status, int facts, boolean looseForms, Glossary.Name main, List<Glossary.Name> others, Boolean inStory) {
     }
 
     record GlossaryPage(List<GlossaryItem> items, int total, int page, boolean hasMore, List<Integer> chapters,
@@ -377,9 +379,11 @@ class AutotranslateController {
         access.requireTextEditor(editionId);
         Glossary.Page found = glossary.page(editionId, status != null && Glossary.STATUSES.contains(status) ? status : null, chapter, q, sort, page);
         java.util.Map<Long, Integer> facts = glossary.factCounts(found.items().stream().map(Glossary.Entry::id).toList());
+        java.util.Map<Long, Glossary.Group> groups = glossary.groupsOf(found.items().stream().map(Glossary.Entry::id).toList());
         return new GlossaryPage(found.items().stream()
                 .map(entry -> new GlossaryItem(entry.id(), entry.ukrainian(), entry.kind(), entry.gender(), entry.note(),
-                        entry.sourceChapter(), entry.manual(), entry.status(), facts.getOrDefault(entry.id(), 0), entry.looseForms()))
+                        entry.sourceChapter(), entry.manual(), entry.status(), facts.getOrDefault(entry.id(), 0), entry.looseForms(),
+                        groups.get(entry.id()).main(), groups.get(entry.id()).others(), entry.inStory()))
                 .toList(), found.total(), found.page(), found.hasMore(), found.chapters(), found.labels(), found.counts());
     }
 
@@ -487,6 +491,53 @@ class AutotranslateController {
     void linkWord(@PathVariable long editionId, @PathVariable int number, @RequestBody LinkRequest body) {
         Viewer viewer = access.requireTextEditor(editionId).viewer();
         glossary.link(editionId, number, body.blockId(), body.entryId(), body.form(), body.linked(), viewer.accountId());
+    }
+
+    // ---- groups of names and who acts in the story (the hints and «Персонажі») ------------------
+
+    record SameAs(long mainId) {
+    }
+
+    @PostMapping("/editions/{editionId}/glossary/{entryId}/same-as")
+    void sameAs(@PathVariable long editionId, @PathVariable long entryId, @RequestBody SameAs body) {
+        access.requireTranslator(editionId);
+        glossary.mergeInto(editionId, entryId, body.mainId());
+    }
+
+    @DeleteMapping("/editions/{editionId}/glossary/{entryId}/same-as")
+    void separate(@PathVariable long editionId, @PathVariable long entryId) {
+        access.requireTranslator(editionId);
+        glossary.separate(editionId, entryId);
+    }
+
+    @PostMapping("/editions/{editionId}/glossary/{entryId}/main")
+    void makeMain(@PathVariable long editionId, @PathVariable long entryId) {
+        access.requireTranslator(editionId);
+        glossary.makeMain(editionId, entryId);
+    }
+
+    record InStory(boolean inStory) {
+    }
+
+    @PutMapping("/editions/{editionId}/glossary/{entryId}/in-story")
+    void inStory(@PathVariable long editionId, @PathVariable long entryId, @RequestBody InStory body) {
+        access.requireTranslator(editionId);
+        glossary.setInStory(editionId, entryId, body.inStory());
+    }
+
+    /** How many characters are not sorted yet and what one ask of the model would cost (the site pays). */
+    @GetMapping("/editions/{editionId}/glossary/roles")
+    StoryRoles.Quote rolesQuote(@PathVariable long editionId) {
+        owner();
+        access.requireTranslator(editionId);
+        return storyRoles.quote(editionId);
+    }
+
+    @PostMapping("/editions/{editionId}/glossary/roles")
+    StoryRoles.Done sortRoles(@PathVariable long editionId) {
+        owner();
+        access.requireTranslator(editionId);
+        return storyRoles.run(editionId);
     }
 
     // ---- facts of an entry: its «хто це» card ---------------------------------------------------

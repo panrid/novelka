@@ -68,6 +68,11 @@ export type GlossaryItem = {
     facts: number;
     /** Found in the text as before: any ending and any case (a short name that declines, «Ян» → «Яна»). */
     looseForms: boolean;
+    /** This entry is another name of {@code main} (for the hints only); a main entry lists its {@code others}. */
+    main?: { id: number; ukrainian: string } | null;
+    others?: { id: number; ukrainian: string }[];
+    /** A character who acts in the story («Персонажі»); false — a monster or only mentioned; null — not sorted yet. */
+    inStory?: boolean | null;
 };
 /** One thing the novel tells about an entry, from chapter {@code chapter} on. */
 export type GlossaryFact = { id: number; chapter: number; text: string; manual: boolean };
@@ -175,6 +180,12 @@ export const autotranslateApi = {
     /** Ties words of a translated paragraph to an entry (linked), or unties them there. */
     linkWord: (id: number, chapter: number, body: { blockId: string; entryId: number; form: string; linked: boolean }) =>
         api<void>(`${base(id)}/chapters/${chapter}/glossary-links`, json('POST', body)),
+    sameAs: (id: number, entryId: number, mainId: number) => api<void>(`${base(id)}/glossary/${entryId}/same-as`, json('POST', { mainId })),
+    separate: (id: number, entryId: number) => api<void>(`${base(id)}/glossary/${entryId}/same-as`, { method: 'DELETE' }),
+    makeMain: (id: number, entryId: number) => api<void>(`${base(id)}/glossary/${entryId}/main`, json('POST', {})),
+    setInStory: (id: number, entryId: number, inStory: boolean) => api<void>(`${base(id)}/glossary/${entryId}/in-story`, json('PUT', { inStory })),
+    rolesQuote: (id: number) => api<{ characters: number; usd: number }>(`${base(id)}/glossary/roles`),
+    sortRoles: (id: number) => api<{ characters: number; acting: number; usd: number }>(`${base(id)}/glossary/roles`, json('POST', {})),
     facts: (id: number, entryId: number) => api<GlossaryFact[]>(`${base(id)}/glossary/${entryId}/facts`),
     addFact: (id: number, entryId: number, chapter: number, text: string) =>
         api<GlossaryFact>(`${base(id)}/glossary/${entryId}/facts`, json('POST', { chapter, text })),

@@ -156,6 +156,15 @@ public class FakeModel implements AiTransport {
                         // it was never shown.
                         "facts", facts(user));
             }
+            case "story_roles" -> {
+                // A monster by its name; everyone else takes part in the story.
+                List<Map<String, Object>> roles = new ArrayList<>();
+                java.util.regex.Matcher line = java.util.regex.Pattern.compile("#(\\d+) ([^\\n]*)").matcher(user);
+                while (line.find()) {
+                    roles.add(Map.of("id", Long.parseLong(line.group(1)), "role", line.group(2).contains("Ґоблін") ? "creature" : "acting"));
+                }
+                yield Map.of("roles", roles);
+            }
             case "agreement" -> {
                 // Puts «Мірелєю» right; asked about a paragraph marked ЗАЙВЕ, it rewrites the whole thing.
                 List<Map<String, String>> blocks = new ArrayList<>();
