@@ -488,6 +488,12 @@ class AiService implements Ai {
             return null;
         }
         String said = message.group(1);
-        return said.length() > 200 ? said.substring(0, 200) + "…" : said;
+        // «Provider returned error» says nothing: the provider's own words are in metadata.raw.
+        java.util.regex.Matcher raw = java.util.regex.Pattern.compile("\"raw\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").matcher(body);
+        java.util.regex.Matcher provider = java.util.regex.Pattern.compile("\"provider_name\"\\s*:\\s*\"([^\"]*)\"").matcher(body);
+        if (raw.find() && !raw.group(1).isBlank()) {
+            said = (provider.find() ? provider.group(1) + ": " : "") + raw.group(1).replace("\\\"", "\"");
+        }
+        return said.length() > 300 ? said.substring(0, 300) + "…" : said;
     }
 }
