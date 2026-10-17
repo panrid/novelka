@@ -129,7 +129,13 @@ const base = (id: number) => `/api/studio/editions/${id}`;
 /** The Studio's bell for the original: whether the viewer hears of its new chapters; found — what a check just found. */
 export type SourceWatch = { watching: boolean; checkedAt: string | null; sourceChapters: number; found: number };
 
+/** A published chapter and how many of the original's pictures it lacks. */
+export type MissingPictures = { number: number; pictures: number };
+
 export const autotranslateApi = {
+    missingPictures: (id: number) => api<MissingPictures[]>(`${base(id)}/source-pictures`),
+    fillPictures: (id: number, number: number) =>
+        api<{ added: number; failed: number }>(`${base(id)}/source-pictures/${number}`, { method: 'POST', body: '{}' }),
     sourceWatch: (id: number) => api<SourceWatch>(`${base(id)}/source-watch`),
     setSourceWatch: (id: number, watching: boolean) =>
         api<SourceWatch>(`${base(id)}/source-watch`, { method: 'PUT', body: JSON.stringify({ watching }) }),

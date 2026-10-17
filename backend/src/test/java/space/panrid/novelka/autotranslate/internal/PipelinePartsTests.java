@@ -200,6 +200,14 @@ class PipelinePartsTests {
     }
 
     @Test
+    void aPictureOfTheOriginalGoesAfterTheParagraphItFollowsThere() {
+        List<Block> original = List.of(Block.imageLink("s1", "https://a/1"), line(2, "一"), Block.imageLink("s3", "https://a/3"), line(4, "二"));
+        List<Block> text = new java.util.ArrayList<>(List.of(line(2, "Перший."), new Block("n1", "image", List.of(), 7L, null), line(4, "Другий.")));
+        assertThat(SourcePictures.place(original, 0, text)).as("nothing before it: the very start").isZero();
+        assertThat(SourcePictures.place(original, 2, text)).as("right after s2, before the team's own picture").isEqualTo(1);
+    }
+
+    @Test
     void readersSeeNotesWithoutTheOriginal() {
         assertThat(Glossary.forReaders("Магія Сіона (魔法); магію демонів (魔術) звуть «чаклунство».")).isEqualTo("Магія Сіона; магію демонів звуть «чаклунство».");
         assertThat(Glossary.forReaders("War kobold: бойовий різновид (ゴブリンウォーリアー).")).isEqualTo("War kobold: бойовий різновид.");
