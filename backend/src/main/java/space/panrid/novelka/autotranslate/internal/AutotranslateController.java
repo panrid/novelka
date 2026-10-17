@@ -523,8 +523,12 @@ class AutotranslateController {
 
     // ---- the owner's money and models ------------------------------------------------------
 
+    /** @param parallel chapters of different novels that translate at once */
     record Wallet(boolean configured, boolean showShah, Jobs.Balance balance, BigDecimal usdPerShah, Settings settings,
-            List<Jobs.CostRow> report) {
+            List<Jobs.CostRow> report, int parallel) {
+    }
+
+    record ParallelRequest(Integer chapters) {
     }
 
     @GetMapping("/autotranslate/wallet")
@@ -533,7 +537,13 @@ class AutotranslateController {
         boolean showShah = db.select(ACCOUNT.SHOW_SHAH).from(ACCOUNT).where(ACCOUNT.ID.eq(viewer.accountId())).fetchSingle().value1();
         Settings settings = jobs.settings();
         return new Wallet(ai.configured(), showShah, jobs.balance().orElse(null), Settings.usdOfMicro(settings.microUsdPerShah()),
-                settings, jobs.report(Math.max(1, Math.min(days, 365))));
+                settings, jobs.report(Math.max(1, Math.min(days, 365))), jobs.parallel());
+    }
+
+    @PutMapping("/autotranslate/parallel")
+    void saveParallel(@RequestBody ParallelRequest body) {
+        Viewer viewer = owner();
+        jobs.saveParallel(body.chapters() == null ? 0 : body.chapters(), viewer.accountId());
     }
 
     @PutMapping("/autotranslate/settings")

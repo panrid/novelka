@@ -1,5 +1,6 @@
 package space.panrid.novelka.autotranslate.internal;
 
+import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.JOB;
 import static space.panrid.novelka.jooq.Tables.JOB_STEP;
 
@@ -7,8 +8,13 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jooq.DSLContext;
+import org.jooq.Field;
 import org.jooq.impl.DSL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,18 +28,26 @@ import space.panrid.novelka.autotranslate.internal.PipelineErrors.Cancelled;
 import space.panrid.novelka.autotranslate.internal.PipelineErrors.OverBudget;
 import space.panrid.novelka.jooq.tables.records.JobRecord;
 import space.panrid.novelka.jooq.tables.records.JobStepRecord;
+import space.panrid.novelka.platform.SiteSettings;
 import space.panrid.novelka.platform.web.UserFacingException;
 
 /**
  * Takes the next chapter of any job and runs it. Within a job chapters go strictly in
- * order (a chapter needs the previous one's summary and glossary); different jobs share
- * the worker. A step is leased: if the process dies, the lease runs out and the step is
- * picked up again from its checkpoint.
+ * order (a chapter needs the previous one's summary and glossary). Several workers run at
+ * once (the site owner's «одночасно глав»), but a novel has one chapter in work at a time:
+ * its glossary is shared by all its translations. The next chapter goes to whoever waited
+ * longest — the person first, then their run — so a short run never stands behind a long
+ * one. A step is leased: if the process dies, the lease runs out and the step is picked up
+ * again from its checkpoint.
  */
 @Component
 class Worker {
 
     static final int LEASE_MINUTES = 20;
+    /** How many chapters may be in work at once: the site owner's setting, 1 to {@link #MAX_PARALLEL}. */
+    static final String PARALLEL_KEY = "autotranslate.parallel";
+    static final int DEFAULT_PARALLEL = 3;
+    static final int MAX_PARALLEL = 5;
     private static final Logger log = LoggerFactory.getLogger(Worker.class);
     /** Pauses before retrying a failure that certainly cost nothing. */
     private static final List<Integer> BACKOFF_SECONDS = List.of(30, 120, 300, 900, 1800, 3600);
@@ -57,25 +71,51 @@ class Worker {
     /** Runs steps until none is ready. Returns how many ran. */
     int drain() {
         int ran = 0;
-        releaseExpiredLeases();
-        JobStepRecord step;
-        while (!shutdown.stopping() && (step = claim()) != null) {
-            process(step);
+        while (runOne()) {
             ran++;
         }
         return ran;
     }
 
-    JobStepRecord claim() {
+    /** Runs the next ready step, if there is one and the app is not stopping. */
+    boolean runOne() {
+        if (shutdown.stopping()) {
+            return false;
+        }
+        releaseExpiredLeases();
+        JobStepRecord step = claim();
+        if (step == null) {
+            return false;
+        }
+        process(step);
+        return true;
+    }
+
+    /**
+     * The next chapter to run, or null. Workers claim one at a time (this process is the only
+     * one that runs jobs), so «one chapter per novel» holds between the check and the lease.
+     */
+    synchronized JobStepRecord claim() {
         OffsetDateTime now = now();
         var s = JOB_STEP.as("s");
         var earlier = JOB_STEP.as("e");
-        Long id = db.select(s.ID).from(s).join(JOB).on(JOB.ID.eq(s.JOB_ID))
+        var edition = EDITION.as("ed");
+        var busy = JOB_STEP.as("b");
+        var busyJob = JOB.as("bj");
+        var busyEdition = EDITION.as("be");
+        var served = JOB.as("sv");
+        // When this person last got a chapter, in any of their runs.
+        Field<OffsetDateTime> personServed = DSL.field(DSL.select(DSL.max(served.LAST_STEP_AT)).from(served)
+                .where(served.REQUESTED_BY.eq(JOB.REQUESTED_BY)));
+        Long id = db.select(s.ID).from(s).join(JOB).on(JOB.ID.eq(s.JOB_ID)).join(edition).on(edition.ID.eq(JOB.EDITION_ID))
                 .where(JOB.STATE.in("queued", "running"), s.STATE.eq("pending"), s.NOT_BEFORE.le(now))
                 .andNotExists(DSL.selectOne().from(earlier)
                         .where(earlier.JOB_ID.eq(s.JOB_ID), earlier.CHAPTER_NUMBER.lt(s.CHAPTER_NUMBER),
                                 earlier.STATE.ne("done")))
-                .orderBy(JOB.CREATED_AT, s.CHAPTER_NUMBER)
+                .andNotExists(DSL.selectOne().from(busy).join(busyJob).on(busyJob.ID.eq(busy.JOB_ID))
+                        .join(busyEdition).on(busyEdition.ID.eq(busyJob.EDITION_ID))
+                        .where(busy.STATE.eq("running"), busyEdition.NOVEL_ID.eq(edition.NOVEL_ID)))
+                .orderBy(personServed.asc().nullsFirst(), JOB.LAST_STEP_AT.asc().nullsFirst(), JOB.CREATED_AT, s.CHAPTER_NUMBER)
                 .limit(1)
                 .forUpdate().of(s).skipLocked()
                 .fetchOne(s.ID);
@@ -92,6 +132,7 @@ class Worker {
         if (step != null) {
             db.update(JOB).set(JOB.STATE, "running").set(JOB.STARTED_AT, DSL.coalesce(JOB.STARTED_AT, DSL.val(now)))
                     .where(JOB.ID.eq(step.getJobId()), JOB.STATE.eq("queued")).execute();
+            db.update(JOB).set(JOB.LAST_STEP_AT, now).where(JOB.ID.eq(step.getJobId())).execute();
         }
         return step;
     }
@@ -187,24 +228,57 @@ class Worker {
         return OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC);
     }
 
-    /** The schedule; switched off in tests, which call {@link #drain()} themselves. */
+    /**
+     * The schedule: keeps as many workers draining as the site owner allows. Switched off in
+     * tests, which call {@link #drain()} themselves.
+     */
     @Component
     @ConditionalOnProperty(name = "novelka.autotranslate.worker", havingValue = "true", matchIfMissing = true)
     static class Schedule {
 
         private final Worker worker;
+        private final SiteSettings settings;
+        private final AtomicInteger active = new AtomicInteger();
+        private final ExecutorService pool = Executors.newFixedThreadPool(MAX_PARALLEL, runnable -> {
+            Thread thread = new Thread(runnable, "autotranslate-worker");
+            thread.setDaemon(true);
+            return thread;
+        });
 
-        Schedule(Worker worker) {
+        Schedule(Worker worker, SiteSettings settings) {
             this.worker = worker;
+            this.settings = settings;
         }
 
         @Scheduled(initialDelay = 10_000, fixedDelay = 3_000)
         void tick() {
-            try {
-                worker.drain();
-            } catch (RuntimeException error) {
-                log.error("Autotranslate worker tick failed", error);
+            int wanted = parallel(settings);
+            while (active.get() < wanted) {
+                active.incrementAndGet();
+                pool.execute(() -> {
+                    try {
+                        // Fewer allowed now: the extra workers stop after their chapter.
+                        while (active.get() <= parallel(settings) && worker.runOne()) {
+                            // next chapter
+                        }
+                    } catch (RuntimeException error) {
+                        log.error("Autotranslate worker failed", error);
+                    } finally {
+                        active.decrementAndGet();
+                    }
+                });
             }
         }
+
+        /** A deploy: steps in work get to save the answer already on its way. */
+        @jakarta.annotation.PreDestroy
+        void stop() throws InterruptedException {
+            pool.shutdown();
+            pool.awaitTermination(30, TimeUnit.SECONDS);
+        }
+    }
+
+    static int parallel(SiteSettings settings) {
+        return Math.max(1, Math.min(MAX_PARALLEL, settings.integer(PARALLEL_KEY, DEFAULT_PARALLEL)));
     }
 }

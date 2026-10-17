@@ -294,6 +294,10 @@ function describe(entry: AuditEntry): string {
         const micro = (entry.details as { microUsdPerShah?: number }).microUsdPerShah ?? 0;
         return `змінює ціну шагу для людей: ${dollars(micro / 1_000_000)}`;
     }
+    if (entry.action === 'autotranslate_parallel') {
+        const details = entry.details as { before?: number; after?: number };
+        return `змінює, скільки глав перекладається одночасно: ${details.before ?? '?'} → ${details.after ?? '?'}`;
+    }
     if (entry.action === 'autotranslate_settings' || entry.action === 'illustration_settings') {
         return `${entry.action === 'autotranslate_settings' ? 'змінює моделі й ціни автоперекладу' : 'змінює налаштування ілюстрацій'}${modelChanges(entry.details)}`;
     }

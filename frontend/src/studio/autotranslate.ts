@@ -110,6 +110,8 @@ export type CostRow = {
 };
 export type Wallet = {
     configured: boolean; showShah: boolean; balance: Balance | null; usdPerShah: number; settings: Settings; report: CostRow[];
+    /** Chapters of different novels that translate at once. */
+    parallel: number;
 };
 
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
@@ -182,6 +184,7 @@ export const autotranslateApi = {
         api<void>(`${base(id)}/glossary/${entryId}/facts/${factId}`, { method: 'DELETE' }),
     wallet: (days = 30) => api<Wallet>(`/api/studio/autotranslate/wallet?days=${days}`),
     saveSettings: (settings: Settings) => api<void>('/api/studio/autotranslate/settings', json('PUT', settings)),
+    saveParallel: (chapters: number) => api<void>('/api/studio/autotranslate/parallel', json('PUT', { chapters })),
 };
 
 export function shahWord(count: number): string {

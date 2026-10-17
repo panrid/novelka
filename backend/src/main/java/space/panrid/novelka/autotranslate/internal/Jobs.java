@@ -96,6 +96,19 @@ class Jobs {
         siteSettings.put(SETTINGS_KEY, json.writeValueAsString(fixed), ownerId);
     }
 
+    /** How many chapters of different novels translate at once. */
+    int parallel() {
+        return Worker.parallel(siteSettings);
+    }
+
+    void saveParallel(int chapters, long ownerId) {
+        if (chapters < 1 || chapters > Worker.MAX_PARALLEL) {
+            throw UserFacingException.badRequest("Одночасно — від 1 до %d глав.".formatted(Worker.MAX_PARALLEL));
+        }
+        audit.record(ownerId, "autotranslate_parallel", "site", null, Map.of("before", parallel(), "after", chapters));
+        siteSettings.put(Worker.PARALLEL_KEY, Integer.toString(chapters), ownerId);
+    }
+
     // ---- quote --------------------------------------------------------------------------------
 
     /**

@@ -72,6 +72,7 @@ export function WalletPage() {
             <h2 className={styles.sectionTitle}>Моделі й ціни</h2>
             {/* Initialised once: the saved values come back equal, and «Збережено» stays visible. */}
             <SettingsForm settings={data.settings} />
+            <ParallelForm chapters={data.parallel} />
 
             <Illustrations days={Number(days)} />
             <PeoplePrice />
@@ -106,6 +107,32 @@ function SettingsForm({ settings }: { settings: Settings }) {
             {save.isSuccess && <Notice tone="success">Збережено.</Notice>}
             <Button type="submit" pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти</Button>
         </form>
+    );
+}
+
+/** Chapters of different novels in work at once; a novel always has one at a time. */
+function ParallelForm({ chapters }: { chapters: number }) {
+    const client = useQueryClient();
+    const [draft, setDraft] = useState(String(chapters));
+    const save = useMutation({
+        mutationFn: () => autotranslateApi.saveParallel(Number(draft)),
+        onSuccess: () => void client.invalidateQueries({ queryKey: ['wallet'] }),
+    });
+    return (
+        <>
+            <h2 className={styles.sectionTitle}>Одночасно глав</h2>
+            <p className={styles.muted}>
+                Скільки глав різних новел перекладається водночас. Глави однієї новели завжди йдуть по черзі, а між людьми й запусками —
+                по колу, тож короткий запуск не чекає за довгим. Більше — швидше для всіх разом, ціна не змінюється.
+            </p>
+            <form className={styles.form} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
+                <Segmented label="Одночасно" value={draft} onChange={setDraft}
+                    options={['1', '2', '3', '4', '5'].map((value) => ({ value, label: value }))} />
+                {save.isError && <Notice tone="error">{save.error.message}</Notice>}
+                {save.isSuccess && <Notice tone="success">Збережено.</Notice>}
+                <Button type="submit" pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти</Button>
+            </form>
+        </>
     );
 }
 
