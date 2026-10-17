@@ -43,10 +43,11 @@ class WhoIsTests {
 
     String slug;
     long novelId;
+    Person admin;
 
     @BeforeEach
     void aNovelWithAGlossary() {
-        Person admin = Accounts.signedIn(port, mailbox);
+        admin = Accounts.signedIn(port, mailbox);
         db.update(ACCOUNT).set(ACCOUNT.SITE_ROLE, "admin").where(ACCOUNT.NICK.eq(admin.nick())).execute();
         String title = "Маг води " + UUID.randomUUID().toString().substring(0, 6);
         Response imported = admin.browser().upload("/api/admin/novels",
@@ -95,8 +96,64 @@ class WhoIsTests {
         return names;
     }
 
+    @Test
+    void withTheOriginalOnTheSiteAWordCountsOnlyWhereItsOriginalStandsAndTheTeamTiesTheRest() {
+        long edition = db.select(space.panrid.novelka.jooq.Tables.EDITION.ID).from(space.panrid.novelka.jooq.Tables.EDITION)
+                .where(space.panrid.novelka.jooq.Tables.EDITION.NOVEL_ID.eq(novelId)).fetchSingle().value1();
+        long ryo = db.select(GLOSSARY_ENTRY.ID).from(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.NOVEL_ID.eq(novelId), GLOSSARY_ENTRY.UKRAINIAN.eq("Рьо"))
+                .fetchSingle().value1();
+        long strike = entry("до", "term", "Удар кендо по корпусу.", 1, "approved");
+        form(ryo, "涼");
+        form(strike, "胴");
+        // The original of chapter 2: its paragraph names Ryo, not the kendo strike.
+        String block = JSON.readTree(new Browser(port).get("/api/novels/" + slug + "/chapters/2").body()).path("blocks").path(0).path("id").asString();
+        db.insertInto(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL)
+                .set(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL.EDITION_ID, edition)
+                .set(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL.NUMBER, 2)
+                .set(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL.TITLE, "第2話")
+                .set(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL.BLOCKS, org.jooq.JSONB.valueOf(
+                        "[{\"id\":\"" + block + "\",\"type\":\"paragraph\",\"content\":[{\"text\":\"アベルが涼の家に来た。\",\"marks\":[]}]}]"))
+                .set(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL.CHARS, 11)
+                .set(space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL.LANGUAGE, "ja").execute();
+
+        Browser guest = new Browser(port);
+        JsonNode hints = read(guest.get("/api/novels/" + slug + "/hints?chapter=2"));
+        assertThat(hints.path("byOriginal").asBoolean()).isTrue();
+        assertThat(hints.path("links")).extracting(link -> link.path("entryId").asLong()).containsExactly(ryo);
+        assertThat(who(guest, 2, "до", block).size()).as("«до» here is a conjunction").isZero();
+        assertThat(who(guest, 2, "Рьо", block).path(0).path("ukrainian").asString()).isEqualTo("Рьо");
+        assertThat(who(guest, 2, "до").size()).as("without the paragraph: by the words, as before").isEqualTo(1);
+
+        // The team ties «до» here by hand, then unties it.
+        String links = "/api/studio/editions/" + edition + "/chapters/2/glossary-links";
+        assertThat(guest.post(links, "{\"blockId\":\"" + block + "\",\"entryId\":" + strike + ",\"form\":\"до\",\"linked\":true}").status())
+                .as("only the team").isEqualTo(401);
+        read(admin.browser().post(links, "{\"blockId\":\"" + block + "\",\"entryId\":" + strike + ",\"form\":\"до\",\"linked\":true}"));
+        assertThat(who(guest, 2, "до", block).path(0).path("ukrainian").asString()).isEqualTo("до");
+        read(admin.browser().post(links, "{\"blockId\":\"" + block + "\",\"entryId\":" + strike + ",\"form\":\"до\",\"linked\":false}"));
+        assertThat(who(guest, 2, "до", block).size()).isZero();
+        assertThat(read(guest.get("/api/novels/" + slug + "/hints?chapter=2")).path("links").toString()).contains("\"linked\":false");
+    }
+
+    private void form(long entryId, String original) {
+        db.insertInto(space.panrid.novelka.jooq.Tables.GLOSSARY_FORM).set(space.panrid.novelka.jooq.Tables.GLOSSARY_FORM.ENTRY_ID, entryId)
+                .set(space.panrid.novelka.jooq.Tables.GLOSSARY_FORM.NOVEL_ID, novelId)
+                .set(space.panrid.novelka.jooq.Tables.GLOSSARY_FORM.LANGUAGE, "ja")
+                .set(space.panrid.novelka.jooq.Tables.GLOSSARY_FORM.ORIGINAL, original).execute();
+    }
+
+    private static JsonNode read(Response response) {
+        assertThat(response.status()).as(response.body()).isBetween(200, 299);
+        return response.body().isEmpty() ? JSON.createObjectNode() : JSON.readTree(response.body());
+    }
+
     private JsonNode who(Browser browser, int chapter, String text) {
-        Response response = browser.get("/api/novels/" + slug + "/who?chapter=" + chapter + "&q=" + URLEncoder.encode(text, StandardCharsets.UTF_8));
+        return who(browser, chapter, text, null);
+    }
+
+    private JsonNode who(Browser browser, int chapter, String text, String block) {
+        Response response = browser.get("/api/novels/" + slug + "/who?chapter=" + chapter + "&q=" + URLEncoder.encode(text, StandardCharsets.UTF_8)
+                + (block == null ? "" : "&block=" + block));
         assertThat(response.status()).as(response.body()).isEqualTo(200);
         return JSON.readTree(response.body());
     }

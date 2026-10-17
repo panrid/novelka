@@ -171,9 +171,16 @@ class ReadingController {
      */
     @GetMapping("/novels/{slug}/who")
     List<GlossaryCards.Card> who(@PathVariable String slug, @RequestParam(required = false) String t,
-            @RequestParam int chapter, @RequestParam String q) {
+            @RequestParam int chapter, @RequestParam String q, @RequestParam(required = false) String block) {
         EditionRow edition = pick(visibleEditions(queries.novel(slug).orElseThrow(ReadingController::noNovel), currentUser.viewer()), t);
-        return cards.named(edition.id(), chapter, q);
+        return cards.named(edition.id(), chapter, q, block);
+    }
+
+    /** «Лампочка»: the glossary's words in the chapter, tied to the paragraphs whose original names them. */
+    @GetMapping("/novels/{slug}/hints")
+    GlossaryCards.Hints hints(@PathVariable String slug, @RequestParam(required = false) String t, @RequestParam int chapter) {
+        EditionRow edition = pick(visibleEditions(queries.novel(slug).orElseThrow(ReadingController::noNovel), currentUser.viewer()), t);
+        return cards.hints(edition.id(), chapter);
     }
 
     /** «Лампочка» in the reader: the glossary's words a reader at {@code chapter} may ask about. */

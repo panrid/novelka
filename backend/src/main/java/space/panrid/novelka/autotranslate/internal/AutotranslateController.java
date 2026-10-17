@@ -475,6 +475,17 @@ class AutotranslateController {
         glossary.delete(editionId, entryId);
     }
 
+    /** {@code linked} false unties the words from the entry in that paragraph. */
+    record LinkRequest(String blockId, long entryId, String form, boolean linked) {
+    }
+
+    /** The team ties a word of a translated paragraph to a glossary entry, or unties it there. */
+    @PostMapping("/editions/{editionId}/chapters/{number}/glossary-links")
+    void linkWord(@PathVariable long editionId, @PathVariable int number, @RequestBody LinkRequest body) {
+        Viewer viewer = access.requireTextEditor(editionId).viewer();
+        glossary.link(editionId, number, body.blockId(), body.entryId(), body.form(), body.linked(), viewer.accountId());
+    }
+
     // ---- facts of an entry: its «хто це» card ---------------------------------------------------
 
     record FactRequest(int chapter, String text) {

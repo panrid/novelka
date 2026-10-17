@@ -38,8 +38,10 @@ export function useMySuggestions(chapter: ReaderChapter, signedIn: boolean) {
  * Appears while text in one paragraph is selected: who or what it names (for everyone), and for
  * a signed-in reader — fix the paragraph, replace the fragment in the chapter, quote it.
  */
-export function SelectionBar({ onWho, onEdit, onReplace, onQuote }: {
-    onWho: (text: string) => void;
+export function SelectionBar({ onWho, onLink, onEdit, onReplace, onQuote }: {
+    onWho: (text: string, blockId: string) => void;
+    /** The team ties the selected words to a glossary entry. */
+    onLink?: (text: string, blockId: string) => void;
     onEdit?: (blockId: string) => void; onReplace?: (find: string) => void; onQuote?: (blockId: string, text: string) => void;
 }) {
     const [selection, setSelection] = useState<{ blockId: string; text: string } | null>(null);
@@ -62,7 +64,11 @@ export function SelectionBar({ onWho, onEdit, onReplace, onQuote }: {
     if (!selection) return null;
     return (
         <div className={styles.selectionBar} role="toolbar" aria-label="Дії з виділеним">
-            <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onWho(selection.text.slice(0, 300))}>? Хто це</button>
+            <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onWho(selection.text.slice(0, 300), selection.blockId)}>? Хто це</button>
+            {onLink && (
+                <button type="button" onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => onLink(selection.text.slice(0, 100), selection.blockId)}>🔗 До словника</button>
+            )}
             {onEdit && (
                 <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onEdit(selection.blockId)}>✎ Виправити абзац</button>
             )}

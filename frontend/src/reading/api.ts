@@ -175,6 +175,17 @@ const novelPath = (slug: string) => `/api/novels/${encodeURIComponent(slug)}`;
 /** A word «лампочка» marks: an entry of the glossary the reader may ask about. */
 export type GlossaryTerm = { id: number; ukrainian: string; kind: string; looseForms: boolean };
 
+/**
+ * What the lamp marks in a chapter. {@code byOriginal}: the chapter's original is on the site, and
+ * an entry counts only in the paragraphs a link names; {@code text} null — by the entry's own
+ * forms; otherwise the words the team tied to it there ({@code linked}) or untied from it.
+ */
+export type GlossaryHints = {
+    byOriginal: boolean;
+    terms: GlossaryTerm[];
+    links: { blockId: string; entryId: number; text: string | null; linked: boolean }[];
+};
+
 export type WhoCard = { id: number; ukrainian: string; kind: string; gender: string | null; facts: string[] };
 
 export const readingApi = {
@@ -183,9 +194,15 @@ export const readingApi = {
         if (team) params.set('t', team);
         return api<GlossaryTerm[]>(`/api/novels/${encodeURIComponent(slug)}/terms?${params}`);
     },
-    who: (slug: string, team: string | undefined, chapter: number, text: string) => {
+    glossaryHints: (slug: string, team: string | undefined, chapter: number) => {
+        const params = new URLSearchParams({ chapter: String(chapter) });
+        if (team) params.set('t', team);
+        return api<GlossaryHints>(`/api/novels/${encodeURIComponent(slug)}/hints?${params}`);
+    },
+    who: (slug: string, team: string | undefined, chapter: number, text: string, block?: string) => {
         const params = new URLSearchParams({ chapter: String(chapter), q: text });
         if (team) params.set('t', team);
+        if (block) params.set('block', block);
         return api<WhoCard[]>(`/api/novels/${encodeURIComponent(slug)}/who?${params}`);
     },
     works: (nick: string) => api<Card[]>(`/api/users/${encodeURIComponent(nick)}/works`),

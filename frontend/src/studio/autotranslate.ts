@@ -170,6 +170,9 @@ export const autotranslateApi = {
     rewrite: (id: number, entryId: number, from: string, apply: boolean, ai = false) =>
         api<{ paragraphs: number; chapters: number }>(`${base(id)}/glossary/${entryId}/rewrite`, json('POST', { from, apply, ai })),
     deleteEntry: (id: number, entryId: number) => api<void>(`${base(id)}/glossary/${entryId}`, { method: 'DELETE' }),
+    /** Ties words of a translated paragraph to an entry (linked), or unties them there. */
+    linkWord: (id: number, chapter: number, body: { blockId: string; entryId: number; form: string; linked: boolean }) =>
+        api<void>(`${base(id)}/chapters/${chapter}/glossary-links`, json('POST', body)),
     facts: (id: number, entryId: number) => api<GlossaryFact[]>(`${base(id)}/glossary/${entryId}/facts`),
     addFact: (id: number, entryId: number, chapter: number, text: string) =>
         api<GlossaryFact>(`${base(id)}/glossary/${entryId}/facts`, json('POST', { chapter, text })),

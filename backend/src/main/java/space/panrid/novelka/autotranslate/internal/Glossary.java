@@ -3,9 +3,11 @@ package space.panrid.novelka.autotranslate.internal;
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.CHAPTER_ANALYSIS;
 import static space.panrid.novelka.jooq.Tables.EDITION;
+import static space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_FACT;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_FORM;
+import static space.panrid.novelka.jooq.Tables.GLOSSARY_LINK;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.REVISION;
 import static space.panrid.novelka.jooq.Tables.SOURCE_CHAPTER;
@@ -361,17 +363,122 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
                 .fetch(r -> new Term(r.value1(), r.value2(), r.value3(), r.value4()));
     }
 
+    // ---- what an entry is tied to in a chapter: the original, and the team's own links ----------
+
+    /** The original paragraphs of a chapter (by the ids its translation keeps) and their language; empty when the site has none. */
+    private java.util.Optional<Map<String, String>> originalBlocks(long editionId, int chapter) {
+        Long sourceId = db.select(CHAPTER.SOURCE_CHAPTER_ID).from(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(chapter)).fetchOne(CHAPTER.SOURCE_CHAPTER_ID);
+        JSONB blocks = sourceId == null ? null
+                : db.select(SOURCE_CHAPTER.BLOCKS).from(SOURCE_CHAPTER).where(SOURCE_CHAPTER.ID.eq(sourceId)).fetchOne(SOURCE_CHAPTER.BLOCKS);
+        if (blocks == null) {
+            blocks = db.select(EDITION_ORIGINAL.BLOCKS).from(EDITION_ORIGINAL)
+                    .where(EDITION_ORIGINAL.EDITION_ID.eq(editionId), EDITION_ORIGINAL.NUMBER.eq(chapter)).fetchOne(EDITION_ORIGINAL.BLOCKS);
+        }
+        if (blocks == null) {
+            return java.util.Optional.empty();
+        }
+        Map<String, String> out = new java.util.LinkedHashMap<>();
+        for (var block : json.readValue(blocks.data(), BLOCKS)) {
+            if (!block.text().isBlank()) {
+                out.put(block.id(), block.text());
+            }
+        }
+        return java.util.Optional.of(out);
+    }
+
+    /** Entries each original paragraph names, by their forms in any of the novel's languages. */
+    private java.util.Optional<Map<String, Set<Long>>> byOriginal(long editionId, int chapter) {
+        return originalBlocks(editionId, chapter).map(paragraphs -> {
+            Map<Long, List<String>> forms = new java.util.HashMap<>();
+            db.select(GLOSSARY_FORM.ENTRY_ID, GLOSSARY_FORM.ORIGINAL, GLOSSARY_FORM.ALIASES).from(GLOSSARY_FORM).join(GLOSSARY_ENTRY)
+                    .on(GLOSSARY_ENTRY.ID.eq(GLOSSARY_FORM.ENTRY_ID))
+                    .where(GLOSSARY_FORM.NOVEL_ID.eq(scope(editionId).novelId()), GLOSSARY_ENTRY.STATUS.ne("rejected"))
+                    .forEach(r -> {
+                        List<String> all = forms.computeIfAbsent(r.value1(), key -> new ArrayList<>());
+                        all.add(r.value2());
+                        if (r.value3() != null) {
+                            all.addAll(json.readValue(r.value3().data(), STRINGS));
+                        }
+                    });
+            Map<String, Set<Long>> out = new java.util.HashMap<>();
+            paragraphs.forEach((blockId, text) -> forms.forEach((entryId, written) -> {
+                if (written.stream().anyMatch(form -> form != null && !form.isBlank() && text.contains(form))) {
+                    out.computeIfAbsent(blockId, key -> new java.util.HashSet<>()).add(entryId);
+                }
+            }));
+            return out;
+        });
+    }
+
+    private List<BlockLink> manualLinks(long editionId, int chapter) {
+        return db.select(GLOSSARY_LINK.BLOCK_ID, GLOSSARY_LINK.ENTRY_ID, GLOSSARY_LINK.FORM, GLOSSARY_LINK.LINKED).from(GLOSSARY_LINK)
+                .where(GLOSSARY_LINK.EDITION_ID.eq(editionId), GLOSSARY_LINK.CHAPTER_NUMBER.eq(chapter))
+                .fetch(r -> new BlockLink(r.value1(), r.value2(), r.value3(), r.value4()));
+    }
+
     @Override
-    public List<Card> named(long editionId, int chapter, String selection) {
+    public Hints hints(long editionId, int chapter) {
+        List<Term> terms = new ArrayList<>(known(editionId, chapter));
+        List<BlockLink> links = new ArrayList<>();
+        var original = byOriginal(editionId, chapter);
+        original.ifPresent(found -> found.forEach((blockId, ids) -> ids.forEach(id -> links.add(new BlockLink(blockId, id, null, true)))));
+        List<BlockLink> manual = manualLinks(editionId, chapter);
+        links.addAll(manual);
+        // A word the team tied by hand is marked even if the entry has no note yet.
+        Set<Long> listed = terms.stream().map(Term::id).collect(java.util.stream.Collectors.toSet());
+        List<Long> missing = manual.stream().filter(BlockLink::linked).map(BlockLink::entryId).filter(id -> !listed.contains(id)).distinct().toList();
+        if (!missing.isEmpty()) {
+            db.select(GLOSSARY_ENTRY.ID, GLOSSARY_ENTRY.UKRAINIAN, GLOSSARY_ENTRY.KIND, GLOSSARY_ENTRY.LOOSE_FORMS).from(GLOSSARY_ENTRY)
+                    .where(GLOSSARY_ENTRY.ID.in(missing)).forEach(r -> terms.add(new Term(r.value1(), r.value2(), r.value3(), r.value4())));
+        }
+        return new Hints(original.isPresent(), terms, links);
+    }
+
+    /** The team ties words of a paragraph to an entry, or unties them from it there. */
+    void link(long editionId, int chapter, String blockId, long entryId, String form, boolean linked, long accountId) {
+        requireEntry(editionId, entryId);
+        String words = form == null ? "" : form.strip();
+        if (words.isEmpty() || words.length() > 100 || blockId == null || blockId.isBlank() || blockId.length() > 64) {
+            throw UserFacingException.badRequest("Виділіть слово чи кілька слів в одному абзаці (до 100 знаків).");
+        }
+        db.insertInto(GLOSSARY_LINK).set(GLOSSARY_LINK.EDITION_ID, editionId).set(GLOSSARY_LINK.CHAPTER_NUMBER, chapter)
+                .set(GLOSSARY_LINK.BLOCK_ID, blockId).set(GLOSSARY_LINK.ENTRY_ID, entryId).set(GLOSSARY_LINK.FORM, words)
+                .set(GLOSSARY_LINK.LINKED, linked).set(GLOSSARY_LINK.ADDED_BY, accountId)
+                .onConflict(GLOSSARY_LINK.EDITION_ID, GLOSSARY_LINK.CHAPTER_NUMBER, GLOSSARY_LINK.BLOCK_ID, GLOSSARY_LINK.ENTRY_ID, GLOSSARY_LINK.FORM)
+                .doUpdate().set(GLOSSARY_LINK.LINKED, linked).set(GLOSSARY_LINK.ADDED_BY, accountId).set(GLOSSARY_LINK.CREATED_AT, DSL.currentOffsetDateTime())
+                .execute();
+    }
+
+    @Override
+    public List<Card> named(long editionId, int chapter, String selection, String blockId) {
         String text = selection == null ? "" : selection.strip();
         if (text.isEmpty() || text.length() > SELECTION_MAX) {
             return List.of();
         }
         long novelId = scope(editionId).novelId();
+        // In a paragraph: only what the lamp marks there — named by the original or tied by the team,
+        // less what the team untied (by the words untied, if they are in the selection).
+        java.util.function.Predicate<GlossaryEntryRecord> belongs = entry -> true;
+        Set<Long> tiedByHand = new java.util.HashSet<>();
+        if (blockId != null && !blockId.isBlank()) {
+            List<BlockLink> manual = manualLinks(editionId, chapter).stream().filter(link -> link.blockId().equals(blockId)).toList();
+            var original = byOriginal(editionId, chapter);
+            Set<Long> allowed = new java.util.HashSet<>();
+            original.ifPresent(found -> allowed.addAll(found.getOrDefault(blockId, Set.of())));
+            manual.stream().filter(link -> link.linked() && text.toLowerCase(java.util.Locale.ROOT).contains(link.text().toLowerCase(java.util.Locale.ROOT)))
+                    .forEach(link -> tiedByHand.add(link.entryId()));
+            Set<Long> untied = manual.stream().filter(link -> !link.linked() && text.toLowerCase(java.util.Locale.ROOT)
+                    .contains(link.text().toLowerCase(java.util.Locale.ROOT))).map(BlockLink::entryId).collect(java.util.stream.Collectors.toSet());
+            boolean byOriginal = original.isPresent();
+            belongs = entry -> !untied.contains(entry.getId()) && (!byOriginal || allowed.contains(entry.getId()));
+        }
+        java.util.function.Predicate<GlossaryEntryRecord> keep = belongs;
         List<GlossaryEntryRecord> found = db.selectFrom(GLOSSARY_ENTRY)
                 .where(GLOSSARY_ENTRY.NOVEL_ID.eq(novelId), GLOSSARY_ENTRY.STATUS.ne("rejected"))
                 .fetch().stream()
-                .filter(entry -> !WordForms.find(text, entry.getUkrainian(), entry.getLooseForms()).isEmpty())
+                .filter(entry -> tiedByHand.contains(entry.getId())
+                        || keep.test(entry) && !WordForms.find(text, entry.getUkrainian(), entry.getLooseForms()).isEmpty())
                 // «Крижаний спис» before «спис»; then the one the novel met first.
                 .sorted(java.util.Comparator.comparingInt((GlossaryEntryRecord entry) -> -entry.getUkrainian().length())
                         .thenComparing(entry -> entry.getSourceChapter() == null ? 0 : entry.getSourceChapter()))

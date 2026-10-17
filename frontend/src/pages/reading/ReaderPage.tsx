@@ -1,5 +1,5 @@
 import { DiffModeSwitch } from '../../ui/WordDiff';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
 import { ArrowLeft, ChevronLeft, ChevronRight, Lightbulb, List, MessageCircle, Type } from '../../ui/icons';
 import { hintsRemembered, rememberHints, useGlossaryHints } from '../../reading/useGlossaryHints';
@@ -17,6 +17,8 @@ import { readerOpened, useAppearance } from '../../appearance/store';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { Sheet } from '../../ui/Sheet';
+import { TextInput } from '../../ui/TextInput';
+import { autotranslateApi } from '../../studio/autotranslate';
 import { ReportEdition } from '../../reading/ReportEdition';
 import { usePages } from './usePages';
 import { EditSheet, ReplaceSheet, ReviewCard, SelectionBar, useMySuggestions, useReview } from './Suggestions';
@@ -188,7 +190,9 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     const [editMode, setEditMode] = useState(false);
     const [editing, setEditing] = useState<string | null>(null);
     const [replacing, setReplacing] = useState<string | null>(null);
-    const [asking, setAsking] = useState<string | null>(null);
+    const [asking, setAsking] = useState<{ text: string; blockId: string } | null>(null);
+    const [linking, setLinking] = useState<{ text: string; blockId: string } | null>(null);
+    const team$ = chapter.teamRole !== null;
     // «Лампочка»: the glossary's words marked in the text, a tap on one says who or what it is.
     const [hintsOn, setHintsOn] = useState(hintsRemembered);
     const [reviewing, setReviewing] = useState(false);
@@ -207,9 +211,9 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     function toggleBars(event: MouseEvent) {
         const target = event.target as HTMLElement;
         if (target.closest('a, button') || window.getSelection()?.toString()) return;
-        const term = hints.at(event.clientX, event.clientY);
-        if (term && !editMode) {
-            setAsking(term.ukrainian);
+        const marked = hints.at(event.clientX, event.clientY);
+        if (marked && !editMode) {
+            setAsking({ text: marked.text, blockId: marked.blockId });
             return;
         }
         const block = target.closest('p[data-block-id], h2[data-block-id]');
@@ -446,13 +450,21 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
             )}
 
             {!reviewing && (
-                <SelectionBar onWho={setAsking}
+                <SelectionBar onWho={(text, blockId) => setAsking({ text, blockId })}
+                    {...(team$ ? { onLink: (text: string, blockId: string) => setLinking({ text, blockId }) } : {})}
                     {...(me ? {
                         onEdit: setEditing, onReplace: setReplacing,
                         onQuote: (blockId: string, text: string) => { setQuote({ blockId, text }); setTalking(true); },
                     } : {})} />
             )}
-            {asking && <WhoSheet slug={chapter.novelSlug} team={team} chapter={chapter.number} text={asking} onClose={() => setAsking(null)} />}
+            {asking && (
+                <WhoSheet slug={chapter.novelSlug} team={team} chapter={chapter.number} text={asking.text} blockId={asking.blockId}
+                    editionId={team$ ? chapter.edition.editionId : null} onClose={() => setAsking(null)} />
+            )}
+            {linking && (
+                <LinkSheet slug={chapter.novelSlug} editionId={chapter.edition.editionId} chapter={chapter.number} text={linking.text}
+                    blockId={linking.blockId} onClose={() => setLinking(null)} />
+            )}
             {editingBlock && (
                 <EditSheet chapter={chapter} block={editingBlock} onClose={() => setEditing(null)} onSaved={mine.refresh}
                     existing={mine.items.find((item) => item.kind === 'block' && item.blockId === editingBlock.id && item.state === 'draft')} />
@@ -516,8 +528,21 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
  * «Хто це»: the names and terms of the selection, with what the novel has told about them by
  * this chapter — so a reader never meets a spoiler here.
  */
-function WhoSheet({ slug, team, chapter, text, onClose }: { slug: string; team: string | undefined; chapter: number; text: string; onClose: () => void }) {
-    const cards = useQuery({ queryKey: ['who', slug, team ?? '', chapter, text], queryFn: () => readingApi.who(slug, team, chapter, text) });
+function WhoSheet({ slug, team, chapter, text, blockId, editionId, onClose }: {
+    slug: string; team: string | undefined; chapter: number; text: string; blockId: string;
+    /** The team's translation: each card can be untied from these words here. */
+    editionId: number | null;
+    onClose: () => void;
+}) {
+    const client = useQueryClient();
+    const cards = useQuery({ queryKey: ['who', slug, team ?? '', chapter, text, blockId], queryFn: () => readingApi.who(slug, team, chapter, text, blockId) });
+    const untie = useMutation({ meta: { errorToast: true },
+        mutationFn: (entryId: number) => autotranslateApi.linkWord(editionId!, chapter, { blockId, entryId, form: text.trim().slice(0, 100), linked: false }),
+        onSuccess: () => {
+            void client.invalidateQueries({ queryKey: ['who', slug] });
+            void client.invalidateQueries({ queryKey: ['hints', slug] });
+        },
+    });
     return (
         <Sheet open onClose={onClose} title="Хто це" peek>
             <div className={styles.who}>
@@ -532,8 +557,52 @@ function WhoSheet({ slug, team, chapter, text, onClose }: { slug: string; team: 
                         {card.facts.length > 0
                             ? <ul>{card.facts.map((fact, index) => <li key={index}>{fact}</li>)}</ul>
                             : <p className={styles.whoMuted}>Поки що про це нічого не відомо.</p>}
+                        {editionId !== null && (
+                            <button type="button" className={styles.whoAction} onClick={() => untie.mutate(card.id)} disabled={untie.isPending}>
+                                Тут «{text.trim().slice(0, 30)}» не про це — відв’язати
+                            </button>
+                        )}
                     </section>
                 ))}
+            </div>
+        </Sheet>
+    );
+}
+
+/**
+ * «🔗 До словника» (the team): the selected words of a paragraph tied to a glossary entry, so the
+ * lamp marks them and «Хто це» tells about them here — a word that came with an edit, say.
+ */
+function LinkSheet({ slug, editionId, chapter, text, blockId, onClose }: {
+    slug: string; editionId: number; chapter: number; text: string; blockId: string; onClose: () => void;
+}) {
+    const client = useQueryClient();
+    const [query, setQuery] = useState(text.trim().split(/\s+/)[0] ?? '');
+    const found = useQuery({
+        queryKey: ['glossary', editionId, 'link', query],
+        queryFn: () => autotranslateApi.glossary(editionId, { q: query.trim(), sort: 'alpha', page: 1 }),
+        enabled: query.trim().length > 0,
+    });
+    const tie = useMutation({
+        mutationFn: (entryId: number) => autotranslateApi.linkWord(editionId, chapter, { blockId, entryId, form: text.trim(), linked: true }),
+        onSuccess: () => {
+            void client.invalidateQueries({ queryKey: ['who', slug] });
+            void client.invalidateQueries({ queryKey: ['hints', slug] });
+            onClose();
+        },
+    });
+    return (
+        <Sheet open onClose={onClose} title={`«${text.trim().slice(0, 40)}» — до словника`} peek>
+            <div className={styles.who}>
+                <TextInput label="Запис словника" value={query} onChange={setQuery} hint="Пошук за українською формою." />
+                {found.isError && <Notice tone="error">{found.error.message}</Notice>}
+                {found.data?.items.length === 0 && <p className={styles.whoMuted}>Нічого не знайшли.</p>}
+                {found.data?.items.map((entry) => (
+                    <button key={entry.id} type="button" className={styles.whoPick} onClick={() => tie.mutate(entry.id)} disabled={tie.isPending}>
+                        <b>{entry.ukrainian}</b> <span className={styles.whoMuted}>· {WHO_KINDS[entry.kind] ?? 'інше'}{entry.note ? ` · ${entry.note.slice(0, 80)}` : ''}</span>
+                    </button>
+                ))}
+                {tie.isError && <Notice tone="error">{tie.error.message}</Notice>}
             </div>
         </Sheet>
     );

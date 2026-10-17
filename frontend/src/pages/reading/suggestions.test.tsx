@@ -148,3 +148,27 @@ describe('«хто це» in the reader', () => {
         expect(query.get('q')).toBe('Ліжко скрипнуло.');
     });
 });
+
+describe('the team ties a word to the glossary from the reader', () => {
+    it('picks an entry for the selected words and sends the paragraph with them', async () => {
+        const { calls } = await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody/chapters/12': { body: { ...CHAPTER, teamRole: 'translator' } },
+            'GET /api/suggestions/mine': { body: { items: [], draftsInEdition: 0 } },
+            'GET /api/studio/editions/7/glossary': { body: { items: [{ id: 4, ukrainian: 'Ліжко', kind: 'term', gender: null, note: 'Магічне ліжко.', chapter: 1, manual: false, status: 'approved', facts: 0, looseForms: false }],
+                total: 1, page: 1, hasMore: false, chapters: [], labels: {}, counts: { new: 0, approved: 1, rejected: 0 } } },
+            'POST /api/studio/editions/7/chapters/12/glossary-links': { status: 200 },
+        });
+        await screen.findByRole('heading', { name: '12. Спокійне життя' });
+        const paragraph = screen.getByText('Ліжко скрипнуло.');
+        const range = document.createRange();
+        range.selectNodeContents(paragraph.firstChild!);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(range);
+        document.dispatchEvent(new Event('selectionchange'));
+        await userEvent.click(await screen.findByRole('button', { name: '🔗 До словника' }));
+        await userEvent.click(await screen.findByRole('button', { name: /Ліжко · термін/ }));
+        await waitFor(() => expect(calls.find((call) => call.path.endsWith('/glossary-links'))?.body)
+            .toEqual({ blockId: 'b2', entryId: 4, form: 'Ліжко скрипнуло.', linked: true }));
+    });
+});
