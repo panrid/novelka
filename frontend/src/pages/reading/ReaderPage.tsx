@@ -156,7 +156,8 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
             const y = window.scrollY;
             const position = currentPosition();
             place.current = position;
-            setProgress(position);
+            // A tenth of a percent is all the line shows: the page is not drawn again for less.
+            setProgress(Math.round(position * 1000) / 1000);
             const down = y >= lastY.current;
             if (down !== runStart.current.down) {
                 runStart.current = { y: lastY.current, down };

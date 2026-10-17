@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DiffModeSwitch, WordDiff } from '../../ui/WordDiff';
-import { useEffect, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReaderChapter, Span, TextBlock } from '../../reading/api';
 import { suggestionApi, type MineItem, type ReviewItem } from '../../reading/suggestions';
 import { TextEditor, type EditorHandle } from '../../studio/TextEditor';
@@ -25,12 +25,16 @@ export function useMySuggestions(chapter: ReaderChapter, signedIn: boolean) {
     });
     const refresh = () => void client.invalidateQueries({ queryKey: ['suggestions-mine', chapter.edition.editionId] });
     const submit = useMutation({ meta: { errorToast: true }, mutationFn: () => suggestionApi.submit(chapter.edition.editionId), onSuccess: refresh });
-    const overlay: Record<string, { spans: Span[]; label: string }> = {};
-    for (const item of mine.data?.items ?? []) {
-        if (item.kind === 'block' && item.blockId && item.proposed) {
-            overlay[item.blockId] = { spans: item.proposed, label: item.state === 'draft' ? 'ваша правка · ще не надіслано' : 'ваша правка · на перевірці' };
+    // The same object while the list is the same: the chapter's paragraphs are not drawn again.
+    const overlay = useMemo(() => {
+        const out: Record<string, { spans: Span[]; label: string }> = {};
+        for (const item of mine.data?.items ?? []) {
+            if (item.kind === 'block' && item.blockId && item.proposed) {
+                out[item.blockId] = { spans: item.proposed, label: item.state === 'draft' ? 'ваша правка · ще не надіслано' : 'ваша правка · на перевірці' };
+            }
         }
-    }
+        return out;
+    }, [mine.data]);
     return { items: mine.data?.items ?? [], drafts: mine.data?.draftsInEdition ?? 0, overlay, submit, refresh };
 }
 
@@ -94,6 +98,8 @@ export function EditSheet({ chapter, block, existing, onClose, onSaved }: {
     const [note, setNote] = useState(existing?.note ?? '');
     const joined = (list: StudioBlock[]) => list.flatMap((b, index) => (index > 0 ? [{ text: ' ', marks: [] }, ...b.content] : b.content));
     const proposed = joined(blocks);
+    // The letters come first; the «було — стало» under the field follows when typing pauses.
+    const shown = useDeferredValue(text(proposed));
     const editor = useRef<EditorHandle>(null);
     const save = useMutation({
         mutationFn: () => suggestionApi.block(chapter.edition.editionId, chapter.number, block.id, joined(editor.current?.read() ?? blocks), note),
@@ -116,10 +122,10 @@ export function EditSheet({ chapter, block, existing, onClose, onSaved }: {
     return (
         <Sheet open onClose={onClose} title="Правка абзацу">
             <TextEditor handle={editor} mode="description" blocks={blocks} onChange={setBlocks} label="Текст абзацу" />
-            {text(proposed) !== text(block.content) && (
+            {shown !== text(block.content) && (
                 <>
                     <DiffModeSwitch />
-                    <WordDiff className={styles.was} before={text(block.content)} after={text(proposed)} />
+                    <WordDiff className={styles.was} before={text(block.content)} after={shown} />
                 </>
             )}
             <TextInput label="Пояснення (необовʼязково)" value={note} onChange={setNote} />

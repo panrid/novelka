@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, memo, useContext, useMemo, type ReactNode } from 'react';
 import type { Span, TextBlock } from './api';
 import styles from './Blocks.module.css';
 
@@ -12,8 +12,12 @@ type Props = {
     highlight?: string | undefined;
 };
 
-/** Text from the server is drawn as React elements; it is never inserted as HTML. */
-export function Blocks({ blocks, overlay, after, highlight }: Props) {
+/**
+ * Text from the server is drawn as React elements; it is never inserted as HTML. A long chapter
+ * is drawn again only when its own text changes: the reader's scrolling, its bars and the sheets
+ * opened over it leave the paragraphs alone (on a phone each redraw of hundreds of them showed).
+ */
+export const Blocks = memo(function Blocks({ blocks, overlay, after, highlight }: Props) {
     const pattern = useMemo(() => stem(highlight), [highlight]);
     return (
         <HighlightContext.Provider value={pattern}>
@@ -38,7 +42,7 @@ export function Blocks({ blocks, overlay, after, highlight }: Props) {
             })}
         </HighlightContext.Provider>
     );
-}
+});
 
 const HighlightContext = createContext<RegExp | null>(null);
 
@@ -70,7 +74,7 @@ function Marked({ text }: { text: string }) {
     return <>{out}</>;
 }
 
-function Block({ block }: { block: TextBlock }) {
+const Block = memo(function Block({ block }: { block: TextBlock }) {
     switch (block.type) {
         case 'separator':
             return <div data-block-id={block.id} className={styles.separator} role="separator" aria-hidden>◇</div>;
@@ -89,7 +93,7 @@ function Block({ block }: { block: TextBlock }) {
                 </p>
             );
     }
-}
+});
 
 export function Spans({ spans }: { spans: Span[] }) {
     return (
