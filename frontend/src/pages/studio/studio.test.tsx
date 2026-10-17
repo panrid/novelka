@@ -7,8 +7,9 @@ const ME = {
     id: 1, nick: 'mika', email: 'mika@example.com', emailVerified: true, role: 'reader', bio: '', avatarUrl: null,
     dmPolicy: 'everyone', showReading: true, adultConfirmed: false, showShah: true,
 };
-/** Autotranslate is the site owner's while етап 19 is being made. */
+/** Autotranslate is the site owner's while етап 19 is being made, and of those the owner let in. */
 const OWNER = { ...ME, role: 'owner' };
+const LET_IN = { ...ME, autotranslate: true };
 const EDITOR = {
     number: 3, title: 'Нічний ринок', revisionId: 41, published: true, draft: null, role: 'translator', mayAddPictures: true,
     previous: 2, next: null,
@@ -153,6 +154,17 @@ describe('machine translation', () => {
 
         expect(await screen.findByRole('link', { name: 'Автопереклад' })).toHaveAttribute('href', '/studio/12/translate');
         expect(screen.getByRole('link', { name: 'Словник' })).toBeInTheDocument();
+    });
+
+    it('leads a translator the site owner let in to the autotranslation', async () => {
+        await renderAt('/studio/12', {
+            'GET /api/me': { body: LET_IN },
+            'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
+            'GET /api/studio/editions/12': { body: { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner', ...COUNTS } },
+            'GET /api/studio/editions/12/chapters': { body: NO_CHAPTERS },
+            'GET /api/studio/editions/12/contributions': { body: [] },
+        });
+        expect(await screen.findByRole('link', { name: 'Автопереклад' })).toHaveAttribute('href', '/studio/12/translate');
     });
 
     it('is not offered to a translator with шаги while етап 19 is being made', async () => {

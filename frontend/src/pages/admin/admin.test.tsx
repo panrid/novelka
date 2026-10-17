@@ -84,6 +84,33 @@ describe('administration', () => {
         expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ role: 'moderator' });
     });
 
+    it('the owner opens autotranslate to a person and says шаги are still needed', async () => {
+        const people = [
+            { nick: 'lysytsia', role: 'reader', email: 'l@example.com', createdAt: new Date().toISOString(), lastSeenAt: null, shahs: 0, autotranslate: false },
+            { nick: 'bohdan', role: 'reader', email: 'b@example.com', createdAt: new Date().toISOString(), lastSeenAt: null, shahs: 5, autotranslate: true },
+        ];
+        const { calls } = await renderAt('/admin/users', {
+            'GET /api/me': { body: person('owner') },
+            'GET /api/admin/users': { body: { items: people, total: 2, page: 1, hasMore: false } },
+            'PUT /api/admin/users/lysytsia/autotranslate': { status: 200 },
+        });
+        expect(await screen.findByRole('button', { name: 'Закрити автопереклад bohdan' })).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Відкрити автопереклад lysytsia' }));
+        await vi.waitFor(() => expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ allowed: true }));
+        expect(await screen.findByText(/lysytsia: автопереклад відкрито.*нарахуйте/)).toBeInTheDocument();
+    });
+
+    it('an administrator does not open autotranslate', async () => {
+        await renderAt('/admin/users', {
+            'GET /api/me': { body: person('admin') },
+            'GET /api/admin/users': { body: { items: [
+                { nick: 'lysytsia', role: 'reader', email: null, createdAt: new Date().toISOString(), lastSeenAt: null },
+            ], total: 1, page: 1, hasMore: false } },
+        });
+        expect(await screen.findByRole('combobox', { name: 'Роль lysytsia' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /автопереклад/ })).not.toBeInTheDocument();
+    });
+
     it('the owner closes registration', async () => {
         const { calls } = await renderAt('/admin/settings', {
             'GET /api/me': { body: person('owner') },
@@ -101,7 +128,8 @@ describe('administration', () => {
         const at = new Date().toISOString();
         await renderAt('/admin/audit', {
             'GET /api/me': { body: person('owner') },
-            'GET /api/admin/audit': { body: { total: 3, page: 1, hasMore: false, items: [
+            'GET /api/admin/audit': { body: { total: 4, page: 1, hasMore: false, items: [
+                { id: 4, actor: 'panrid', action: 'autotranslate_granted', targetType: 'account', targetId: 7, details: { nick: 'lysytsia' }, createdAt: at },
                 { id: 3, actor: 'panrid', action: 'shahs_granted', targetType: 'account', targetId: 7, details: { shah: 10, nick: 'lysytsia', note: 'на пробу' }, createdAt: at },
                 { id: 2, actor: 'panrid', action: 'autotranslate_settings', targetType: 'site', targetId: null, createdAt: at,
                     details: { before: { translate: { model: 'openai/gpt-4.1-mini' } }, after: { translate: { model: 'anthropic/claude-sonnet-5' } } } },
@@ -109,6 +137,7 @@ describe('administration', () => {
             ] } },
         });
         expect(await screen.findByText(/нараховує 10 шагів lysytsia · «на пробу»/)).toBeInTheDocument();
+        expect(screen.getByText(/відкриває автопереклад lysytsia/)).toBeInTheDocument();
         expect(screen.getByText(/змінює моделі й ціни автоперекладу · переклад: openai\/gpt-4.1-mini → anthropic\/claude-sonnet-5/)).toBeInTheDocument();
         expect(screen.getByText(/змінює ціну шагу для людей: \$0,07/)).toBeInTheDocument();
     });

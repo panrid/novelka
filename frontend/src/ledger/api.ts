@@ -26,11 +26,12 @@ export function useMyShahs() {
 }
 
 /**
- * Autotranslate and the AI tools of translating: the site owner's alone while етап 19 is being
- * made (translating from the original's site stays the owner's for good).
+ * Autotranslate and the AI tools of translating: the site owner's and of those the owner let in
+ * (they pay with their шаги) while етап 19 is being made.
  */
 export function useCanRun(): boolean {
-    return useMe()?.role === 'owner';
+    const me = useMe();
+    return me?.role === 'owner' || me?.autotranslate === true;
 }
 
 /** «Намалювати сцену»: for anyone with шаги, and the site owner. */

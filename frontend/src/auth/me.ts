@@ -24,6 +24,8 @@ export type Me = {
     hasPassword?: boolean;
     /** How the site and the reader look (appearance/model.ts); empty for the defaults. */
     appearance?: unknown;
+    /** Autotranslate is theirs: the site owner, or let in by the owner (they pay with шаги). */
+    autotranslate?: boolean;
 };
 
 export const meQuery = queryOptions({

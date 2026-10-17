@@ -21,6 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import space.panrid.novelka.access.AccessPolicy;
 import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.account.Viewer;
 import space.panrid.novelka.autotranslate.ProposalTaken;
@@ -56,9 +57,11 @@ class Proposals {
     /** Each proposal costs the site a model call: a handful a day per person is plenty. */
     private final RateLimiter proposing;
     private final TransactionTemplate transactions;
+    private final AccessPolicy access;
 
     Proposals(DSLContext db, Sources sources, Catalog catalog, Preparation preparation, ApplicationEventPublisher events,
-            JsonMapper json, Clock clock, TransactionTemplate transactions) {
+            JsonMapper json, Clock clock, TransactionTemplate transactions, AccessPolicy access) {
+        this.access = access;
         this.transactions = transactions;
         this.db = db;
         this.sources = sources;
@@ -322,16 +325,16 @@ class Proposals {
         Record row = open(id);
         List<Block> description = json.readValue(row.get(PROPOSAL.DESCRIPTION).data(), BLOCKS);
         EditionRef ref;
-        // Only the site owner's translations come from the original's site (етап 19): the site
-        // fetches nobody else's texts; others translate what they paste themselves.
-        if (readable(row.get(PROPOSAL.SOURCE)) && viewer.role() == SiteRole.OWNER) {
+        // Only translations of the site owner and of those the owner let in come from the original's
+        // site (етап 19): the site fetches nobody else's texts; others translate what they paste themselves.
+        if (readable(row.get(PROPOSAL.SOURCE)) && access.mayAutotranslate(viewer)) {
             SourceLink link = new SourceLink(row.get(PROPOSAL.SOURCE), row.get(PROPOSAL.SOURCE_KEY), row.get(PROPOSAL.SOURCE_URL),
                     row.get(PROPOSAL.ADULT));
             SourceNovel novel = sources.novel(link);
             ref = preparation.importWith(novel, new Preparation.Metadata(row.get(PROPOSAL.TITLE), row.get(PROPOSAL.AUTHOR), description),
                     teamId);
         } else {
-            // A site the site cannot read, or a translator who is not the owner: by hand; the link stays on the novel's page.
+            // A site the site cannot read, or a translator without autotranslate: by hand; the link stays on the novel's page.
             ref = catalog.createNovel(new NewNovel(row.get(PROPOSAL.TITLE), row.get(PROPOSAL.AUTHOR), description, List.of(), "human",
                     row.get(PROPOSAL.ADULT), teamId, null, row.get(PROPOSAL.SOURCE_URL)));
         }

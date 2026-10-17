@@ -161,6 +161,15 @@ export function UsersPage() {
         mutationFn: ({ nick, role }: { nick: string; role: Person['role'] }) => adminApi.setRole(nick, role),
         onSuccess: () => void client.invalidateQueries({ queryKey: ['admin-users'] }),
     });
+    const setAutotranslate = useMutation({
+        mutationFn: ({ person, allowed }: { person: Person; allowed: boolean }) => adminApi.setAutotranslate(person.nick, allowed),
+        onSuccess: (_, { person, allowed }) => {
+            setGranted(!allowed ? `${person.nick}: автопереклад закрито. Запуски, що вже йдуть, доробляться.`
+                : (person.shahs ?? 0) > 0 ? `${person.nick}: автопереклад відкрито. Запуски — за шаги людини.`
+                    : `${person.nick}: автопереклад відкрито. Запуски — за шаги людини, а їх поки немає: нарахуйте.`);
+            void client.invalidateQueries({ queryKey: ['admin-users'] });
+        },
+    });
     // An administrator gives up to moderator; the owner gives up to administrator.
     const grantable: Person['role'][] = rank >= RANK.owner ? ['reader', 'moderator', 'admin'] : ['reader', 'moderator'];
     const [granting, setGranting] = useState<string | null>(null);
@@ -171,6 +180,7 @@ export function UsersPage() {
             <h1 className={styles.title}>Користувачі й ролі</h1>
             <TextInput label="Пошук" value={q} onChange={(value) => { setQ(value); setPage(1); }} placeholder={rank >= RANK.owner ? 'нік або пошта' : 'нік'} />
             {setRole.isError && <Notice tone="error">{setRole.error.message}</Notice>}
+            {setAutotranslate.isError && <Notice tone="error">{setAutotranslate.error.message}</Notice>}
             {granted && <Notice tone="success">{granted}</Notice>}
             {granting && (
                 <GrantSheet nick={granting} onClose={() => setGranting(null)}
@@ -191,6 +201,16 @@ export function UsersPage() {
                                     {person.shahs ?? 0} {shahWord(person.shahs ?? 0)}{' · '}
                                     <button type="button" className={styles.linkButton} aria-label={`Нарахувати шаги ${person.nick}`}
                                         onClick={() => { setGranted(null); setGranting(person.nick); }}>нарахувати</button>
+                                </div>
+                            )}
+                            {rank >= RANK.owner && person.role !== 'owner' && (
+                                <div className={styles.muted}>
+                                    автопереклад {person.autotranslate ? 'відкрито' : 'закрито'}{' · '}
+                                    <button type="button" className={styles.linkButton} disabled={setAutotranslate.isPending}
+                                        aria-label={`${person.autotranslate ? 'Закрити' : 'Відкрити'} автопереклад ${person.nick}`}
+                                        onClick={() => { setGranted(null); setAutotranslate.mutate({ person, allowed: !person.autotranslate }); }}>
+                                        {person.autotranslate ? 'закрити' : 'відкрити'}
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -289,6 +309,10 @@ function describe(entry: AuditEntry): string {
     if (entry.action === 'shahs_granted') {
         const details = entry.details as { shah?: number; nick?: string; note?: string };
         return `нараховує ${details.shah ?? 0} ${shahWord(details.shah ?? 0)} ${details.nick ?? ''}${details.note ? ` · «${details.note}»` : ''}`;
+    }
+    if (entry.action === 'autotranslate_granted' || entry.action === 'autotranslate_revoked') {
+        const nick = (entry.details as { nick?: string }).nick ?? '';
+        return `${entry.action === 'autotranslate_granted' ? 'відкриває' : 'закриває'} автопереклад ${nick}`;
     }
     if (entry.action === 'shah_price') {
         const micro = (entry.details as { microUsdPerShah?: number }).microUsdPerShah ?? 0;

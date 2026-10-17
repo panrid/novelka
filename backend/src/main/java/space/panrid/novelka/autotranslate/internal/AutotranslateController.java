@@ -31,8 +31,8 @@ import space.panrid.novelka.source.Sources;
 import space.panrid.novelka.team.Teams;
 
 /**
- * The site owner runs autotranslation at the site's cost; anyone else with шаги runs it in
- * translations they translate, paying from their balance at the site's models (рішення 29).
+ * The site owner runs autotranslation at the site's cost; those the owner let in run it in
+ * translations they translate, paying from their шаги at the site's models (рішення 29, етап 19).
  * Models, prices and the wallet stay the owner's.
  */
 @RestController
@@ -82,11 +82,11 @@ class AutotranslateController {
     }
 
     /**
-     * The site owner as a translator of the edition. Translating from the original's site is the
-     * owner's alone (етап 19): the site fetches nobody else's texts.
+     * A translator of the edition who may autotranslate. Translating from the original's site is the
+     * owner's and of those the owner let in (етап 19): the site fetches nobody else's texts.
      */
     private Viewer ownerTranslating(long editionId) {
-        Viewer viewer = owner();
+        Viewer viewer = access.requireAutotranslate();
         access.requireTranslator(editionId);
         return viewer;
     }
@@ -105,7 +105,10 @@ class AutotranslateController {
 
     @PostMapping("/autotranslate/prepare")
     Prepared prepare(@RequestBody PrepareRequest body) {
-        Viewer viewer = owner();
+        Viewer viewer = access.requireAutotranslate();
+        if (personal(viewer) && ledger.balance(viewer.accountId()).available() < 1) {
+            throw UserFacingException.badRequest("Автопереклад запускається за шаги, а у вас їх поки немає. Шаги нараховує власник сайту.");
+        }
         SourceLink link = sources.link(body.url());
         long teamId = body.team() == null || body.team().isBlank()
                 ? teams.personalTeam(viewer.accountId())

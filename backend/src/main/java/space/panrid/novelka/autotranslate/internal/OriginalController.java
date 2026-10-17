@@ -19,7 +19,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import space.panrid.novelka.access.AccessPolicy;
 import space.panrid.novelka.access.EditionAccess;
-import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.platform.web.UserFacingException;
 import space.panrid.novelka.text.OriginalFiles;
 
@@ -42,9 +41,9 @@ class OriginalController {
         this.originals = originals;
     }
 
-    /** A translator of the translation; until етап 19 is open to all, the site owner alone. */
+    /** A translator of the translation; until етап 19 is open to all, the site owner and those the owner let in. */
     private EditionAccess translator(long editionId) {
-        access.requireSiteRole(SiteRole.OWNER);
+        access.requireAutotranslate();
         EditionAccess who = access.requireTranslator(editionId);
         originals.requireTranslation(editionId);
         return who;

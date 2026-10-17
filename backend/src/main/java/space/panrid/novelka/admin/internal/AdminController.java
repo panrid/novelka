@@ -137,6 +137,15 @@ class AdminController {
 
     // ---- the owner -------------------------------------------------------------------------------
 
+    record Autotranslate(boolean allowed) {
+    }
+
+    /** The site owner lets a person autotranslate with their шаги, or takes it back (етап 19). */
+    @PutMapping("/admin/users/{nick}/autotranslate")
+    void autotranslate(@PathVariable String nick, @RequestBody Autotranslate body) {
+        staff.setAutotranslate(access.requireSiteRole(SiteRole.OWNER), nick, body.allowed());
+    }
+
     record SiteSettingsView(int relayInactiveMonths, boolean registrationOpen, boolean adultEnabled) {
     }
 

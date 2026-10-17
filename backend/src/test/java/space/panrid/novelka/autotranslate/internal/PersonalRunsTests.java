@@ -28,10 +28,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Рішення 29: the owner grants шаги, a person spends them on runs charged what they really cost.
- * Runs from the original's site are the owner's alone since етап 19; people's runs come back
- * with the translation of pasted text (етап 19, пункт 3), and these tests with them.
+ * Since етап 19 runs from the original's site are for the owner and those the owner let in.
  */
-@org.junit.jupiter.api.Disabled("етап 19: запуски людей повернуться з перекладом вставленого тексту")
 @IntegrationTest
 class PersonalRunsTests {
 
@@ -76,6 +74,11 @@ class PersonalRunsTests {
         return "https://ncode.syosetu.com/" + code + "/";
     }
 
+    private void allow() {
+        assertThat(owner.browser().put("/api/admin/users/" + reader.nick() + "/autotranslate", json("allowed", true)).status())
+                .isBetween(200, 204);
+    }
+
     private void grant(int shah) {
         assertThat(owner.browser().post("/api/admin/users/" + reader.nick() + "/shahs", json("shah", shah)).status()).isEqualTo(201);
     }
@@ -105,6 +108,13 @@ class PersonalRunsTests {
         JsonNode told = Eventually.eventually(() -> read(reader.browser().get("/api/notifications")),
                 page -> page.toString().contains("shahs_granted")).path("items");
         assertThat(told).anySatisfy(item -> assertThat(item.path("payload").path("shah").asInt()).isEqualTo(10));
+
+        Response notYet = reader.browser().post("/api/studio/autotranslate/prepare", json("url", novel(3)));
+        assertThat(notYet.status()).as("шаги alone do not open autotranslate (етап 19)").isEqualTo(403);
+        assertThat(notYet.body()).contains("Доступ дає власник сайту");
+        assertThat(read(reader.browser().get("/api/me")).path("autotranslate").asBoolean()).isFalse();
+        allow();
+        assertThat(read(reader.browser().get("/api/me")).path("autotranslate").asBoolean()).isTrue();
 
         long edition = read(reader.browser().post("/api/studio/autotranslate/prepare", json("url", novel(3)))).path("editionId").asLong();
         String base = "/api/studio/editions/" + edition + "/autotranslate";
@@ -150,6 +160,7 @@ class PersonalRunsTests {
 
     @Test
     void aCancelledRunReturnsWhatItHeldAndBalancesNeverGoBelowZero() {
+        allow();
         grant(1);
         long edition = read(reader.browser().post("/api/studio/autotranslate/prepare", json("url", novel(2)))).path("editionId").asLong();
         long other = read(reader.browser().post("/api/studio/autotranslate/prepare", json("url", novel(2)))).path("editionId").asLong();
@@ -175,6 +186,46 @@ class PersonalRunsTests {
         assertThat(mine.path("available").asInt()).as("nothing was spent, nothing is charged").isEqualTo(Math.max(1, reserve));
         assertThat(mine.path("reserved").asInt()).isZero();
         assertThat(db.select(JOB.CHARGED_SHAH).from(JOB).where(JOB.ID.eq(jobId)).fetchSingle().value1()).isZero();
+    }
+
+    @Test
+    void theOwnerLetsAPersonAutotranslateAndTakesItBack() {
+        Response self = reader.browser().put("/api/admin/users/" + reader.nick() + "/autotranslate", json("allowed", true));
+        assertThat(self.status()).as("only the site owner lets people in").isEqualTo(403);
+        assertThat(owner.browser().put("/api/admin/users/" + owner.nick() + "/autotranslate", json("allowed", false)).status())
+                .as("the site owner always has it").isEqualTo(400);
+        assertThat(read(owner.browser().get("/api/me")).path("autotranslate").asBoolean()).isTrue();
+
+        allow();
+        JsonNode person = find(reader.nick());
+        assertThat(person.path("autotranslate").asBoolean()).isTrue();
+        JsonNode logged = read(owner.browser().get("/api/admin/audit")).path("items").path(0);
+        assertThat(logged.path("action").asString()).isEqualTo("autotranslate_granted");
+        assertThat(logged.path("details").path("nick").asString()).isEqualTo(reader.nick());
+
+        Response noShahs = reader.browser().post("/api/studio/autotranslate/prepare", json("url", novel(1)));
+        assertThat(noShahs.status()).as("they run it with their шаги").isEqualTo(400);
+        assertThat(noShahs.body()).contains("шаги");
+        assertThat(reader.browser().get("/api/studio/autotranslate/wallet").status()).as("the wallet stays the owner's").isEqualTo(403);
+        assertThat(reader.browser().get("/api/studio/autotranslate/models").status()).as("the site picks models for people").isEqualTo(403);
+
+        assertThat(owner.browser().put("/api/admin/users/" + reader.nick() + "/autotranslate", json("allowed", false)).status())
+                .isBetween(200, 204);
+        assertThat(find(reader.nick()).path("autotranslate").asBoolean()).isFalse();
+        assertThat(read(owner.browser().get("/api/admin/audit")).path("items").path(0).path("action").asString())
+                .isEqualTo("autotranslate_revoked");
+        grant(1);
+        assertThat(reader.browser().post("/api/studio/autotranslate/prepare", json("url", novel(1))).status()).isEqualTo(403);
+    }
+
+    private JsonNode find(String nick) {
+        JsonNode items = read(owner.browser().get("/api/admin/users?q=" + nick)).path("items");
+        for (JsonNode item : items) {
+            if (item.path("nick").asString().equals(nick)) {
+                return item;
+            }
+        }
+        throw new AssertionError(nick + " is not in the list");
     }
 
     private static JsonNode read(Response response) {

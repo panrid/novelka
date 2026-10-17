@@ -13,7 +13,9 @@ export type Reported = { target: Target; targetId: number; reports: number; reas
 export type Hidden = { target: Target; targetId: number; hiddenAt: string; hiddenBy: string | null; reason: string | null; preview: Preview };
 export type Person = { nick: string; role: 'reader' | 'moderator' | 'admin' | 'owner'; email: string | null; createdAt: string; lastSeenAt: string | null;
     /** Free and held шаги; only the site owner sees them. */
-    shahs?: number | null };
+    shahs?: number | null;
+    /** The owner let them autotranslate; only the site owner sees it. */
+    autotranslate?: boolean | null };
 export type SiteSettingsView = { relayInactiveMonths: number; registrationOpen: boolean; adultEnabled: boolean };
 export type AuditEntry = {
     id: number; actor: string; action: string; targetType: string; targetId: number | null; details: Record<string, unknown>; createdAt: string;
@@ -32,6 +34,8 @@ export const adminApi = {
     users: (q: string, page = 1) =>
         api<{ items: Person[]; total: number; page: number; hasMore: boolean }>(`/api/admin/users?q=${encodeURIComponent(q)}&page=${page}`),
     setRole: (nick: string, role: Person['role']) => api<void>(`/api/admin/users/${encodeURIComponent(nick)}/role`, json('PUT', { role })),
+    setAutotranslate: (nick: string, allowed: boolean) =>
+        api<void>(`/api/admin/users/${encodeURIComponent(nick)}/autotranslate`, json('PUT', { allowed })),
     settings: () => api<SiteSettingsView>('/api/admin/settings'),
     saveSettings: (settings: SiteSettingsView) => api<SiteSettingsView>('/api/admin/settings', json('PUT', settings)),
     audit: (page = 1) => api<{ items: AuditEntry[]; total: number; page: number; hasMore: boolean }>(`/api/admin/audit?page=${page}`),

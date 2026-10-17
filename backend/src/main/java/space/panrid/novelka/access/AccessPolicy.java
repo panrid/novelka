@@ -1,5 +1,6 @@
 package space.panrid.novelka.access;
 
+import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 
 import java.util.Optional;
@@ -86,6 +87,24 @@ public class AccessPolicy {
         Viewer viewer = requireSignedIn();
         if (!viewer.role().atLeast(role)) {
             throw new UserFacingException(HttpStatus.FORBIDDEN, "Це вам недоступно.");
+        }
+        return viewer;
+    }
+
+    /**
+     * Autotranslate and the AI tools of translating (етап 19): the site owner, and those the owner
+     * let in; they pay with their шаги.
+     */
+    public boolean mayAutotranslate(Viewer viewer) {
+        return viewer.role() == SiteRole.OWNER
+                || db.fetchExists(ACCOUNT, ACCOUNT.ID.eq(viewer.accountId()).and(ACCOUNT.AUTOTRANSLATE));
+    }
+
+    /** The signed-in person who may autotranslate, or 403. */
+    public Viewer requireAutotranslate() {
+        Viewer viewer = requireSignedIn();
+        if (!mayAutotranslate(viewer)) {
+            throw new UserFacingException(HttpStatus.FORBIDDEN, "Автопереклад вам поки недоступний. Доступ дає власник сайту.");
         }
         return viewer;
     }

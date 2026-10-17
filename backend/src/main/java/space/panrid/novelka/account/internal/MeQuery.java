@@ -37,7 +37,8 @@ class MeQuery {
                 // Shags-or-dollars only matters to the site owner (рішення 21).
                 SiteRole.fromCode(r.getSiteRole()) == SiteRole.OWNER ? r.getShowShah() : true, r.getStudioInMenu(),
                 r.getGoogleSub() != null, r.getPasswordSet(),
-                json.readTree(r.getAppearance().data())));
+                json.readTree(r.getAppearance().data()),
+                SiteRole.fromCode(r.getSiteRole()) == SiteRole.OWNER || r.getAutotranslate()));
     }
 
     Optional<PublicProfile> publicProfile(long id) {

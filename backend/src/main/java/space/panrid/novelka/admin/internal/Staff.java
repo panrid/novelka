@@ -37,8 +37,12 @@ class Staff {
     }
 
     /** @param email only for the owner: administrators do not need people's addresses */
-    /** {@code email} and {@code shahs} (free plus held) only for the site owner. */
-    record Person(String nick, String role, String email, OffsetDateTime createdAt, OffsetDateTime lastSeenAt, Integer shahs) {
+    /**
+     * {@code email}, {@code shahs} (free plus held) and {@code autotranslate} (the owner let them
+     * autotranslate) only for the site owner.
+     */
+    record Person(String nick, String role, String email, OffsetDateTime createdAt, OffsetDateTime lastSeenAt, Integer shahs,
+            Boolean autotranslate) {
     }
 
     static final int PAGE = 20;
@@ -54,13 +58,15 @@ class Staff {
         org.jooq.Condition where = q.isEmpty() ? DSL.noCondition()
                 : owner ? ACCOUNT.NICK_KEY.contains(q).or(ACCOUNT.EMAIL_KEY.contains(q)) : ACCOUNT.NICK_KEY.contains(q);
         int total = db.fetchCount(ACCOUNT, where);
-        List<Person> items = db.select(ACCOUNT.NICK, ACCOUNT.SITE_ROLE, ACCOUNT.EMAIL, ACCOUNT.CREATED_AT, ACCOUNT.LAST_SEEN_AT, shahs).from(ACCOUNT)
+        List<Person> items = db.select(ACCOUNT.NICK, ACCOUNT.SITE_ROLE, ACCOUNT.EMAIL, ACCOUNT.CREATED_AT, ACCOUNT.LAST_SEEN_AT, shahs,
+                        ACCOUNT.AUTOTRANSLATE).from(ACCOUNT)
                 .leftJoin(SHAH_BALANCE).on(SHAH_BALANCE.ACCOUNT_ID.eq(ACCOUNT.ID))
                 .where(where)
                 // Staff first, then the most recently seen.
                 .orderBy(DSL.when(ACCOUNT.SITE_ROLE.eq("reader"), 1).otherwise(0), ACCOUNT.LAST_SEEN_AT.desc().nullsLast(), ACCOUNT.ID)
                 .limit(PAGE).offset((at - 1) * PAGE)
-                .fetch(r -> new Person(r.value1(), r.value2(), owner ? r.value3() : null, r.value4(), r.value5(), owner ? r.value6() : null));
+                .fetch(r -> new Person(r.value1(), r.value2(), owner ? r.value3() : null, r.value4(), r.value5(), owner ? r.value6() : null,
+                        owner ? r.value7() : null));
         return new People(items, total, at, at * PAGE < total);
     }
 
@@ -89,5 +95,25 @@ class Staff {
         }
         roles.setRole(target.value1(), role);
         audit.record(actor.accountId(), "role", "account", target.value1(), Map.of("nick", nick, "from", current.code(), "to", role.code()));
+    }
+
+    /**
+     * The site owner lets a person autotranslate (етап 19), or takes it back; they pay with their
+     * шаги. Runs already started go on.
+     */
+    @Transactional
+    void setAutotranslate(Viewer owner, String nick, boolean allowed) {
+        var target = db.select(ACCOUNT.ID, ACCOUNT.SITE_ROLE, ACCOUNT.AUTOTRANSLATE).from(ACCOUNT)
+                .where(ACCOUNT.NICK_KEY.eq(nick.strip().toLowerCase(java.util.Locale.ROOT))).fetchOptional()
+                .orElseThrow(() -> UserFacingException.notFound("Людини з ніком «%s» немає.".formatted(nick)));
+        if (SiteRole.fromCode(target.value2()) == SiteRole.OWNER) {
+            throw UserFacingException.badRequest("Власнику сайту автопереклад доступний завжди.");
+        }
+        if (target.value3() == allowed) {
+            return;
+        }
+        db.update(ACCOUNT).set(ACCOUNT.AUTOTRANSLATE, allowed).where(ACCOUNT.ID.eq(target.value1())).execute();
+        audit.record(owner.accountId(), allowed ? "autotranslate_granted" : "autotranslate_revoked", "account", target.value1(),
+                Map.of("nick", nick));
     }
 }
