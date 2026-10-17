@@ -50,6 +50,8 @@ final class Prompts {
             your answer. Skip real-world places and people the novel only compares with (Гімалаї, Непал), one-off
             descriptions that are not names (вітряна захисна оболонка) and food and clothes that need no fixed form.
             Write correct Ukrainian, never Russian forms: a spell that calls on water is «Воде, з'явися», not «Водой».
+            No character of the original in a Ukrainian form or a fact, not even one: a number with 号 is «№ 700672»
+            (700672号 → № 700672).
             Say who tells the text in the first person (僕, 俺, 私, あたし): «narrator» is their Ukrainian name as in
             the glossary, or "" when the text is told in the third person or the narrator is not clear, and their
             gender (僕 and 俺 usually mean a male narrator; else "unknown" unless the text shows it).
@@ -105,7 +107,7 @@ final class Prompts {
             - Onomatopoeia becomes Ukrainian onomatopoeia or a short description.
             - Blocks of type preface and afterword are the author's notes; translate them fully too, including
               announcements, dates and thanks.
-            - No notes, no comments, no untranslated Japanese.
+            - No notes, no comments, no untranslated Japanese, not even one character (700672号 → № 700672).
             Also write a short summary (2–4 sentences, Ukrainian) of what happens in this part, for the next part's context.
             """ + NAMES;
 

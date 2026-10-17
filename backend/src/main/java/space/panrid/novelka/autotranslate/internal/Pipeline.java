@@ -394,7 +394,25 @@ class Pipeline {
         user.append("Chapter title: ").append(title.isBlank() ? "(none)" : title).append("\n\nText:\n").append(text);
         return calls.ask("analyze", part, Prompts.analyze(calls.language), user.toString(), "glossary", Prompts.analyzeSchema(),
                 Math.min(18_000, 3_500 + blocks.size() * 40),
-                answer -> UNTRANSLATED_TITLE.matcher(answer.path("title").asString("")).find() ? TITLE_UNTRANSLATED : null);
+                Pipeline::analysisProblem);
+    }
+
+    /** The title, or a Ukrainian form or a fact of the glossary, still in the original's characters. */
+    static String analysisProblem(JsonNode answer) {
+        if (UNTRANSLATED_TITLE.matcher(answer.path("title").asString("")).find()) {
+            return TITLE_UNTRANSLATED;
+        }
+        for (JsonNode entry : answer.path("entries")) {
+            if (Glossary.untranslated(entry.path("ukrainian").asString(""))) {
+                return GLOSSARY_UNTRANSLATED + ": «%s»".formatted(entry.path("ukrainian").asString(""));
+            }
+        }
+        for (JsonNode fact : answer.path("facts")) {
+            if (Glossary.untranslated(fact.path("fact").asString(""))) {
+                return GLOSSARY_UNTRANSLATED + ": «%s»".formatted(fact.path("fact").asString(""));
+            }
+        }
+        return null;
     }
 
     record Translated(List<Line> lines, String summary) {
@@ -492,6 +510,10 @@ class Pipeline {
 
     /** A chapter title the model left in Japanese or Chinese (Haiku did, «Майстер магічної інженерії» 3, 5–7). */
     static final String TITLE_UNTRANSLATED = "назва глави лишилася мовою оригіналу";
+    /** A third time still so: the rest of the answer is taken, those entries and facts are left out. */
+    static final String GLOSSARY_UNTRANSLATED = "у словнику лишилися ієрогліфи";
+    /** One or two characters of the original («700672号»): asked again; a third time taken (a kanji the novel explains). */
+    static final String FEW_UNTRANSLATED = "у перекладі лишилися окремі ієрогліфи";
     private static final java.util.regex.Pattern UNTRANSLATED_TITLE =
             java.util.regex.Pattern.compile("[\\p{IsHiragana}\\p{IsKatakana}\\p{IsHan}]");
 
@@ -639,12 +661,19 @@ class Pipeline {
     private static final java.util.regex.Pattern UNTRANSLATED =
             java.util.regex.Pattern.compile("[\\p{IsHiragana}\\p{IsKatakana}\\p{IsHan}]{3,}|\\[term]");
 
-    /** What is wrong when a translation still has Japanese in it or a model's marker such as «[term]»; null when clean. */
+    /**
+     * What is wrong when a translation still has Japanese in it or a model's marker such as
+     * «[term]»; a character or two («号») is asked again too; null when clean.
+     */
     static String leftover(String id, String text) {
-        return UNTRANSLATED.matcher(text).find()
-                ? "у перекладі абзацу %s лишився японський текст або службова позначка".formatted(id)
-                : null;
+        if (UNTRANSLATED.matcher(text).find()) {
+            return "у перекладі абзацу %s лишився японський текст або службова позначка".formatted(id);
+        }
+        java.util.regex.Matcher few = FEW.matcher(text);
+        return few.find() ? FEW_UNTRANSLATED + " (абзац %s: «%s»)".formatted(id, few.group()) : null;
     }
+
+    private static final java.util.regex.Pattern FEW = java.util.regex.Pattern.compile("[\\p{IsHan}\\p{IsHangul}]+");
 
     /**
      * Where each line stands in the dialogue: true when it opens a speech in 「」, false for
@@ -840,7 +869,8 @@ class Pipeline {
                 if (wrong == null) {
                     return parsed;
                 }
-                if (wrong.equals(TITLE_UNTRANSLATED) && attempt == ATTEMPTS - 1) {
+                if ((wrong.equals(TITLE_UNTRANSLATED) || wrong.startsWith(GLOSSARY_UNTRANSLATED) || wrong.startsWith(FEW_UNTRANSLATED))
+                        && attempt == ATTEMPTS - 1) {
                     // The glossary and facts of the answer are good; the title is left out when it is published.
                     journal.add(job.getId(), number, "accepted", Map.of("stage", stage, "part", part, "reason", wrong));
                     return parsed;
