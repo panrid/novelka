@@ -10,7 +10,7 @@ import space.panrid.novelka.platform.web.UserFacingException;
 /** What counts as a valid nick, email and password. Messages are shown to people as is. */
 final class AccountRules {
 
-    static final int PASSWORD_MIN = 10;
+    static final int PASSWORD_MIN = 8;
     static final int PASSWORD_MAX_BYTES = 72; // BCrypt ignores anything longer
     static final int BIO_MAX = 500;
 

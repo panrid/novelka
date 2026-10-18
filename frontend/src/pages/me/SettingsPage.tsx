@@ -145,7 +145,7 @@ function PasswordSection({ me }: { me: Me }) {
             <h2 className={styles.sectionTitle}>Пароль</h2>
             <div className={styles.form}>
                 <TextInput label="Поточний пароль" type="password" value={current} onChange={setCurrent} autoComplete="current-password" isRequired />
-                <TextInput label="Новий пароль" type="password" value={next} onChange={setNext} autoComplete="new-password" isRequired hint="Щонайменше 10 символів." />
+                <TextInput label="Новий пароль" type="password" value={next} onChange={setNext} autoComplete="new-password" isRequired hint="Щонайменше 8 символів." />
                 {change.isError && <Notice tone="error">{change.error.message}</Notice>}
                 {change.isSuccess && <Notice tone="success">Пароль змінено. Інші пристрої вийшли з акаунта.</Notice>}
                 <Button type="submit" pending={change.isPending} pendingLabel="Змінюємо…">Змінити пароль</Button>

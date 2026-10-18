@@ -84,6 +84,41 @@
     border-color: var(--danger);
 }
 
+/* A password field with the eye inside its right edge; the padding keeps text clear of it. */
+.passwordBox {
+    position: relative;
+}
+
+.passwordBox .input {
+    padding-right: 50px;
+}
+
+.reveal {
+    position: absolute;
+    top: 50%;
+    right: 1px;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    transform: translateY(-50%);
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.reveal[data-hovered] {
+    color: var(--text);
+}
+
+.reveal[data-focus-visible] {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+}
+
 textarea.input {
     min-height: 96px;
     resize: vertical;
