@@ -112,9 +112,13 @@ class AccountFlowTests {
         assertThat(cyrillic.status()).isEqualTo(202);
 
         Response shortPassword = browser.post("/api/auth/register",
-                json("nick", nick, "email", "x" + email, "password", "коротко"));
+                json("nick", nick, "email", "x" + email, "password", "коротко")); // 7
         assertThat(shortPassword.status()).isEqualTo(400);
-        assertThat(read(shortPassword).path("detail").asString()).contains("щонайменше з 10 символів");
+        assertThat(read(shortPassword).path("detail").asString()).contains("щонайменше з 8 символів");
+
+        Response eight = browser.post("/api/auth/register",
+                json("nick", nick, "email", "x" + email, "password", "вісім 88"));
+        assertThat(eight.status()).isEqualTo(202);
     }
 
     @Test

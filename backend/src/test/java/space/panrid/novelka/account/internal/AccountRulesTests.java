@@ -29,8 +29,14 @@ class AccountRulesTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"короткий", "ґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґ"}) // 37 two-byte letters = 74 bytes > 72
+    @ValueSource(strings = {"коротко", "ґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґґ"}) // 7 letters; 37 two-byte letters = 74 bytes > 72
     void rejectsPasswordsBCryptCannotHandle(String password) {
         assertThatThrownBy(() -> AccountRules.password(password)).isInstanceOf(UserFacingException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"короткий", "вісім 88"})
+    void acceptsPasswordsOfEightCharacters(String password) {
+        assertThat(AccountRules.password(password)).isEqualTo(password);
     }
 }

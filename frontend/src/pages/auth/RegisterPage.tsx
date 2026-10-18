@@ -52,7 +52,7 @@ export function RegisterPage() {
                     hint="3–30 символів: латиниця або кирилиця, цифри, «_» і «-»." />
                 <TextInput label="Пошта" type="email" value={email} onChange={setEmail} autoComplete="email" isRequired />
                 <TextInput label="Пароль" type="password" value={password} onChange={setPassword} autoComplete="new-password" isRequired
-                    hint="Щонайменше 10 символів. Фраза з кількох слів — найзручніший надійний пароль." />
+                    hint="Щонайменше 8 символів. Фраза з кількох слів — найзручніший надійний пароль." />
                 {error && <Notice tone="error">{error}</Notice>}
                 <Button type="submit" wide pending={register.isPending} pendingLabel="Реєструємо…">
                     Зареєструватися

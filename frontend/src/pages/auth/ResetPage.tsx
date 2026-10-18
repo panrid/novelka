@@ -71,7 +71,7 @@ function NewPassword({ token }: { token: string }) {
             <p className={styles.lead}>Після збереження всі інші пристрої вийдуть з акаунта.</p>
             <form className={styles.form} onSubmit={submit}>
                 <TextInput label="Новий пароль" type="password" value={password} onChange={setPassword} autoComplete="new-password" isRequired
-                    hint="Щонайменше 10 символів." />
+                    hint="Щонайменше 8 символів." />
                 {reset.isError && <Notice tone="error">{reset.error.message}</Notice>}
                 <Button type="submit" wide pending={reset.isPending} pendingLabel="Зберігаємо…">
                     Зберегти пароль
