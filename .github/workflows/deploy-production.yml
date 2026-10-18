@@ -3,14 +3,67 @@ name: Deploy production
 on:
     push:
         branches: [main]
+        # Documents alone change nothing on the site.
+        paths-ignore: ['doc/**', '**/*.md']
     workflow_dispatch:
 
 permissions:
     contents: read
 
 jobs:
+    # A pull request already tested and built exactly this tree (pull-request.yml): deploy its JAR.
+    # Anything else runs in full: a direct push, main moved after the check, a fork, a manual run.
+    find:
+        name: Find checked JAR
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        permissions:
+            contents: read
+            actions: read
+            pull-requests: read
+        outputs:
+            run_id: ${{ steps.find.outputs.run_id }}
+            pr: ${{ steps.find.outputs.pr }}
+            tree: ${{ steps.find.outputs.tree }}
+        steps:
+            - name: Look for a JAR from a pull request
+              id: find
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  full() {
+                      echo "Повний прогін: $1" | tee -a "$GITHUB_STEP_SUMMARY"
+                      exit 0
+                  }
+                  [ "$GITHUB_EVENT_NAME" = push ] || full "запуск вручну ($GITHUB_EVENT_NAME)"
+                  tree=$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$GITHUB_SHA" --jq .tree.sha) \
+                      || full "не вдалося дізнатися дерево $GITHUB_SHA"
+                  echo "tree=$tree" >> "$GITHUB_OUTPUT"
+                  runs=$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/artifacts" -f name="novelka-$tree" -F per_page=100 \
+                      --jq '.artifacts | map(select(.expired | not)) | sort_by(.created_at) | reverse | .[].workflow_run.id') \
+                      || full "не вдалося переглянути артефакти"
+                  for run in $runs; do
+                      info=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" \
+                          --jq '[.event, .conclusion, .path, .head_repository.full_name, .head_branch, .head_sha] | @tsv') || continue
+                      IFS=$'\t' read -r run_event conclusion path head_repo branch head_sha <<< "$info"
+                      # Only a green check of a branch of this repository: a fork can upload any JAR under any name.
+                      if [ "$run_event" != pull_request ] || [ "$conclusion" != success ] \
+                          || [ "$path" != .github/workflows/pull-request.yml ] || [ "$head_repo" != "$GITHUB_REPOSITORY" ]; then
+                          continue
+                      fi
+                      pr=$(gh api -X GET "repos/$GITHUB_REPOSITORY/pulls" -f state=all -f head="${GITHUB_REPOSITORY_OWNER}:$branch" \
+                          --jq "map(select(.head.sha == \"$head_sha\"))[0].number // empty") || pr=''
+                      { echo "run_id=$run"; echo "pr=$pr"; } >> "$GITHUB_OUTPUT"
+                      echo "Готовий JAR з PR #${pr:-?} (запуск $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$run, дерево $tree): без тестів і збірки" \
+                          | tee -a "$GITHUB_STEP_SUMMARY"
+                      exit 0
+                  done
+                  full "немає перевіреного JAR з pull request для дерева $tree"
+
     backend:
         name: Backend tests
+        needs: find
+        if: needs.find.outputs.run_id == ''
         runs-on: ubuntu-latest
         timeout-minutes: 25
         steps:
@@ -26,6 +79,8 @@ jobs:
 
     frontend:
         name: Frontend checks and tests
+        needs: find
+        if: needs.find.outputs.run_id == ''
         runs-on: ubuntu-latest
         timeout-minutes: 15
         defaults:
@@ -42,9 +97,11 @@ jobs:
             - name: Types, lint and tests
               run: npm run check
 
+    # Builds alongside the tests, not after them; job "deploy" waits for all three.
     package:
         name: Build JAR
-        needs: [backend, frontend]
+        needs: find
+        if: needs.find.outputs.run_id == ''
         runs-on: ubuntu-latest
         timeout-minutes: 15
         steps:
@@ -72,20 +129,37 @@ jobs:
 
     deploy:
         name: Deploy to VPS
-        needs: package
-        if: github.ref == 'refs/heads/main'
+        needs: [find, backend, frontend, package]
+        # Either the JAR checked in a pull request, or tests, frontend checks and the build of this run all green.
+        if: >-
+            ${{ !cancelled() && github.ref == 'refs/heads/main' && needs.find.result == 'success'
+            && (needs.find.outputs.run_id != ''
+                || (needs.backend.result == 'success' && needs.frontend.result == 'success' && needs.package.result == 'success')) }}
         runs-on: ubuntu-latest
         timeout-minutes: 15
         environment: production
+        permissions:
+            contents: read
+            actions: read
         # A newer push waits for the running deploy instead of interrupting Docker Compose midway.
         concurrency:
             group: production
             cancel-in-progress: false
         steps:
             - uses: actions/checkout@v5
-            - uses: actions/download-artifact@v4
+            - name: JAR built in this run
+              if: needs.find.outputs.run_id == ''
+              uses: actions/download-artifact@v4
               with:
                   name: novelka
+                  path: release
+            - name: JAR from pull request #${{ needs.find.outputs.pr }}
+              if: needs.find.outputs.run_id != ''
+              uses: actions/download-artifact@v4
+              with:
+                  name: novelka-${{ needs.find.outputs.tree }}
+                  run-id: ${{ needs.find.outputs.run_id }}
+                  github-token: ${{ github.token }}
                   path: release
             - name: Configure SSH
               env:

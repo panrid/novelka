@@ -1,9 +1,12 @@
 name: Pull request checks
 
 # The same tests as before a deploy, without the deploy: a pull request is green before it reaches main.
+# The JAR built here is kept under the tree hash of the merged code, so the deploy after merging
+# reuses it instead of testing and building again (deploy-production.yml, job "find").
 on:
     pull_request:
         branches: [main]
+        paths-ignore: ['doc/**', '**/*.md']
 
 permissions:
     contents: read
@@ -45,3 +48,60 @@ jobs:
             - run: npm ci --no-audit --no-fund
             - name: Types, lint and tests
               run: npm run check
+
+    # Builds alongside the tests; the JAR is kept only once they are green (job "save").
+    package:
+        name: Build JAR
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        outputs:
+            tree: ${{ steps.tree.outputs.tree }}
+        steps:
+            - uses: actions/checkout@v5
+            # The checkout is main with this pull request merged in: the same tree main gets after the merge
+            # (for a merge commit, squash and rebase alike) unless main moves in between.
+            - name: Tree hash of the merged code
+              id: tree
+              run: echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+            - uses: actions/setup-java@v5
+              with:
+                  distribution: temurin
+                  java-version: '25'
+                  cache: gradle
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: '22.13.1'
+                  cache: npm
+                  cache-dependency-path: frontend/package-lock.json
+            - run: npm ci --no-audit --no-fund
+              working-directory: frontend
+            - name: Build JAR with the site inside
+              run: ./gradlew :backend:bootJar --no-daemon
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: jar-build
+                  path: backend/build/libs/novelka.jar
+                  if-no-files-found: error
+                  retention-days: 1
+
+    save:
+        name: Save checked JAR
+        needs: [backend, frontend, package]
+        # A fork's JAR is never deployed, so it is not kept either.
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - name: Keep the JAR under the tree hash
+              uses: actions/upload-artifact/merge@v4
+              with:
+                  name: novelka-${{ needs.package.outputs.tree }}
+                  pattern: jar-build
+                  delete-merged: true
+                  retention-days: 7
+            - name: Report
+              env:
+                  TREE: ${{ needs.package.outputs.tree }}
+                  PR: ${{ github.event.pull_request.number }}
+              run: |
+                  echo "Checked JAR novelka-$TREE from pull request #$PR" | tee -a "$GITHUB_STEP_SUMMARY"
