@@ -20,7 +20,7 @@ class WebAppConfiguration implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Built files carry a hash in their names, so a name never changes its content: a year in
+        // Built files carry a hash in their names, so a name never changes its content: kept a year in
         // the browser's cache. Pages (index.html, which points at them) get no-cache from the security headers.
         registry.addResourceHandler("/assets/**")
                 .addResourceLocations("classpath:/static/assets/")
