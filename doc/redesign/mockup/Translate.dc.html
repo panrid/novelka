@@ -18,7 +18,7 @@ a{color:#8EA6FF}a:hover{color:#B7C6FF}
 <div style="{{ vars }}; min-height: 960px; background: var(--bg); color: var(--text); font-family: 'Golos Text', system-ui, sans-serif; font-size: 14px">
 
   <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--line)">
-    <a href="Home.dc.html" style="font: 600 20px 'Literata', serif; color: var(--strong); text-decoration: none">новелка<span style="color: var(--accent)">.</span></a>
+    <a href="Studio.dc.html" aria-label="Новелка · Студія" style="display: flex; align-items: center; font: 600 20px 'Literata', serif; color: var(--strong); text-decoration: none">новелка<span style="color: var(--accent)">.</span><span style="margin-left: 8px; padding: 3px 8px; border-radius: 6px; background: var(--panel2); font: 600 11px 'Golos Text', sans-serif; letter-spacing: 0.08em; color: var(--accent)">СТУДІЯ</span></a>
     <nav aria-label="Шлях" style="display: flex; align-items: center; gap: 8px; color: var(--muted); flex: 1; min-width: 200px">
       <a href="Studio.dc.html" style="color: var(--muted); text-decoration: none">Студія</a><span aria-hidden="true">/</span>
       <span style="color: var(--strong); font-weight: 600">Доглядач маяка</span>
@@ -42,6 +42,7 @@ a{color:#8EA6FF}a:hover{color:#B7C6FF}
         <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px">
           <b style="font-weight: 600; font-size: 15px; color: var(--strong)">Зараз іде · глави 13–15</b>
           <div style="display: flex; gap: 6px">
+            <a href="TranslateLive.dc.html" style="height: 34px; display: flex; align-items: center; padding: 0 12px; border-radius: 8px; background: var(--panel2); color: var(--strong); text-decoration: none; font-weight: 500; font-size: 13px">Дивитися наживо</a>
             <button type="button" style="height: 34px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: 500 13px 'Golos Text', sans-serif; box-shadow: inset 0 0 0 1px var(--line)">Пауза</button>
             <button type="button" style="height: 34px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: 500 13px 'Golos Text', sans-serif; box-shadow: inset 0 0 0 1px var(--line)">Скасувати</button>
           </div>
@@ -89,8 +90,8 @@ a{color:#8EA6FF}a:hover{color:#B7C6FF}
 
     <aside aria-label="Новий переклад" style="flex: 1 1 340px; max-width: 420px; background: var(--panel); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 16px">
       <div>
-        <div style="font: 600 20px/1.3 'Literata', serif; color: var(--strong)">Перекласти 5 глав</div>
-        <div style="color: var(--muted); margin-top: 4px">Глави 16–20 · 61 300 знаків оригіналу</div>
+        <div style="font: 600 20px/1.3 'Literata', serif; color: var(--strong)">Перекласти з ШІ · 5 глав</div>
+        <div style="color: var(--muted); margin-top: 4px">Глави 16–20 · 61 300 знаків оригіналу, який ви вставили</div>
       </div>
       <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
         <legend style="padding: 0; margin-bottom: 8px; font-weight: 600; color: var(--strong)">Якість</legend>
@@ -106,8 +107,8 @@ a{color:#8EA6FF}a:hover{color:#B7C6FF}
       </fieldset>
       <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px">
         <legend style="padding: 0; margin-bottom: 8px; font-weight: 600; color: var(--strong)">Що зробити</legend>
-        <label style="display: flex; gap: 10px; align-items: center"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: var(--accent)"> Скласти словник імен і термінів</label>
-        <label style="display: flex; gap: 10px; align-items: center"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: var(--accent)"> Вичитати переклад</label>
+        <label style="display: flex; gap: 10px; align-items: center"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: var(--accent)"> Словник: знайти нові імена й терміни</label>
+        <label style="display: flex; gap: 10px; align-items: center"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: var(--accent)"> Вичитка: ШІ перечитає й виправить</label>
         <label style="display: flex; gap: 10px; align-items: center"><input type="checkbox" style="width: 18px; height: 18px; accent-color: var(--accent)"> Одразу опублікувати</label>
         <span style="font-size: 12px; color: var(--muted); line-height: 1.5">Без публікації глави чекатимуть у «Чернетках» — перегляньте їх у робочому місці й опублікуйте самі.</span>
       </fieldset>
@@ -116,7 +117,7 @@ a{color:#8EA6FF}a:hover{color:#B7C6FF}
         <span style="font: 600 18px 'Golos Text', sans-serif; color: var(--strong)">[ціна] шагів</span>
       </div>
       <button type="button" style="height: 48px; border: 0; border-radius: 12px; background: var(--accent); color: var(--onAccent); font: 600 16px 'Golos Text', sans-serif">Перекласти 5 глав</button>
-      <span style="font-size: 12px; color: var(--muted); line-height: 1.5; text-align: center">Глави однієї новели йдуть по черзі; сторінку можна закрити — переклад продовжиться.</span>
+      <span style="font-size: 12px; color: var(--muted); line-height: 1.5; text-align: center">Глави однієї новели йдуть по черзі; хід видно наживо, а сторінку можна закрити — переклад продовжиться.</span>
     </aside>
   </div>
 </div>
@@ -159,7 +160,7 @@ class Component extends DCLogic {
       return { ...m, price: '[ціна]', checked: on, ring: on ? 'inset 0 0 0 2px var(--accent)' : 'inset 0 0 0 1px var(--line)', bg: on ? 'var(--soft)' : 'transparent', pick: () => this.setState({ model: i }) };
     });
     const running = [
-      { n: 13, width: '62%', stage: 'переклад · частина 3 з 4' },
+      { n: 13, width: '62%', stage: 'переклад · частина 2 з 2' },
       { n: 14, width: '0%', stage: 'у черзі' },
       { n: 15, width: '0%', stage: 'у черзі' }
     ];

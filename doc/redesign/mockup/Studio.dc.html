@@ -17,13 +17,16 @@ a{color:#8EA6FF}a:hover{color:#B7C6FF}
 </helmet>
 <div style="{{ vars }}; min-height: 960px; background: var(--bg); color: var(--text); font-family: 'Golos Text', system-ui, sans-serif; font-size: 14px">
   <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--line)">
-    <a href="Home.dc.html" style="font: 600 20px 'Literata', serif; color: var(--strong); text-decoration: none">новелка<span style="color: var(--accent)">.</span></a>
-    <nav aria-label="Сайт" style="display: flex; gap: 4px; flex: 1; min-width: 240px">
-      <a href="Home.dc.html" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Читати</a>
-      <a href="#" aria-current="page" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; background: var(--panel2); color: var(--strong); text-decoration: none; font-weight: 600">Студія</a>
+    <a href="Studio.dc.html" aria-label="Новелка · Студія" style="display: flex; align-items: center; font: 600 20px 'Literata', serif; color: var(--strong); text-decoration: none">новелка<span style="color: var(--accent)">.</span><span style="margin-left: 8px; padding: 3px 8px; border-radius: 6px; background: var(--panel2); font: 600 11px 'Golos Text', sans-serif; letter-spacing: 0.08em; color: var(--accent)">СТУДІЯ</span></a>
+    <nav aria-label="Студія" style="display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 240px">
+      <a href="#" aria-current="page" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; background: var(--panel2); color: var(--strong); text-decoration: none; font-weight: 600">Мої переклади</a>
+      <a href="TranslateLive.dc.html" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Хід перекладу · 2</a>
+      <a href="#" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Команди</a>
+      <a href="#" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Кошик</a>
     </nav>
     <span style="padding: 6px 12px; border-radius: 999px; background: var(--panel2); color: var(--text)"><b style="font-weight: 600">[N] шагів</b> на рахунку</span>
-    <a href="Paste.dc.html" style="height: 40px; display: flex; align-items: center; padding: 0 16px; border-radius: 10px; background: var(--accent); color: var(--onAccent); text-decoration: none; font-weight: 600">+ Новий переклад</a>
+    <a href="NewTranslation.dc.html" style="height: 40px; display: flex; align-items: center; padding: 0 16px; border-radius: 10px; background: var(--accent); color: var(--onAccent); text-decoration: none; font-weight: 600">+ Новий переклад</a>
+    <a href="Home.dc.html" style="height: 40px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--text); text-decoration: none">На сайт</a>
     <button type="button" onClick="{{ toggleTheme }}" aria-label="{{ themeLabel }}" title="{{ themeLabel }}" style="width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--panel2); color: var(--text); display: grid; place-items: center; cursor: pointer">
       <sc-if value="{{ isDark }}" hint-placeholder-val="{{ true }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></sc-if>
       <sc-if value="{{ isLight }}" hint-placeholder-val="{{ false }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"></path></svg></sc-if>
@@ -58,12 +61,12 @@ a{color:#8EA6FF}a:hover{color:#B7C6FF}
       <section aria-label="Черга перекладу" style="background: var(--panel); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
         <b style="font-weight: 600; color: var(--strong)">Перекладається зараз</b>
         <sc-for list="{{ queue }}" as="q" hint-placeholder-count="3">
-          <div style="display: flex; flex-direction: column; gap: 6px">
+          <a href="TranslateLive.dc.html" style="display: flex; flex-direction: column; gap: 6px; color: var(--text); text-decoration: none">
             <div style="display: flex; justify-content: space-between; gap: 8px"><span>{{ q.what }}</span><span style="color: var(--muted); font-size: 12px">{{ q.stage }}</span></div>
             <div style="height: 6px; border-radius: 6px; background: var(--panel2)"><div style="width: {{ q.width }}; height: 6px; border-radius: 6px; background: var(--accent)"></div></div>
-          </div>
+          </a>
         </sc-for>
-        <span style="font-size: 12px; color: var(--muted); line-height: 1.5">Одночасно перекладаються до трьох глав різних новел.</span>
+        <span style="font-size: 12px; color: var(--muted); line-height: 1.5">Натисніть — відкриється хід перекладу наживо. Одночасно перекладаються до трьох глав різних новел.</span>
       </section>
       <section aria-label="Чекає на вас" style="background: var(--panel); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
         <b style="font-weight: 600; color: var(--strong)">Чекає на вас</b>
@@ -98,7 +101,7 @@ class Component extends DCLogic {
     ];
     const queue = [
       { what: 'Доглядач маяка · глава 13', stage: 'переклад 3/4', width: '62%' },
-      { what: 'Майстер магічної інженерії · глава 11', stage: 'аналіз', width: '12%' },
+      { what: 'Майстер магічної інженерії · глава 11', stage: 'словник', width: '12%' },
       { what: 'Доглядач маяка · глави 14–15', stage: 'у черзі', width: '0%' }
     ];
     return {
