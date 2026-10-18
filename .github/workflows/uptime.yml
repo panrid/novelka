@@ -1,23 +1,67 @@
 name: Uptime
 
-# Every 15 minutes: is the site up and does it reach its database? A failed run makes
-# GitHub send the repository owner an email.
+# Every 5 minutes, from outside the server: is the site up and does it reach its database?
+# The owner hears about a change only, in Telegram: one message when the site stops answering, one when
+# it is back (.github/scripts/uptime.sh). The state between runs is the newest `uptime-state` artifact,
+# written only after Telegram accepted the message. A down site keeps the run green, so GitHub does not
+# email every 5 minutes; a red run means the check itself broke.
 on:
     schedule:
-        - cron: '*/15 * * * *'
+        - cron: '*/5 * * * *'
     workflow_dispatch:
+        inputs:
+            address:
+                description: 'Лише для перевірки тривоги: адреса замість https://novelka.in.ua (наприклад, https://127.0.0.1:9). Порожньо — справжній сайт.'
+                required: false
+                default: ''
 
 permissions:
     contents: read
+    actions: read
+
+# One run at a time, in order, so the state is never read and written by two runs at once.
+concurrency:
+    group: uptime
+    cancel-in-progress: false
 
 jobs:
     health:
         runs-on: ubuntu-latest
-        timeout-minutes: 5
+        timeout-minutes: 8
         steps:
-            - name: Check the app and its database
+            - uses: actions/checkout@v5
+              with:
+                  sparse-checkout: .github/scripts
+            - name: Read the last state
+              env:
+                  GH_TOKEN: ${{ github.token }}
               run: |
-                  curl --fail --silent --show-error --retry 3 --retry-delay 20 --retry-all-errors --max-time 20 \
-                      https://novelka.in.ua/api/health | tee /dev/stderr | grep -q '"status":"ok"'
-            - name: Check the public site
-              run: curl --fail --silent --show-error --retry 3 --retry-delay 20 --retry-all-errors --max-time 20 -o /dev/null https://novelka.in.ua/
+                  mkdir -p state
+                  for attempt in 1 2 3; do
+                      run=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=uptime-state&per_page=100" \
+                          --jq '[.artifacts[] | select(.expired | not)] | sort_by(.created_at) | last | .workflow_run.id // ""') && break
+                      [ "$attempt" = 3 ] && exit 1
+                      sleep 10
+                  done
+                  if [ -z "$run" ]; then
+                      echo "Збереженого стану немає — вважаю, що сайт працював."
+                  else
+                      gh run download "$run" -R "$GITHUB_REPOSITORY" -n uptime-state -D state
+                      cat state/uptime-state
+                  fi
+            - name: Check the site
+              id: check
+              env:
+                  ADDRESS: ${{ inputs.address }}
+                  STATE: state/uptime-state
+                  TELEGRAM_TOKEN: ${{ secrets.UPTIME_TELEGRAM_TOKEN }}
+                  TELEGRAM_CHAT_ID: ${{ secrets.UPTIME_TELEGRAM_CHAT_ID }}
+              run: bash .github/scripts/uptime.sh
+            - name: Remember the new state
+              if: steps.check.outputs.changed == 'true'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: uptime-state
+                  path: state/uptime-state
+                  retention-days: 90
+                  if-no-files-found: error
