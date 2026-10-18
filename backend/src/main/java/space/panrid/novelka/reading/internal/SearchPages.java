@@ -416,3 +416,4 @@ class SearchPages {
         return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }
+// Тестовий pull request для #227 (обидва), не зливати.
