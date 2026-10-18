@@ -9,6 +9,7 @@ import { TextEditor, type EditorHandle } from '../../studio/TextEditor';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { relativeTime } from '../../lib/dates';
+import { TRASH_NOTE } from './ChaptersPage';
 import styles from './editor.module.css';
 import { askConfirm } from '../../ui/ask';
 import { useCanDraw } from '../../ledger/api';
@@ -139,8 +140,8 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                 )}
                 {view.mayAddPictures && (
                     <button type="button" className={styles.icon} aria-label="Видалити главу" onClick={() => void askConfirm({
-                        title: 'Видалити главу?',
-                        text: live ? 'Читачі більше її не побачать. Видалити можна лише останню опубліковану главу.' : 'Вона ще не опублікована.',
+                        title: `Видалити главу ${view.number}?`,
+                        text: TRASH_NOTE,
                         confirmLabel: 'Видалити', danger: true,
                     }).then((yes) => { if (yes) removeChapter.mutate(); })}><Trash2 size={20} aria-hidden /></button>
                 )}

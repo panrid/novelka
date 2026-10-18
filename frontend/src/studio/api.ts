@@ -97,6 +97,9 @@ function upload(path: string, file: Blob, name: string, extra: Record<string, st
     return { path, init: { method: 'POST', body: form } satisfies RequestInit };
 }
 
+export type TrashedChapter = { number: number; label: string | null; title: string; deletedAt: string };
+export type TrashedEdition = { editionId: number; title: string; teamName: string; deletedAt: string; erasedAt: string };
+
 export const studioApi = {
     mine: () => api<MyEdition[]>('/api/studio'),
     create: (body: { kind: 'human' | 'original'; title: string; author: string; description: StudioBlock[]; tags: string[]; adult: boolean; team: string }) =>
@@ -111,7 +114,15 @@ export const studioApi = {
     chapters: (id: number, filter: { filter?: ChapterFilter; order?: 'asc' | 'desc'; page: number }) =>
         api<{ items: StudioChapter[]; total: number; page: number; hasMore: boolean }>(
             `${edition(id)}/chapters?${new URLSearchParams({ page: String(filter.page), order: filter.order ?? 'desc', filter: filter.filter ?? '' })}`),
+    /** To the bin for 30 days; the number stays a gap. */
     deleteChapter: (id: number, number: number) => api<void>(chapter(id, number), { method: 'DELETE' }),
+    trashedChapters: (id: number) => api<TrashedChapter[]>(`${edition(id)}/chapters/trash`),
+    restoreChapter: (id: number, number: number) => api<void>(`${chapter(id, number)}/restore`, json('POST', {})),
+    /** «Видалити переклад»: a code to the email and Telegram first. */
+    deleteCode: (id: number) => api<{ email: string | null; minutes: number }>(`${edition(id)}/delete-code`, json('POST', {})),
+    deleteEdition: (id: number, code: string) => api<void>(`${edition(id)}/delete`, json('POST', { code })),
+    trash: () => api<TrashedEdition[]>('/api/studio/trash'),
+    restoreEdition: (id: number) => api<void>(`${edition(id)}/restore`, json('POST', {})),
     newChapter: (id: number) => api<{ number: number }>(`${edition(id)}/chapters`, json('POST', {})),
     editor: (id: number, number: number) => api<EditorView>(chapter(id, number)),
     original: (id: number, number: number) => api<ChapterOriginal>(`${chapter(id, number)}/original`),

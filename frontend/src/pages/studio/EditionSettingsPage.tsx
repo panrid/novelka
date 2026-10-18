@@ -1,9 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { useState } from 'react';
 import { changes, characters, paragraphs } from '../../lib/plural';
 import { STATUS_LABELS, type Status } from '../../reading/api';
 import { studioApi } from '../../studio/api';
+import { Button } from '../../ui/Button';
 import { Collapsible } from '../../ui/Collapsible';
+import { Notice } from '../../ui/Notice';
+import { Sheet } from '../../ui/Sheet';
+import { TextInput } from '../../ui/TextInput';
 import { useEditionId } from './EditionPage';
 import { EditionShell, useEditionOverview } from './EditionShell';
 import styles from './studio.module.css';
@@ -75,6 +80,71 @@ function SettingsTab() {
                         </tbody>
                     </table>
                 </Collapsible>
+            )}
+
+            {owner && <DeleteEdition editionId={id} title={edition.title} />}
+        </>
+    );
+}
+
+/**
+ * «Видалити переклад»: a code comes to the email and Telegram; with it the translation goes to the
+ * bin for 30 days (Студія → «Кошик» brings it back).
+ */
+function DeleteEdition({ editionId, title }: { editionId: number; title: string }) {
+    const client = useQueryClient();
+    const navigate = useNavigate();
+    const [open, setOpen] = useState(false);
+    const [code, setCode] = useState('');
+    const send = useMutation({ mutationFn: () => studioApi.deleteCode(editionId) });
+    const remove = useMutation({
+        mutationFn: () => studioApi.deleteEdition(editionId, code),
+        onSuccess: () => {
+            void client.invalidateQueries({ queryKey: ['studio'] });
+            void navigate({ to: '/studio/trash' });
+        },
+    });
+    const close = () => {
+        setOpen(false);
+        setCode('');
+        send.reset();
+        remove.reset();
+    };
+    return (
+        <>
+            <h2 className={styles.sectionTitle}>Видалення</h2>
+            <p className={styles.muted}>Переклад піде в кошик: читачі його не побачать, а 30 днів його можна буде відновити.</p>
+            <Button variant="secondary" onPress={() => setOpen(true)}>Видалити переклад</Button>
+            {open && (
+                <Sheet open onClose={close} title={`Видалити «${title}»?`}>
+                    <div style={{ display: 'grid', gap: 12 }}>
+                        <p className={styles.muted}>
+                            Читачі більше не побачать переклад, запуски автоперекладу зупиняться. Він полежить у кошику 30 днів —
+                            звідти його можна відновити, — а потім глави зітруться назавжди.
+                        </p>
+                        {!send.isSuccess ? (
+                            <Button onPress={() => send.mutate()} pending={send.isPending} pendingLabel="Надсилаємо…">
+                                Надіслати код на пошту й у Telegram
+                            </Button>
+                        ) : (
+                            <>
+                                <p role="status">
+                                    Код надіслано{send.data.email ? ` на ${send.data.email}` : ''} і в Telegram, якщо його прив’язано.
+                                    Він діє {send.data.minutes} хвилин.
+                                </p>
+                                <TextInput label="Код" value={code} onChange={setCode} inputMode="numeric" autoComplete="one-time-code" />
+                                <Button onPress={() => remove.mutate()} pending={remove.isPending} pendingLabel="Видаляємо…"
+                                    isDisabled={code.trim().length !== 6}>
+                                    Видалити переклад
+                                </Button>
+                                <button type="button" className={styles.plainButton} onClick={() => send.mutate()} disabled={send.isPending}>
+                                    Надіслати код ще раз
+                                </button>
+                            </>
+                        )}
+                        {(send.error ?? remove.error) && <Notice tone="error">{(send.error ?? remove.error)!.message}</Notice>}
+                    </div>
+                </Sheet>
             )}
         </>
     );

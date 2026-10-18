@@ -36,6 +36,7 @@ export function StudioHome() {
             <div className={styles.actions}>
                 <LinkButton to="/studio/new"><Plus size={18} aria-hidden />Нова публікація</LinkButton>
                 <LinkButton to="/studio/teams" variant="secondary">Мої команди</LinkButton>
+                <LinkButton to="/studio/trash" variant="secondary">Кошик</LinkButton>
                 {runs && (
                     <LinkButton to="/studio/processes" variant="secondary">
                         Процеси{active.data && active.data.total > 0 ? ` · ${active.data.total} іде` : ''}

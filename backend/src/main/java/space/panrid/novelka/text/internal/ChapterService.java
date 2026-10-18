@@ -135,6 +135,8 @@ class ChapterService implements Chapters {
                 .set(CHAPTER.LABEL_MANUAL, label != null)
                 .set(CHAPTER.FIRST_PUBLISHED_AT, DSL.coalesce(CHAPTER.FIRST_PUBLISHED_AT, DSL.val(now)))
                 .set(CHAPTER.UPDATED_AT, now)
+                // Translated again: a chapter in the bin comes back with the new text.
+                .setNull(CHAPTER.DELETED_AT).setNull(CHAPTER.DELETED_BY).setNull(CHAPTER.DELETED_REVISION)
                 .where(CHAPTER.ID.eq(chapterId)).execute();
         volumes.renumber(editionId);
         refreshCounters(editionId, firstTime ? now : null);
@@ -146,27 +148,73 @@ class ChapterService implements Chapters {
 
     @Override
     @Transactional
-    public void deleteChapter(long editionId, int number) {
+    public void trashChapter(long editionId, int number, long accountId) {
         db.execute("SELECT 1 FROM edition WHERE id = ? FOR UPDATE", editionId);
         ChapterRecord chapter = chapter(editionId, number);
-        if (chapter.getPublishedRevisionId() != null) {
-            int last = db.select(DSL.max(CHAPTER.NUMBER)).from(CHAPTER)
-                    .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull()).fetchOne(0, Integer.class);
-            if (last != number) {
-                throw UserFacingException.conflict("Опубліковану главу можна видалити, лише якщо вона остання. Цю можна виправити в редакторі.");
-            }
+        if (chapter.getDeletedAt() != null) {
+            return;
         }
-        long id = chapter.getId();
+        db.update(CHAPTER).set(CHAPTER.DELETED_AT, now()).set(CHAPTER.DELETED_BY, accountId)
+                .set(CHAPTER.DELETED_REVISION, chapter.getPublishedRevisionId()).setNull(CHAPTER.PUBLISHED_REVISION_ID)
+                .where(CHAPTER.ID.eq(chapter.getId())).execute();
+        volumes.renumber(editionId);
+        refreshCounters(editionId, null);
+    }
+
+    @Override
+    @Transactional
+    public void restoreChapter(long editionId, int number) {
+        db.execute("SELECT 1 FROM edition WHERE id = ? FOR UPDATE", editionId);
+        ChapterRecord chapter = chapter(editionId, number);
+        if (chapter.getDeletedAt() == null) {
+            return;
+        }
+        db.update(CHAPTER).setNull(CHAPTER.DELETED_AT).setNull(CHAPTER.DELETED_BY).setNull(CHAPTER.DELETED_REVISION)
+                .set(CHAPTER.PUBLISHED_REVISION_ID, chapter.getDeletedRevision())
+                .where(CHAPTER.ID.eq(chapter.getId())).execute();
+        volumes.renumber(editionId);
+        refreshCounters(editionId, null);
+    }
+
+    @Override
+    public List<TrashedChapter> trashedChapters(long editionId) {
+        return db.select(CHAPTER.NUMBER, CHAPTER.LABEL, REVISION.TITLE, CHAPTER.DELETED_AT).from(CHAPTER)
+                .leftJoin(REVISION).on(REVISION.ID.eq(CHAPTER.DELETED_REVISION))
+                .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.DELETED_AT.isNotNull())
+                .orderBy(CHAPTER.NUMBER)
+                .fetch(r -> new TrashedChapter(r.value1(), r.value2(), r.value3() == null ? "" : r.value3(), r.value4()));
+    }
+
+    @Override
+    @Transactional
+    public int purgeChapters(OffsetDateTime before) {
+        var old = db.select(CHAPTER.ID, CHAPTER.EDITION_ID).from(CHAPTER).where(CHAPTER.DELETED_AT.lt(before)).fetch();
+        old.forEach(r -> erase(r.value1()));
+        old.stream().map(r -> r.value2()).distinct().forEach(editionId -> {
+            volumes.renumber(editionId);
+            refreshCounters(editionId, null);
+        });
+        return old.size();
+    }
+
+    @Override
+    @Transactional
+    public void purgeEdition(long editionId) {
+        db.select(CHAPTER.ID).from(CHAPTER).where(CHAPTER.EDITION_ID.eq(editionId)).fetch(CHAPTER.ID).forEach(this::erase);
+        volumes.renumber(editionId);
+        refreshCounters(editionId, null);
+    }
+
+    /** A chapter with its history, drafts and suggestions, for good. */
+    private void erase(long id) {
         var revisions = DSL.select(REVISION.ID).from(REVISION).where(REVISION.CHAPTER_ID.eq(id));
-        db.update(CHAPTER).setNull(CHAPTER.PUBLISHED_REVISION_ID).where(CHAPTER.ID.eq(id)).execute();
+        db.update(CHAPTER).setNull(CHAPTER.PUBLISHED_REVISION_ID).setNull(CHAPTER.DELETED_REVISION).where(CHAPTER.ID.eq(id)).execute();
         db.deleteFrom(SUGGESTION).where(SUGGESTION.CHAPTER_ID.eq(id)).execute();
         db.deleteFrom(EDITOR_DRAFT).where(EDITOR_DRAFT.CHAPTER_ID.eq(id)).execute();
         db.deleteFrom(CONTRIBUTION).where(CONTRIBUTION.REVISION_ID.in(revisions)).execute();
         db.update(REVISION).setNull(REVISION.PARENT_ID).where(REVISION.CHAPTER_ID.eq(id)).execute();
         db.deleteFrom(REVISION).where(REVISION.CHAPTER_ID.eq(id)).execute();
         db.deleteFrom(CHAPTER).where(CHAPTER.ID.eq(id)).execute();
-        volumes.renumber(editionId);
-        refreshCounters(editionId, null);
     }
 
     @Override
@@ -374,7 +422,7 @@ class ChapterService implements Chapters {
                 .where(EDITOR_DRAFT.CHAPTER_ID.eq(CHAPTER.ID).and(EDITOR_DRAFT.ACCOUNT_ID.eq(accountId))));
         var pending = DSL.field(DSL.selectCount().from(SUGGESTION)
                 .where(SUGGESTION.CHAPTER_ID.eq(CHAPTER.ID), SUGGESTION.STATE.eq("pending")));
-        org.jooq.Condition where = CHAPTER.EDITION_ID.eq(editionId);
+        org.jooq.Condition where = CHAPTER.EDITION_ID.eq(editionId).and(CHAPTER.DELETED_AT.isNull());
         where = switch (filter == null ? "" : filter) {
             case "suggestions" -> where.and(DSL.exists(DSL.selectOne().from(SUGGESTION)
                     .where(SUGGESTION.CHAPTER_ID.eq(CHAPTER.ID), SUGGESTION.STATE.eq("pending"))));

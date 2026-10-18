@@ -39,6 +39,7 @@ import { JobLogPage } from '../pages/studio/JobLogPage';
 import { GlossaryPage } from '../pages/studio/GlossaryPage';
 import { OriginalsPage } from '../pages/studio/OriginalsPage';
 import { ProcessesPage } from '../pages/studio/ProcessesPage';
+import { TrashPage } from '../pages/studio/TrashPage';
 import { TitlesPage } from '../pages/studio/TitlesPage';
 import { WalletPage } from '../pages/me/WalletPage';
 import { AdminHome, AuditPage, ModerationPage, SiteSettingsPage, UsersPage } from '../pages/admin/AdminPages';
@@ -183,6 +184,7 @@ const routeTree = rootRoute.addChildren([
     studio('/studio/$editionId/originals', OriginalsPage, 'Оригінал'),
     studio('/studio/$editionId/titles', TitlesPage, 'Назви глав'),
     studio('/studio/processes', ProcessesPage, 'Процеси'),
+    studio('/studio/trash', TrashPage, 'Кошик'),
     studio('/me/wallet', WalletPage, 'Шаги'),
     studio('/me/shahs', ShahsPage, 'Мої шаги'),
     studio('/studio/$editionId/chapters/$number', ChapterEditorPage, 'Редактор'),

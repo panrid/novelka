@@ -42,10 +42,25 @@ public interface Chapters {
     void setLabel(long editionId, int number, String label);
 
     /**
-     * Removes a chapter with its history, drafts and suggestions. A chapter readers never saw
-     * goes any time; a published one only if it is the last, so no hole opens in the middle.
+     * «В кошик»: readers no longer see the chapter, its number stays a gap (the next chapter keeps
+     * its own), and the team may bring it back for 30 days; then {@link #purgeChapters} erases it.
      */
-    void deleteChapter(long editionId, int number);
+    void trashChapter(long editionId, int number, long accountId);
+
+    /** Back from the bin with the text it had. */
+    void restoreChapter(long editionId, int number);
+
+    /** A chapter in the bin. */
+    record TrashedChapter(int number, String label, String title, java.time.OffsetDateTime deletedAt) {
+    }
+
+    List<TrashedChapter> trashedChapters(long editionId);
+
+    /** Erases chapters in the bin since before {@code before} with their history; how many. */
+    int purgeChapters(java.time.OffsetDateTime before);
+
+    /** Erases every chapter of a translation whose bin time ran out. */
+    void purgeEdition(long editionId);
 
     /** A new empty chapter at the end, unpublished until its first «Опублікувати». */
     int createChapter(long editionId);
