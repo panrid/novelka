@@ -13,6 +13,7 @@ permissions:
 jobs:
     # A pull request already tested and built exactly this tree (pull-request.yml): deploy its JAR.
     # Anything else runs in full: a direct push, main moved after the check, a fork, a manual run.
+    # Re-running an old deploy reuses its pull request's JAR while that is kept (7 days), otherwise rebuilds.
     find:
         name: Find checked JAR
         runs-on: ubuntu-latest
