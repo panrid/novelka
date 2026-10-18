@@ -6,7 +6,6 @@ import org.jooq.DSLContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
-import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +14,6 @@ import space.panrid.novelka.jooq.Tables;
 import space.panrid.novelka.support.IntegrationTest;
 
 @IntegrationTest
-@AutoConfigureTestRestTemplate
 class ApplicationTests {
 
     @Autowired

@@ -90,9 +90,15 @@ def generateJooq = tasks.register('generateJooq', JavaExec) {
 
 sourceSets.main.java.srcDir(generateJooq)
 
+// Test classes run in several JVMs at once; each has its own Spring context and its own PostgreSQL
+// container, so they share no data. Half the cores (at most 4) by default; -PtestForks=N overrides.
+def testForks = providers.gradleProperty('testForks').map { it as int }
+        .getOrElse(Math.min(4, Math.max(1, Runtime.runtime.availableProcessors().intdiv(2))))
+
 tasks.named('test') {
     useJUnitPlatform()
     jvmArgs '-Duser.timezone=UTC'
+    maxParallelForks = testForks
 }
 
 tasks.named('bootRun') {
