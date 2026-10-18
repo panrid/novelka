@@ -17,3 +17,5 @@
 | [doc/architecture.md](doc/architecture.md) | Модулі бекенду й схема даних |
 | [doc/plan.md](doc/plan.md) | Етапи розробки й відкриті питання |
 | [doc/development.md](doc/development.md) | Запуск локально, перевірки, міграції |
+| [doc/contributing.md](doc/contributing.md) | Як долучитися: встановити, запустити, працювати з агентом |
+| [doc/redesign/README.md](doc/redesign/README.md) | Новий дизайн: запит, рішення, макет |
