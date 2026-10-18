@@ -3,7 +3,7 @@ import { changes, characters, paragraphs } from './plural';
 
 describe('plural', () => {
     it('follows Ukrainian number agreement', () => {
-        expect(changes(1)).toBe('1 зміна');
+        expect(changes(1)).toBe('1 змін — навмисно червоний тест для #227');
         expect(changes(3)).toBe('3 зміни');
         expect(changes(11)).toBe('11 змін');
         expect(paragraphs(21)).toBe('21 абзац');
