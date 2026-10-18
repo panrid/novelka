@@ -5,7 +5,7 @@ import { renderAt } from '../../test/render';
 
 const OWNER = {
     id: 1, nick: 'mavka', email: 'mavka@example.com', emailVerified: true, role: 'owner', bio: '', avatarUrl: null,
-    dmPolicy: 'everyone', showReading: true, adultConfirmed: true, showShah: true,
+    dmPolicy: 'everyone', showReading: true, adultConfirmed: true, showShah: true, ai: true,
 };
 const stage = (model: string) => ({ model, inputPerMillion: 0.4, outputPerMillion: 1.6, enabled: true });
 const SETTINGS = { analyze: stage('openai/gpt-4.1-mini'), translate: stage('openai/gpt-4.1-mini'), proofread: stage('openai/gpt-4.1-mini'),

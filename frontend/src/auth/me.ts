@@ -26,6 +26,11 @@ export type Me = {
     appearance?: unknown;
     /** Autotranslate is theirs: the site owner, or let in by the owner (they pay with шаги). */
     autotranslate?: boolean;
+    /**
+     * Sees the AI tools at all (етап 19, п. 7): the site owner keeps them from people without шаги
+     * in «Налаштування сайту». The server decides it and refuses the same anyway.
+     */
+    ai?: boolean;
 };
 
 export const meQuery = queryOptions({

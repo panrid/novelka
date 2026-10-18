@@ -5,7 +5,7 @@ import { renderAt } from '../../test/render';
 
 const OWNER = {
     id: 1, nick: 'panrid', email: 'panrid@example.com', emailVerified: true, role: 'owner', bio: '', avatarUrl: null,
-    dmPolicy: 'everyone', showReading: true, adultConfirmed: false, showShah: true,
+    dmPolicy: 'everyone', showReading: true, adultConfirmed: false, showShah: true, ai: true,
 };
 const EDITOR = {
     number: 3, title: 'Маяк', revisionId: 41, published: true, draft: null, role: 'owner', mayAddPictures: true,
@@ -68,6 +68,17 @@ describe('drawing a scene', () => {
         await vi.waitFor(() => expect(calls.find((call) => call.path.endsWith('/publish'))?.body).toMatchObject({
             blocks: [{ id: 'b1' }, { type: 'image', imageId: 71 }, { type: 'image', imageId: 70 }, { id: 'b2' }],
         }));
+    });
+
+    it('is not offered while the site keeps AI hidden from the person (етап 19, п. 7)', async () => {
+        await renderAt('/studio/7/chapters/3', {
+            'GET /api/me': { body: { ...OWNER, role: 'reader', ai: false } },
+            'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
+            'GET /api/studio/editions/7/chapters/3': { body: EDITOR },
+        });
+        await screen.findByText('Рьо стояв біля маяка.');
+        expect(screen.queryByRole('button', { name: 'Намалювати сцену' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Картинка з файлу' })).toBeInTheDocument();
     });
 
     it('is not offered to translators other than the site owner', async () => {

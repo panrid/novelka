@@ -124,6 +124,36 @@ describe('administration', () => {
         expect(await screen.findByText('Збережено.')).toBeInTheDocument();
     });
 
+    it('the owner shows AI to people without шаги (етап 19, п. 7)', async () => {
+        const { calls } = await renderAt('/admin/settings', {
+            'GET /api/me': { body: person('owner') },
+            'GET /api/admin/settings': { body: { relayInactiveMonths: 3, registrationOpen: true, adultEnabled: true, hideAiWithoutShahs: true } },
+            'PUT /api/admin/settings': (body) => ({ body }),
+        });
+        const hide = await screen.findByRole('switch', { name: 'Сховати ШІ для людей без шагів' });
+        expect(hide).toBeChecked();
+        await userEvent.click(hide);
+        await userEvent.click(screen.getByRole('button', { name: 'Зберегти' }));
+        await vi.waitFor(() => expect(calls.find((call) => call.method === 'PUT')?.body)
+            .toEqual({ relayInactiveMonths: 3, registrationOpen: true, adultEnabled: true, hideAiWithoutShahs: false }));
+    });
+
+    it('the journal says when AI was hidden or shown', async () => {
+        const at = new Date().toISOString();
+        const settings = (hide: boolean) => ({ relayInactiveMonths: 3, registrationOpen: true, adultEnabled: true, hideAiWithoutShahs: hide });
+        await renderAt('/admin/audit', {
+            'GET /api/me': { body: person('owner') },
+            'GET /api/admin/audit': { body: { total: 2, page: 1, hasMore: false, items: [
+                { id: 2, actor: 'panrid', action: 'settings', targetType: 'site', targetId: null, createdAt: at,
+                    details: { before: settings(true), after: settings(false) } },
+                { id: 1, actor: 'panrid', action: 'settings', targetType: 'site', targetId: null, createdAt: at,
+                    details: { before: settings(false), after: settings(true) } },
+            ] } },
+        });
+        expect(await screen.findByText(/змінює налаштування сайту · показує ШІ й людям без шагів/)).toBeInTheDocument();
+        expect(screen.getByText(/змінює налаштування сайту · ховає ШІ від людей без шагів/)).toBeInTheDocument();
+    });
+
     it('the journal says in words what was done', async () => {
         const at = new Date().toISOString();
         await renderAt('/admin/audit', {

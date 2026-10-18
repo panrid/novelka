@@ -27,16 +27,23 @@ export function useMyShahs() {
 
 /**
  * Autotranslate and the AI tools of translating: the site owner's and of those the owner let in
- * (they pay with their шаги) while етап 19 is being made.
+ * (they pay with their шаги) while етап 19 is being made; nobody's from whom AI is hidden.
  */
 export function useCanRun(): boolean {
+    const me = useMe();
+    const mayPaste = useMayPaste();
+    return me?.ai === true && mayPaste;
+}
+
+/** The original pasted by hand (етап 19): not AI, so it stays for those let in even with AI hidden. */
+export function useMayPaste(): boolean {
     const me = useMe();
     return me?.role === 'owner' || me?.autotranslate === true;
 }
 
-/** «Намалювати сцену»: for anyone with шаги, and the site owner. */
+/** «Намалювати сцену»: for anyone with шаги, and the site owner; nobody's from whom AI is hidden. */
 export function useCanDraw(): boolean {
     const me = useMe();
     const shahs = useMyShahs();
-    return me?.role === 'owner' || (shahs.data?.available ?? 0) > 0 || (shahs.data?.reserved ?? 0) > 0;
+    return me?.ai === true && (me.role === 'owner' || (shahs.data?.available ?? 0) > 0 || (shahs.data?.reserved ?? 0) > 0);
 }

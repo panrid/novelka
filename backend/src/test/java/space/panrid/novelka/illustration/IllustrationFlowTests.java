@@ -118,9 +118,10 @@ class IllustrationFlowTests {
         Person translator = Accounts.signedIn(port, mailbox);
         long own = read(translator.browser().post("/api/studio/editions", """
                 {"kind":"human","title":"Своє %s"}""".formatted(translator.nick()))).path("editionId").asLong();
-        assertThat(translator.browser().get("/api/studio/editions/" + own + "/illustrations/price").status()).isEqualTo(400);
+        // AI is hidden from people without шаги (етап 19, п. 7); with it shown they hear of шаги, HiddenAiTests.
+        assertThat(translator.browser().get("/api/studio/editions/" + own + "/illustrations/price").status()).isEqualTo(403);
         assertThat(translator.browser().post("/api/studio/editions/" + own + "/illustrations", json("prompt", "x", "aspect", "1:1")).status())
-                .isEqualTo(400);
+                .isEqualTo(403);
         assertThat(owner.browser().get("/api/studio/editions/" + own + "/illustrations/price").status())
                 .as("the owner draws only where they translate").isEqualTo(403);
         assertThat(model.calls).isEmpty();

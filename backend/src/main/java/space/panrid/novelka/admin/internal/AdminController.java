@@ -146,7 +146,8 @@ class AdminController {
         staff.setAutotranslate(access.requireSiteRole(SiteRole.OWNER), nick, body.allowed());
     }
 
-    record SiteSettingsView(int relayInactiveMonths, boolean registrationOpen, boolean adultEnabled) {
+    /** {@code hideAiWithoutShahs}: AI is hidden from people without шаги (етап 19, п. 7); left out — unchanged. */
+    record SiteSettingsView(int relayInactiveMonths, boolean registrationOpen, boolean adultEnabled, Boolean hideAiWithoutShahs) {
     }
 
     @GetMapping("/admin/settings")
@@ -165,13 +166,18 @@ class AdminController {
         settings.put(SiteSettings.RELAY_INACTIVE_MONTHS, String.valueOf(body.relayInactiveMonths()), owner.accountId());
         settings.put(SiteSettings.REGISTRATION_OPEN, String.valueOf(body.registrationOpen()), owner.accountId());
         settings.put(SiteSettings.ADULT_ENABLED, String.valueOf(body.adultEnabled()), owner.accountId());
-        audit.record(owner.accountId(), "settings", "site", null, Map.of("before", before, "after", body));
-        return current();
+        if (body.hideAiWithoutShahs() != null) {
+            settings.put(SiteSettings.AI_HIDDEN_WITHOUT_SHAHS, String.valueOf(body.hideAiWithoutShahs()), owner.accountId());
+        }
+        SiteSettingsView after = current();
+        audit.record(owner.accountId(), "settings", "site", null, Map.of("before", before, "after", after));
+        return after;
     }
 
     private SiteSettingsView current() {
         return new SiteSettingsView(settings.integer(SiteSettings.RELAY_INACTIVE_MONTHS, 3),
-                settings.flag(SiteSettings.REGISTRATION_OPEN, true), settings.flag(SiteSettings.ADULT_ENABLED, true));
+                settings.flag(SiteSettings.REGISTRATION_OPEN, true), settings.flag(SiteSettings.ADULT_ENABLED, true),
+                settings.flag(SiteSettings.AI_HIDDEN_WITHOUT_SHAHS, true));
     }
 
     record Entry(long id, String actor, String action, String targetType, Long targetId, Map<String, Object> details,

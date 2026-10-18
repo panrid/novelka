@@ -61,7 +61,7 @@ describe('what to translate', () => {
     it('takes a proposal to translate with the chosen team', async () => {
         const { calls, router } = await renderAt('/proposals', {
             // The site owner's translations come from the original's site, to the autotranslation (етап 19).
-            'GET /api/me': { body: { ...ME, role: 'owner' } },
+            'GET /api/me': { body: { ...ME, role: 'owner', ai: true } },
             'GET /api/proposals': { body: page([PROPOSAL]) },
             'GET /api/me/teams': { body: [{ handle: 'mika', name: 'mika', role: 'owner' }, { handle: 'svitlo', name: 'Світло', role: 'translator' }] },
             'POST /api/proposals/5/take': { body: { editionId: 12, novelSlug: 'dohliadach-mayaka' } },

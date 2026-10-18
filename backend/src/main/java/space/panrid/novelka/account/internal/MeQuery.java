@@ -9,6 +9,7 @@ import java.util.Optional;
 import org.jooq.DSLContext;
 import org.springframework.stereotype.Component;
 
+import space.panrid.novelka.account.AiVisibility;
 import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.media.Images;
 import tools.jackson.databind.json.JsonMapper;
@@ -23,11 +24,13 @@ class MeQuery {
     private final DSLContext db;
     private final Images images;
     private final JsonMapper json;
+    private final AiVisibility ai;
 
-    MeQuery(DSLContext db, Images images, JsonMapper json) {
+    MeQuery(DSLContext db, Images images, JsonMapper json, AiVisibility ai) {
         this.db = db;
         this.images = images;
         this.json = json;
+        this.ai = ai;
     }
 
     Optional<Me> find(long id) {
@@ -38,7 +41,8 @@ class MeQuery {
                 SiteRole.fromCode(r.getSiteRole()) == SiteRole.OWNER ? r.getShowShah() : true, r.getStudioInMenu(),
                 r.getGoogleSub() != null, r.getPasswordSet(),
                 json.readTree(r.getAppearance().data()),
-                SiteRole.fromCode(r.getSiteRole()) == SiteRole.OWNER || r.getAutotranslate()));
+                SiteRole.fromCode(r.getSiteRole()) == SiteRole.OWNER || r.getAutotranslate(),
+                ai.seesAi(r.getId(), SiteRole.fromCode(r.getSiteRole()))));
     }
 
     Optional<PublicProfile> publicProfile(long id) {

@@ -285,6 +285,12 @@ function SettingsForm({ initial }: { initial: SiteSettingsView }) {
             <Toggle label="Реєстрація відкрита" isSelected={draft.registrationOpen} onChange={(registrationOpen) => setDraft({ ...draft, registrationOpen })} />
             <Toggle label="Новели 18+ на сайті" isSelected={draft.adultEnabled} onChange={(adultEnabled) => setDraft({ ...draft, adultEnabled })} />
             <p className={styles.muted}>Вимкнено — дорослих новел не бачить ніхто, навіть ті, хто підтвердив вік.</p>
+            <Toggle label="Сховати ШІ для людей без шагів" isSelected={draft.hideAiWithoutShahs}
+                onChange={(hideAiWithoutShahs) => setDraft({ ...draft, hideAiWithoutShahs })} />
+            <p className={styles.muted}>
+                Увімкнено — хто не має шагів, не бачить нічого з ШІ: «Перекласти з ШІ», автопереклад, вичитку, ШІ в словнику,
+                «Намалювати сцену», вибір моделей; оригінал вставляють і перекладають самі. Ви й люди з шагами бачите все.
+            </p>
             <TextInput label="Строк естафети, місяців" value={months} onChange={setMonths} inputMode="numeric"
                 hint="Переклад стає вільним, якщо власник команди стільки не заходив." />
             {save.isError && <Notice tone="error">{save.error.message}</Notice>}
@@ -305,7 +311,6 @@ function describe(entry: AuditEntry): string {
         const details = entry.details as { nick?: string; from?: keyof typeof ROLE_LABELS; to?: keyof typeof ROLE_LABELS };
         return `змінює роль ${details.nick}: ${details.from ? ROLE_LABELS[details.from] : ''} → ${details.to ? ROLE_LABELS[details.to] : ''}`;
     }
-    if (entry.action === 'settings') return ACTIONS.settings!;
     if (entry.action === 'shahs_granted') {
         const details = entry.details as { shah?: number; nick?: string; note?: string };
         return `нараховує ${details.shah ?? 0} ${shahWord(details.shah ?? 0)} ${details.nick ?? ''}${details.note ? ` · «${details.note}»` : ''}`;
@@ -313,6 +318,12 @@ function describe(entry: AuditEntry): string {
     if (entry.action === 'autotranslate_granted' || entry.action === 'autotranslate_revoked') {
         const nick = (entry.details as { nick?: string }).nick ?? '';
         return `${entry.action === 'autotranslate_granted' ? 'відкриває' : 'закриває'} автопереклад ${nick}`;
+    }
+    if (entry.action === 'settings') {
+        const { before, after } = entry.details as { before?: Partial<SiteSettingsView>; after?: Partial<SiteSettingsView> };
+        const ai = before?.hideAiWithoutShahs !== undefined && after?.hideAiWithoutShahs !== undefined
+            && before.hideAiWithoutShahs !== after.hideAiWithoutShahs;
+        return `${ACTIONS.settings}${ai ? (after!.hideAiWithoutShahs ? ' · ховає ШІ від людей без шагів' : ' · показує ШІ й людям без шагів') : ''}`;
     }
     if (entry.action === 'shah_price') {
         const micro = (entry.details as { microUsdPerShah?: number }).microUsdPerShah ?? 0;

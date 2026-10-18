@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useId, useRef, useState } from 'react';
+import { useCanRun } from '../../ledger/api';
 import { chaptersWord } from '../../reading/api';
 import { characters } from '../../lib/plural';
 import {
@@ -74,7 +75,10 @@ export function OriginalsPage() {
     );
 }
 
+/** To autotranslate from the originals; nothing while AI is hidden from the person (етап 19, п. 7). */
 function TranslateLink({ editionId, label = 'Перекласти →' }: { editionId: number; label?: string }) {
+    const canRun = useCanRun();
+    if (!canRun) return null;
     return (
         <Link to="/studio/$editionId/translate" params={{ editionId: String(editionId) }} className={styles.translate}>
             {label}

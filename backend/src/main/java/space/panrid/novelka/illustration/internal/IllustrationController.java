@@ -46,6 +46,7 @@ class IllustrationController {
     private Viewer drawer(long editionId) {
         Viewer viewer = access.requireSignedIn();
         access.requireTranslator(editionId);
+        access.requireAi();
         if (personal(viewer) && ledger.balance(viewer.accountId()).available() < 1) {
             throw UserFacingException.badRequest("Малювати можна за шаги, а у вас їх поки немає. Шаги нараховує власник сайту.");
         }
