@@ -35,7 +35,7 @@ GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, за бажан�
 | `NOVELKA_DB_PASSWORD` | пароль PostgreSQL |
 | `OPENROUTER_API_KEY` | автопереклад |
 | `OPENROUTER_MANAGEMENT_KEY` | залишок на OpenRouter («Шаги» власника) |
-| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` | листи (Resend) |
+| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_AUTH`, `MAIL_STARTTLS`, `MAIL_FROM` | листи: свій сервер `mail` або запасний Resend (див. «Пошта») |
 | `NOVELKA_OWNER_NICK`, `NOVELKA_OWNER_EMAIL`, `NOVELKA_OWNER_PASSWORD` | створити власника при першому запуску; після — прибрати |
 
 Змінні `NOVELKA_*_MODEL` і `*_USD_M` від v1 новий сайт не читає: моделі й ціни власник
@@ -70,6 +70,46 @@ docker compose --env-file .env.production -f infra/production.compose.yaml start
 ```
 
 Картинки: `docker run --rm -v novelka_media:/m -v novelka_backups:/b alpine tar xzf /b/media-РРРР-ММ-ДД.tgz -C /m`.
+
+## Пошта
+
+Листи сайт надсилає сам: сервіс `mail` (Postfix з DKIM, образ `boky/postfix`) лише відправляє,
+порту назовні не має й приймає листи тільки з мережі Compose. Пошту на домен ми не приймаємо.
+
+У `.env.production` для свого сервера:
+
+```
+MAIL_HOST=mail
+MAIL_PORT=587
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_AUTH=false
+MAIL_STARTTLS=false
+MAIL_FROM=Новелка <no-reply@novelka.in.ua>
+```
+
+Запасний шлях — Resend: `MAIL_HOST=smtp.resend.com`, ключ у `MAIL_PASSWORD`, `MAIL_AUTH=true`,
+`MAIL_STARTTLS=true`. Перемикання — зміна `.env.production` і `sh infra/deploy.sh`.
+
+DNS домену `novelka.in.ua` (NIC.UA):
+
+| Ім'я | Тип | Значення |
+|---|---|---|
+| `@` | TXT | `v=spf1 ip4:62.72.33.247 -all` |
+| `novelka._domainkey` | TXT | публічний ключ DKIM (нижче, як його взяти) |
+| `_dmarc` | TXT | `v=DMARC1; p=none; rua=mailto:<пошта власника>` → згодом `p=quarantine` |
+| `@` | MX | `0 .` (пошту не приймаємо) |
+
+Зворотний запис IP (PTR) у панелі Hostinger — `novelka.in.ua`; так само звуть себе й Postfix.
+
+Ключ DKIM створюється сам при першому запуску й лежить у томі `novelka_dkim`; його публічна частина:
+
+```
+ssh novelka@62.72.33.247 'docker run --rm -v novelka_dkim:/k alpine cat /k/novelka.in.ua.txt'
+```
+
+Перевірка: лист на адресу з https://www.mail-tester.com (має бути 10/10) і на Gmail, Outlook,
+ukr.net; журнал — `docker logs novelka-mail-1`.
 
 ## Моніторинг
 
