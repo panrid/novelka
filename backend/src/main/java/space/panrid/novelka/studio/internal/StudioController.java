@@ -193,7 +193,7 @@ class StudioController {
         var rows = db.select(EDITION.ID, NOVEL.SLUG, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), EDITION.COVER_IMAGE_ID,
                         EDITION.KIND, EDITION.STATUS, EDITION.CHAPTER_COUNT, TEAM.ID, drafts, pending, words)
                 .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
-                .where(TEAM.OWNER_ID.eq(viewer.accountId()).or(TEAM.ID.in(member)))
+                .where(TEAM.OWNER_ID.eq(viewer.accountId()).or(TEAM.ID.in(member)), EDITION.DELETED_AT.isNull())
                 .orderBy(DSL.greatest(EDITION.CREATED_AT, DSL.coalesce(EDITION.LAST_PUBLISHED_AT, EDITION.CREATED_AT)).desc())
                 .fetch();
         Map<Long, StoredImage> covers = images.findAll(rows.map(r -> r.value4()));
@@ -402,11 +402,23 @@ class StudioController {
         chapters.discardDraft(editionId, number, who.viewer().accountId());
     }
 
-    /** An empty chapter created by mistake, or the last published one. */
+    /** «Видалити»: to the bin for 30 days; the number stays a gap. */
     @DeleteMapping("/editions/{editionId}/chapters/{number}")
     void deleteChapter(@PathVariable long editionId, @PathVariable int number) {
+        EditionAccess who = access.requireTranslator(editionId);
+        chapters.trashChapter(editionId, number, who.viewer().accountId());
+    }
+
+    @GetMapping("/editions/{editionId}/chapters/trash")
+    List<space.panrid.novelka.text.Chapters.TrashedChapter> trashedChapters(@PathVariable long editionId) {
         access.requireTranslator(editionId);
-        chapters.deleteChapter(editionId, number);
+        return chapters.trashedChapters(editionId);
+    }
+
+    @PostMapping("/editions/{editionId}/chapters/{number}/restore")
+    void restoreChapter(@PathVariable long editionId, @PathVariable int number) {
+        access.requireTranslator(editionId);
+        chapters.restoreChapter(editionId, number);
     }
 
     record LabelRequest(String label) {

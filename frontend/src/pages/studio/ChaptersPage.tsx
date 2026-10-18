@@ -98,9 +98,9 @@ function ChaptersTab() {
                     )}
                     {!chapter.published && <span className={styles.badge}>не опубліковано</span>}
                     {chapter.hasMyDraft && <span className={`${styles.badge} ${styles.badgeOn}`}>чернетка</span>}
-                    {translator && !chapter.published && (
+                    {translator && (
                         <button type="button" className={styles.iconButton} aria-label={`Видалити главу ${chapter.number}`}
-                            onClick={() => void askConfirm({ title: 'Видалити главу?', text: 'Вона ще не опублікована.', confirmLabel: 'Видалити', danger: true })
+                            onClick={() => void askConfirm({ title: `Видалити главу ${chapter.number}?`, text: TRASH_NOTE, confirmLabel: 'Видалити', danger: true })
                                 .then((yes) => { if (yes) remove.mutate(chapter.number); })}>
                             <Trash2 size={18} aria-hidden />
                         </button>
@@ -108,6 +108,42 @@ function ChaptersTab() {
                 </div>
             ))}
             {chapters.data && <Pager page={page} total={chapters.data.total} size={PAGE_SIZE} onPage={setPage} />}
+            {translator && <ChapterBin editionId={id} />}
         </>
+    );
+}
+
+export const TRASH_NOTE = 'Читачі її більше не побачать. Глава полежить у кошику 30 днів — звідти її можна повернути; номер лишиться порожнім, інші глави свої номери не змінять.';
+
+/** «Кошик»: chapters deleted in the last 30 days, each with «Повернути». */
+function ChapterBin({ editionId }: { editionId: number }) {
+    const client = useQueryClient();
+    const bin = useQuery({ queryKey: ['studio-chapters', editionId, 'trash'], queryFn: () => studioApi.trashedChapters(editionId) });
+    const restore = useMutation({
+        meta: { errorToast: true },
+        mutationFn: (number: number) => studioApi.restoreChapter(editionId, number),
+        onSuccess: () => {
+            void client.invalidateQueries({ queryKey: ['studio-chapters', editionId] });
+            void client.invalidateQueries({ queryKey: ['studio-edition', editionId] });
+        },
+    });
+    const items = bin.data ?? [];
+    if (items.length === 0) return null;
+    return (
+        <section aria-label="Кошик" style={{ marginTop: 24 }}>
+            <h2 className={styles.sectionTitle}>Кошик · {items.length}</h2>
+            <p className={styles.muted}>Видалені глави лежать тут 30 днів, потім стираються назавжди.</p>
+            {items.map((chapter) => (
+                <div key={chapter.number} className={styles.row}>
+                    <div className={styles.grow}>
+                        <div className={styles.ellipsis}>{chapterHeading({ number: chapter.number, label: chapter.label, title: chapter.title })}</div>
+                        <div className={styles.muted}>видалено {relativeTime(new Date(chapter.deletedAt))}</div>
+                    </div>
+                    <button type="button" className={styles.plainButton} disabled={restore.isPending} onClick={() => restore.mutate(chapter.number)}>
+                        Повернути
+                    </button>
+                </div>
+            ))}
+        </section>
     );
 }

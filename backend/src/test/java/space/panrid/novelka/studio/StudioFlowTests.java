@@ -225,20 +225,59 @@ class StudioFlowTests {
     }
 
     @Test
-    void anEmptyChapterGoesAnyTimeAPublishedOneOnlyIfLast() {
+    void aDeletedChapterWaitsInTheBinAndItsNumberStaysAGap() {
         long edition = createPublication(owner, "Видалення", "original");
-        for (int n = 1; n <= 2; n++) {
+        for (int n = 1; n <= 3; n++) {
             owner.browser().post("/api/studio/editions/" + edition + "/chapters", "{}");
             owner.browser().post(chapter(edition, n) + "/publish", text("Глава " + n, null, "Текст."));
         }
+        String slug = read(owner.browser().get("/api/studio")).valueStream()
+                .filter(item -> item.path("editionId").asLong() == edition).findFirst().orElseThrow().path("novelSlug").asString();
+        assertThat(owner.browser().delete(chapter(edition, 2)).status()).as("any chapter, from the middle too").isEqualTo(200);
+
+        assertThat(new Browser(port).get("/api/novels/" + slug + "/chapters/2").status()).as("readers no longer see it").isEqualTo(404);
+        assertThat(read(owner.browser().get("/api/studio/editions/" + edition)).path("chapterCount").asInt()).isEqualTo(2);
+        assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/chapters")).path("items"))
+                .extracting(c -> c.path("number").asInt()).as("the others keep their numbers").containsExactly(3, 1);
+        JsonNode bin = read(owner.browser().get("/api/studio/editions/" + edition + "/chapters/trash"));
+        assertThat(bin).extracting(c -> c.path("number").asInt() + " " + c.path("title").asString()).containsExactly("2 Глава 2");
+
         owner.browser().post("/api/studio/editions/" + edition + "/chapters", "{}");
-        assertThat(owner.browser().delete(chapter(edition, 3)).status()).as("created by mistake, never published").isEqualTo(200);
-        assertThat(owner.browser().delete(chapter(edition, 1)).status()).as("not the last").isEqualTo(409);
-        assertThat(owner.browser().delete(chapter(edition, 2)).status()).isEqualTo(200);
-        JsonNode overview = read(owner.browser().get("/api/studio/editions/" + edition));
-        assertThat(overview.path("chapterCount").asInt()).isEqualTo(1);
-        assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/chapters")).path("items")).extracting(c -> c.path("number").asInt())
-                .containsExactly(1);
+        assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/chapters")).path("items").path(0).path("number").asInt())
+                .as("a new chapter comes after the last, the gap stays").isEqualTo(4);
+
+        read(owner.browser().post(chapter(edition, 2) + "/restore", "{}"));
+        assertThat(new Browser(port).get("/api/novels/" + slug + "/chapters/2").status()).as("back with its text").isEqualTo(200);
+        assertThat(read(owner.browser().get("/api/studio/editions/" + edition + "/chapters/trash")).size()).isZero();
+    }
+
+    @Test
+    void aTranslationGoesToTheBinOnlyWithTheCodeFromTheEmail() {
+        long edition = createPublication(owner, "Під видалення", "original");
+        owner.browser().post("/api/studio/editions/" + edition + "/chapters", "{}");
+        owner.browser().post(chapter(edition, 1) + "/publish", text("Глава 1", null, "Текст."));
+        String slug = read(owner.browser().get("/api/studio")).valueStream()
+                .filter(item -> item.path("editionId").asLong() == edition).findFirst().orElseThrow().path("novelSlug").asString();
+        String base = "/api/studio/editions/" + edition;
+
+        JsonNode sent = read(owner.browser().post(base + "/delete-code", "{}"));
+        assertThat(sent.path("email").asString()).contains("***@");
+        String letter = mailbox.to(owner.email()).getLast().text();
+        String code = letter.replaceAll("(?s).*?(\\d{6}).*", "$1");
+        assertThat(owner.browser().post(base + "/delete", "{\"code\":\"000000\"}").status()).as("a wrong code").isEqualTo(400);
+        assertThat(new Browser(port).get("/api/novels/" + slug).status()).as("still there").isEqualTo(200);
+
+        read(owner.browser().post(base + "/delete", "{\"code\":\"" + code + "\"}"));
+        assertThat(new Browser(port).get("/api/novels/" + slug).status()).as("gone for readers").isEqualTo(404);
+        assertThat(read(owner.browser().get("/api/studio")).valueStream().noneMatch(item -> item.path("editionId").asLong() == edition))
+                .as("gone from the Studio list").isTrue();
+        assertThat(owner.browser().get(base).status()).isEqualTo(404);
+        JsonNode bin = read(owner.browser().get("/api/studio/trash"));
+        assertThat(bin).extracting(item -> item.path("title").asString()).contains("Під видалення");
+
+        read(owner.browser().post(base + "/restore", "{}"));
+        assertThat(new Browser(port).get("/api/novels/" + slug).status()).as("back").isEqualTo(200);
+        assertThat(read(owner.browser().get(base)).path("chapterCount").asInt()).isEqualTo(1);
     }
 
     @Test

@@ -29,6 +29,7 @@ export function StudioRail() {
             <Link to="/studio/new" className={`${styles.item} ${at('/studio/new') ?? ''}`}>＋ Нова публікація</Link>
             <Link to="/studio/processes" className={`${styles.item} ${at('/studio/processes') ?? ''}`}>Процеси</Link>
             <Link to="/studio/teams" className={`${styles.item} ${at('/studio/teams') ?? ''}`}>Мої команди</Link>
+            <Link to="/studio/trash" className={`${styles.item} ${at('/studio/trash') ?? ''}`}>Кошик</Link>
 
         </nav>
     );

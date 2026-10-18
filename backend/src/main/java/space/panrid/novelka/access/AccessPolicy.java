@@ -73,6 +73,9 @@ public class AccessPolicy {
         if (!db.fetchExists(EDITION, EDITION.ID.eq(editionId))) {
             throw UserFacingException.notFound("Такої новели немає.");
         }
+        if (db.fetchExists(EDITION, EDITION.ID.eq(editionId), EDITION.DELETED_AT.isNotNull())) {
+            throw UserFacingException.notFound("Цей переклад у кошику. Відновіть його в Студії → «Кошик».");
+        }
         return editionRole(editionId).filter(access -> allowed.test(access.role()))
                 .orElseThrow(() -> new UserFacingException(HttpStatus.FORBIDDEN, "Це вам недоступно."));
     }

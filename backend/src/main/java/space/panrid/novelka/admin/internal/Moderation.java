@@ -214,7 +214,7 @@ class Moderation {
         collect(out, "image", db.select(IMAGE.ID, IMAGE.HIDDEN_AT, IMAGE.HIDDEN_BY, IMAGE.HIDDEN_REASON).from(IMAGE)
                 .where(IMAGE.HIDDEN_AT.isNotNull()).orderBy(IMAGE.HIDDEN_AT.desc()).limit(30).fetch());
         collect(out, "edition", db.select(EDITION.ID, EDITION.HIDDEN_AT, EDITION.HIDDEN_BY, EDITION.HIDDEN_REASON).from(EDITION)
-                .where(EDITION.HIDDEN_AT.isNotNull()).orderBy(EDITION.HIDDEN_AT.desc()).limit(30).fetch());
+                .where(EDITION.HIDDEN_AT.isNotNull(), EDITION.DELETED_AT.isNull()).orderBy(EDITION.HIDDEN_AT.desc()).limit(30).fetch());
         out.sort((a, b) -> b.hiddenAt().compareTo(a.hiddenAt()));
         return out;
     }

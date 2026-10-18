@@ -390,3 +390,50 @@ describe('the original of a translation (етап 19)', () => {
         expect(screen.queryByRole('link', { name: 'Оригінал' })).not.toBeInTheDocument();
     });
 });
+
+describe('deleting', () => {
+    const OVERVIEW = { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'human',
+        status: 'ongoing', adult: false, coverUrl: null, chapterCount: 2, ownNovel: false, teamHandle: 'mika', teamName: 'mika',
+        role: 'owner', ...COUNTS };
+
+    it('sends a code first and deletes the translation only with it, into the bin', async () => {
+        const { calls } = await renderAt('/studio/12/settings', {
+            'GET /api/me': { body: ME },
+            'GET /api/studio/editions/12': { body: OVERVIEW },
+            'GET /api/studio/editions/12/contributions': { body: [] },
+            'POST /api/studio/editions/12/delete-code': { body: { email: 'm***@example.com', minutes: 15 } },
+            'POST /api/studio/editions/12/delete': { body: '' },
+            'GET /api/studio/trash': { body: [{ editionId: 12, title: 'Лиходійка', teamName: 'mika', deletedAt: '2026-10-18T10:00:00Z',
+                erasedAt: '2026-11-17T10:00:00Z' }] },
+            'GET /api/studio': { body: [] },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Видалити переклад' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Надіслати код на пошту й у Telegram' }));
+        expect(await screen.findByText(/Код надіслано на m\*\*\*@example\.com/)).toBeInTheDocument();
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).getByRole('button', { name: 'Видалити переклад' })).toBeDisabled();
+        await userEvent.type(within(dialog).getByLabelText('Код'), '123456');
+        await userEvent.click(within(dialog).getByRole('button', { name: 'Видалити переклад' }));
+        await waitFor(() => expect(calls.find((call) => call.path.endsWith('/delete'))?.body).toEqual({ code: '123456' }));
+        expect(await screen.findByRole('button', { name: 'Відновити' })).toBeInTheDocument();
+    });
+
+    it('puts a chapter in the bin after «are you sure» and brings it back', async () => {
+        const { calls } = await renderAt('/studio/12/chapters', {
+            'GET /api/me': { body: ME },
+            'GET /api/studio/editions/12': { body: OVERVIEW },
+            'GET /api/studio/editions/12/chapters': { body: { items: [{ number: 2, label: null, title: 'Друга', published: true, hasMyDraft: false,
+                pending: 0, updatedAt: '2026-10-18T10:00:00Z' }], total: 1, page: 1, hasMore: false } },
+            'DELETE /api/studio/editions/12/chapters/2': { body: '' },
+            'GET /api/studio/editions/12/chapters/trash': { body: [{ number: 1, label: null, title: 'Перша', deletedAt: '2026-10-18T10:00:00Z' }] },
+            'POST /api/studio/editions/12/chapters/1/restore': { body: '' },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Видалити главу 2' }));
+        expect(await screen.findByText(/номер лишиться порожнім/)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Видалити' }));
+        await waitFor(() => expect(calls.some((call) => call.method === 'DELETE' && call.path.endsWith('/chapters/2'))).toBe(true));
+        expect(screen.getByRole('heading', { name: 'Кошик · 1' })).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Повернути' }));
+        await waitFor(() => expect(calls.some((call) => call.path.endsWith('/chapters/1/restore'))).toBe(true));
+    });
+});
