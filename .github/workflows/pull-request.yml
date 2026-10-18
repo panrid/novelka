@@ -3,6 +3,7 @@ name: Pull request checks
 # The same tests as before a deploy, without the deploy: a pull request is green before it reaches main.
 # The JAR built here is kept under the tree hash of the merged code, so the deploy after merging
 # reuses it instead of testing and building again (deploy-production.yml, job "find").
+# Only what differs from the last deploy is checked (.github/scripts/changes.sh); the JAR is always built.
 on:
     pull_request:
         branches: [main]
@@ -16,8 +17,32 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
+    changes:
+        name: What changed
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        permissions:
+            contents: read
+            actions: read
+        outputs:
+            backend: ${{ steps.changes.outputs.backend }}
+            frontend: ${{ steps.changes.outputs.frontend }}
+        steps:
+            # Blobless: history and trees only, enough to list changed paths.
+            - uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0
+                  filter: blob:none
+            - name: What changed since the last deploy
+              id: changes
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: bash .github/scripts/changes.sh
+
     backend:
         name: Backend tests
+        needs: changes
+        if: needs.changes.outputs.backend == 'true'
         runs-on: ubuntu-latest
         timeout-minutes: 25
         steps:
@@ -33,6 +58,8 @@ jobs:
 
     frontend:
         name: Frontend checks and tests
+        needs: changes
+        if: needs.changes.outputs.frontend == 'true'
         runs-on: ubuntu-latest
         timeout-minutes: 15
         defaults:
@@ -77,6 +104,9 @@ jobs:
               working-directory: frontend
             - name: Build JAR with the site inside
               run: ./gradlew :backend:bootJar --no-daemon
+            # The server puts each page's title and text into these two places (SearchPages); backend tests use a stand-in.
+            - name: Page shell the server fills
+              run: grep -q -F '<title>Новелка</title>' frontend/dist/index.html && grep -q -F '<div id="root"></div>' frontend/dist/index.html
             - uses: actions/upload-artifact@v4
               with:
                   name: jar-build
@@ -86,9 +116,14 @@ jobs:
 
     save:
         name: Save checked JAR
-        needs: [backend, frontend, package]
-        # A fork's JAR is never deployed, so it is not kept either.
-        if: github.event.pull_request.head.repo.full_name == github.repository
+        needs: [changes, backend, frontend, package]
+        # A fork's JAR is never deployed, so it is not kept either. Each check green or skipped on purpose
+        # (nothing of its part changed); red, cancelled or skipped otherwise keeps no JAR.
+        if: >-
+            ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository
+            && needs.changes.result == 'success' && needs.package.result == 'success'
+            && (needs.backend.result == 'success' || (needs.backend.result == 'skipped' && needs.changes.outputs.backend == 'false'))
+            && (needs.frontend.result == 'success' || (needs.frontend.result == 'skipped' && needs.changes.outputs.frontend == 'false')) }}
         runs-on: ubuntu-latest
         timeout-minutes: 10
         steps:
