@@ -1,4 +1,4 @@
-novelka.panrid.space {
+novelka.in.ua {
     encode gzip
     # Live updates (/api/events) must reach the browser at once, not in buffered chunks.
     # During a deploy «app» is two copies; the one going away refuses connections, and the
@@ -8,4 +8,17 @@ novelka.panrid.space {
         lb_try_duration 15s
         lb_try_interval 250ms
     }
+}
+
+# The old address and www lead for good to the same page on the site, path and query kept:
+# bookmarks, links in Telegram and in Google keep working.
+www.novelka.in.ua, novelka.panrid.space {
+    redir https://novelka.in.ua{uri} permanent
+}
+
+# The test site is yet to come; until then a short notice, kept out of search.
+dev.novelka.in.ua {
+    header X-Robots-Tag "noindex, nofollow"
+    header Content-Type "text/plain; charset=utf-8"
+    respond "Тестовий сайт Новелки ще готується." 503
 }

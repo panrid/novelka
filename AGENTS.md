@@ -7,7 +7,7 @@
 - Стек: Java + Spring Boot + jOOQ + Flyway + PostgreSQL; React + TypeScript (mobile-first).
 - Інтерфейс і тексти для користувачів — українською.
 - Репозиторій — `github.com/panrid/novelka` (публічний). Push у `main` запускає тести й деплой
-  на `https://novelka.panrid.space`, тож пушимо лише зелене. Один коміт на завершену задачу.
+  на `https://novelka.in.ua`, тож пушимо лише зелене. Один коміт на завершену задачу.
 - Не комітити секрети, `.env`-файли, ключі API й SSH-ключі. Локальні ключі — у `.env.local`
   (його читає конфігурація `backend` у `.claude/launch.json`).
 - Не заявляти успіх тестів, які не запускались або не пройшли.

@@ -148,7 +148,7 @@ function SlugField({ editionId, current }: { editionId: number; current: string 
     return (
         <div className={styles.form} style={{ marginTop: 28 }}>
             <h2 className={styles.sectionTitle}>Адреса новели</h2>
-            <TextInput label="novelka.panrid.space/n/…" value={slug} onChange={setSlug}
+            <TextInput label={`${window.location.host}/n/…`} value={slug} onChange={setSlug}
                 hint="Латинські літери, цифри й дефіси: mag-vody, the-water-magician. Стара адреса й далі працюватиме." />
             {save.isError && <Notice tone="error">{save.error.message}</Notice>}
             {save.isSuccess && <Notice tone="success">Тепер новела за адресою /n/{save.data.slug}.</Notice>}
