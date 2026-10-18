@@ -194,6 +194,6 @@ jobs:
             - name: Check the app and its database
               run: |
                   curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors \
-                      https://novelka.panrid.space/api/health | tee /dev/stderr | grep -q '"status":"ok"'
+                      https://novelka.in.ua/api/health | tee /dev/stderr | grep -q '"status":"ok"'
             - name: Check the public site
-              run: curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null https://novelka.panrid.space/
+              run: curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null https://novelka.in.ua/

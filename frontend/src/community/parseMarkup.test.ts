@@ -32,9 +32,9 @@ describe('markup', () => {
     });
 
     it('finds links and nests marks', () => {
-        expect(inline('див. https://novelka.panrid.space/n/x.')).toEqual([
+        expect(inline('див. https://novelka.in.ua/n/x.')).toEqual([
             { kind: 'text', text: 'див. ' },
-            { kind: 'link', url: 'https://novelka.panrid.space/n/x' },
+            { kind: 'link', url: 'https://novelka.in.ua/n/x' },
             { kind: 'text', text: '.' },
         ]);
         expect(inline('**дуже *важливо***')).toEqual([

@@ -1,9 +1,34 @@
 # Деплой
 
-Прод — VPS `62.72.33.247`, адреса `https://novelka.panrid.space`. На сервері в
+Прод — VPS `62.72.33.247`, адреса `https://novelka.in.ua`. На сервері в
 `/opt/novelka`: `.env.production` (секрети, лише на сервері), `app/` (JAR і Dockerfile),
 `infra/` (`production.compose.yaml`, `Caddyfile`). Compose-проєкт `novelka`: PostgreSQL,
 застосунок і Caddy (HTTPS, сертифікати сам).
+
+## Адреси
+
+DNS (у реєстратора `novelka.in.ua`): A-записи `@`, `www`, `dev` → `62.72.33.247`. Caddy
+(`infra/Caddyfile`):
+
+| Адреса | Що робить |
+|---|---|
+| `novelka.in.ua` | сайт; Студія — `/studio` |
+| `www.novelka.in.ua`, `novelka.panrid.space` | 301 на `https://novelka.in.ua` з тим самим шляхом і параметрами |
+| `dev.novelka.in.ua` | заглушка 503 з `noindex`, доки немає тестового сайту |
+
+Усі посилання, які будує застосунок (листи, `sitemap.xml`, `robots.txt`, canonical і превʼю,
+EPUB, Telegram, адреса повернення Google), беруться з `NOVELKA_PUBLIC_URL`; за замовчуванням у
+`production.compose.yaml` — `https://novelka.in.ua`, у `.env.production` її не задаємо. Вебхук
+Telegram застосунок ставить сам на `<адреса>/api/telegram/webhook` під час запуску.
+
+Google Cloud Console, OAuth-клієнт: «Authorized JavaScript origins» — `https://novelka.in.ua`,
+«Authorized redirect URIs» — `https://novelka.in.ua/login/oauth2/code/google`; у «OAuth consent
+screen» серед дозволених доменів — `novelka.in.ua`.
+
+Змінюючи адресу ще раз: спершу Caddy має отримати сертифікат нової (тимчасово обслуговувати
+обидві, `caddy reload`), і лише потім вмикати 301 — інакше за старими посиланнями кілька секунд
+буде помилка TLS. Сесії й те, що гості зберегли в браузері (місце читання, вигляд), прив'язані
+до адреси: після переїзду всі входять знову.
 
 ## Як іде деплой
 
