@@ -16,7 +16,8 @@ export type Person = { nick: string; role: 'reader' | 'moderator' | 'admin' | 'o
     shahs?: number | null;
     /** The owner let them autotranslate; only the site owner sees it. */
     autotranslate?: boolean | null };
-export type SiteSettingsView = { relayInactiveMonths: number; registrationOpen: boolean; adultEnabled: boolean };
+/** hideAiWithoutShahs: AI is hidden from people without шаги (етап 19, п. 7). */
+export type SiteSettingsView = { relayInactiveMonths: number; registrationOpen: boolean; adultEnabled: boolean; hideAiWithoutShahs: boolean };
 export type AuditEntry = {
     id: number; actor: string; action: string; targetType: string; targetId: number | null; details: Record<string, unknown>; createdAt: string;
 };

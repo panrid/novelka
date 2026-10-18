@@ -2,6 +2,7 @@ package space.panrid.novelka.access;
 
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.EDITION;
+import static space.panrid.novelka.jooq.Tables.SHAH_BALANCE;
 
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -10,9 +11,11 @@ import org.jooq.DSLContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
+import space.panrid.novelka.account.AiVisibility;
 import space.panrid.novelka.account.CurrentUser;
 import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.account.Viewer;
+import space.panrid.novelka.platform.SiteSettings;
 import space.panrid.novelka.platform.web.UserFacingException;
 import space.panrid.novelka.team.TeamRole;
 import space.panrid.novelka.team.Teams;
@@ -22,15 +25,17 @@ import space.panrid.novelka.team.Teams;
  * and translators add chapters and pictures; only the owner changes the novel's data.
  */
 @Component
-public class AccessPolicy {
+public class AccessPolicy implements AiVisibility {
 
     private final CurrentUser currentUser;
     private final Teams teams;
+    private final SiteSettings settings;
     private final DSLContext db;
 
-    AccessPolicy(CurrentUser currentUser, Teams teams, DSLContext db) {
+    AccessPolicy(CurrentUser currentUser, Teams teams, SiteSettings settings, DSLContext db) {
         this.currentUser = currentUser;
         this.teams = teams;
+        this.settings = settings;
         this.db = db;
     }
 
@@ -95,10 +100,39 @@ public class AccessPolicy {
     }
 
     /**
+     * Whether the person sees anything of AI (етап 19, п. 7): while the site owner keeps it hidden
+     * from those without шаги, only the owner and people with шаги on the account or held for
+     * their runs do. The balance is read from its table: the ledger module itself asks this one.
+     */
+    @Override
+    public boolean seesAi(long accountId, SiteRole role) {
+        if (role == SiteRole.OWNER || !settings.flag(SiteSettings.AI_HIDDEN_WITHOUT_SHAHS, true)) {
+            return true;
+        }
+        return db.fetchExists(SHAH_BALANCE, SHAH_BALANCE.ACCOUNT_ID.eq(accountId)
+                .and(SHAH_BALANCE.AVAILABLE.plus(SHAH_BALANCE.RESERVED).gt(0)));
+    }
+
+    /** The signed-in person who sees AI, or 403. */
+    public Viewer requireAi() {
+        Viewer viewer = requireSignedIn();
+        if (!seesAi(viewer.accountId(), viewer.role())) {
+            throw new UserFacingException(HttpStatus.FORBIDDEN,
+                    "Інструменти ШІ поки відкриті лише тим, у кого є шаги. Шаги нараховує власник сайту.");
+        }
+        return viewer;
+    }
+
+    /**
      * Autotranslate and the AI tools of translating (етап 19): the site owner, and those the owner
-     * let in; they pay with their шаги.
+     * let in; they pay with their шаги. Nobody who does not see AI.
      */
     public boolean mayAutotranslate(Viewer viewer) {
+        return mayHaveAutotranslate(viewer) && seesAi(viewer.accountId(), viewer.role());
+    }
+
+    /** Let in to autotranslate, whether or not AI is hidden from them now: pasting originals is not AI. */
+    public boolean mayHaveAutotranslate(Viewer viewer) {
         return viewer.role() == SiteRole.OWNER
                 || db.fetchExists(ACCOUNT, ACCOUNT.ID.eq(viewer.accountId()).and(ACCOUNT.AUTOTRANSLATE));
     }
@@ -106,7 +140,16 @@ public class AccessPolicy {
     /** The signed-in person who may autotranslate, or 403. */
     public Viewer requireAutotranslate() {
         Viewer viewer = requireSignedIn();
-        if (!mayAutotranslate(viewer)) {
+        if (!mayHaveAutotranslate(viewer)) {
+            throw new UserFacingException(HttpStatus.FORBIDDEN, "Автопереклад вам поки недоступний. Доступ дає власник сайту.");
+        }
+        return requireAi();
+    }
+
+    /** The signed-in person who may paste originals (етап 19), with AI hidden from them or not, or 403. */
+    public Viewer requireOriginals() {
+        Viewer viewer = requireSignedIn();
+        if (!mayHaveAutotranslate(viewer)) {
             throw new UserFacingException(HttpStatus.FORBIDDEN, "Автопереклад вам поки недоступний. Доступ дає власник сайту.");
         }
         return viewer;

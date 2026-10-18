@@ -46,7 +46,7 @@ class OriginalController {
 
     /** A translator of the translation; until етап 19 is open to all, the site owner and those the owner let in. */
     private EditionAccess translator(long editionId) {
-        access.requireAutotranslate();
+        access.requireOriginals();
         EditionAccess who = access.requireTranslator(editionId);
         originals.requireTranslation(editionId);
         return who;

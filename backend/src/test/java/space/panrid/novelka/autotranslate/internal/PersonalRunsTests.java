@@ -204,7 +204,7 @@ class PersonalRunsTests {
         assertThat(logged.path("details").path("nick").asString()).isEqualTo(reader.nick());
 
         Response noShahs = reader.browser().post("/api/studio/autotranslate/prepare", json("url", novel(1)));
-        assertThat(noShahs.status()).as("they run it with their шаги").isEqualTo(400);
+        assertThat(noShahs.status()).as("AI is hidden from people without шаги (етап 19, п. 7)").isEqualTo(403);
         assertThat(noShahs.body()).contains("шаги");
         assertThat(reader.browser().get("/api/studio/autotranslate/wallet").status()).as("the wallet stays the owner's").isEqualTo(403);
         assertThat(reader.browser().get("/api/studio/autotranslate/models").status()).as("the site picks models for people").isEqualTo(403);

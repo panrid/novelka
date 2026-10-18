@@ -65,7 +65,7 @@ function ChaptersTab() {
                     <LinkButton to="/studio/$editionId/structure" params={params} variant="secondary">Томи й нумерація</LinkButton>
                 </div>
             )}
-            {adding && <NewChapterSheet editionId={id} machine={editionTabs(edition, canRun).translate} onClose={() => setAdding(false)} />}
+            {adding && <NewChapterSheet editionId={id} machine={editionTabs(edition, canRun, false).translate} onClose={() => setAdding(false)} />}
             <div className={styles.filters} role="group" aria-label="Які глави" style={{ margin: '14px 0 8px' }}>
                 {FILTERS.map(([value, label]) => (
                     <button key={value} type="button" className={`${styles.chip} ${filter === value ? styles.chipOn : ''}`}

@@ -448,6 +448,9 @@ class AutotranslateController {
     @PostMapping("/editions/{editionId}/glossary/{entryId}/rewrite")
     Rewritten rewrite(@PathVariable long editionId, @PathVariable long entryId, @RequestBody Rewrite body) {
         Viewer viewer = access.requireTextEditor(editionId).viewer();
+        if (Boolean.TRUE.equals(body.ai())) {
+            access.requireAi();
+        }
         String to = glossary.occurrences(editionId, entryId).form();
         Map<String, String> originals = new java.util.HashMap<>();
         List<space.panrid.novelka.suggestion.Suggestions.BlockChange> changes = glossary.rewrite(editionId, body.from(), to, glossary.looseForms(entryId), originals);
@@ -473,6 +476,7 @@ class AutotranslateController {
     @PostMapping("/editions/{editionId}/glossary/{entryId}/regender")
     Rewritten regender(@PathVariable long editionId, @PathVariable long entryId, @RequestBody Regender body) {
         Viewer viewer = access.requireTextEditor(editionId).viewer();
+        access.requireAi();
         Glossary.Entry entry = glossary.all(editionId).stream().filter(e -> e.id() == entryId).findFirst()
                 .orElseThrow(() -> UserFacingException.notFound("Такого запису немає."));
         Long payer = personal(viewer) ? viewer.accountId() : null;

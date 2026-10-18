@@ -8,8 +8,10 @@ const ME = {
     dmPolicy: 'everyone', showReading: true, adultConfirmed: false, showShah: true,
 };
 /** Autotranslate is the site owner's while етап 19 is being made, and of those the owner let in. */
-const OWNER = { ...ME, role: 'owner' };
-const LET_IN = { ...ME, autotranslate: true };
+const OWNER = { ...ME, role: 'owner', ai: true };
+const LET_IN = { ...ME, autotranslate: true, ai: true };
+/** Let in, but with no шаги while the site owner keeps AI hidden from such people (етап 19, п. 7). */
+const HIDDEN = { ...ME, autotranslate: true, ai: false };
 const EDITOR = {
     number: 3, title: 'Нічний ринок', revisionId: 41, published: true, draft: null, role: 'translator', mayAddPictures: true,
     previous: 2, next: null,
@@ -178,6 +180,43 @@ describe('machine translation', () => {
         await userEvent.click(await screen.findByRole('button', { name: 'Нова глава' }));
         expect(screen.queryByRole('radio', { name: /Автопереклад/ })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Автопереклад' })).not.toBeInTheDocument();
+    });
+});
+
+describe('AI hidden from people without шаги (етап 19, п. 7)', () => {
+    const MACHINE = { editionId: 12, novelSlug: 'lykhodiika', title: 'Лиходійка', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 0, ownNovel: false, teamHandle: 'mika', teamName: 'mika', role: 'owner', ...COUNTS };
+
+    it('leaves a person let in only the original pasted by hand', async () => {
+        await renderAt('/studio/12', {
+            'GET /api/me': { body: HIDDEN },
+            'GET /api/me/shahs': { body: { available: 0, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
+            'GET /api/studio/editions/12': { body: MACHINE },
+            'GET /api/studio/editions/12/chapters': { body: NO_CHAPTERS },
+            'GET /api/studio/editions/12/contributions': { body: [] },
+        });
+        expect(await screen.findByRole('link', { name: 'Оригінал' })).toHaveAttribute('href', '/studio/12/originals');
+        expect(screen.queryByRole('link', { name: 'Автопереклад' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Словник' })).not.toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Нова глава' }));
+        expect(screen.queryByRole('radio', { name: /Автопереклад/ })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Відкрити редактор' })).toBeInTheDocument();
+    });
+
+    it('offers no autotranslation in a new publication', async () => {
+        await renderAt('/studio/new', {
+            'GET /api/me': { body: HIDDEN },
+            'GET /api/me/teams': { body: [{ handle: 'mika', name: 'mika', role: 'owner' }] },
+        });
+        expect(await screen.findByRole('button', { name: /Свій переклад/ })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Автопереклад/ })).not.toBeInTheDocument();
+    });
+
+    it('shows it all to the same person once they have шаги', async () => {
+        await renderAt('/studio/new', {
+            'GET /api/me': { body: LET_IN },
+            'GET /api/me/teams': { body: [{ handle: 'mika', name: 'mika', role: 'owner' }] },
+        });
+        expect(await screen.findByRole('button', { name: /Автопереклад із Syosetu/ })).toBeInTheDocument();
     });
 });
 

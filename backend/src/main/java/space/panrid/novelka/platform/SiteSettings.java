@@ -18,6 +18,8 @@ public class SiteSettings {
     public static final String REGISTRATION_OPEN = "registration.open";
     /** Whether 18+ translations are shown at all (to those who said they are adults). */
     public static final String ADULT_ENABLED = "adult.enabled";
+    /** Whether AI is hidden from people without шаги (етап 19, п. 7); hidden unless the owner opens it. */
+    public static final String AI_HIDDEN_WITHOUT_SHAHS = "ai.hidden_without_shahs";
 
     private final DSLContext db;
 
