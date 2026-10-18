@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Сторінка новели</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0F1115}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+</style>
+</helmet>
+<div style="{{ vars }}; min-height: 1100px; background: var(--bg); color: var(--text); font-family: 'Golos Text', system-ui, sans-serif; font-size: 14px">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--line)">
+    <a href="Home.dc.html" style="font: 600 20px 'Literata', serif; color: var(--strong); text-decoration: none">новелка<span style="color: var(--accent)">.</span></a>
+    <nav aria-label="Сайт" style="display: flex; flex-wrap: wrap; gap: 4px; flex: 1">
+      <a href="Home.dc.html" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Головна</a>
+      <a href="#" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Каталог</a>
+      <a href="#" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Бібліотека</a>
+      <a href="Studio.dc.html" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Студія</a>
+    </nav>
+    <button type="button" onClick="{{ toggleTheme }}" aria-label="{{ themeLabel }}" title="{{ themeLabel }}" style="width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--panel2); color: var(--text); display: grid; place-items: center; cursor: pointer">
+      <sc-if value="{{ isDark }}" hint-placeholder-val="{{ true }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></sc-if>
+      <sc-if value="{{ isLight }}" hint-placeholder-val="{{ false }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"></path></svg></sc-if>
+    </button>
+  </header>
+
+  <div style="max-width: 1180px; margin: 0 auto; padding: 28px 20px 48px; display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start">
+    <aside style="flex: 0 1 240px; min-width: 200px; display: flex; flex-direction: column; gap: 10px">
+      <span aria-hidden="true" style="aspect-ratio: 2 / 3; border-radius: 14px; background: #1F3A4A; display: grid; place-items: center; font: 600 64px 'Literata', serif; color: #BFE3F2">Д</span>
+      <a href="Main.dc.html" style="height: 48px; display: grid; place-items: center; border-radius: 12px; background: var(--accent); color: var(--onAccent); text-decoration: none; font-weight: 600; font-size: 15px">Продовжити · гл. 12</a>
+      <button type="button" style="height: 44px; border: 0; border-radius: 12px; background: var(--panel2); color: var(--text); font: 500 14px 'Golos Text', sans-serif">У бібліотеці · читаю</button>
+      <a href="Studio.dc.html" style="height: 44px; display: grid; place-items: center; border-radius: 12px; color: var(--text); text-decoration: none; box-shadow: inset 0 0 0 1px var(--line)">Керувати перекладом</a>
+    </aside>
+
+    <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+      <div>
+        <h1 style="margin: 0; font: 600 34px/1.2 'Literata', serif; color: var(--strong)">Доглядач маяка</h1>
+        <div lang="en" style="margin-top: 6px; color: var(--muted)">The Lighthouse Keeper · Сакура Юкі</div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--muted)">
+        <span><b style="color: var(--strong); font-weight: 600">40</b> глав з 64</span>
+        <span>оригінал виходить</span>
+        <span>переклад з англійської · $panrid</span>
+        <span>оновлено сьогодні</span>
+      </div>
+      <p lang="uk" style="margin: 0; max-width: 680px; font: 16px/1.65 'Literata', serif; color: var(--text)">Учениця доглядача маяка на туманному острові вчиться тримати світло — і дізнається, чому попередній доглядач зник. Тиха історія про ремесло, острів і людей, які на ньому лишилися.</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px">
+        <span style="padding: 4px 12px; border-radius: 999px; background: var(--panel2); color: var(--text); font-size: 13px">фентезі</span>
+        <span style="padding: 4px 12px; border-radius: 999px; background: var(--panel2); color: var(--text); font-size: 13px">повільне життя</span>
+        <span style="padding: 4px 12px; border-radius: 999px; background: var(--panel2); color: var(--text); font-size: 13px">таємниця</span>
+      </div>
+
+      <nav aria-label="Розділи новели" style="display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-top: 8px">
+        <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+          <button type="button" aria-pressed="{{ t.on }}" onClick="{{ t.pick }}" style="padding: 12px 14px; border: 0; background: transparent; color: {{ t.color }}; font: {{ t.font }}; box-shadow: {{ t.line }}; cursor: pointer">{{ t.label }}</button>
+        </sc-for>
+      </nav>
+
+      <sc-if value="{{ showChapters }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0">
+            <span style="font-size: 12px; color: var(--muted); letter-spacing: 0.03em">ТОМ 1 · ПЕРША ЗИМА</span>
+            <a href="#" style="font-size: 13px; color: var(--accent)">Позначити прочитаними до 11</a>
+          </div>
+          <sc-for list="{{ chapters }}" as="c" hint-placeholder-count="7">
+            <a href="Main.dc.html" style="display: grid; grid-template-columns: 40px minmax(0, 1fr) 120px 90px; gap: 12px; align-items: center; min-height: 48px; border-bottom: 1px solid var(--line); color: {{ c.color }}; text-decoration: none">
+              <span style="color: var(--muted); font-variant-numeric: tabular-nums">{{ c.n }}</span>
+              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ c.title }}</span>
+              <span style="font-size: 12px; color: var(--muted)">{{ c.date }}</span>
+              <span style="font-size: 12px; text-align: right; color: {{ c.markColor }}">{{ c.mark }}</span>
+            </a>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showPeople }}" hint-placeholder-val="{{ false }}">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px">
+          <sc-for list="{{ people }}" as="p" hint-placeholder-count="4">
+            <div style="display: flex; gap: 12px; padding: 14px; border-radius: 14px; background: var(--panel)">
+              <span aria-hidden="true" style="flex-shrink: 0; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: {{ p.bg }}; color: {{ p.ink }}; font: 600 18px 'Literata', serif">{{ p.letter }}</span>
+              <div>
+                <div style="font-weight: 600; color: var(--strong)">{{ p.name }}</div>
+                <div style="font-size: 13px; line-height: 1.45; color: var(--muted); margin-top: 2px">{{ p.about }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: var(--muted)">Лише ті, кого ви вже зустріли, — до глави 12. <a href="#">Показати всіх — можливі спойлери</a></p>
+      </sc-if>
+
+      <sc-if value="{{ showTalk }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <label style="display: flex; flex-direction: column; gap: 6px">
+            <span style="font-size: 13px; color: var(--muted)">Ваш коментар</span>
+            <textarea rows="3" style="box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); font: inherit; resize: vertical"></textarea>
+          </label>
+          <div style="padding: 14px; border-radius: 14px; background: var(--panel)">
+            <div style="font-size: 13px; color: var(--muted)">@mavka · до глави 11</div>
+            <p style="margin: 6px 0 0; line-height: 1.55">Сцена з поромом — найкраща в томі. Дякую за переклад!</p>
+          </div>
+        </div>
+      </sc-if>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"hasCharacters":{"editor":"boolean","default":true},"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { light: false, tab: 0 };
+  }
+  renderVals() {
+    const dark = { bg: '#0F1115', panel: '#171A20', panel2: '#1F232B', line: '#2A2F39', text: '#E8EAEE', strong: '#F1F2F5', muted: '#A3A9B6', accent: '#8EA6FF', onAccent: '#0B0D12' };
+    const light = { bg: '#F3F4F6', panel: '#FFFFFF', panel2: '#F1F2F5', line: '#E3E5EA', text: '#15171C', strong: '#0B0D12', muted: '#5B6170', accent: '#2A4BD7', onAccent: '#FFFFFF' };
+    const t = this.state.light ? light : dark;
+    const vars = Object.entries(t).map(([k, v]) => '--' + k + ':' + v).join(';');
+    // «Персонажі» only when the glossary has descriptions of characters: a translation made by hand without them has no such tab.
+    const hasCharacters = this.props.hasCharacters ?? true;
+    const tab = !hasCharacters && this.state.tab === 1 ? 0 : this.state.tab;
+    const tabs = [['Глави · 40', 0], ['Персонажі', 1], ['Обговорення · 18', 2]]
+      .filter(([, i]) => hasCharacters || i !== 1)
+      .map(([label, i]) => {
+        const on = tab === i;
+        return { label, on: on ? 'true' : 'false', color: on ? 'var(--strong)' : 'var(--muted)', font: (on ? '600' : '500') + ' 14px \'Golos Text\', sans-serif', line: on ? 'inset 0 -2px 0 var(--accent)' : 'none', pick: () => this.setState({ tab: i }) };
+      });
+    const read = { color: 'var(--muted)', markColor: 'var(--muted)', mark: 'прочитано' };
+    const now = { color: 'var(--strong)', markColor: 'var(--accent)', mark: '34%' };
+    const next = { color: 'var(--text)', markColor: 'var(--muted)', mark: '' };
+    const chapters = [
+      { n: 9, title: 'Шторм над гаванню', date: '2 жовтня', ...read },
+      { n: 10, title: 'Олія і ґніт', date: '6 жовтня', ...read },
+      { n: 11, title: 'Пором о шостій', date: '11 жовтня', ...read },
+      { n: 12, title: 'Лінза, що пам’ятає світло', date: 'сьогодні', ...now },
+      { n: 13, title: 'Журнал доглядача', date: 'сьогодні', ...next },
+      { n: 14, title: 'Сіль', date: 'сьогодні', ...next },
+      { n: 15, title: 'Туманний дзвін', date: 'сьогодні', ...next }
+    ];
+    const people = [
+      { name: 'Ліна', about: 'Учениця доглядача маяка.', letter: 'Л', bg: '#203B2C', ink: '#BDF0D0' },
+      { name: 'майстер Орест', about: 'Доглядає маяк понад двадцять років.', letter: 'О', bg: '#2A2340', ink: '#D9CCFF' },
+      { name: 'пані Верес', about: 'Тримає крамницю біля пристані.', letter: 'В', bg: '#3D3018', ink: '#FFE2A8' },
+      { name: 'капітан порома', about: 'Завжди спізнюється на пів години.', letter: 'К', bg: '#1E3550', ink: '#BBD6FF' }
+    ];
+    return {
+      vars, tabs, chapters, people,
+      showChapters: tab === 0, showPeople: tab === 1, showTalk: tab === 2,
+      isDark: !this.state.light, isLight: this.state.light,
+      themeLabel: this.state.light ? 'Темна тема' : 'Світла тема',
+      toggleTheme: () => this.setState({ light: !this.state.light })
+    };
+  }
+}
+</script>
+</body>
+</html>

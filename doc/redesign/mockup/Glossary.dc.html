@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Словник новели</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0F1115}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+</style>
+</helmet>
+<div style="{{ vars }}; min-height: 960px; background: var(--bg); color: var(--text); font-family: 'Golos Text', system-ui, sans-serif; font-size: 14px">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--line)">
+    <a href="Home.dc.html" style="font: 600 20px 'Literata', serif; color: var(--strong); text-decoration: none">новелка<span style="color: var(--accent)">.</span></a>
+    <nav aria-label="Шлях" style="display: flex; align-items: center; gap: 8px; color: var(--muted); flex: 1; min-width: 200px">
+      <a href="Studio.dc.html" style="color: var(--muted); text-decoration: none">Студія</a><span aria-hidden="true">/</span>
+      <span style="color: var(--strong); font-weight: 600">Доглядач маяка</span>
+    </nav>
+    <nav aria-label="Розділи перекладу" style="display: flex; flex-wrap: wrap; gap: 4px">
+      <a href="#" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Огляд</a>
+      <a href="Translate.dc.html" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Переклад</a>
+      <a href="#" aria-current="page" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; background: var(--panel2); color: var(--strong); text-decoration: none; font-weight: 600">Словник · 4 нових</a>
+      <a href="#" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Правки · 3</a>
+    </nav>
+    <button type="button" onClick="{{ toggleTheme }}" aria-label="{{ themeLabel }}" title="{{ themeLabel }}" style="width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--panel2); color: var(--text); display: grid; place-items: center; cursor: pointer">
+      <sc-if value="{{ isDark }}" hint-placeholder-val="{{ true }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></sc-if>
+      <sc-if value="{{ isLight }}" hint-placeholder-val="{{ false }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"></path></svg></sc-if>
+    </button>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 16px; padding: 16px 20px 32px; align-items: flex-start">
+    <main style="flex: 999 1 640px; min-width: 0; background: var(--panel); border-radius: 14px; padding: 14px 0 8px">
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 0 16px 12px">
+        <label style="flex: 1 1 240px; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--panel2)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="color: var(--muted)"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+          <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Пошук у словнику</span>
+          <input placeholder="Ім'я, термін або оригінал" style="flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: inherit; outline: none">
+        </label>
+        <div role="radiogroup" aria-label="Стан" style="display: flex; padding: 3px; border-radius: 10px; background: var(--panel2)">
+          <button type="button" role="radio" aria-checked="true" style="height: 34px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--segOn); color: var(--strong); font: 500 13px 'Golos Text', sans-serif">Усі · 38</button>
+          <button type="button" role="radio" aria-checked="false" style="height: 34px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: 500 13px 'Golos Text', sans-serif">Нові · 4</button>
+          <button type="button" role="radio" aria-checked="false" style="height: 34px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: 500 13px 'Golos Text', sans-serif">Погоджені</button>
+        </div>
+        <select aria-label="Вид" style="height: 40px; padding: 0 10px; border: 0; border-radius: 10px; background: var(--panel2); color: var(--text); font: inherit">
+          <option>Усі види</option><option>Персонажі</option><option>Місця</option><option>Терміни</option>
+        </select>
+        <button type="button" style="height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--accent); color: var(--onAccent); font: 600 13px 'Golos Text', sans-serif">Погодити нові</button>
+      </div>
+      <div style="overflow-x: auto">
+        <table style="width: 100%; min-width: 640px; border-collapse: collapse">
+          <thead>
+            <tr style="color: var(--muted); font-size: 12px; text-align: left">
+              <th scope="col" style="padding: 8px 16px; font-weight: 500">Українською</th>
+              <th scope="col" style="padding: 8px 4px; font-weight: 500">В оригіналі</th>
+              <th scope="col" style="padding: 8px 4px; font-weight: 500; width: 120px">Вид</th>
+              <th scope="col" style="padding: 8px 4px; font-weight: 500; width: 90px">З глави</th>
+              <th scope="col" style="padding: 8px 16px; font-weight: 500; width: 120px">Стан</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{ entries }}" as="e" hint-placeholder-count="9">
+              <tr onClick="{{ e.pick }}" style="border-top: 1px solid var(--line); background: {{ e.bg }}; cursor: pointer">
+                <td style="padding: 10px 16px"><button type="button" onClick="{{ e.pick }}" style="padding: 0; border: 0; background: transparent; color: var(--strong); font: 600 14px 'Golos Text', sans-serif; text-align: left; cursor: pointer">{{ e.ua }}</button></td>
+                <td lang="en" style="padding: 10px 4px; color: var(--muted)">{{ e.original }}</td>
+                <td style="padding: 10px 4px; color: var(--muted)">{{ e.kind }}</td>
+                <td style="padding: 10px 4px; color: var(--muted); font-variant-numeric: tabular-nums">{{ e.chapter }}</td>
+                <td style="padding: 10px 16px"><span style="padding: 2px 10px; border-radius: 999px; background: {{ e.chipBg }}; color: {{ e.chipColor }}; font-size: 12px; font-weight: 500">{{ e.status }}</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <aside aria-label="Запис словника" style="flex: 1 1 340px; max-width: 420px; background: var(--panel); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; gap: 12px; align-items: center">
+        <span aria-hidden="true" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: #2A2340; color: #D9CCFF; font: 600 20px 'Literata', serif">{{ current.letter }}</span>
+        <div style="flex: 1; min-width: 0">
+          <div style="font: 600 20px/1.25 'Literata', serif; color: var(--strong)">{{ current.ua }}</div>
+          <div style="font-size: 13px; color: var(--muted)">{{ current.kind }} · з глави {{ current.chapter }}</div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center">
+        <figure role="img" aria-label="Портрет (ще немає)" style="flex-shrink: 0; margin: 0; width: 64px; height: 84px; border-radius: 10px; background: var(--panel2); display: flex; align-items: flex-end; justify-content: center; overflow: hidden">
+          <svg width="52" height="66" viewBox="0 0 76 96" aria-hidden="true"><circle cx="38" cy="34" r="17" fill="var(--line)"></circle><path d="M6 96c0-22 14-36 32-36s32 14 32 36z" fill="var(--line)"></path></svg>
+        </figure>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 13px; color: var(--muted)">Портрет для «Хто це»</span>
+          <div style="display: flex; gap: 6px">
+            <button type="button" style="height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--panel2); color: var(--text); font: 500 12px 'Golos Text', sans-serif">З моїх картинок</button>
+            <button type="button" style="height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--panel2); color: var(--text); font: 500 12px 'Golos Text', sans-serif">Намалювати</button>
+          </div>
+        </div>
+      </div>
+      <label style="display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 13px; color: var(--muted)">Як писати українською</span>
+        <input value="{{ current.ua }}" style="height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--text); font: inherit">
+      </label>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 13px; color: var(--muted)">В оригіналі</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px">
+          <span lang="en" style="padding: 4px 10px; border-radius: 999px; background: var(--panel2); font-size: 13px">англ. · {{ current.original }}</span>
+          <span style="padding: 4px 10px; border-radius: 999px; background: var(--panel2); font-size: 13px; color: var(--muted)">+ інше написання</span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <span style="font-size: 13px; color: var(--muted)">«Хто це» для читачів</span>
+        <sc-for list="{{ current.facts }}" as="f" hint-placeholder-count="2">
+          <div style="display: flex; gap: 10px; font-size: 14px; line-height: 1.5"><span style="flex-shrink: 0; width: 44px; color: var(--muted); font-size: 12px; padding-top: 2px">гл. {{ f.ch }}</span><span>{{ f.text }}</span></div>
+        </sc-for>
+        <button type="button" style="align-self: flex-start; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--panel2); color: var(--text); font: 500 12px 'Golos Text', sans-serif">+ Додати факт</button>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px">
+        <button type="button" style="height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--accent); color: var(--onAccent); font: 600 14px 'Golos Text', sans-serif">Зберегти</button>
+        <button type="button" style="height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font: 500 14px 'Golos Text', sans-serif; box-shadow: inset 0 0 0 1px var(--line)">Замінити в усіх главах</button>
+        <button type="button" style="height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font: 500 14px 'Golos Text', sans-serif; box-shadow: inset 0 0 0 1px var(--line)">Де трапляється · 46</button>
+      </div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { light: false, picked: 1 };
+  }
+  renderVals() {
+    const dark = { bg: '#0F1115', panel: '#171A20', panel2: '#1F232B', line: '#2A2F39', text: '#E8EAEE', strong: '#F1F2F5', muted: '#A3A9B6', accent: '#8EA6FF', onAccent: '#0B0D12', field: '#0F1115', segOn: '#343B48', soft: 'rgba(142,166,255,0.08)', newBg: 'rgba(242,196,107,0.14)', newText: '#F2C46B', okBg: '#23272F', okText: '#C4C9D4' };
+    const light = { bg: '#F3F4F6', panel: '#FFFFFF', panel2: '#F1F2F5', line: '#E3E5EA', text: '#15171C', strong: '#0B0D12', muted: '#5B6170', accent: '#2A4BD7', onAccent: '#FFFFFF', field: '#FFFFFF', segOn: '#FFFFFF', soft: '#F6F8FE', newBg: '#FFF1D6', newText: '#7A4B00', okBg: '#E8EAEE', okText: '#3A4152' };
+    const t = this.state.light ? light : dark;
+    const vars = Object.entries(t).map(([k, v]) => '--' + k + ':' + v).join(';');
+    const list = [
+      { ua: 'Ліна', original: 'Lina', kind: 'персонаж', chapter: 1, status: 'погоджено', facts: [{ ch: 1, text: 'Учениця доглядача маяка.' }, { ch: 3, text: 'Виросла в рибальському селищі на півдні острова.' }] },
+      { ua: 'майстер Орест', original: 'Master Orest', kind: 'персонаж', chapter: 1, status: 'погоджено', facts: [{ ch: 1, text: 'Доглядає маяк на острові понад двадцять років.' }, { ch: 4, text: 'Взяв Ліну в учениці після шторму.' }, { ch: 9, text: 'Не любить говорити про свого попередника.' }] },
+      { ua: 'велика лінза', original: 'the great lens', kind: 'термін', chapter: 12, status: 'нове', facts: [{ ch: 12, text: 'Головна лінза маяка, яку чистять щовечора.' }] },
+      { ua: 'гавань Сірого Мису', original: 'Grey Cape Harbour', kind: 'місце', chapter: 2, status: 'погоджено', facts: [{ ch: 2, text: 'Єдина гавань острова, куди заходить пором.' }] },
+      { ua: 'туманний дзвін', original: 'fog bell', kind: 'термін', chapter: 5, status: 'погоджено', facts: [{ ch: 5, text: 'Дзвонить, коли туман закриває світло маяка.' }] },
+      { ua: 'пані Верес', original: 'Mrs. Heath', kind: 'персонаж', chapter: 6, status: 'погоджено', facts: [{ ch: 6, text: 'Тримає крамницю біля пристані.' }] },
+      { ua: 'Журнал доглядача', original: 'the Keeper’s Log', kind: 'предмет', chapter: 13, status: 'нове', facts: [{ ch: 13, text: 'Записи всіх доглядачів маяка.' }] },
+      { ua: 'материк', original: 'the mainland', kind: 'місце', chapter: 3, status: 'погоджено', facts: [] },
+      { ua: 'другий доглядач', original: 'the second keeper', kind: 'персонаж', chapter: 18, status: 'нове', facts: [] }
+    ];
+    const entries = list.map((e, i) => {
+      const isNew = e.status === 'нове';
+      return {
+        ...e,
+        bg: this.state.picked === i ? 'var(--soft)' : 'transparent',
+        chipBg: isNew ? 'var(--newBg)' : 'var(--okBg)', chipColor: isNew ? 'var(--newText)' : 'var(--okText)',
+        pick: () => this.setState({ picked: i })
+      };
+    });
+    const c = list[this.state.picked];
+    const current = { ...c, letter: c.ua.replace('майстер ', '').replace('пані ', '').charAt(0).toUpperCase() };
+    return {
+      vars, entries, current,
+      isDark: !this.state.light, isLight: this.state.light,
+      themeLabel: this.state.light ? 'Темна тема' : 'Світла тема',
+      toggleTheme: () => this.setState({ light: !this.state.light })
+    };
+  }
+}
+</script>
+</body>
+</html>

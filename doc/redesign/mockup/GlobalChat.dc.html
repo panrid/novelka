@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Загальний чат</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0F1115}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+textarea:focus{outline:none}
+</style>
+</helmet>
+<div style="{{ vars }}; min-height: 900px; background: var(--bg); color: var(--text); font-family: 'Golos Text', system-ui, sans-serif; font-size: 14px; display: flex; flex-direction: column">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--line)">
+    <a href="Home.dc.html" style="font: 600 20px 'Literata', serif; color: var(--strong); text-decoration: none">новелка<span style="color: var(--accent)">.</span></a>
+    <nav aria-label="Сайт" style="display: flex; flex-wrap: wrap; gap: 4px; flex: 1">
+      <a href="Home.dc.html" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Головна</a>
+      <a href="#" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Каталог</a>
+      <a href="#" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Бібліотека</a>
+      <a href="Studio.dc.html" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Студія</a>
+    </nav>
+    <a href="Inbox.dc.html" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Вхідні · 3</a>
+    <a href="Messages.dc.html" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Повідомлення · 2</a>
+    <a href="#" aria-current="page" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; background: var(--panel2); color: var(--strong); text-decoration: none; font-weight: 600">Загальний чат</a>
+    <button type="button" onClick="{{ toggleTheme }}" aria-label="{{ themeLabel }}" title="{{ themeLabel }}" style="width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--panel2); color: var(--text); display: grid; place-items: center; cursor: pointer">
+      <sc-if value="{{ isDark }}" hint-placeholder-val="{{ true }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></sc-if>
+      <sc-if value="{{ isLight }}" hint-placeholder-val="{{ false }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"></path></svg></sc-if>
+    </button>
+  </header>
+
+  <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 16px; padding: 16px 20px 20px; align-items: stretch">
+    <nav aria-label="Канали" style="flex: 0 1 240px; min-width: 200px; background: var(--panel); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 2px">
+      <b style="padding: 4px 8px 8px; font-weight: 600; color: var(--strong)">Канали</b>
+      <sc-for list="{{ channels }}" as="c" hint-placeholder-count="4">
+        <button type="button" aria-current="{{ c.current }}" onClick="{{ c.pick }}" style="display: flex; justify-content: space-between; align-items: center; height: 40px; padding: 0 10px; border: 0; border-radius: 10px; background: {{ c.bg }}; color: {{ c.color }}; font: 500 14px 'Golos Text', sans-serif; text-align: left; cursor: pointer">
+          <span># {{ c.name }}</span><span style="font-size: 12px; color: var(--muted)">{{ c.count }}</span>
+        </button>
+      </sc-for>
+    </nav>
+
+    <main style="flex: 999 1 560px; min-width: 0; background: var(--panel); border-radius: 14px; display: flex; flex-direction: column; min-height: 760px">
+      <div style="padding: 14px 18px; border-bottom: 1px solid var(--line)">
+        <div style="font-weight: 600; color: var(--strong)"># {{ channel.name }}</div>
+        <div style="font-size: 12px; color: var(--muted)">{{ channel.about }}</div>
+      </div>
+      <div style="flex: 1; padding: 16px 18px; display: flex; flex-direction: column; gap: 16px; justify-content: flex-end">
+        <sc-for list="{{ channel.messages }}" as="m" hint-placeholder-count="4">
+          <div style="display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px">
+            <span aria-hidden="true" style="display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: {{ m.avatarBg }}; color: {{ m.avatarInk }}; font-weight: 600">{{ m.letter }}</span>
+            <div style="min-width: 0">
+              <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px">
+                <b style="font-weight: 600; color: var(--strong)">{{ m.who }}</b>
+                <span style="padding: 0 8px; border-radius: 999px; background: {{ m.roleBg }}; color: var(--muted); font-size: 11px; line-height: 18px">{{ m.role }}</span>
+                <span style="font-size: 12px; color: var(--muted)">{{ m.when }}</span>
+              </div>
+              <div style="margin-top: 4px; line-height: 1.55; padding: {{ m.pad }}; border-radius: 10px; background: {{ m.bg }}">{{ m.text }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <form style="display: flex; gap: 10px; align-items: flex-end; padding: 14px 18px; border-top: 1px solid var(--line)">
+        <label style="flex: 1; display: flex">
+          <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Повідомлення в канал</span>
+          <textarea rows="2" placeholder="Напишіть у # {{ channel.name }} · @нік — згадати людину" style="flex: 1; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--text); font: inherit; resize: none"></textarea>
+        </label>
+        <button type="button" style="height: 44px; padding: 0 18px; border: 0; border-radius: 12px; background: var(--accent); color: var(--onAccent); font: 600 14px 'Golos Text', sans-serif">Надіслати</button>
+      </form>
+    </main>
+
+    <aside aria-label="Зараз на сайті" style="flex: 0 1 240px; min-width: 200px; background: var(--panel); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <b style="font-weight: 600; color: var(--strong)">Зараз на сайті · 14</b>
+      <sc-for list="{{ online }}" as="o" hint-placeholder-count="5">
+        <div style="display: flex; align-items: center; gap: 10px">
+          <span aria-hidden="true" style="position: relative; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: {{ o.bg }}; color: {{ o.ink }}; font-size: 12px; font-weight: 600">{{ o.letter }}<span style="position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border-radius: 50%; background: #5BC49A; box-shadow: 0 0 0 2px var(--panel)"></span></span>
+          <span>{{ o.name }}</span>
+        </div>
+      </sc-for>
+      <p style="margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted)">Правила чату: без спойлерів поза каналом обговорень, без посилань на піратські сайти.</p>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { light: false, channel: 0 };
+  }
+  renderVals() {
+    const dark = { bg: '#0F1115', panel: '#171A20', panel2: '#1F232B', line: '#2A2F39', text: '#E8EAEE', strong: '#F1F2F5', muted: '#A3A9B6', accent: '#8EA6FF', onAccent: '#0B0D12', soft: 'rgba(142,166,255,0.10)', mention: 'rgba(242,196,107,0.12)' };
+    const light = { bg: '#F3F4F6', panel: '#FFFFFF', panel2: '#F1F2F5', line: '#E3E5EA', text: '#15171C', strong: '#0B0D12', muted: '#5B6170', accent: '#2A4BD7', onAccent: '#FFFFFF', soft: '#EEF2FD', mention: '#FFF6E0' };
+    const t = this.state.light ? light : dark;
+    const vars = Object.entries(t).map(([k, v]) => '--' + k + ':' + v).join(';');
+    const people = {
+      lis: { who: '@lis', letter: 'Л', avatarBg: '#2A2340', avatarInk: '#D9CCFF', role: 'перекладач' },
+      mavka: { who: '@mavka', letter: 'М', avatarBg: '#203B2C', avatarInk: '#BDF0D0', role: 'читачка' },
+      panrid: { who: '@panrid', letter: 'П', avatarBg: '#1E3550', avatarInk: '#BBD6FF', role: 'власник сайту' },
+      sova: { who: '@sova', letter: 'С', avatarBg: '#3D3018', avatarInk: '#FFE2A8', role: 'читач' }
+    };
+    const msg = (p, text, when, mention) => ({ ...people[p], text, when, roleBg: 'var(--panel2)', bg: mention ? 'var(--mention)' : 'transparent', pad: mention ? '8px 10px' : '0' });
+    const list = [
+      { name: 'загальний', about: 'Про все, що стосується читання й сайту', count: '', messages: [
+        msg('sova', 'Хтось читає «Майстра магічної інженерії»? Довідник на початку — це спойлери чи ні?', '12:40'),
+        msg('mavka', 'Там окремий том «Довідкові матеріали», його можна пропустити — історія з «Прологу».', '12:44'),
+        msg('panrid', '@sova так, довідник автора зі спойлерами, тому він без номерів. Читайте з глави 11.', '12:51', true),
+        msg('lis', 'Нова глава «Мага води» вже на сайті, хто чекав!', '13:05') ] },
+      { name: 'переклад-і-словники', about: 'Перекладачам: імена, терміни, як краще', count: '3', messages: [
+        msg('lis', 'Як ви пишете 迷宮 — «підземелля» чи «лабіринт»?', 'вчора'),
+        msg('panrid', 'У «Маг води» — підземелля, так у словнику погоджено.', 'вчора') ] },
+      { name: 'що-почитати', about: 'Порадьте новелу — або попросіть пораду', count: '', messages: [
+        msg('mavka', 'Шукаю щось спокійне, без битв. Є ідеї?', 'пн'),
+        msg('sova', '«Доглядач маяка» — повільне життя на острові.', 'пн') ] },
+      { name: 'сайт-і-пропозиції', about: 'Помилки й побажання до Новелки', count: '1', messages: [
+        msg('sova', 'Дуже не вистачає безшовного читання на телефоні.', 'нд'),
+        msg('panrid', 'Вже в макеті нового дизайну!', 'нд') ] }
+    ];
+    const i = this.state.channel;
+    const channels = list.map((c, k) => ({
+      name: c.name, count: c.count, current: k === i ? 'true' : 'false',
+      bg: k === i ? 'var(--soft)' : 'transparent', color: k === i ? 'var(--strong)' : 'var(--text)',
+      pick: () => this.setState({ channel: k })
+    }));
+    const online = [
+      { name: '@panrid', letter: 'П', bg: '#1E3550', ink: '#BBD6FF' },
+      { name: '@lis', letter: 'Л', bg: '#2A2340', ink: '#D9CCFF' },
+      { name: '@mavka', letter: 'М', bg: '#203B2C', ink: '#BDF0D0' },
+      { name: '@sova', letter: 'С', bg: '#3D3018', ink: '#FFE2A8' },
+      { name: '@kit', letter: 'К', bg: '#40252A', ink: '#FFC9CF' }
+    ];
+    return {
+      vars, channels, channel: list[i], online,
+      isDark: !this.state.light, isLight: this.state.light,
+      themeLabel: this.state.light ? 'Темна тема' : 'Світла тема',
+      toggleTheme: () => this.setState({ light: !this.state.light })
+    };
+  }
+}
+</script>
+</body>
+</html>
