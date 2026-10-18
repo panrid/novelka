@@ -16,7 +16,7 @@ const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
             staleTime: 30_000,
-            // Repeating a 4xx will not change the answer; network and server errors may pass.
+            // Repeating a 4xx will not change the answer; network and server errors may pass on a retry.
             retry: (failures, error) => failures < 2 && !(error instanceof ApiError && error.status >= 400 && error.status < 500),
         },
     },
