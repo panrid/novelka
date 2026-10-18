@@ -20,7 +20,7 @@ a{color:#8EA6FF}a:hover{color:#B7C6FF}
     <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px">
       <div style="display: flex; flex-direction: column; gap: 8px; max-width: 760px">
         <h1 style="margin: 0; font: 600 34px/1.2 'Literata', serif; color: var(--strong)">Терміни й доступ</h1>
-        <p style="margin: 0; color: var(--muted); font-size: 15px; line-height: 1.6">Одне слово — одна річ: однаково в меню, на кнопках, у сповіщеннях і в довідці. Доступ майже однаковий для всіх: перекладати може кожен, хто увійшов. Окремого дозволу потребує лише автопереклад із сайту за посиланням.</p>
+        <p style="margin: 0; color: var(--muted); font-size: 15px; line-height: 1.6">Одне слово — одна річ: однаково в меню, на кнопках, у сповіщеннях і в довідці. Без входу можна лише читати; правки, бібліотека й коментарі — після входу. Перекладати може кожен, хто увійшов. Усе з ШІ видно лише тим, у кого є шаги (власник сайту може це перемкнути), а «Автопереклад із сайту» потребує ще й дозволу власника.</p>
       </div>
       <button type="button" onClick="{{ toggleTheme }}" aria-label="{{ themeLabel }}" title="{{ themeLabel }}" style="width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--panel2); color: var(--text); display: grid; place-items: center; cursor: pointer">
         <sc-if value="{{ isDark }}" hint-placeholder-val="{{ true }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></sc-if>
@@ -28,7 +28,7 @@ a{color:#8EA6FF}a:hover{color:#B7C6FF}
       </button>
     </div>
 
-    <section aria-label="Хто що може" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px">
+    <section aria-label="Хто що може" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px">
       <sc-for list="{{ roles }}" as="r" hint-placeholder-count="3">
         <article style="background: var(--panel); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: {{ r.ring }}">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
@@ -100,10 +100,12 @@ class Component extends DCLogic {
     const info = (text) => ({ text, bg: 'var(--infoBg)', color: 'var(--info)' });
     const gray = (text) => ({ text, bg: 'var(--grayBg)', color: 'var(--gray)' });
     const roles = [
-      { name: 'Читач', who: 'кожен', where: 'novelka.in.ua — сайт. Частина без входу, решта — після входу.', ring: 'none', chipBg: 'var(--grayBg)', chipColor: 'var(--gray)',
-        can: ['читати, «Aa», безшовне читання', 'бібліотека й місце в главі', '«Хто це» й підказки словника', 'правки абзаців і коментарі', 'вхідні, повідомлення, загальний чат'] },
-      { name: 'Перекладач', who: 'кожен, хто увійшов', where: 'studio.novelka.in.ua — Студія. Відкривається з меню «Студія»; той самий вхід.', ring: 'inset 0 0 0 2px var(--accent)', chipBg: 'var(--infoBg)', chipColor: 'var(--info)',
-        can: ['новий переклад, свій твір, команда', 'вставити оригінал глави', '«Перекласти з ШІ» — за шаги', 'хід перекладу наживо', 'робоче місце, словник, правки, публікація, картинки'] },
+      { name: 'Гість', who: 'без входу', where: 'novelka.in.ua — сайт. Усе, що можна без акаунта.', ring: 'none', chipBg: 'var(--grayBg)', chipColor: 'var(--gray)',
+        can: ['читати, «Aa», безшовне читання', '«Хто це» й підказки словника', 'бачити коментарі й загальний чат', 'місце в главі — лише в цьому браузері'] },
+      { name: 'Читач', who: 'хто увійшов', where: 'Той самий сайт, плюс усе, що потребує акаунта.', ring: 'none', chipBg: 'var(--grayBg)', chipColor: 'var(--gray)',
+        can: ['бібліотека й місце в главі на всіх пристроях', 'правки абзаців', 'коментарі, оцінки, голоси', 'вхідні, повідомлення, загальний чат'] },
+      { name: 'Перекладач', who: 'хто увійшов', where: 'studio.novelka.in.ua — Студія. Відкривається з меню «Студія»; той самий вхід.', ring: 'inset 0 0 0 2px var(--accent)', chipBg: 'var(--infoBg)', chipColor: 'var(--info)',
+        can: ['новий переклад, свій твір, команда', 'вставити оригінал глави', 'робоче місце, історія глави, словник, правки, публікація', 'з шагами: «Перекласти з ШІ», хід перекладу, картинки, свій набір моделей'] },
       { name: 'З дозволу', who: 'дає власник сайту', where: 'Те саме в Студії, плюс одна можливість. Попросити — кнопкою в «Новому перекладі».', ring: 'none', chipBg: 'var(--warnBg)', chipColor: 'var(--warn)',
         can: ['«Автопереклад із сайту»: посилання на новелу на сайті оригіналу', 'Новелка сама бере глави й перекладає', 'щотижня перевіряє нові глави', '«до глави N» одним запуском'] }
     ];
