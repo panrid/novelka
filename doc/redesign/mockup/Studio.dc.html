@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Студія</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0F1115}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+</style>
+</helmet>
+<div style="{{ vars }}; min-height: 960px; background: var(--bg); color: var(--text); font-family: 'Golos Text', system-ui, sans-serif; font-size: 14px">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--line)">
+    <a href="Home.dc.html" style="font: 600 20px 'Literata', serif; color: var(--strong); text-decoration: none">новелка<span style="color: var(--accent)">.</span></a>
+    <nav aria-label="Сайт" style="display: flex; gap: 4px; flex: 1; min-width: 240px">
+      <a href="Home.dc.html" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none">Читати</a>
+      <a href="#" aria-current="page" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; background: var(--panel2); color: var(--strong); text-decoration: none; font-weight: 600">Студія</a>
+    </nav>
+    <span style="padding: 6px 12px; border-radius: 999px; background: var(--panel2); color: var(--text)"><b style="font-weight: 600">[N] шагів</b> на рахунку</span>
+    <a href="Paste.dc.html" style="height: 40px; display: flex; align-items: center; padding: 0 16px; border-radius: 10px; background: var(--accent); color: var(--onAccent); text-decoration: none; font-weight: 600">+ Новий переклад</a>
+    <button type="button" onClick="{{ toggleTheme }}" aria-label="{{ themeLabel }}" title="{{ themeLabel }}" style="width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--panel2); color: var(--text); display: grid; place-items: center; cursor: pointer">
+      <sc-if value="{{ isDark }}" hint-placeholder-val="{{ true }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></sc-if>
+      <sc-if value="{{ isLight }}" hint-placeholder-val="{{ false }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"></path></svg></sc-if>
+    </button>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 16px; padding: 20px 20px 32px; align-items: flex-start">
+    <main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+      <h1 style="margin: 0 0 2px; font: 600 26px/1.25 'Literata', serif; color: var(--strong)">Мої переклади</h1>
+      <sc-for list="{{ novels }}" as="n" hint-placeholder-count="4">
+        <article style="background: var(--panel); border-radius: 14px; padding: 16px; display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 16px; align-items: center">
+          <span aria-hidden="true" style="width: 64px; height: 92px; border-radius: 10px; background: {{ n.cover }}; display: grid; place-items: center; font: 600 26px 'Literata', serif; color: {{ n.ink }}">{{ n.letter }}</span>
+          <div style="min-width: 0; display: flex; flex-direction: column; gap: 6px">
+            <a href="Translate.dc.html" style="font: 600 18px/1.3 'Literata', serif; color: var(--strong); text-decoration: none">{{ n.title }}</a>
+            <div style="color: var(--muted)">{{ n.progressText }}</div>
+            <div style="height: 6px; border-radius: 6px; background: var(--panel2); max-width: 420px"><div style="width: {{ n.width }}; height: 6px; border-radius: 6px; background: var(--accent)"></div></div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px">
+              <sc-for list="{{ n.chips }}" as="c" hint-placeholder-count="2">
+                <span style="padding: 2px 10px; border-radius: 999px; background: {{ c.bg }}; color: {{ c.color }}; font-size: 12px; font-weight: 500">{{ c.text }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px; align-items: stretch">
+            <a href="Workspace.dc.html" style="height: 38px; display: flex; align-items: center; justify-content: center; padding: 0 14px; border-radius: 10px; background: var(--panel2); color: var(--strong); text-decoration: none; font-weight: 500">{{ n.open }}</a>
+            <a href="Translate.dc.html" style="height: 38px; display: flex; align-items: center; justify-content: center; padding: 0 14px; border-radius: 10px; color: var(--accent); text-decoration: none; font-weight: 500; box-shadow: inset 0 0 0 1px var(--line)">Перекласти далі</a>
+          </div>
+        </article>
+      </sc-for>
+    </main>
+
+    <aside style="flex: 1 1 320px; max-width: 400px; display: flex; flex-direction: column; gap: 16px">
+      <section aria-label="Черга перекладу" style="background: var(--panel); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+        <b style="font-weight: 600; color: var(--strong)">Перекладається зараз</b>
+        <sc-for list="{{ queue }}" as="q" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <div style="display: flex; justify-content: space-between; gap: 8px"><span>{{ q.what }}</span><span style="color: var(--muted); font-size: 12px">{{ q.stage }}</span></div>
+            <div style="height: 6px; border-radius: 6px; background: var(--panel2)"><div style="width: {{ q.width }}; height: 6px; border-radius: 6px; background: var(--accent)"></div></div>
+          </div>
+        </sc-for>
+        <span style="font-size: 12px; color: var(--muted); line-height: 1.5">Одночасно перекладаються до трьох глав різних новел.</span>
+      </section>
+      <section aria-label="Чекає на вас" style="background: var(--panel); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+        <b style="font-weight: 600; color: var(--strong)">Чекає на вас</b>
+        <a href="Review.dc.html" style="display: flex; justify-content: space-between; color: var(--text); text-decoration: none"><span>Правки читачів</span><b style="color: var(--accent); font-weight: 600">7</b></a>
+        <a href="Glossary.dc.html" style="display: flex; justify-content: space-between; color: var(--text); text-decoration: none"><span>Нові слова у словниках</span><b style="color: var(--accent); font-weight: 600">12</b></a>
+        <a href="WorkspaceFocus.dc.html" style="display: flex; justify-content: space-between; color: var(--text); text-decoration: none"><span>Чернетки до публікації</span><b style="color: var(--accent); font-weight: 600">3</b></a>
+        <a href="#" style="display: flex; justify-content: space-between; color: var(--text); text-decoration: none"><span>Нові глави в оригіналі</span><b style="color: var(--accent); font-weight: 600">2</b></a>
+      </section>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { light: false };
+  }
+  renderVals() {
+    const dark = { bg: '#0F1115', panel: '#171A20', panel2: '#1F232B', line: '#2A2F39', text: '#E8EAEE', strong: '#F1F2F5', muted: '#A3A9B6', accent: '#8EA6FF', onAccent: '#0B0D12', warnBg: 'rgba(242,196,107,0.14)', warn: '#F2C46B', infoBg: 'rgba(142,166,255,0.16)', info: '#B7C6FF', grayBg: '#23272F', gray: '#C4C9D4' };
+    const light = { bg: '#F3F4F6', panel: '#FFFFFF', panel2: '#F1F2F5', line: '#E3E5EA', text: '#15171C', strong: '#0B0D12', muted: '#5B6170', accent: '#2A4BD7', onAccent: '#FFFFFF', warnBg: '#FFF1D6', warn: '#7A4B00', infoBg: '#DCE6FF', info: '#102A8C', grayBg: '#E8EAEE', gray: '#3A4152' };
+    const t = this.state.light ? light : dark;
+    const vars = Object.entries(t).map(([k, v]) => '--' + k + ':' + v).join(';');
+    const warn = (text) => ({ text, bg: 'var(--warnBg)', color: 'var(--warn)' });
+    const info = (text) => ({ text, bg: 'var(--infoBg)', color: 'var(--info)' });
+    const gray = (text) => ({ text, bg: 'var(--grayBg)', color: 'var(--gray)' });
+    const novels = [
+      { title: 'Доглядач маяка', letter: 'Д', cover: '#1F3A4A', ink: '#BFE3F2', progressText: 'Перекладено 12 з 64 глав · з англійської', width: '19%', open: 'Глава 12', chips: [warn('1 чернетка'), info('перекладається 13–15'), gray('3 правки')] },
+      { title: 'Маг води', letter: 'М', cover: '#1E3550', ink: '#BBD6FF', progressText: 'Перекладено 51 з 208 глав · з японської', width: '25%', open: 'Глава 51', chips: [gray('4 правки'), gray('2 нові глави в оригіналі')] },
+      { title: 'Майстер магічної інженерії', letter: 'М', cover: '#3D3018', ink: '#FFE2A8', progressText: 'Перекладено 10 з 4425 глав · з японської', width: '2%', open: 'Глава 10', chips: [warn('12 нових слів'), info('у черзі 11–20')] },
+      { title: 'Мати навчання', letter: 'М', cover: '#203B2C', ink: '#BDF0D0', progressText: 'Перекладено 1 глава · оригінал вставлено до глави 3', width: '33%', open: 'Глава 1', chips: [gray('2 глави чекають перекладу')] }
+    ];
+    const queue = [
+      { what: 'Доглядач маяка · глава 13', stage: 'переклад 3/4', width: '62%' },
+      { what: 'Майстер магічної інженерії · глава 11', stage: 'аналіз', width: '12%' },
+      { what: 'Доглядач маяка · глави 14–15', stage: 'у черзі', width: '0%' }
+    ];
+    return {
+      vars, novels, queue,
+      isDark: !this.state.light, isLight: this.state.light,
+      themeLabel: this.state.light ? 'Темна тема' : 'Світла тема',
+      toggleTheme: () => this.setState({ light: !this.state.light })
+    };
+  }
+}
+</script>
+</body>
+</html>

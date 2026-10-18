@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Вигляд тексту</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0F1115}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #0F1115; color: #DADDE3; font-family: 'Golos Text', system-ui, sans-serif; overflow: hidden">
+  <div aria-hidden="true" lang="uk" style="padding: 76px 24px 0; font: 18px/1.65 'Literata', serif; text-align: justify; hyphens: auto; color: #6E7686">
+    <p style="margin: 0 0 18px">Маяк стояв темним уже третю ніч, коли Ліна нарешті піднялася сходами.</p>
+    <p style="margin: 0 0 18px">— Ти спізнилася, — не обертаючись, сказав майстер Орест. Він натирав велику лінзу ганчіркою, що колись була сорочкою.</p>
+    <p style="margin: 0">— Пором спізнився, — відповіла вона.</p>
+  </div>
+
+  <section role="dialog" aria-label="Вигляд тексту" style="position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 20px 22px; border-radius: 24px 24px 0 0; background: #171A20; box-shadow: 0 -12px 40px rgba(0,0,0,0.55); display: flex; flex-direction: column; gap: 18px">
+    <div aria-hidden="true" style="width: 40px; height: 4px; border-radius: 4px; background: #3A404C; margin: 0 auto"></div>
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <b style="font-size: 17px; font-weight: 600; color: #F1F2F5">Вигляд тексту</b>
+      <a href="Main.dc.html" style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: #8EA6FF; text-decoration: none; font-weight: 500">Готово</a>
+    </div>
+
+    <fieldset style="border: 0; margin: 0; padding: 0">
+      <legend style="padding: 0; margin-bottom: 10px; font-size: 13px; color: #A3A9B6">Тло</legend>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+        <button type="button" aria-pressed="true" style="height: 56px; border: 0; border-radius: 12px; background: #0F1115; color: #DADDE3; box-shadow: inset 0 0 0 2px #8EA6FF; font: 500 13px 'Golos Text', sans-serif">Темне</button>
+        <button type="button" aria-pressed="false" style="height: 56px; border: 0; border-radius: 12px; background: #000000; color: #BFC3CC; box-shadow: inset 0 0 0 1px #2E3440; font: 500 13px 'Golos Text', sans-serif">Чорне</button>
+        <button type="button" aria-pressed="false" style="height: 56px; border: 0; border-radius: 12px; background: #2A251D; color: #E6D9BF; box-shadow: inset 0 0 0 1px #2E3440; font: 500 13px 'Golos Text', sans-serif">Сепія</button>
+        <button type="button" aria-pressed="false" style="height: 56px; border: 0; border-radius: 12px; background: #F4F2EC; color: #1C1B18; font: 500 13px 'Golos Text', sans-serif">Світле</button>
+      </div>
+    </fieldset>
+
+    <fieldset style="border: 0; margin: 0; padding: 0">
+      <legend style="padding: 0; margin-bottom: 10px; font-size: 13px; color: #A3A9B6">Шрифт</legend>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <button type="button" aria-pressed="true" style="height: 48px; border: 0; border-radius: 12px; background: #23283A; color: #F1F2F5; box-shadow: inset 0 0 0 2px #8EA6FF; font: 18px 'Literata', serif">Літерата</button>
+        <button type="button" aria-pressed="false" style="height: 48px; border: 0; border-radius: 12px; background: #1F232B; color: #E8EAEE; font: 17px 'Golos Text', sans-serif">Голос</button>
+        <button type="button" aria-pressed="false" style="height: 48px; border: 0; border-radius: 12px; background: #1F232B; color: #E8EAEE; font: 17px Georgia, serif">Джорджія</button>
+      </div>
+    </fieldset>
+
+    <div style="display: flex; align-items: center; gap: 12px">
+      <span style="width: 92px; font-size: 13px; color: #A3A9B6">Розмір</span>
+      <button type="button" aria-label="Менше" style="width: 44px; height: 44px; border: 0; border-radius: 12px; background: #1F232B; color: #E8EAEE; font: 500 14px 'Literata', serif">A</button>
+      <div style="flex: 1; height: 4px; border-radius: 4px; background: #2E3440"><div style="width: 55%; height: 4px; border-radius: 4px; background: #8EA6FF"></div></div>
+      <button type="button" aria-label="Більше" style="width: 44px; height: 44px; border: 0; border-radius: 12px; background: #1F232B; color: #E8EAEE; font: 500 20px 'Literata', serif">A</button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px">
+      <span style="width: 92px; font-size: 13px; color: #A3A9B6">Між рядками</span>
+      <div role="radiogroup" aria-label="Між рядками" style="flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px">
+        <button type="button" role="radio" aria-checked="false" style="height: 40px; border: 0; border-radius: 10px; background: #1F232B; color: #E8EAEE; font: 500 13px 'Golos Text', sans-serif">Щільно</button>
+        <button type="button" role="radio" aria-checked="true" style="height: 40px; border: 0; border-radius: 10px; background: #2A303B; color: #F1F2F5; box-shadow: inset 0 0 0 1.5px #8EA6FF; font: 600 13px 'Golos Text', sans-serif">Звично</button>
+        <button type="button" role="radio" aria-checked="false" style="height: 40px; border: 0; border-radius: 10px; background: #1F232B; color: #E8EAEE; font: 500 13px 'Golos Text', sans-serif">Просторо</button>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px">
+      <span style="width: 92px; font-size: 13px; color: #A3A9B6">Текст</span>
+      <div role="radiogroup" aria-label="Вирівнювання" style="flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px">
+        <button type="button" role="radio" aria-checked="false" style="height: 40px; border: 0; border-radius: 10px; background: #1F232B; color: #E8EAEE; font: 500 13px 'Golos Text', sans-serif">Ліворуч</button>
+        <button type="button" role="radio" aria-checked="true" style="height: 40px; border: 0; border-radius: 10px; background: #2A303B; color: #F1F2F5; box-shadow: inset 0 0 0 1.5px #8EA6FF; font: 600 13px 'Golos Text', sans-serif">По ширині</button>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px">
+      <span style="width: 92px; font-size: 13px; color: #A3A9B6">Гортати</span>
+      <div role="radiogroup" aria-label="Як гортати" style="flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px">
+        <button type="button" role="radio" aria-checked="true" style="height: 40px; border: 0; border-radius: 10px; background: #2A303B; color: #F1F2F5; box-shadow: inset 0 0 0 1.5px #8EA6FF; font: 600 13px 'Golos Text', sans-serif">Прокрутка</button>
+        <button type="button" role="radio" aria-checked="false" style="height: 40px; border: 0; border-radius: 10px; background: #1F232B; color: #E8EAEE; font: 500 13px 'Golos Text', sans-serif">Сторінки</button>
+      </div>
+    </div>
+    <label style="display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; color: #E8EAEE">
+      Безшовно: наприкінці глави одразу наступна
+      <input type="checkbox" checked style="width: 22px; height: 22px; accent-color: #8EA6FF">
+    </label>
+    <label style="display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; color: #E8EAEE">
+      Підказки зі словника в тексті
+      <input type="checkbox" checked style="width: 22px; height: 22px; accent-color: #8EA6FF">
+    </label>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

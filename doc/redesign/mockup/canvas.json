@@ -1,0 +1,37 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-10-18T09:00:00Z"},
+  "title": "Новелка — новий дизайн",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 390, "h": 844, "title": "Читалка — торкніться абзацу, щоб виправити", "is_interactive": true, "radius": 28},
+    "Review.dc.html": {"x": 470, "y": 0, "w": 390, "h": 844, "title": "Правки читачів у тексті", "radius": 28},
+    "ReaderLook.dc.html": {"x": 940, "y": 0, "w": 390, "h": 844, "title": "Вигляд тексту «Aa»", "radius": 28},
+    "WhoIs.dc.html": {"x": 1410, "y": 0, "w": 390, "h": 844, "title": "«Хто це» з портретом", "radius": 28},
+    "PhoneHome.dc.html": {"x": 1880, "y": 0, "w": 390, "h": 844, "title": "Головна на телефоні", "radius": 28},
+    "PhoneNovel.dc.html": {"x": 2350, "y": 0, "w": 390, "h": 844, "title": "Сторінка новели на телефоні", "radius": 28},
+    "Workspace.dc.html": {"x": 0, "y": 1300, "w": 1440, "h": 1010, "title": "Робоче місце: панелі й оригінал ховаються", "expand": "fill", "is_interactive": true},
+    "WorkspaceFocus.dc.html": {"x": 1520, "y": 1300, "w": 1440, "h": 1010, "title": "Робоче місце: лише переклад, оригінал під рукою", "expand": "fill", "is_interactive": true},
+    "Translate.dc.html": {"x": 0, "y": 2710, "w": 1440, "h": 960, "title": "Переклад кількох глав", "expand": "fill", "is_interactive": true},
+    "Paste.dc.html": {"x": 1520, "y": 2710, "w": 1440, "h": 960, "title": "Оригінал глави: по одній, глави — праворуч", "expand": "fill", "is_interactive": true},
+    "Glossary.dc.html": {"x": 0, "y": 4070, "w": 1440, "h": 960, "title": "Словник новели", "expand": "fill", "is_interactive": true},
+    "Studio.dc.html": {"x": 1520, "y": 4070, "w": 1440, "h": 960, "title": "Студія: мої переклади", "expand": "fill", "is_interactive": true},
+    "Home.dc.html": {"x": 0, "y": 5430, "w": 1440, "h": 1100, "title": "Головна", "expand": "fill", "is_interactive": true},
+    "Novel.dc.html": {"x": 1520, "y": 5430, "w": 1440, "h": 1100, "title": "Сторінка новели (Tweaks: є описи персонажів)", "expand": "fill", "is_interactive": true},
+    "DesktopReader.dc.html": {"x": 3040, "y": 5430, "w": 1440, "h": 1400, "title": "Читалка на комп'ютері: безшовно в наступну главу", "expand": "fill", "is_interactive": true},
+    "Inbox.dc.html": {"x": 0, "y": 7230, "w": 1440, "h": 900, "title": "Вхідні: сповіщення", "expand": "fill", "is_interactive": true},
+    "Messages.dc.html": {"x": 1520, "y": 7230, "w": 1440, "h": 900, "title": "Повідомлення", "expand": "fill", "is_interactive": true},
+    "GlobalChat.dc.html": {"x": 3040, "y": 7230, "w": 1440, "h": 900, "title": "Загальний чат", "expand": "fill", "is_interactive": true},
+    "Settings.dc.html": {"x": 4560, "y": 7230, "w": 1440, "h": 900, "title": "Налаштування", "expand": "fill", "is_interactive": true}
+  },
+  "order": ["Main.dc.html", "Review.dc.html", "ReaderLook.dc.html", "WhoIs.dc.html", "PhoneHome.dc.html", "PhoneNovel.dc.html", "Workspace.dc.html", "WorkspaceFocus.dc.html", "Translate.dc.html", "Paste.dc.html", "Glossary.dc.html", "Studio.dc.html", "Home.dc.html", "Novel.dc.html", "DesktopReader.dc.html", "Inbox.dc.html", "Messages.dc.html", "GlobalChat.dc.html", "Settings.dc.html"],
+  "notes": {
+    "readerTitle": {"x": 0, "y": -300, "text": "Телефон: читалка й правки (темна тема)", "kind": "title1", "maxW": 2740},
+    "readerNote": {"x": 2820, "y": 0, "w": 420, "maxH": 640, "fill": "blue", "text": "Темна тема — основна. На комп'ютері світла вмикається однією кнопкою в шапці (сонце / місяць) — спробуйте в режимі Play.\n\nЧиталка: лише текст, вирівнювання по ширині з переносами. Правка — просто в абзаці. Лампочка — підказки зі словника. Безшовно: наприкінці глави одразу починається наступна.\n\nЕкрани для комп'ютера дивіться з ноутбука: на телефоні вони лише стискаються, телефонний вигляд — у верхньому ряду."},
+    "workTitle": {"x": 0, "y": 1000, "text": "Переклад — головний інструмент", "kind": "title1", "maxW": 2960},
+    "siteTitle": {"x": 0, "y": 5130, "text": "Сайт для читачів", "kind": "title1", "maxW": 4480},
+    "commsTitle": {"x": 0, "y": 6930, "text": "Сповіщення, чати й налаштування", "kind": "title1", "maxW": 6000}
+  },
+  "designSystems": []
+}

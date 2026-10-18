@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Читалка</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0F1115}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+.para:hover{background:#171A20}
+.para:focus-visible{outline:2px solid #8EA6FF;outline-offset:2px}
+textarea:focus{outline:none;border-color:#8EA6FF}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0F1115; color: #DADDE3; font-family: 'Golos Text', system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+  <header style="display: flex; align-items: center; gap: 4px; padding: 10px 8px 6px; flex-shrink: 0">
+    <a href="#" aria-label="До новели" style="display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: #E8EAEE">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+    </a>
+    <div style="flex: 1; min-width: 0; text-align: center">
+      <div style="font-size: 12px; color: #A3A9B6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Доглядач маяка</div>
+      <div style="font-size: 14px; font-weight: 600; color: #E8EAEE">Глава 12</div>
+    </div>
+    <button type="button" aria-pressed="true" aria-label="Підказки зі словника" style="display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 12px; background: rgba(142,166,255,0.14); color: #E8EAEE; cursor: pointer">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"></path><path d="M12 3a6 6 0 00-3.5 10.9V16h7v-2.1A6 6 0 0012 3z"></path></svg>
+    </button>
+    <a href="ReaderLook.dc.html" aria-label="Вигляд тексту" style="display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: #E8EAEE; font: 600 17px 'Literata', serif; text-decoration: none">Aa</a>
+  </header>
+
+  <main style="flex: 1; overflow-y: auto; padding: 8px 24px 24px">
+    <h1 style="margin: 12px 0 20px; font: 600 26px/1.25 'Literata', serif; letter-spacing: -0.01em; color: #F1F2F5">Лінза, що пам'ятає світло</h1>
+
+    <sc-for list="{{ paragraphs }}" as="p" hint-placeholder-count="5">
+      <sc-if value="{{ p.editing }}" hint-placeholder-val="{{ false }}">
+        <div style="margin: 0 -12px 18px; padding: 12px; border-radius: 14px; background: #1A1E26; display: flex; flex-direction: column; gap: 10px">
+          <label for="edit-{{ p.id }}" style="font-size: 12px; font-weight: 500; color: #A3A9B6">Абзац {{ p.number }} — правка</label>
+          <textarea id="edit-{{ p.id }}" rows="5" style="width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1.5px solid #3A4458; border-radius: 10px; background: #0F1115; color: #E8EAEE; font: 18px/1.6 'Literata', serif; resize: vertical">{{ p.plain }}</textarea>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px">
+            <button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #2E3440; border-radius: 999px; background: transparent; color: #E8EAEE; font: 500 13px 'Golos Text', sans-serif; cursor: pointer">Варіант від ШІ</button>
+            <button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #2E3440; border-radius: 999px; background: transparent; color: #E8EAEE; font: 500 13px 'Golos Text', sans-serif; cursor: pointer">Показати оригінал</button>
+          </div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end">
+            <button type="button" onClick="{{ p.cancel }}" style="height: 44px; padding: 0 16px; border: 0; border-radius: 12px; background: transparent; color: #C4C9D4; font: 500 15px 'Golos Text', sans-serif; cursor: pointer">Скасувати</button>
+            <button type="button" onClick="{{ p.save }}" style="height: 44px; padding: 0 20px; border: 0; border-radius: 12px; background: #8EA6FF; color: #0B0D12; font: 600 15px 'Golos Text', sans-serif; cursor: pointer">Зберегти</button>
+          </div>
+          <div style="font-size: 12px; line-height: 1.45; color: #A3A9B6">Ви в команді: абзац зміниться для читачів одразу, стара версія лишиться в історії.</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ p.reading }}" hint-placeholder-val="{{ true }}">
+        <button type="button" class="para" onClick="{{ p.open }}" aria-label="Абзац {{ p.number }}: торкніться, щоб виправити" lang="uk" style="display: block; width: calc(100% + 24px); margin: 0 -12px 18px; padding: 2px 12px; border: 0; border-radius: 10px; background: transparent; color: #DADDE3; text-align: justify; hyphens: auto; font: 18px/1.65 'Literata', serif; cursor: text">
+          <sc-for list="{{ p.parts }}" as="part" hint-placeholder-count="1">
+            <sc-if value="{{ part.term }}" hint-placeholder-val="{{ false }}"><span style="text-decoration: underline dotted #6E7686; text-underline-offset: 4px">{{ part.text }}</span></sc-if>
+            <sc-if value="{{ part.plain }}" hint-placeholder-val="{{ true }}"><span>{{ part.text }}</span></sc-if>
+          </sc-for>
+          <sc-if value="{{ p.saved }}" hint-placeholder-val="{{ false }}"><span style="display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: rgba(142,166,255,0.16); color: #B7C6FF; font: 500 12px/22px 'Golos Text', sans-serif; vertical-align: 2px">збережено</span></sc-if>
+        </button>
+      </sc-if>
+    </sc-for>
+
+    <div role="separator" aria-label="Далі глава 13" style="display: flex; align-items: center; gap: 12px; margin: 28px 0 18px; color: #A3A9B6; font-size: 12px; letter-spacing: 0.04em">
+      <span style="flex: 1; height: 1px; background: #23272F"></span>ГЛАВА 13<span style="flex: 1; height: 1px; background: #23272F"></span>
+    </div>
+    <h2 style="margin: 0 0 18px; font: 600 24px/1.25 'Literata', serif; color: #F1F2F5">Журнал доглядача</h2>
+    <p lang="uk" style="margin: 0 0 18px; font: 18px/1.65 'Literata', serif; text-align: justify; hyphens: auto">Журнал лежав на тому ж місці, де його лишив попередній доглядач, — під лампою, обгорнутий у цератку.</p>
+    <div aria-label="Наступна глава завантажується" style="display: flex; flex-direction: column; gap: 10px">
+      <span style="height: 14px; width: 100%; border-radius: 6px; background: #1A1D23"></span>
+      <span style="height: 14px; width: 92%; border-radius: 6px; background: #1A1D23"></span>
+      <span style="height: 14px; width: 60%; border-radius: 6px; background: #1A1D23"></span>
+    </div>
+  </main>
+
+  <footer style="flex-shrink: 0; padding: 0 12px 14px">
+    <div style="height: 3px; border-radius: 3px; background: #23272F; margin: 0 12px 10px"><div style="width: 34%; height: 3px; border-radius: 3px; background: #8EA6FF"></div></div>
+    <nav aria-label="Глави" style="display: flex; align-items: center; justify-content: space-between">
+      <a href="#" style="display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 12px; border-radius: 12px; color: #C4C9D4; font-size: 14px; text-decoration: none">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>11</a>
+      <span style="font-size: 13px; color: #A3A9B6">34% · ще 6 хв</span>
+      <a href="#" style="display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 12px; border-radius: 12px; color: #C4C9D4; font-size: 14px; text-decoration: none">13
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"></path></svg></a>
+    </nav>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { editing: null, saved: {} };
+  }
+  renderVals() {
+    const source = [
+      [['Маяк стояв темним уже третю ніч, коли ', false], ['Ліна', true], [' нарешті піднялася сходами.', false]],
+      [['— Ти спізнилася, — не обертаючись, сказав ', false], ['майстер Орест', true], ['. Він натирав ', false], ['велику лінзу', true], [' ганчіркою, що колись була сорочкою.', false]],
+      [['— Пором спізнився, — відповіла вона. — На цьому острові все спізнюється.', false]],
+      [['Він засміявся сухо, наче хтось гортав сторінки. — Тоді спізнюватимемося разом. Подай олію.', false]],
+      [['Унизу під тонкою ковдрою туману спала гавань, і десь у ній один раз ударив дзвін.', false]],
+      [['Ліна', true], [' подала бляшанку й сіла на холодну сходинку. Звідси було видно, як світло з лінзи помалу набирає силу.', false]]
+    ];
+    const editing = this.state.editing;
+    const paragraphs = source.map((parts, index) => ({
+      id: 'p' + index,
+      number: index + 1,
+      editing: editing === index,
+      reading: editing !== index,
+      saved: Boolean(this.state.saved[index]),
+      plain: parts.map((part) => part[0]).join(''),
+      parts: parts.map((part) => ({ text: part[0], term: part[1], plain: !part[1] })),
+      open: () => this.setState({ editing: index }),
+      cancel: () => this.setState({ editing: null }),
+      save: () => this.setState({ editing: null, saved: { ...this.state.saved, [index]: true } })
+    }));
+    return { paragraphs };
+  }
+}
+</script>
+</body>
+</html>
