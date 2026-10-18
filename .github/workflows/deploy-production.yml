@@ -12,8 +12,9 @@ permissions:
 
 jobs:
     # A pull request already tested and built exactly this tree (pull-request.yml): deploy its JAR.
-    # Anything else runs in full: a direct push, main moved after the check, a fork, a manual run.
+    # Anything else is tested and built here: a direct push, main moved after the check, a fork, a manual run.
     # Re-running an old deploy reuses its pull request's JAR while that is kept (7 days), otherwise rebuilds.
+    # Only what changed since the last deploy is checked (.github/scripts/changes.sh); the JAR is always built.
     find:
         name: Find checked JAR
         runs-on: ubuntu-latest
@@ -26,6 +27,8 @@ jobs:
             run_id: ${{ steps.find.outputs.run_id }}
             pr: ${{ steps.find.outputs.pr }}
             tree: ${{ steps.find.outputs.tree }}
+            backend: ${{ steps.changes.outputs.backend }}
+            frontend: ${{ steps.changes.outputs.frontend }}
         steps:
             - name: Look for a JAR from a pull request
               id: find
@@ -33,7 +36,7 @@ jobs:
                   GH_TOKEN: ${{ github.token }}
               run: |
                   full() {
-                      echo "Повний прогін: $1" | tee -a "$GITHUB_STEP_SUMMARY"
+                      echo "Збірка в цьому запуску: $1" | tee -a "$GITHUB_STEP_SUMMARY"
                       exit 0
                   }
                   [ "$GITHUB_EVENT_NAME" = push ] || full "запуск вручну ($GITHUB_EVENT_NAME)"
@@ -60,11 +63,23 @@ jobs:
                       exit 0
                   done
                   full "немає перевіреного JAR з pull request для дерева $tree"
+            # Blobless: history and trees only, enough to list changed paths.
+            - if: steps.find.outputs.run_id == ''
+              uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0
+                  filter: blob:none
+            - name: What changed since the last deploy
+              id: changes
+              if: steps.find.outputs.run_id == ''
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: bash .github/scripts/changes.sh
 
     backend:
         name: Backend tests
         needs: find
-        if: needs.find.outputs.run_id == ''
+        if: needs.find.outputs.run_id == '' && needs.find.outputs.backend == 'true'
         runs-on: ubuntu-latest
         timeout-minutes: 25
         steps:
@@ -81,7 +96,7 @@ jobs:
     frontend:
         name: Frontend checks and tests
         needs: find
-        if: needs.find.outputs.run_id == ''
+        if: needs.find.outputs.run_id == '' && needs.find.outputs.frontend == 'true'
         runs-on: ubuntu-latest
         timeout-minutes: 15
         defaults:
@@ -121,6 +136,9 @@ jobs:
               working-directory: frontend
             - name: Build JAR with the site inside
               run: ./gradlew :backend:bootJar --no-daemon
+            # The server puts each page's title and text into these two places (SearchPages); backend tests use a stand-in.
+            - name: Page shell the server fills
+              run: grep -q -F '<title>Новелка</title>' frontend/dist/index.html && grep -q -F '<div id="root"></div>' frontend/dist/index.html
             - uses: actions/upload-artifact@v4
               with:
                   name: novelka
@@ -131,11 +149,14 @@ jobs:
     deploy:
         name: Deploy to VPS
         needs: [find, backend, frontend, package]
-        # Either the JAR checked in a pull request, or tests, frontend checks and the build of this run all green.
+        # Either the JAR checked in a pull request, or the build of this run with each check green
+        # or skipped on purpose (nothing of its part changed); red, cancelled or skipped otherwise stops it.
         if: >-
             ${{ !cancelled() && github.ref == 'refs/heads/main' && needs.find.result == 'success'
             && (needs.find.outputs.run_id != ''
-                || (needs.backend.result == 'success' && needs.frontend.result == 'success' && needs.package.result == 'success')) }}
+                || (needs.package.result == 'success'
+                    && (needs.backend.result == 'success' || (needs.backend.result == 'skipped' && needs.find.outputs.backend == 'false'))
+                    && (needs.frontend.result == 'success' || (needs.frontend.result == 'skipped' && needs.find.outputs.frontend == 'false')))) }}
         runs-on: ubuntu-latest
         timeout-minutes: 15
         environment: production
