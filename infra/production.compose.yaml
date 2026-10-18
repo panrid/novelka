@@ -43,8 +43,8 @@ services:
       NOVELKA_MAIL_PORT: ${MAIL_PORT:-587}
       NOVELKA_MAIL_USER: ${MAIL_USERNAME:-}
       NOVELKA_MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-      NOVELKA_MAIL_AUTH: "true"
-      NOVELKA_MAIL_STARTTLS: "true"
+      NOVELKA_MAIL_AUTH: ${MAIL_AUTH:-true}
+      NOVELKA_MAIL_STARTTLS: ${MAIL_STARTTLS:-true}
       NOVELKA_MAIL_FROM: ${MAIL_FROM:-Новелка <no-reply@novelka.panrid.space>}
       NOVELKA_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       NOVELKA_GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
@@ -55,6 +55,21 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  # Our own outgoing mail: Postfix with DKIM, send-only, reachable only inside this Compose network
+  # (no published port). The app uses it with MAIL_HOST=mail, MAIL_PORT=587, MAIL_AUTH=false,
+  # MAIL_STARTTLS=false; the DKIM key is made once and kept in the «dkim» volume. DNS records and
+  # checks: doc/deployment.md, «Пошта».
+  mail:
+    image: boky/postfix:5.1.0-alpine
+    restart: unless-stopped
+    environment:
+      ALLOWED_SENDER_DOMAINS: novelka.in.ua
+      POSTFIX_myhostname: novelka.in.ua
+      DKIM_AUTOGENERATE: "true"
+      DKIM_SELECTOR: novelka
+    volumes:
+      - dkim:/etc/opendkim/keys
 
   # Once a day: the database (14 days kept) and the pictures (7 days kept) into the «backups» volume.
   # Restore: see doc/deployment.md.
@@ -102,3 +117,4 @@ volumes:
   backups:
   caddy-data:
   caddy-config:
+  dkim:

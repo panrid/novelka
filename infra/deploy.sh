@@ -16,7 +16,7 @@ compose="docker compose --env-file .env.production -f infra/production.compose.y
 docker rm -f infra-app-1 infra-caddy-1 infra-postgres-1 2>/dev/null || true
 
 $compose build app
-$compose up -d --no-deps --remove-orphans postgres backup caddy
+$compose up -d --no-deps --remove-orphans postgres backup mail caddy
 
 old=$($compose ps -q app)
 if [ -z "$old" ]; then
