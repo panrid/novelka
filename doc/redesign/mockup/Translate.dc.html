@@ -99,11 +99,26 @@ a{color:#8EA6FF}a:hover{color:#B7C6FF}
           <label style="display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 12px; cursor: pointer; box-shadow: {{ m.ring }}; background: {{ m.bg }}">
             <input type="radio" name="model" checked="{{ m.checked }}" onChange="{{ m.pick }}" style="margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent)">
             <span style="flex: 1">
-              <span style="display: flex; justify-content: space-between; gap: 8px"><b style="font-weight: 600; color: var(--strong)">{{ m.level }}</b><span style="font-weight: 500">{{ m.price }}</span></span>
+              <span style="display: flex; justify-content: space-between; gap: 8px"><span style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap"><b style="font-weight: 600; color: var(--strong)">{{ m.level }}</b><sc-if value="{{ m.hasChip }}" hint-placeholder-val="{{ false }}"><span style="padding: 0 8px; border-radius: 999px; background: var(--draftBg); color: var(--draftText); font-size: 11px; font-weight: 500">{{ m.chip }}</span></sc-if></span><span style="font-weight: 500">{{ m.price }}</span></span>
               <span style="display: block; font-size: 12px; color: var(--muted); margin-top: 2px">{{ m.note }}</span>
             </span>
           </label>
         </sc-for>
+        <sc-if value="{{ isCustom }}" hint-placeholder-val="{{ false }}">
+          <div style="padding: 12px; border-radius: 12px; background: var(--panel2); display: flex; flex-direction: column; gap: 10px">
+            <sc-for list="{{ steps }}" as="st" hint-placeholder-count="3">
+              <label style="display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 10px; align-items: center"><span style="color: var(--muted)">{{ st.name }}</span>
+                <select style="height: 36px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); font: 13px 'Golos Text', sans-serif"><option>{{ st.model }}</option></select></label>
+            </sc-for>
+            <sc-if value="{{ notSaved }}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; gap: 8px">
+                <input type="text" aria-label="Назва набору" value="Sonnet + Opus" style="flex: 1; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); font: 13px 'Golos Text', sans-serif">
+                <button type="button" onClick="{{ save }}" style="height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--accent); color: var(--onAccent); font: 600 13px 'Golos Text', sans-serif; cursor: pointer">Зберегти як мій набір</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ saved }}" hint-placeholder-val="{{ false }}"><span role="status" style="color: var(--workText)">Збережено як «Sonnet + Opus» — наступного разу буде у списку.</span></sc-if>
+          </div>
+        </sc-if>
       </fieldset>
       <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px">
         <legend style="padding: 0; margin-bottom: 8px; font-weight: 600; color: var(--strong)">Що зробити</legend>
@@ -126,7 +141,7 @@ a{color:#8EA6FF}a:hover{color:#B7C6FF}
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { light: false, model: 1 };
+    this.state = { light: false, model: 4, saved: false };
   }
   renderVals() {
     const dark = { bg: '#0F1115', panel: '#171A20', panel2: '#1F232B', line: '#2A2F39', text: '#E8EAEE', strong: '#F1F2F5', muted: '#A3A9B6', accent: '#8EA6FF', onAccent: '#0B0D12', soft: 'rgba(142,166,255,0.08)', doneBg: '#23272F', doneText: '#C4C9D4', draftBg: 'rgba(242,196,107,0.14)', draftText: '#F2C46B', workBg: 'rgba(142,166,255,0.16)', workText: '#B7C6FF' };
@@ -151,13 +166,16 @@ class Component extends DCLogic {
       make(20, 'Chapter 20: What the Light Saw', '12 560', 'не перекладено', 'none', true)
     ];
     const list = [
-      { level: 'Найкраща якість', note: 'Claude Opus · найменше правок після перекладу' },
-      { level: 'Висока якість', note: 'Claude Sonnet · рекомендовано для більшості глав' },
-      { level: 'Швидка чернетка', note: 'Claude Haiku · дешево, але більше правок' }
+      { level: 'Найкраща якість', note: 'Claude Opus · найменше правок після перекладу', custom: false },
+      { level: 'Висока якість', note: 'Claude Sonnet · рекомендовано для більшості глав', custom: false },
+      { level: 'Швидка чернетка', note: 'Claude Haiku · дешево, але більше правок', custom: false },
+      { level: 'Мій набір «Opus + Flash»', note: 'Збережено вами 12 жовтня · словник і вичитка Claude Opus, переклад DeepSeek V4 Flash', custom: false, mine: true },
+      { level: 'Свій набір', note: 'Змінено з «Висока якість»: модель вичитки', custom: true }
     ];
     const models = list.map((m, i) => {
       const on = this.state.model === i;
-      return { ...m, price: '[ціна]', checked: on, ring: on ? 'inset 0 0 0 2px var(--accent)' : 'inset 0 0 0 1px var(--line)', bg: on ? 'var(--soft)' : 'transparent', pick: () => this.setState({ model: i }) };
+      return { ...m, price: '[ціна]', checked: on, ring: on ? 'inset 0 0 0 2px var(--accent)' : 'inset 0 0 0 1px var(--line)', bg: on ? 'var(--soft)' : 'transparent', pick: () => this.setState({ model: i, saved: false }),
+        chip: m.custom ? 'змінено' : m.mine ? 'мій' : '', hasChip: !!(m.custom || m.mine) };
     });
     const running = [
       { n: 13, width: '62%', stage: 'переклад · частина 2 з 2' },
@@ -166,6 +184,9 @@ class Component extends DCLogic {
     ];
     return {
       vars, rows, models, running,
+      isCustom: this.state.model === 4, saved: this.state.saved, notSaved: !this.state.saved,
+      save: () => this.setState({ saved: true }),
+      steps: [{ name: 'Словник', model: 'Claude Sonnet 5.5' }, { name: 'Переклад', model: 'Claude Sonnet 5.5' }, { name: 'Вичитка', model: 'Claude Opus 5.5 (змінено)' }],
       isDark: !this.state.light, isLight: this.state.light,
       themeLabel: this.state.light ? 'Темна тема' : 'Світла тема',
       toggleTheme: () => this.setState({ light: !this.state.light })
