@@ -31,3 +31,4 @@ createRoot(document.getElementById('root')!).render(
         </QueryClientProvider>
     </StrictMode>,
 );
+// Тестовий pull request для #227 (лише інтерфейс), не зливати.
