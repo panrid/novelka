@@ -6,3 +6,4 @@ allprojects {
     group = 'space.panrid'
     version = '0.1.0-SNAPSHOT'
 }
+// Тестовий pull request для #227 (build.gradle), не зливати.
