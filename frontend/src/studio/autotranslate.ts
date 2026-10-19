@@ -74,6 +74,19 @@ export type AutotranslateOverview = {
 /** One step of a run as the journal tells it; the payload depends on the kind. */
 export type JobEvent = { id: number; chapter: number; kind: string; payload: Record<string, unknown>; at: string };
 
+/** A chapter of a run: its stage (fetch, analyze, translate, proofread, publish, done) and state (pending, running, done, failed, cancelled). */
+export type LiveStep = { number: number; stage: string; state: string };
+/** A paragraph of the original and its translation saved so far (null — not yet); revised — proofreading went over it. */
+export type LiveParagraph = { id: string; type: string; original: string; translation: string | null; revised: boolean };
+export type LiveWord = { id: number; ukrainian: string; original: string | null; kind: GlossaryKind; gender: Gender | null; status: GlossaryStatus };
+export type LiveFix = { id: string; before: string; after: string };
+export type LiveChapter = {
+    number: number; stage: string; state: string; error: string | null; language: string; title: string; translatedTitle: string | null;
+    proofreading: boolean; paragraphs: LiveParagraph[]; words: LiveWord[]; fixes: LiveFix[];
+};
+/** «Хід перекладу» наживо (етап 20, рішення 17): the run and one of its chapters as they are now. */
+export type LiveRun = { job: Job; steps: LiveStep[]; chapter: LiveChapter | null };
+
 export type Process = { editionId: number; title: string; slug: string; job: Job };
 export type ModelRating = 'recommended' | 'usual' | 'weak';
 /** Which models the pickers list: only recommended, also usual ones, or weak ones too. */
@@ -95,6 +108,10 @@ export type GlossaryItem = {
     others?: { id: number; ukrainian: string }[];
     /** A character who acts in the story («Персонажі»); false — a monster or only mentioned; null — not sorted yet. */
     inStory?: boolean | null;
+    /** The form in the original's current language; null until analysis names it there. */
+    original?: string | null;
+    /** The portrait for «Хто це», picked from «Мої картинки». */
+    portraitUrl?: string | null;
 };
 /** One thing the novel tells about an entry, from chapter {@code chapter} on. */
 export type GlossaryFact = { id: number; chapter: number; text: string; manual: boolean };
@@ -170,6 +187,9 @@ export const autotranslateApi = {
         api<{ job: Job; chapters: number; page: number; events: JobEvent[] }>(
             `${base(id)}/autotranslate/jobs/${jobId}/log?page=${page}&order=${order}`,
         ),
+    /** «Хід перекладу» наживо: the chapter at work, or {@code chapter}, with the translation saved so far. */
+    live: (id: number, jobId: number, chapter?: number) =>
+        api<LiveRun>(`${base(id)}/autotranslate/jobs/${jobId}/live${chapter ? `?chapter=${chapter}` : ''}`),
     /** 20 to a page; state: active | failed | done | cancelled, kind: analyze | translate, q: words of the title. */
     processes: (filter: { state?: string; kind?: string; q?: string; page: number }) => {
         const params = new URLSearchParams({ page: String(filter.page) });
@@ -183,15 +203,21 @@ export const autotranslateApi = {
     analysis: (id: number, page: number) => api<AnalysisPage>(`${base(id)}/analysis?page=${page}`),
     editAnalysis: (id: number, number: number, body: { title: string; label: string | null }) =>
         api<void>(`${base(id)}/analysis/${number}`, json('PUT', body)),
-    glossary: (id: number, filter: { status?: GlossaryStatus; chapter?: number; q?: string; sort: 'alpha' | 'chapter'; page: number }) => {
+    glossary: (id: number, filter: { status?: GlossaryStatus; chapter?: number; q?: string; kind?: GlossaryKind; sort: 'alpha' | 'chapter'; page: number }) => {
         const params = new URLSearchParams({ sort: filter.sort, page: String(filter.page) });
         if (filter.status) params.set('status', filter.status);
+        if (filter.kind) params.set('kind', filter.kind);
         if (filter.chapter) params.set('chapter', String(filter.chapter));
         if (filter.q?.trim()) params.set('q', filter.q.trim());
         return api<GlossaryPage>(`${base(id)}/glossary?${params}`);
     },
     setStatus: (id: number, ids: number[], status: GlossaryStatus) =>
         api<{ changed: number }>(`${base(id)}/glossary/status`, json('POST', { ids, status })),
+    /** «Погодити нові»: every new entry of the novel at once. */
+    approveNew: (id: number) => api<{ changed: number }>(`${base(id)}/glossary/approve-new`, json('POST', {})),
+    /** The portrait for «Хто це» from «Мої картинки»; null takes it away. */
+    setPortrait: (id: number, entryId: number, imageId: number | null) =>
+        api<void>(`${base(id)}/glossary/${entryId}/portrait`, json('PUT', { imageId })),
     updateEntry: (id: number, entryId: number, body: { ukrainian: string; kind: GlossaryKind; gender: Gender | null; note: string; looseForms?: boolean }) =>
         api<void>(`${base(id)}/glossary/${entryId}`, json('PUT', body)),
     original: (id: number, entryId: number) => api<GlossaryOriginal>(`${base(id)}/glossary/${entryId}/original`),

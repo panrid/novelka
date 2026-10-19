@@ -268,7 +268,9 @@ class AutotranslateFlowTests {
 
         JsonNode glossary = read(owner.browser().get("/api/studio/editions/" + edition + "/glossary")).path("items");
         assertThat(glossary).as("the novel's own title and one name").hasSize(2);
-        assertThat(glossary.toString()).contains("Юкі").contains("Ліхтарник із туману").doesNotContain("ユキ");
+        assertThat(glossary.toString()).contains("Юкі").contains("Ліхтарник із туману");
+        // The new design's glossary table has «В оригіналі» (етап 20, Glossary.dc.html): the team's page only.
+        assertThat(glossary.path(1).path("original").asString()).isEqualTo("ユキ");
 
         JsonNode next = read(owner.browser().post("/api/studio/editions/" + edition + "/autotranslate/quote", json("to", 5)));
         assertThat(next.path("from").asInt()).as("translated chapters are not touched").isEqualTo(4);

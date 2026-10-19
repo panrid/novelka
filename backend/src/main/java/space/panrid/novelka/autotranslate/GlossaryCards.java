@@ -14,11 +14,16 @@ public interface GlossaryCards {
      * @param kind  character, place, organization, term or other
      * @param facts    what is known by the chapter, in the order the novel told it
      * @param mentions how often the novel named it by the chapter (all its names); 0 where not counted
+     * @param portraitUrl the portrait the team picked in the glossary; null — readers see the name's first letter
      */
-    record Card(long id, String ukrainian, String kind, String gender, List<String> facts, int mentions) {
+    record Card(long id, String ukrainian, String kind, String gender, List<String> facts, int mentions, String portraitUrl) {
+
+        public Card(long id, String ukrainian, String kind, String gender, List<String> facts, int mentions) {
+            this(id, ukrainian, kind, gender, facts, mentions, null);
+        }
 
         public Card(long id, String ukrainian, String kind, String gender, List<String> facts) {
-            this(id, ukrainian, kind, gender, facts, 0);
+            this(id, ukrainian, kind, gender, facts, 0, null);
         }
     }
 

@@ -10,6 +10,7 @@ import static space.panrid.novelka.jooq.Tables.GLOSSARY_FORM;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_LINK;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_MENTION;
 import static space.panrid.novelka.jooq.Tables.GLOSSARY_MENTION_SCAN;
+import static space.panrid.novelka.jooq.Tables.IMAGE;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.REVISION;
 import static space.panrid.novelka.jooq.Tables.SOURCE_CHAPTER;
@@ -30,6 +31,8 @@ import org.springframework.stereotype.Component;
 
 import space.panrid.novelka.jooq.tables.records.GlossaryEntryRecord;
 import space.panrid.novelka.jooq.tables.records.GlossaryFormRecord;
+import space.panrid.novelka.media.Images;
+import space.panrid.novelka.media.StoredImage;
 import space.panrid.novelka.platform.web.UserFacingException;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
@@ -52,10 +55,12 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
 
     private final DSLContext db;
     private final JsonMapper json;
+    private final Images images;
 
-    Glossary(DSLContext db, JsonMapper json) {
+    Glossary(DSLContext db, JsonMapper json, Images images) {
         this.db = db;
         this.json = json;
+        this.images = images;
     }
 
     /** The novel an edition translates and the language its original is in now. */
@@ -153,11 +158,23 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
      * @param sort    «alpha» (by the Ukrainian form) or «chapter» (in the order the novel met them)
      */
     Page page(long editionId, String status, Integer chapter, String query, String sort, int page) {
+        return page(editionId, status, chapter, query, null, sort, page);
+    }
+
+    /**
+     * @param kind  character, place, organization, term or other; null for every kind
+     * @param query words of the Ukrainian form or of a form in the original (Ім'я, термін або оригінал)
+     */
+    Page page(long editionId, String status, Integer chapter, String query, String kind, String sort, int page) {
         Scope scope = scope(editionId);
         var novel = GLOSSARY_ENTRY.NOVEL_ID.eq(scope.novelId());
+        String words = query == null ? "" : query.strip();
         var where = (status == null ? DSL.noCondition() : GLOSSARY_ENTRY.STATUS.eq(status))
                 .and(chapter == null ? DSL.noCondition() : GLOSSARY_ENTRY.SOURCE_CHAPTER.eq(chapter))
-                .and(query == null || query.isBlank() ? DSL.noCondition() : GLOSSARY_ENTRY.UKRAINIAN.containsIgnoreCase(query.strip()));
+                .and(kind == null || !KINDS.contains(kind) ? DSL.noCondition() : GLOSSARY_ENTRY.KIND.eq(kind))
+                .and(words.isEmpty() ? DSL.noCondition() : GLOSSARY_ENTRY.UKRAINIAN.containsIgnoreCase(words)
+                        .or(DSL.exists(DSL.selectOne().from(GLOSSARY_FORM)
+                                .where(GLOSSARY_FORM.ENTRY_ID.eq(GLOSSARY_ENTRY.ID), GLOSSARY_FORM.ORIGINAL.containsIgnoreCase(words)))));
         int total = db.fetchCount(GLOSSARY_ENTRY, novel.and(where));
         var order = "chapter".equals(sort)
                 ? List.of(GLOSSARY_ENTRY.SOURCE_CHAPTER.asc().nullsFirst(), GLOSSARY_ENTRY.UKRAINIAN.asc())
@@ -187,6 +204,52 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
         }
         return db.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.STATUS, status).set(GLOSSARY_ENTRY.UPDATED_AT, DSL.currentOffsetDateTime())
                 .where(GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId()), GLOSSARY_ENTRY.ID.in(ids)).execute();
+    }
+
+    /** «Погодити нові»: every new entry of the novel becomes approved; how many did. */
+    int approveNew(long editionId) {
+        return db.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.STATUS, "approved").set(GLOSSARY_ENTRY.UPDATED_AT, DSL.currentOffsetDateTime())
+                .where(GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId()), GLOSSARY_ENTRY.STATUS.eq("new")).execute();
+    }
+
+    /**
+     * A portrait for «Хто це» from the person's «Мої картинки», or none ({@code imageId} null).
+     * Only a picture of their own library that nobody hid will do.
+     */
+    void setPortrait(long editionId, long entryId, long accountId, Long imageId) {
+        if (imageId != null && !db.fetchExists(IMAGE, IMAGE.ID.eq(imageId), IMAGE.OWNER_ACCOUNT_ID.eq(accountId),
+                IMAGE.KIND.eq("illustration"), IMAGE.REMOVED_AT.isNull(), IMAGE.HIDDEN_AT.isNull())) {
+            throw UserFacingException.badRequest("Портрет береться з «Моїх картинок»: такої картинки там немає.");
+        }
+        int changed = db.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.PORTRAIT_IMAGE_ID, imageId)
+                .set(GLOSSARY_ENTRY.UPDATED_AT, DSL.currentOffsetDateTime())
+                .where(GLOSSARY_ENTRY.ID.eq(entryId), GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId())).execute();
+        if (changed == 0) {
+            throw UserFacingException.notFound("Такого запису в словнику немає.");
+        }
+    }
+
+    /** The portraits of these entries, as the glossary and «Хто це» show them; hidden pictures left out. */
+    Map<Long, String> portraits(java.util.Collection<Long> entryIds) {
+        if (entryIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> chosen = new java.util.HashMap<>();
+        db.select(GLOSSARY_ENTRY.ID, GLOSSARY_ENTRY.PORTRAIT_IMAGE_ID).from(GLOSSARY_ENTRY)
+                .where(GLOSSARY_ENTRY.ID.in(entryIds), GLOSSARY_ENTRY.PORTRAIT_IMAGE_ID.isNotNull())
+                .forEach(r -> chosen.put(r.value1(), r.value2()));
+        if (chosen.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, StoredImage> stored = images.findAll(chosen.values());
+        Map<Long, String> out = new java.util.HashMap<>();
+        chosen.forEach((entryId, imageId) -> {
+            StoredImage image = stored.get(imageId);
+            if (image != null) {
+                out.put(entryId, image.url(320));
+            }
+        });
+        return out;
     }
 
     /** Entries whose form in this language or an alias appears in the text. */
@@ -453,7 +516,8 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
                 .sorted(java.util.Comparator.comparingInt(firstMet).thenComparing(GlossaryEntryRecord::getId)).toList();
         Map<Long, Integer> named = mentions(editionId, upTo, groups);
         List<Card> out = cards(met, upTo).stream()
-                .map(card -> new Card(card.id(), card.ukrainian(), card.kind(), card.gender(), card.facts(), named.getOrDefault(card.id(), 0)))
+                .map(card -> new Card(card.id(), card.ukrainian(), card.kind(), card.gender(), card.facts(), named.getOrDefault(card.id(), 0),
+                        card.portraitUrl()))
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         // Sorting is stable: equals stay in the order the novel met them.
         switch (sort) {
@@ -723,6 +787,7 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
                     .forEach(r -> facts.computeIfAbsent(r.value1(), key -> new ArrayList<>()).add(r.value2()));
         }
         Set<Long> foundIds = found.stream().map(GlossaryEntryRecord::getId).collect(java.util.stream.Collectors.toSet());
+        Map<Long, String> portraits = portraits(mains);
         List<Card> out = new ArrayList<>();
         for (long mainId : mains) {
             List<GlossaryEntryRecord> members = groups.getOrDefault(mainId, List.of());
@@ -746,7 +811,7 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
             for (GlossaryEntryRecord entry : members) {
                 facts.getOrDefault(entry.getId(), List.of()).stream().filter(fact -> !told.contains(fact)).forEach(told::add);
             }
-            out.add(new Card(mainId, shown.getUkrainian(), main.getKind(), main.getGender(), told));
+            out.add(new Card(mainId, shown.getUkrainian(), main.getKind(), main.getGender(), told, 0, portraits.get(mainId)));
         }
         return out;
     }

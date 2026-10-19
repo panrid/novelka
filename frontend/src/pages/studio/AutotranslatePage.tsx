@@ -466,7 +466,7 @@ export function JobCard({ job, editionId, showShah, usdPerShah, onCancel, onResu
     return (
         <div className={styles.jobCard} aria-live="polite">
             {title}
-            {/* The progress opens the run's journal: what each step did (етап 17). */}
+            {/* The progress opens «Хід перекладу» наживо (етап 20, рішення 17). */}
             <Link to="/studio/$editionId/translate/jobs/$jobId" params={{ editionId: String(editionId), jobId: String(job.id) }}
                 className={styles.jobLink} aria-label={`Хід перекладу: ${JOB_NAMES[job.kind].toLowerCase()} ${range(job)}`}>
             <div className={styles.jobHead}>
@@ -490,7 +490,7 @@ export function JobCard({ job, editionId, showShah, usdPerShah, onCancel, onResu
                     : <>{' · '}витрачено {money(job.spentShah, job.spentUsd, showShah)} · {job.personal ? 'резерв' : 'кошторис'}{' '}
                         {money(job.quoteShah, job.quoteShah * usdPerShah, showShah)}</>}
             </div>
-            <span className={styles.jobMore}>Що відбувається ›</span>
+            <span className={styles.jobMore}>{active(job) ? 'Дивитися наживо ›' : 'Хід перекладу ›'}</span>
             </Link>
             {job.current?.error && active(job) && <p className={styles.muted}>{job.current.error}</p>}
             {job.state === 'failed' && job.error && <Notice tone="error">{job.error}</Notice>}

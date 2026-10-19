@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import space.panrid.novelka.access.AccessPolicy;
+import space.panrid.novelka.access.EditionAccess;
 import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.account.Viewer;
 import space.panrid.novelka.ai.Ai;
@@ -60,12 +61,15 @@ class AutotranslateController {
     private final SourceOf sourceOf;
     private final EditorAi editorAi;
     private final MySets mySets;
+    private final LiveRun liveRun;
     private final space.panrid.novelka.platform.audit.AuditLog audit;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
             Teams teams, Analyses analyses, Ledger ledger, Sources sources, space.panrid.novelka.suggestion.Suggestions suggestions,
             Agreement agreement, JobLog journal, Presets presets, ModelCosts costs, SourceWatch watch, StoryRoles storyRoles,
-            Choices choices, space.panrid.novelka.platform.audit.AuditLog audit, SourceOf sourceOf, EditorAi editorAi, MySets mySets) {
+            Choices choices, space.panrid.novelka.platform.audit.AuditLog audit, SourceOf sourceOf, EditorAi editorAi, MySets mySets,
+            LiveRun liveRun) {
+        this.liveRun = liveRun;
         this.editorAi = editorAi;
         this.mySets = mySets;
         this.sourceOf = sourceOf;
@@ -282,6 +286,18 @@ class AutotranslateController {
     }
 
     /**
+     * «Хід перекладу» наживо (етап 20, рішення 17): one chapter of the run as it is now — its original
+     * paragraph by paragraph with the translation saved so far, the glossary words it names and what
+     * proofreading changed. Without {@code chapter}, the chapter the run works on now.
+     */
+    @GetMapping("/editions/{editionId}/autotranslate/jobs/{jobId}/live")
+    LiveRun.View live(@PathVariable long editionId, @PathVariable long jobId, @RequestParam(required = false) Integer chapter) {
+        ownerTranslating(editionId);
+        var job = jobs.job(editionId, jobId).orElseThrow(() -> UserFacingException.notFound("Такого запуску немає."));
+        return liveRun.view(job, chapter);
+    }
+
+    /**
      * The team cancels its runs; whoever started a run may cancel it even after leaving the team,
      * so шаги it holds are never stuck; the site owner may cancel any run.
      */
@@ -484,8 +500,13 @@ class AutotranslateController {
     // ---- glossary: the team reviews it; the original only behind «Оригінал» (рішення 30) --------
 
     /** {@code facts}: how many facts of its «хто це» card the novel has told so far. */
+    /**
+     * @param original    the form in the original's current language, null until analysis names it there
+     * @param portraitUrl the portrait for «Хто це», picked from «Мої картинки»
+     */
     record GlossaryItem(long id, String ukrainian, String kind, String gender, String note, Integer chapter, boolean manual,
-            String status, int facts, boolean looseForms, Glossary.Name main, List<Glossary.Name> others, Boolean inStory) {
+            String status, int facts, boolean looseForms, Glossary.Name main, List<Glossary.Name> others, Boolean inStory,
+            String original, String portraitUrl) {
     }
 
     record GlossaryPage(List<GlossaryItem> items, int total, int page, boolean hasMore, List<Integer> chapters,
@@ -495,15 +516,20 @@ class AutotranslateController {
     @GetMapping("/editions/{editionId}/glossary")
     GlossaryPage glossary(@PathVariable long editionId, @RequestParam(required = false) String status,
             @RequestParam(required = false) Integer chapter, @RequestParam(required = false) String q,
+            @RequestParam(required = false) String kind,
             @RequestParam(defaultValue = "alpha") String sort, @RequestParam(defaultValue = "1") int page) {
         access.requireTextEditor(editionId);
-        Glossary.Page found = glossary.page(editionId, status != null && Glossary.STATUSES.contains(status) ? status : null, chapter, q, sort, page);
-        java.util.Map<Long, Integer> facts = glossary.factCounts(found.items().stream().map(Glossary.Entry::id).toList());
-        java.util.Map<Long, Glossary.Group> groups = glossary.groupsOf(found.items().stream().map(Glossary.Entry::id).toList());
+        Glossary.Page found = glossary.page(editionId, status != null && Glossary.STATUSES.contains(status) ? status : null, chapter, q,
+                kind, sort, page);
+        List<Long> ids = found.items().stream().map(Glossary.Entry::id).toList();
+        java.util.Map<Long, Integer> facts = glossary.factCounts(ids);
+        java.util.Map<Long, Glossary.Group> groups = glossary.groupsOf(ids);
+        java.util.Map<Long, String> portraits = glossary.portraits(ids);
         return new GlossaryPage(found.items().stream()
                 .map(entry -> new GlossaryItem(entry.id(), entry.ukrainian(), entry.kind(), entry.gender(), entry.note(),
                         entry.sourceChapter(), entry.manual(), entry.status(), facts.getOrDefault(entry.id(), 0), entry.looseForms(),
-                        groups.get(entry.id()).main(), groups.get(entry.id()).others(), entry.inStory()))
+                        groups.get(entry.id()).main(), groups.get(entry.id()).others(), entry.inStory(), entry.original(),
+                        portraits.get(entry.id())))
                 .toList(), found.total(), found.page(), found.hasMore(), found.chapters(), found.labels(), found.counts());
     }
 
@@ -515,6 +541,23 @@ class AutotranslateController {
     java.util.Map<String, Integer> setStatus(@PathVariable long editionId, @RequestBody StatusChange body) {
         access.requireTranslator(editionId);
         return java.util.Map.of("changed", glossary.setStatus(editionId, body.ids(), body.status()));
+    }
+
+    /** «Погодити нові»: every entry nobody checked yet becomes approved at once. */
+    @PostMapping("/editions/{editionId}/glossary/approve-new")
+    java.util.Map<String, Integer> approveNew(@PathVariable long editionId) {
+        access.requireTranslator(editionId);
+        return java.util.Map.of("changed", glossary.approveNew(editionId));
+    }
+
+    record PortraitRequest(Long imageId) {
+    }
+
+    /** The portrait of an entry for «Хто це», from the person's «Мої картинки»; {@code imageId} null takes it away. */
+    @PutMapping("/editions/{editionId}/glossary/{entryId}/portrait")
+    void portrait(@PathVariable long editionId, @PathVariable long entryId, @RequestBody PortraitRequest body) {
+        EditionAccess who = access.requireTranslator(editionId);
+        glossary.setPortrait(editionId, entryId, who.viewer().accountId(), body.imageId());
     }
 
     /** @param looseForms null keeps it as it was */

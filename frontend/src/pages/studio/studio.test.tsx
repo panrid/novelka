@@ -186,18 +186,23 @@ describe('new publication', () => {
             ] },
         });
 
-        await userEvent.type(await screen.findByLabelText('Назва'), 'Сто ночей');
-        // Tags are picked from the list, never typed.
+        await userEvent.click(await screen.findByRole('radio', { name: /Перекладаю сам/ }));
+        await userEvent.type(screen.getByLabelText('Назва українською'), 'Сто ночей');
+        await userEvent.type(screen.getByLabelText('Назва в оригіналі · за бажанням'), 'One Hundred Nights');
+        await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Мова оригіналу' }), 'ko');
+        // Tags are picked from the list, never typed; they wait behind «Опис і теги».
+        await userEvent.click(screen.getByRole('button', { name: /Опис і теги/ }));
         await userEvent.click(await screen.findByRole('button', { name: 'Фентезі' }));
         await userEvent.click(screen.getByRole('button', { name: 'Затишне' }));
         expect(screen.getByRole('button', { name: 'Затишне' })).toHaveAttribute('aria-pressed', 'true');
-        expect(screen.getByRole('button', { name: 'Створити' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Далі: перша глава →' })).toBeDisabled();
         await userEvent.click(screen.getByRole('switch', { name: /^Я маю право перекладати цей текст і викладати переклад/ }));
-        await userEvent.click(screen.getByRole('button', { name: 'Створити' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Далі: перша глава →' }));
 
         await waitFor(() => expect(router.state.location.pathname).toBe('/studio/12'));
         expect(calls.find((call) => call.path === '/api/studio/editions')?.body).toMatchObject({
             kind: 'human', title: 'Сто ночей', tags: ['Фентезі', 'Затишне'], team: 'mika', rightsConfirmed: true,
+            titleOriginal: 'One Hundred Nights', language: 'ko',
         });
         expect(await screen.findByRole('button', { name: 'Нова глава' })).toBeInTheDocument();
     });
@@ -266,8 +271,11 @@ describe('AI hidden from people without шаги (етап 19, п. 7)', () => {
             'GET /api/me': { body: HIDDEN },
             'GET /api/me/teams': { body: [{ handle: 'mika', name: 'mika', role: 'owner' }] },
         });
-        expect(await screen.findByRole('button', { name: /Свій переклад/ })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Автопереклад/ })).not.toBeInTheDocument();
+        expect(await screen.findByRole('radio', { name: /Перекладаю сам/ })).toBeInTheDocument();
+        // The original is pasted all the same, only without AI.
+        expect(screen.getByRole('radio', { name: /Вставлю оригінал/ })).toBeChecked();
+        expect(screen.queryByRole('radio', { name: /Автопереклад/ })).not.toBeInTheDocument();
+        expect(screen.queryByText(/ШІ/)).not.toBeInTheDocument();
     });
 
     it('shows it all to the same person once they have шаги', async () => {
@@ -275,8 +283,8 @@ describe('AI hidden from people without шаги (етап 19, п. 7)', () => {
             'GET /api/me': { body: LET_IN },
             'GET /api/me/teams': { body: [{ handle: 'mika', name: 'mika', role: 'owner' }] },
         });
-        expect(await screen.findByRole('button', { name: /Автопереклад із сайту/ })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Вставлю оригінал — перекладе ШІ/ })).toBeInTheDocument();
+        expect(await screen.findByRole('radio', { name: /Автопереклад із сайту/ })).toBeInTheDocument();
+        expect(screen.getByRole('radio', { name: /Вставлю оригінал — перекладе ШІ/ })).toBeInTheDocument();
     });
 });
 

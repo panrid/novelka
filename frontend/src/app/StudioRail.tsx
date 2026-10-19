@@ -12,7 +12,6 @@ export function StudioRail() {
     const path = useRouterState({ select: (state) => state.location.pathname });
     const mine = useQuery({ queryKey: ['studio'], queryFn: studioApi.mine });
     const openId = Number(/^\/studio\/(\d+)/.exec(path)?.[1] ?? 0);
-    const at = (to: string) => (path === to ? styles.on : undefined);
     return (
         <nav className={styles.rail} aria-label="Студія">
             <div className={styles.label}>Мої переклади</div>
@@ -26,11 +25,7 @@ export function StudioRail() {
                         : item.pendingSuggestions > 0 && <span className={styles.badge} title="Правки на перевірку">{item.pendingSuggestions}</span>}
                 </Link>
             ))}
-            <Link to="/studio/new" className={`${styles.item} ${at('/studio/new') ?? ''}`}>＋ Нова публікація</Link>
-            <Link to="/studio/processes" className={`${styles.item} ${at('/studio/processes') ?? ''}`}>Процеси</Link>
-            <Link to="/studio/teams" className={`${styles.item} ${at('/studio/teams') ?? ''}`}>Мої команди</Link>
-            <Link to="/studio/trash" className={`${styles.item} ${at('/studio/trash') ?? ''}`}>Кошик</Link>
-
+            {/* «Новий переклад», «Хід перекладу», «Команди» and «Кошик» are in the Studio's header (StudioBar). */}
         </nav>
     );
 }

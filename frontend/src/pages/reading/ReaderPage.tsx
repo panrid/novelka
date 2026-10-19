@@ -591,9 +591,13 @@ function WhoSheet({ slug, team, chapter, text, blockId, editionId, onClose }: {
                     <section key={card.id} className={styles.whoCard}>
                         <div className={styles.whoHead}>
                             {/* A portrait when the team adds one (Студія, словник); until then the name's first letter. */}
-                            <span className={styles.whoPortrait} style={{ background: `hsl(${(card.id * 47) % 360} 35% 32%)` }} aria-hidden>
-                                {card.ukrainian.trim().charAt(0).toUpperCase()}
-                            </span>
+                            {card.portraitUrl
+                                ? <img className={styles.whoPortrait} src={card.portraitUrl} alt="" loading="lazy" style={{ objectFit: 'cover' }} />
+                                : (
+                                    <span className={styles.whoPortrait} style={{ background: `hsl(${(card.id * 47) % 360} 35% 32%)` }} aria-hidden>
+                                        {card.ukrainian.trim().charAt(0).toUpperCase()}
+                                    </span>
+                                )}
                             <h3>{card.ukrainian} <span className={styles.whoMuted}>· {WHO_KINDS[card.kind] ?? 'інше'}</span></h3>
                         </div>
                         {card.facts.length > 0

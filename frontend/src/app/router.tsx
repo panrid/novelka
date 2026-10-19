@@ -37,6 +37,7 @@ import { NewPublication } from '../pages/studio/NewPublication';
 import { RulesPage } from '../pages/RulesPage';
 import { AutotranslatePage } from '../pages/studio/AutotranslatePage';
 import { JobLogPage } from '../pages/studio/JobLogPage';
+import { TranslateLivePage } from '../pages/studio/TranslateLivePage';
 import { GlossaryPage } from '../pages/studio/GlossaryPage';
 import { OriginalsPage } from '../pages/studio/OriginalsPage';
 import { ProcessesPage } from '../pages/studio/ProcessesPage';
@@ -170,7 +171,7 @@ const routeTree = rootRoute.addChildren([
         validateSearch: teamSearch, beforeLoad: requireSignedIn, head: title('Правка глави'),
     }),
     studio('/studio', StudioHome, 'Студія'),
-    studio('/studio/new', NewPublication, 'Нова публікація'),
+    studio('/studio/new', NewPublication, 'Новий переклад'),
     studio('/studio/teams', MyTeamsPage, 'Мої команди'),
     studio('/studio/$editionId', EditionPage, 'Студія'),
     studio('/studio/$editionId/chapters', ChaptersPage, 'Глави'),
@@ -181,11 +182,12 @@ const routeTree = rootRoute.addChildren([
     studio('/studio/$editionId/relay', RelayPage, 'Естафета'),
     studio('/studio/$editionId/structure', StructurePage, 'Структура й томи'),
     studio('/studio/$editionId/translate', AutotranslatePage, 'Автопереклад'),
-    studio('/studio/$editionId/translate/jobs/$jobId', JobLogPage, 'Хід перекладу'),
+    studio('/studio/$editionId/translate/jobs/$jobId', TranslateLivePage, 'Хід перекладу'),
+    studio('/studio/$editionId/translate/jobs/$jobId/log', JobLogPage, 'Хід перекладу: подробиці'),
     studio('/studio/$editionId/glossary', GlossaryPage, 'Словник'),
     studio('/studio/$editionId/originals', OriginalsPage, 'Оригінал'),
     studio('/studio/$editionId/titles', TitlesPage, 'Назви глав'),
-    studio('/studio/processes', ProcessesPage, 'Процеси'),
+    studio('/studio/processes', ProcessesPage, 'Хід перекладу'),
     studio('/studio/trash', TrashPage, 'Кошик'),
     studio('/me/wallet', WalletPage, 'Шаги'),
     studio('/me/shahs', ShahsPage, 'Мої шаги'),

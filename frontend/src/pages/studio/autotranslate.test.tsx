@@ -339,10 +339,11 @@ describe('autotranslate', () => {
             'GET /api/studio/editions/12/autotranslate': { body: OVERVIEW },
             'GET /api/studio/editions/12': { body: { ...EDITION4, editionId: 12, novelSlug: 'likhtarnyk' } },
         });
-        await userEvent.click(await screen.findByRole('button', { name: /Автопереклад із сайту/ }));
+        await userEvent.click(await screen.findByRole('radio', { name: /Автопереклад із сайту/ }));
+        expect(screen.getByRole('radio', { name: /Автопереклад із сайту/ })).toHaveAccessibleName(/Вам відкрито/);
         await userEvent.type(screen.getByLabelText('Посилання на новелу'), 'https://ncode.syosetu.com/n0022gd/');
         await userEvent.click(screen.getByRole('switch', { name: /^Я маю право перекладати цей текст і викладати переклад/ }));
-        await userEvent.click(screen.getByRole('button', { name: 'Підготувати' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Створити й вибрати глави →' }));
         expect(await screen.findByRole('link', { name: 'Автопереклад' })).toHaveAttribute('aria-current', 'page');
         expect(router.state.location.pathname).toBe('/studio/12/translate');
     });
@@ -370,7 +371,7 @@ describe('glossary', () => {
         await vi.waitFor(() => expect(calls.some((call) => call.path.endsWith('/glossary') && call.method === 'GET')).toBe(true));
         await userEvent.click(screen.getByRole('button', { name: 'Виділити' }));
         await userEvent.click(screen.getByRole('checkbox', { name: 'Виділити Рьо' }));
-        await userEvent.click(screen.getByRole('button', { name: 'Затвердити (1)' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Погодити (1)' }));
         expect(calls.find((call) => call.path.endsWith('/glossary/status'))?.body).toEqual({ ids: [2], status: 'approved' });
         await userEvent.click(screen.getByRole('button', { name: 'Скасувати' }));
         expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();

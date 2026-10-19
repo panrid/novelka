@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, X } from '../../ui/icons';
 import { Link } from '@tanstack/react-router';
-import { Fragment, useState } from 'react';
+import { Fragment, useCallback, useState } from 'react';
 import { useDebounced } from '../../lib/useDebounced';
 import {
     KIND_LABELS, autotranslateApi, inLanguage, type Gender, type GlossaryOccurrences, type GlossaryFact, type GlossaryItem, type GlossaryKind, type GlossaryStatus,
 } from '../../studio/autotranslate';
+import { PicturePicker } from '../../studio/PicturePicker';
 import { Button } from '../../ui/Button';
 import { Sheet } from '../../ui/Sheet';
 import { Toggle } from '../../ui/Toggle';
@@ -21,16 +22,23 @@ import { WordsSwitch } from './WordsSwitch';
 import { PAGE_SIZE, usePage } from '../../lib/usePage';
 import { useEditionId } from './EditionPage';
 import styles from './studio.module.css';
+import look from './glossary.module.css';
 import { Loading } from '../../ui/Loading';
 
 const GENDER_LABELS: Record<Gender, string> = { male: 'чоловічий', female: 'жіночий', unknown: 'невідомо' };
-const STATUS_LABELS: Record<GlossaryStatus, string> = { new: 'Нові', approved: 'Затверджені', rejected: 'Відхилені' };
-const STATUS_BADGE: Record<GlossaryStatus, string> = { new: 'нове', approved: 'затверджено', rejected: 'відхилено' };
+const STATUS_LABELS: Record<GlossaryStatus, string> = { new: 'Нові', approved: 'Погоджені', rejected: 'Відхилені' };
+const STATUS_BADGE: Record<GlossaryStatus, string> = { new: 'нове', approved: 'погоджено', rejected: 'відхилено' };
+/** «Вид» in the filter: the kinds by the plural people look for. */
+const KIND_FILTER: [GlossaryKind | '', string][] = [
+    ['', 'Усі види'], ['character', 'Персонажі'], ['place', 'Місця'], ['organization', 'Організації'], ['term', 'Терміни'], ['other', 'Інше'],
+];
 
 /**
- * Names and terms as the translation writes them. The model fills it while analysing;
- * the owner goes chapter by chapter, approves or rejects (a rejected entry never reaches
- * the translation), and corrects what needs it.
+ * «Словник» (етап 20, Glossary.dc.html): names and terms as the translation writes them, in a table —
+ * Ukrainian, the original, kind, the chapter it came from, its state — and the picked entry's card
+ * beside it with its portrait for «Хто це». The model fills it while making the glossary of a chapter;
+ * the team approves («Погодити нові») or rejects (a rejected entry never reaches the translation) and
+ * corrects what needs it.
  */
 export function GlossaryPage() {
     const id = useEditionId();
@@ -40,14 +48,15 @@ export function GlossaryPage() {
     const [counts, setCounts] = useState<Record<GlossaryStatus, number> | null>(null);
     const status: GlossaryStatus | 'all' = chosen ?? (counts && counts.new === 0 ? 'all' : 'new');
     const [chapter, setChapter] = useState<number | undefined>(undefined);
+    const [kind, setKind] = useState<GlossaryKind | ''>('');
     const [sort, setSort] = useState<'alpha' | 'chapter'>('alpha');
     const [search, setSearch] = useState('');
     const [page, setPage] = usePage();
     const [selecting, setSelecting] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(new Set());
-    const [editing, setEditing] = useState<number | null>(null);
+    const [picked, setPicked] = useState<number | null>(null);
     const q = useDebounced(search, 300);
-    const filter = { ...(status === 'all' ? {} : { status }), ...(chapter ? { chapter } : {}), q, sort, page };
+    const filter = { ...(status === 'all' ? {} : { status }), ...(chapter ? { chapter } : {}), ...(kind ? { kind } : {}), q, sort, page };
     const entries = useQuery({
         queryKey: ['glossary', id, filter],
         queryFn: () => autotranslateApi.glossary(id, filter),
@@ -59,6 +68,11 @@ export function GlossaryPage() {
     const change = useMutation({
         mutationFn: (next: GlossaryStatus) => autotranslateApi.setStatus(id, [...selected], next),
         onSuccess: () => { setSelected(new Set()); refresh(); },
+    });
+    const approveNew = useMutation({
+        meta: { errorToast: true },
+        mutationFn: () => autotranslateApi.approveNew(id),
+        onSuccess: refresh,
     });
     const reset = (apply: () => void) => { apply(); setPage(1); setSelected(new Set()); };
     // ✓ and ✕ on a row: one entry at a time, without the selection mode.
@@ -79,88 +93,145 @@ export function GlossaryPage() {
         if (next.has(entryId)) next.delete(entryId); else next.add(entryId);
         return next;
     });
+    const all = data ? data.counts.new + data.counts.approved + data.counts.rejected : null;
+    const card = picked !== null && !selecting ? data?.items.find((entry) => entry.id === picked) : undefined;
+    // On a phone the card comes under the table: it is brought into view once, when an entry is picked.
+    const intoView = useCallback((node: HTMLElement | null) => {
+        if (node && typeof window.matchMedia === 'function' && !window.matchMedia('(min-width: 1024px)').matches) {
+            node.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+        }
+    }, []);
 
     return (
         <EditionShell tab="words">
             <WordsSwitch editionId={id} at="glossary" />
             <SortRoles editionId={id} onDone={refresh} />
             <p className={styles.muted} style={{ marginBottom: 12 }}>
-                Імена й терміни, які автопереклад пише однаково в усіх главах. Словник спільний для всіх перекладів цієї новели.
+                Імена й терміни, які переклад пише однаково в усіх главах. Словник спільний для всіх перекладів цієї новели.
                 Відхилені до перекладу не потрапляють; виправлення діє з наступної перекладеної глави.
             </p>
 
-            <div className={styles.filters} role="group" aria-label="Стан">
-                {(['new', 'approved', 'rejected', 'all'] as const).map((value) => (
-                    <button key={value} type="button" className={`${styles.chip} ${status === value ? styles.chipOn : ''}`}
-                        aria-pressed={status === value} onClick={() => reset(() => setStatus(value))}>
-                        {value === 'all' ? 'Усі' : STATUS_LABELS[value]}{value !== 'all' && data ? ` · ${data.counts[value] ?? 0}` : ''}
-                    </button>
-                ))}
-            </div>
-            <div className={styles.filters} style={{ margin: '12px 0' }}>
-                <label>
-                    <div className={styles.label}>Глава</div>
-                    <select className={styles.select} value={chapter ?? ''} aria-label="Глава"
-                        onChange={(event) => reset(() => setChapter(event.target.value ? Number(event.target.value) : undefined))}>
-                        <option value="">Усі глави</option>
-                        {chapters.map((n) => <option key={n} value={n}>{shown(n).from}</option>)}
-                    </select>
-                </label>
-                <Button variant="secondary" isDisabled={chapterAt <= 0} onPress={() => reset(() => setChapter(chapters[chapterAt - 1]))}>‹</Button>
-                <Button variant="secondary" isDisabled={chapters.length === 0 || chapterAt === chapters.length - 1}
-                    onPress={() => reset(() => setChapter(chapters[chapterAt + 1]))}>›</Button>
-            </div>
-            <TextInput label="Пошук" value={search} onChange={(value) => { setSearch(value); setPage(1); }} />
-            <Segmented label="Порядок" value={sort} onChange={(value) => reset(() => setSort(value))}
-                options={[{ value: 'alpha', label: 'За абеткою' }, { value: 'chapter', label: 'За главами' }]} />
-
-            <div className={styles.actions}>
-                {!selecting
-                    ? <Button variant="secondary" onPress={() => setSelecting(true)} isDisabled={!data?.items.length}>Виділити</Button>
-                    : <Button variant="secondary" onPress={() => setSelected(new Set(data?.items.map((entry) => entry.id)))}>Виділити всі на сторінці</Button>}
-                {data && <span className={styles.muted} style={{ alignSelf: 'center' }}>Знайдено: {data.total}</span>}
-            </div>
-
-            {entries.isError && <Notice tone="error">{entries.error.message}</Notice>}
-            {data?.total === 0 && <p className={styles.muted}>Тут порожньо.</p>}
-            {data?.items.map((entry) => editing === entry.id && !selecting
-                ? <EntryForm key={entry.id} editionId={id} entry={entry} onDone={() => { setEditing(null); refresh(); }} />
-                : (
-                    <div key={entry.id} className={styles.row}>
-                        {selecting && (
-                            <input type="checkbox" className={styles.check} checked={selected.has(entry.id)} aria-label={`Виділити ${entry.ukrainian}`}
-                                onChange={() => toggle(entry.id)} />
+            <div className={look.layout} data-wide>
+                <section className={look.main} aria-label="Записи словника">
+                    <div className={look.toolbar}>
+                        <div className={look.search}>
+                            <TextInput label="Пошук" placeholder="Ім'я, термін або оригінал" value={search} onChange={(value) => { setSearch(value); setPage(1); }} />
+                        </div>
+                        <div className={look.segments} role="group" aria-label="Стан">
+                            {(['all', 'new', 'approved', 'rejected'] as const).map((value) => (
+                                <button key={value} type="button" className={`${look.segment} ${status === value ? look.segmentOn : ''}`}
+                                    aria-pressed={status === value} onClick={() => reset(() => setStatus(value))}>
+                                    {value === 'all' ? `Усі${all !== null ? ` · ${all}` : ''}` : `${STATUS_LABELS[value]}${data ? ` · ${data.counts[value] ?? 0}` : ''}`}
+                                </button>
+                            ))}
+                        </div>
+                        <select className={look.select} value={kind} aria-label="Вид"
+                            onChange={(event) => reset(() => setKind(event.target.value as GlossaryKind | ''))}>
+                            {KIND_FILTER.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                        </select>
+                        {(data?.counts.new ?? 0) > 0 && (
+                            <Button pending={approveNew.isPending} pendingLabel="Погоджуємо…" onPress={() => void askConfirm({
+                                title: 'Погодити всі нові записи?',
+                                text: `Нових записів: ${data?.counts.new ?? 0}. Вони стануть погодженими й так і писатимуться в наступних главах.`,
+                                confirmLabel: 'Погодити нові',
+                            }).then((yes) => { if (yes) approveNew.mutate(); })}>
+                                Погодити нові
+                            </Button>
                         )}
-                        <button type="button" className={`${styles.grow} ${styles.plainButton}`}
-                            onClick={() => (selecting ? toggle(entry.id) : setEditing(entry.id))}>
-                            <b>{entry.ukrainian}</b>
-                            <div className={styles.muted}>
-                                {KIND_LABELS[entry.kind]}
-                                {entry.gender && entry.gender !== 'unknown' ? ` · ${GENDER_LABELS[entry.gender]}` : ''}
-                                {entry.note ? ` · ${entry.note}` : ''}
-                                {entry.facts > 0 ? ` · фактів: ${entry.facts}` : ''}
-                                {entry.main ? ` · інша назва для «${entry.main.ukrainian}»` : ''}
-                                {entry.kind === 'character' && entry.inStory === false ? ' · не діє в історії' : ''}
-                            </div>
-                        </button>
-                        {!selecting && entry.status !== 'approved' && (
-                            <button type="button" className={styles.iconButton} aria-label={`Затвердити ${entry.ukrainian}`}
-                                onClick={() => quick.mutate({ entryId: entry.id, next: 'approved' })}><Check size={18} aria-hidden /></button>
-                        )}
-                        {!selecting && entry.status !== 'rejected' && (
-                            <button type="button" className={styles.iconButton} aria-label={`Відхилити ${entry.ukrainian}`}
-                                onClick={() => quick.mutate({ entryId: entry.id, next: 'rejected' })}><X size={18} aria-hidden /></button>
-                        )}
-                        <span className={`${styles.badge} ${entry.status === 'new' ? styles.badgeOn : ''}`}>{STATUS_BADGE[entry.status]}</span>
-                        {entry.chapter ? <span className={styles.badge}>{shown(entry.chapter).badge}</span> : null}
                     </div>
-                ))}
-            {data && <Pager page={page} total={data.total} size={PAGE_SIZE} onPage={(next) => { setPage(next); setSelected(new Set()); }} />}
+                    <div className={look.toolbar}>
+                        <select className={look.select} value={chapter ?? ''} aria-label="Глава"
+                            onChange={(event) => reset(() => setChapter(event.target.value ? Number(event.target.value) : undefined))}>
+                            <option value="">Усі глави</option>
+                            {chapters.map((n) => <option key={n} value={n}>{shown(n).from}</option>)}
+                        </select>
+                        <Button variant="secondary" isDisabled={chapterAt <= 0} onPress={() => reset(() => setChapter(chapters[chapterAt - 1]))}>‹</Button>
+                        <Button variant="secondary" isDisabled={chapters.length === 0 || chapterAt === chapters.length - 1}
+                            onPress={() => reset(() => setChapter(chapters[chapterAt + 1]))}>›</Button>
+                        <Segmented label="Порядок" value={sort} onChange={(value) => reset(() => setSort(value))}
+                            options={[{ value: 'alpha', label: 'За абеткою' }, { value: 'chapter', label: 'За главами' }]} />
+                        {!selecting
+                            ? <Button variant="secondary" onPress={() => setSelecting(true)} isDisabled={!data?.items.length}>Виділити</Button>
+                            : <Button variant="secondary" onPress={() => setSelected(new Set(data?.items.map((entry) => entry.id)))}>Виділити всі на сторінці</Button>}
+                        {data && <span className={styles.muted}>Знайдено: {data.total}</span>}
+                    </div>
+
+                    {entries.isPending && <Loading shape="list" onRetry={() => void entries.refetch()} />}
+                    {entries.isError && <Notice tone="error">{entries.error.message}</Notice>}
+                    {data?.total === 0 && <p className={look.empty}>Тут порожньо.</p>}
+                    {data && data.items.length > 0 && (
+                        <table className={look.table}>
+                            <thead>
+                                <tr>
+                                    {selecting && <th scope="col"><span className="visually-hidden">Виділено</span></th>}
+                                    <th scope="col">Українською</th>
+                                    <th scope="col" className={look.wideOnly}>В оригіналі</th>
+                                    <th scope="col" className={look.wideOnly}>Вид</th>
+                                    <th scope="col" className={look.wideOnly}>З глави</th>
+                                    <th scope="col">Стан</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.items.map((entry) => (
+                                    <tr key={entry.id} className={card?.id === entry.id ? look.picked : undefined}>
+                                        {selecting && (
+                                            <td>
+                                                <input type="checkbox" className={styles.check} checked={selected.has(entry.id)} aria-label={`Виділити ${entry.ukrainian}`}
+                                                    onChange={() => toggle(entry.id)} />
+                                            </td>
+                                        )}
+                                        <td>
+                                            <button type="button" className={look.name} aria-expanded={selecting ? undefined : card?.id === entry.id}
+                                                onClick={() => (selecting ? toggle(entry.id) : setPicked(card?.id === entry.id ? null : entry.id))}>
+                                                <b>{entry.ukrainian}</b>
+                                                <span className={look.details}>
+                                                    {KIND_LABELS[entry.kind]}
+                                                    {entry.gender && entry.gender !== 'unknown' ? ` · ${GENDER_LABELS[entry.gender]}` : ''}
+                                                    {entry.note ? ` · ${entry.note}` : ''}
+                                                    {entry.facts > 0 ? ` · фактів: ${entry.facts}` : ''}
+                                                    {entry.main ? ` · інша назва для «${entry.main.ukrainian}»` : ''}
+                                                    {entry.kind === 'character' && entry.inStory === false ? ' · не діє в історії' : ''}
+                                                </span>
+                                            </button>
+                                        </td>
+                                        <td className={look.wideOnly}><span className={look.original}>{entry.original ?? '—'}</span></td>
+                                        <td className={look.wideOnly}>{KIND_LABELS[entry.kind]}</td>
+                                        <td className={look.wideOnly}>{entry.chapter ? shown(entry.chapter).badge : '—'}</td>
+                                        <td>
+                                            <span className={look.state}>
+                                                <span className={`${look.chip} ${entry.status === 'new' ? look.chipNew : entry.status === 'approved' ? look.chipOk : ''}`}>
+                                                    {STATUS_BADGE[entry.status]}
+                                                </span>
+                                                {!selecting && entry.status !== 'approved' && (
+                                                    <button type="button" className={styles.iconButton} aria-label={`Погодити ${entry.ukrainian}`}
+                                                        onClick={() => quick.mutate({ entryId: entry.id, next: 'approved' })}><Check size={18} aria-hidden /></button>
+                                                )}
+                                                {!selecting && entry.status !== 'rejected' && (
+                                                    <button type="button" className={styles.iconButton} aria-label={`Відхилити ${entry.ukrainian}`}
+                                                        onClick={() => quick.mutate({ entryId: entry.id, next: 'rejected' })}><X size={18} aria-hidden /></button>
+                                                )}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                    {data && <Pager page={page} total={data.total} size={PAGE_SIZE} onPage={(next) => { setPage(next); setSelected(new Set()); }} />}
+                </section>
+
+                {card && (
+                    <aside key={card.id} ref={intoView} className={look.card} aria-label={`Запис словника: ${card.ukrainian}`}>
+                        <EntryHead editionId={id} entry={card} from={card.chapter ? shown(card.chapter).from : null} onChanged={refresh} />
+                        <EntryForm editionId={id} entry={card} onDone={() => { setPicked(null); refresh(); }} />
+                    </aside>
+                )}
+            </div>
 
             {selecting && (
                 <div className={styles.selectionBar} role="toolbar" aria-label="Дії з виділеним">
                     <Button onPress={() => change.mutate('approved')} isDisabled={selected.size === 0} pending={change.isPending}>
-                        Затвердити ({selected.size})
+                        Погодити ({selected.size})
                     </Button>
                     <Button variant="danger" onPress={() => change.mutate('rejected')} isDisabled={selected.size === 0}>Відхилити</Button>
                     {status !== 'new' && <Button variant="secondary" onPress={() => change.mutate('new')} isDisabled={selected.size === 0}>У нові</Button>}
@@ -169,6 +240,61 @@ export function GlossaryPage() {
                 </div>
             )}
         </EditionShell>
+    );
+}
+
+/**
+ * The card's head: the portrait for «Хто це» (or the name's first letter), the name, its kind and the
+ * chapter it came from. The portrait is picked from «Мої картинки» (етап 20, крок 4).
+ */
+function EntryHead({ editionId, entry, from, onChanged }: { editionId: number; entry: GlossaryItem; from: string | null; onChanged: () => void }) {
+    const [picking, setPicking] = useState(false);
+    const save = useMutation({
+        meta: { errorToast: true },
+        mutationFn: (imageId: number | null) => autotranslateApi.setPortrait(editionId, entry.id, imageId),
+        onSuccess: onChanged,
+    });
+    return (
+        <div className={look.head}>
+            <div className={look.who}>
+                {entry.portraitUrl
+                    ? <img className={look.letter} src={entry.portraitUrl} alt="" />
+                    : (
+                        <span className={look.letter} style={{ background: `hsl(${(entry.id * 47) % 360} 35% 32%)` }} aria-hidden>
+                            {entry.ukrainian.trim().charAt(0).toUpperCase()}
+                        </span>
+                    )}
+                <div>
+                    <div className={look.cardName}>{entry.ukrainian}</div>
+                    <div className={look.details}>{KIND_LABELS[entry.kind]}{from ? ` · ${from}` : ''}</div>
+                </div>
+            </div>
+            <div className={look.portraitRow}>
+                <figure className={look.portrait} aria-label={entry.portraitUrl ? 'Портрет' : 'Портрет (ще немає)'} role="img">
+                    {entry.portraitUrl
+                        ? <img src={entry.portraitUrl} alt="" />
+                        : (
+                            <svg width="52" height="66" viewBox="0 0 76 96" aria-hidden>
+                                <circle cx="38" cy="34" r="17" fill="var(--line)" />
+                                <path d="M6 96c0-22 14-36 32-36s32 14 32 36z" fill="var(--line)" />
+                            </svg>
+                        )}
+                </figure>
+                <div className={look.portraitActions}>
+                    <span className={look.details}>Портрет для «Хто це»</span>
+                    <div className={styles.actions}>
+                        <Button variant="secondary" onPress={() => setPicking(true)} pending={save.isPending}>З моїх картинок</Button>
+                        {entry.portraitUrl && <Button variant="quiet" onPress={() => save.mutate(null)}>Прибрати</Button>}
+                    </div>
+                </div>
+            </div>
+            {picking && (
+                <PicturePicker onClose={() => setPicking(false)} onPick={(pictures) => {
+                    const first = pictures[0];
+                    if (first) save.mutate(first.id);
+                }} />
+            )}
+        </div>
     );
 }
 
@@ -225,7 +351,7 @@ function EntryForm({ editionId, entry, onDone }: { editionId: number; entry: Glo
             <NamesBox editionId={editionId} entry={entry} />
             <FactsBox editionId={editionId} entry={entry} />
             <OriginalBox editionId={editionId} entry={entry} />
-            <p className={styles.muted}>Збережений запис стає затвердженим.</p>
+            <p className={styles.muted}>Збережений запис стає погодженим.</p>
             {rewriting && <RewriteSheet editionId={editionId} entryId={entry.id} old={rewriting} to={ukrainian.trim()} onDone={afterRewrite} />}
             {regendering && <GenderSheet editionId={editionId} entry={{ ...entry, ukrainian: ukrainian.trim(), gender }} onDone={onDone} />}
             {(save.error ?? reject.error) && <Notice tone="error">{(save.error ?? reject.error)!.message}</Notice>}

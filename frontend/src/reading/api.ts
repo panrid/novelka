@@ -189,7 +189,9 @@ export type GlossaryHints = {
 };
 
 /** {@code mentions}: how often the novel named it by the reader's chapter («Персонажі»; elsewhere 0). */
-export type WhoCard = { id: number; ukrainian: string; kind: string; gender: string | null; facts: string[]; mentions?: number };
+export type WhoCard = { id: number; ukrainian: string; kind: string; gender: string | null; facts: string[]; mentions?: number;
+    /** The portrait the team picked in the glossary; without it, the name's first letter. */
+    portraitUrl?: string | null };
 
 export type CharacterSort = 'mentions' | 'name' | 'appearance';
 

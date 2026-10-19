@@ -1,0 +1,97 @@
+/* The Studio's header (doc/redesign/mockup/Studio.dc.html): on a phone one row that scrolls sideways. */
+.bar {
+    display: flex;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 0 calc(var(--gutter) * -1) 12px;
+    padding: 8px var(--gutter);
+    overflow-x: auto;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+    font-size: 14px;
+    white-space: nowrap;
+    scrollbar-width: none;
+}
+
+.mark {
+    flex: none;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+}
+
+.nav {
+    display: flex;
+    flex: 1;
+    gap: 4px;
+}
+
+.item {
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 10px;
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.item:hover {
+    color: var(--text);
+}
+
+.on {
+    background: var(--surface-2);
+    color: var(--strong);
+    font-weight: 600;
+}
+
+.balance {
+    flex: none;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.balance b {
+    font-weight: 600;
+}
+
+.create,
+.site {
+    display: flex;
+    flex: none;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 10px;
+    text-decoration: none;
+}
+
+.create {
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+}
+
+.site {
+    color: var(--text);
+}
+
+@media (min-width: 1024px) {
+    .bar {
+        margin: 0 0 16px;
+        padding: 10px 16px;
+        border: 0;
+        border-radius: 14px;
+        flex-wrap: wrap;
+        overflow: visible;
+    }
+}

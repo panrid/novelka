@@ -11,7 +11,7 @@ import { JobCard } from './AutotranslatePage';
 import styles from './studio.module.css';
 
 const STATES = [['', 'Усі'], ['active', 'Ідуть'], ['failed', 'Зупинені'], ['done', 'Готові'], ['cancelled', 'Скасовані']] as const;
-const KINDS = [['', 'Аналіз і переклад'], ['analyze', 'Аналіз'], ['translate', 'Переклад']] as const;
+const KINDS = [['', 'Словник і переклад'], ['analyze', 'Словник'], ['translate', 'Переклад']] as const;
 
 /** Every autotranslation run in one place: running and stopped ones first, 20 to a page, by state, kind and title. */
 export function ProcessesPage() {
@@ -41,9 +41,8 @@ export function ProcessesPage() {
     };
     return (
         <section className={styles.page}>
-            <Link to="/studio" className={styles.muted}>‹ Студія</Link>
-            <h1 className={styles.title}>Процеси</h1>
-            <p className={styles.muted}>Аналізи й переклади, які ви запускали. Незавершені — вгорі.</p>
+            <h1 className={styles.title}>Хід перекладу</h1>
+            <p className={styles.muted}>Переклади, які ви запускали. Незавершені — вгорі; натисніть — відкриється хід перекладу наживо.</p>
             <div className={styles.filters} role="group" aria-label="Стан">
                 {STATES.map(([value, label]) => (
                     <button key={value} type="button" className={`${styles.chip} ${state === value ? styles.chipOn : ''}`}

@@ -21,6 +21,12 @@ export type MyEdition = {
     newWords: number;
     /** The unfinished autotranslation run and the chapter it is at, if any. */
     jobState: 'queued' | 'running' | 'failed' | null; jobChapter: number | null;
+    /** Chapters of the original the team has: pasted, or listed on the original's site. */
+    originals?: number;
+    /** ja, en, zh, ko — when known. */
+    sourceLanguage?: string | null;
+    /** The newest chapter, published or not: «Мої переклади» open it in the workspace. */
+    lastChapter?: number | null;
 };
 
 export type Overview = {
@@ -118,7 +124,9 @@ export const studioApi = {
     mine: () => api<MyEdition[]>('/api/studio'),
     create: (body: { kind: 'human' | 'original'; title: string; author: string; description: StudioBlock[]; tags: string[]; adult: boolean; team: string;
         /** «Маю право перекладати цей текст» was ticked (етап 19). */
-        rightsConfirmed?: boolean }) =>
+        rightsConfirmed?: boolean;
+        /** «Новий переклад»: the name in the original and the original's language (ja, en, zh, ko). */
+        titleOriginal?: string; language?: string }) =>
         api<{ editionId: number; novelSlug: string }>('/api/studio/editions', json('POST', body)),
     overview: (id: number) => api<Overview>(edition(id)),
     update: (id: number, patch: Partial<{ title: string; author: string; description: StudioBlock[]; tags: string[]; status: string; adult: boolean; downloadAllowed: boolean;

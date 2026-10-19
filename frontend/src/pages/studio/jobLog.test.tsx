@@ -15,7 +15,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('run journal', () => {
     it('tells what each step of a chapter did', async () => {
-        await renderAt('/studio/3/translate/jobs/18', {
+        await renderAt('/studio/3/translate/jobs/18/log', {
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/3': { body: { editionId: 3, novelSlug: 'medzhyk', title: 'Меджик', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 20, ownNovel: false, teamHandle: 'panrid', teamName: 'panrid', role: 'owner' } },
             'GET /api/studio/editions/3/autotranslate/jobs/18/log': { body: { job: JOB, chapters: 1, page: 1, events: [
@@ -39,7 +39,7 @@ describe('run journal', () => {
 
     it('shows a long run twenty chapters to a page, the last ones first unless asked otherwise', async () => {
         const EDITION = { editionId: 3, novelSlug: 'medzhyk', title: 'Меджик', author: '', description: [], tags: [], kind: 'machine', status: 'ongoing', adult: false, coverUrl: null, chapterCount: 150, ownNovel: false, teamHandle: 'panrid', teamName: 'panrid', role: 'owner' };
-        const { calls } = await renderAt('/studio/3/translate/jobs/18', {
+        const { calls } = await renderAt('/studio/3/translate/jobs/18/log', {
             'GET /api/me': { body: OWNER },
             'GET /api/studio/editions/3': { body: EDITION },
             'GET /api/studio/editions/3/autotranslate/jobs/18/log': { body: { job: { ...JOB, from: 100, to: 142, done: 42 }, chapters: 43, page: 1, events: [
