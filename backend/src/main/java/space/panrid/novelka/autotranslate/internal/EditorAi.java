@@ -96,6 +96,39 @@ class EditorAi {
     }
 
     /**
+     * «Вичитати абзац»: the paragraph with the cursor read against its original, as proofreading reads
+     * a chapter; the team sees the change before taking it.
+     *
+     * @return the proofread paragraph, or null when the model would change nothing
+     */
+    String proofread(long editionId, int number, String blockId, String text, Long payer) {
+        String paragraph = text == null ? "" : text.strip();
+        if (paragraph.isEmpty() || paragraph.length() > MAX_PARAGRAPH) {
+            throw UserFacingException.badRequest("Поставте курсор в абзац з текстом (до 3000 знаків).");
+        }
+        String original = blockId == null ? null : glossary.originalBlock(editionId, number, blockId).orElse(null);
+        if (original == null) {
+            throw UserFacingException.badRequest("У цього абзацу немає оригіналу: вичитувати нема з чим.");
+        }
+        Map<String, String> pair = new LinkedHashMap<>();
+        pair.put("id", blockId);
+        pair.put("original", original);
+        pair.put("draft", paragraph);
+        String language = glossary.scope(editionId, number).language();
+        String user = "Glossary:\n" + glossaryLines(editionId, original + "\n" + paragraph) + "\n\nBlocks (JSON):\n"
+                + json.writeValueAsString(List.of(pair));
+        JsonNode answer = ask(Prompts.proofread(language), user, "proofread", Prompts.blocksSchema(false),
+                original.length() + paragraph.length(), 1, "Вичитати абзац", payer);
+        for (JsonNode line : answer.path("blocks")) {
+            String fixed = line.path("text").asString("").strip();
+            if (blockId.equals(line.path("id").asString("")) && !fixed.isEmpty() && !fixed.equals(paragraph)) {
+                return fixed;
+            }
+        }
+        return null;
+    }
+
+    /**
      * «Перевірити главу»: the published text read against the original; each paragraph the model
      * changes becomes a suggestion of {@code viewer} with the note {@link #NOTE}. Paragraphs with
      * formatting inside are left alone, so no bold or italics are lost.

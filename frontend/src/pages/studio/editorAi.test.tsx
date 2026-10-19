@@ -38,6 +38,27 @@ describe('AI in the editor (етап 19, п. 5)', () => {
         }));
     });
 
+    it('proofreads the paragraph and takes the change only on «Прийняти»', async () => {
+        const { calls } = await renderAt('/studio/7/chapters/3', {
+            'GET /api/me': { body: OWNER },
+            'GET /api/studio/editions/7/chapters/3': { body: EDITOR },
+            'POST /api/studio/editions/7/chapters/3/proofread-paragraph': { body: { text: 'Рьо стояв коло маяка.' } },
+            'PUT /api/studio/editions/7/chapters/3/draft': { status: 204 },
+            'POST /api/studio/editions/7/chapters/3/publish': { body: { revisionId: 42 } },
+        });
+        await screen.findByText('Рьо стояв біля маяка.');
+        act(() => screen.getByRole('textbox', { name: 'Текст глави' }).focus());
+        await userEvent.click(screen.getByRole('button', { name: 'Вичитати абзац' }));
+        const sheet = await screen.findByRole('dialog', { name: 'Вичитка ШІ' });
+        expect(calls.find((call) => call.path.endsWith('/proofread-paragraph'))?.body).toEqual({ blockId: 'b1', text: 'Рьо стояв біля маяка.' });
+        await userEvent.click(await within(sheet).findByRole('button', { name: 'Прийняти' }));
+        expect(await screen.findByText('Рьо стояв коло маяка.')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Опублікувати' }));
+        await vi.waitFor(() => expect(calls.find((call) => call.path.endsWith('/publish'))?.body).toMatchObject({
+            blocks: [{ id: 'b1', content: [{ text: 'Рьо стояв коло маяка.' }] }],
+        }));
+    });
+
     it('checks the published chapter and says how many changes wait', async () => {
         const { calls } = await renderAt('/studio/7/chapters/3', {
             'GET /api/me': { body: OWNER },
@@ -56,6 +77,7 @@ describe('AI in the editor (етап 19, п. 5)', () => {
         });
         await screen.findByText('Рьо стояв біля маяка.');
         expect(screen.queryByRole('button', { name: 'Інший варіант' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Вичитати абзац' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Перевірити главу з ШІ' })).not.toBeInTheDocument();
     });
 });

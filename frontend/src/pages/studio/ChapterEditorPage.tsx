@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/client';
 import { GlossarySheet, type GlossaryPick } from './GlossarySheet';
 import { VariantsSheet } from './VariantsSheet';
+import { ProofreadSheet } from './ProofreadSheet';
 import { useEditionOverview } from './EditionShell';
 import { autotranslateApi } from '../../studio/autotranslate';
 import { IllustrateSheet } from './IllustrateSheet';
@@ -53,6 +54,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
     const [picked, setPicked] = useState<GlossaryPick | null>(null);
     // «Інший варіант» and «Перевірити главу» (етап 19, п. 5): for the team, for those who see AI.
     const [rewording, setRewording] = useState<{ blockId: string | null; paragraph: string } | null>(null);
+    const [proofing, setProofing] = useState<{ blockId: string | null; paragraph: string } | null>(null);
     const edition = useEditionOverview(editionId).data;
     const check = useMutation({ mutationFn: () => autotranslateApi.check(editionId, view.number) });
     const canRun = useCanRun();
@@ -190,6 +192,13 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                             setRewording(null);
                         }} />
                 )}
+                {proofing && (
+                    <ProofreadSheet editionId={editionId} chapter={view.number} pick={proofing} onClose={() => setProofing(null)}
+                        onAccept={(text) => {
+                            if (proofing.blockId) editor.current?.replaceBlock?.(proofing.blockId, text);
+                            setProofing(null);
+                        }} />
+                )}
                 {check.isError && <Notice tone="error">{check.error.message}</Notice>}
                 {check.data && (
                     <Notice tone={check.data.proposed > 0 ? 'success' : 'info'}>
@@ -214,6 +223,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                     onCursorBlock={setCursor}
                     onGlossary={canRun && view.hasOriginal && view.mayAddPictures ? setPicked : undefined}
                     onVariants={canRun ? setRewording : undefined}
+                    onProofread={canRun && view.hasOriginal ? setProofing : undefined}
                     mayAddPictures={view.mayAddPictures} label="Текст глави" placeholder="Почніть писати або вставте текст…" />
             </div>
             </div>
