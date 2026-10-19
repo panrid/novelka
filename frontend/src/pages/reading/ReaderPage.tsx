@@ -1,7 +1,8 @@
 import { DiffModeSwitch } from '../../ui/WordDiff';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
-import { ArrowLeft, ChevronLeft, ChevronRight, Lightbulb, List, MessageCircle, Type } from '../../ui/icons';
+import { ArrowLeft, ChevronLeft, ChevronRight, Lightbulb, List, MessageCircle, PenLine, Type } from '../../ui/icons';
+import { createPortal } from 'react-dom';
 import { hintsRemembered, rememberHints, useGlossaryHints } from '../../reading/useGlossaryHints';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useMe } from '../../auth/me';
@@ -21,7 +22,7 @@ import { TextInput } from '../../ui/TextInput';
 import { autotranslateApi } from '../../studio/autotranslate';
 import { ReportEdition } from '../../reading/ReportEdition';
 import { usePages } from './usePages';
-import { EditSheet, ReplaceSheet, ReviewCard, SelectionBar, useMySuggestions, useReview } from './Suggestions';
+import { InlineEdit, ReplaceSheet, ReviewCard, SelectionBar, useMySuggestions, useReview } from './Suggestions';
 import suggestionStyles from './suggestions.module.css';
 import styles from './reader.module.css';
 
@@ -201,6 +202,12 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
         if (reviewing) lookOnly.current = true;
     }, [reviewing]);
     const editingBlock = chapter.blocks.find((block) => block.id === editing);
+    // The paragraph being rewritten becomes a field where it stands (етап 20, рішення 3).
+    const inlineEdit = editingBlock ? {
+        blockId: editingBlock.id,
+        node: <InlineEdit chapter={chapter} block={editingBlock} onClose={() => setEditing(null)} onSaved={mine.refresh}
+            existing={mine.items.find((item) => item.kind === 'block' && item.blockId === editingBlock.id && item.state === 'draft')} />,
+    } : undefined;
     // A link to a comment (#c40 from the inbox) opens the discussion at it.
     const hash = useRouterState({ select: (state) => state.location.hash });
     const focus = /^c(\d+)$/.exec(hash)?.[1];
@@ -211,7 +218,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     /** A tap on the text toggles the controls; in «режим правок» it opens the paragraph instead. */
     function toggleBars(event: MouseEvent) {
         const target = event.target as HTMLElement;
-        if (target.closest('a, button') || window.getSelection()?.toString()) return;
+        if (target.closest('a, button, [data-inline-edit]') || window.getSelection()?.toString()) return;
         const marked = hints.at(event.clientX, event.clientY);
         if (marked && !editMode) {
             setAsking({ text: marked.text, blockId: marked.blockId });
@@ -236,7 +243,8 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     });
 
     // Pages like a book (етап 18); while making or checking suggestions the chapter scrolls as usual.
-    const paged = view.mode === 'pages' && !editMode && !reviewing && !find;
+    // A paragraph being rewritten needs the text to scroll: pages wait until it is saved or left.
+    const paged = view.mode === 'pages' && !editMode && !reviewing && !find && !editing;
     // A book does not scroll: without this a phone moves the page a little up and down before turning it.
     useEffect(() => {
         if (!paged) return;
@@ -272,7 +280,9 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
 
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
-            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+            // Typing (a field, or a paragraph rewritten in its place) moves the caret, not the chapter.
+            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement
+                || event.target instanceof HTMLElement && event.target.isContentEditable) return;
             if (paged && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
                 pages.turn(event.key === 'ArrowLeft' ? -1 : 1);
             } else if (event.key === 'ArrowLeft' && chapter.previous) {
@@ -334,7 +344,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                         onDecide={(verdict) => review.decide(item.id, verdict)} />
                 ))}
                 {editMode && <p className={suggestionStyles.banner}>Режим правок: торкніться абзацу, щоб його виправити.</p>}
-                <Blocks blocks={chapter.blocks} highlight={find} overlay={mine.overlay}
+                <Blocks blocks={chapter.blocks} highlight={find} overlay={mine.overlay} replace={inlineEdit}
                     after={reviewing ? (blockId) => review.items.filter((item) => item.kind === 'block' && item.blockId === blockId).map((item) => (
                         <ReviewCard key={item.id} item={item} verdict={review.verdicts[item.id]} onDecide={(verdict) => review.decide(item.id, verdict)} />
                     )) : undefined} />
@@ -404,7 +414,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                         onDecide={(verdict) => review.decide(item.id, verdict)} />
                 ))}
                 {editMode && <p className={suggestionStyles.banner}>Режим правок: торкніться абзацу, щоб його виправити.</p>}
-                <Blocks blocks={chapter.blocks} highlight={find} overlay={mine.overlay}
+                <Blocks blocks={chapter.blocks} highlight={find} overlay={mine.overlay} replace={inlineEdit}
                     after={reviewing ? (blockId) => review.items.filter((item) => item.kind === 'block' && item.blockId === blockId).map((item) => (
                         <ReviewCard key={item.id} item={item} verdict={review.verdicts[item.id]} onDecide={(verdict) => review.decide(item.id, verdict)} />
                     )) : undefined} />
@@ -466,10 +476,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                 <LinkSheet slug={chapter.novelSlug} editionId={chapter.edition.editionId} chapter={chapter.number} text={linking.text}
                     blockId={linking.blockId} onClose={() => setLinking(null)} />
             )}
-            {editingBlock && (
-                <EditSheet chapter={chapter} block={editingBlock} onClose={() => setEditing(null)} onSaved={mine.refresh}
-                    existing={mine.items.find((item) => item.kind === 'block' && item.blockId === editingBlock.id && item.state === 'draft')} />
-            )}
+            {me && !editMode && !paged && !editing && <HoverPencil onEdit={setEditing} />}
             <Sheet open={talking} onClose={() => setTalking(false)} title="Обговорення глави" tall>
                 <Discussion editionId={chapter.edition.editionId} chapter={chapter.number} focus={focus ? Number(focus) : undefined}
                     quote={quote} onDropQuote={() => setQuote(null)} goTo={(blockId) => { setTalking(false); showBlock(blockId); }} />
@@ -708,5 +715,34 @@ function ReviewSteps({ count }: { count: number }) {
             <button type="button" aria-label="Наступна правка"
                 onClick={() => go(cards().find((card) => card.getBoundingClientRect().top > middle() + 10))}>›</button>
         </div>
+    );
+}
+
+/**
+ * On a computer a pencil stands left of the paragraph under the mouse (етап 20, рішення 3): a click
+ * rewrites it right there. Touch screens have «режим правок» and «Виправити абзац» instead.
+ */
+function HoverPencil({ onEdit }: { onEdit: (blockId: string) => void }) {
+    const [at, setAt] = useState<{ id: string; top: number; left: number } | null>(null);
+    useEffect(() => {
+        if (!window.matchMedia?.('(hover: hover) and (pointer: fine)').matches) return;
+        function over(event: globalThis.MouseEvent) {
+            const target = event.target as HTMLElement | null;
+            if (!target || target.closest('[data-pencil]')) return;
+            const block = target.closest('article p[data-block-id], article h2[data-block-id]');
+            if (!block) return;
+            const rect = block.getBoundingClientRect();
+            setAt({ id: block.getAttribute('data-block-id')!, top: rect.top + window.scrollY, left: rect.left + window.scrollX - 40 });
+        }
+        document.addEventListener('mouseover', over);
+        return () => document.removeEventListener('mouseover', over);
+    }, []);
+    if (!at) return null;
+    return createPortal(
+        <button type="button" data-pencil className={styles.pencil} style={{ top: at.top, left: at.left }} aria-label="Виправити абзац"
+            onClick={() => onEdit(at.id)}>
+            <PenLine size={18} aria-hidden />
+        </button>,
+        document.body,
     );
 }

@@ -10,6 +10,8 @@ type Props = {
     after?: ((blockId: string) => ReactNode) | undefined;
     /** A word to mark wherever it occurs, in any of its forms (the glossary's «У тексті»). */
     highlight?: string | undefined;
+    /** A paragraph being rewritten where it stands (етап 20, рішення 3): this node in its place. */
+    replace?: { blockId: string; node: ReactNode } | undefined;
 };
 
 /**
@@ -17,11 +19,14 @@ type Props = {
  * is drawn again only when its own text changes: the reader's scrolling, its bars and the sheets
  * opened over it leave the paragraphs alone (on a phone each redraw of hundreds of them showed).
  */
-export const Blocks = memo(function Blocks({ blocks, overlay, after, highlight }: Props) {
+export const Blocks = memo(function Blocks({ blocks, overlay, after, highlight, replace }: Props) {
     const pattern = useMemo(() => stem(highlight), [highlight]);
     return (
         <HighlightContext.Provider value={pattern}>
             {blocks.map((block) => {
+                if (replace?.blockId === block.id) {
+                    return <div key={block.id} data-block-id={block.id}>{replace.node}</div>;
+                }
                 const own = overlay?.[block.id];
                 const extra = after?.(block.id);
                 const hasExtra = Array.isArray(extra) ? extra.length > 0 : Boolean(extra);

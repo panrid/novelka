@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DiffModeSwitch, WordDiff } from '../../ui/WordDiff';
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { ReaderChapter, Span, TextBlock } from '../../reading/api';
 import { suggestionApi, type MineItem, type ReviewItem } from '../../reading/suggestions';
 import { TextEditor, type EditorHandle } from '../../studio/TextEditor';
@@ -10,6 +10,9 @@ import { Notice } from '../../ui/Notice';
 import { Sheet } from '../../ui/Sheet';
 import { TextInput } from '../../ui/TextInput';
 import styles from './suggestions.module.css';
+import { useCanRun } from '../../ledger/api';
+import { studioApi } from '../../studio/api';
+import { autotranslateApi } from '../../studio/autotranslate';
 
 const text = (spans: Span[]) => spans.map((span) => span.text).join('');
 
@@ -87,14 +90,31 @@ export function SelectionBar({ onWho, onLink, onEdit, onReplace, onQuote }: {
     );
 }
 
-/** Rewrite one paragraph; the draft joins the batch, or the team saves it in the chapter at once. */
-export function EditSheet({ chapter, block, existing, onClose, onSaved }: {
+/**
+ * Rewrite one paragraph right where it stands (етап 20, рішення 3): it becomes a field, under it
+ * «Скасувати» / «Зберегти»; Esc leaves, Ctrl/⌘+Enter saves. The draft joins the batch, or the team saves
+ * it in the chapter at once; the team also has «Варіант від ШІ» and «Показати оригінал» (the original is
+ * the team's alone).
+ */
+export function InlineEdit({ chapter, block, existing, onClose, onSaved }: {
     chapter: ReaderChapter; block: TextBlock; existing: MineItem | undefined; onClose: () => void; onSaved: () => void;
 }) {
     const client = useQueryClient();
     const team = chapter.teamRole !== null && chapter.teamRole !== undefined;
+    const canRun = useCanRun();
     const start: StudioBlock[] = [{ id: block.id, type: 'paragraph', content: existing?.proposed ?? block.content }];
     const [blocks, setBlocks] = useState<StudioBlock[]>(start);
+    // A variant taken from AI replaces the field's text: a new editor with it.
+    const [version, setVersion] = useState(0);
+    const [showOriginal, setShowOriginal] = useState(false);
+    const original = useQuery({
+        queryKey: ['studio-original', chapter.edition.editionId, chapter.number],
+        queryFn: () => studioApi.original(chapter.edition.editionId, chapter.number),
+        enabled: team && showOriginal, staleTime: Infinity,
+    });
+    const variants = useMutation({
+        mutationFn: () => autotranslateApi.variants(chapter.edition.editionId, chapter.number, block.id, text(joined(editor.current?.read() ?? blocks))),
+    });
     const [note, setNote] = useState(existing?.note ?? '');
     const joined = (list: StudioBlock[]) => list.flatMap((b, index) => (index > 0 ? [{ text: ' ', marks: [] }, ...b.content] : b.content));
     const proposed = joined(blocks);
@@ -118,10 +138,45 @@ export function EditSheet({ chapter, block, existing, onClose, onSaved }: {
         },
     });
     const withdraw = useMutation({ meta: { errorToast: true }, mutationFn: () => suggestionApi.withdraw(existing!.id), onSuccess: () => { onSaved(); onClose(); } });
-    const failed = save.error ?? apply.error;
+    const failed = save.error ?? apply.error ?? variants.error;
+    const submit = () => (team ? apply.mutate() : save.mutate());
+    function keys(event: KeyboardEvent) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            onClose();
+        } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            submit();
+        }
+    }
+    const originalText = original.data?.blocks.find((item) => item.id === block.id)?.text;
     return (
-        <Sheet open onClose={onClose} title="Правка абзацу">
-            <TextEditor handle={editor} mode="description" blocks={blocks} onChange={setBlocks} label="Текст абзацу" />
+        <div className={styles.inline} role="group" aria-label="Правка абзацу" data-inline-edit onKeyDown={keys}>
+            <TextEditor key={version} handle={editor} mode="description" blocks={blocks} onChange={setBlocks} label="Текст абзацу" />
+            {team && (
+                <div className={styles.tools}>
+                    {canRun && (
+                        <button type="button" className={styles.tool} disabled={variants.isPending} onClick={() => variants.mutate()}>
+                            {variants.isPending ? 'ШІ пише варіант…' : 'Варіант від ШІ'}
+                        </button>
+                    )}
+                    <button type="button" className={styles.tool} aria-pressed={showOriginal} onClick={() => setShowOriginal(!showOriginal)}>
+                        {showOriginal ? 'Сховати оригінал' : 'Показати оригінал'}
+                    </button>
+                </div>
+            )}
+            {showOriginal && (
+                <p className={styles.original} lang="und">
+                    {original.isPending ? '…' : originalText ?? 'Цього абзацу в оригіналі немає.'}
+                </p>
+            )}
+            {variants.data?.variants.map((variant) => (
+                <button key={variant} type="button" className={styles.variant} onClick={() => {
+                    setBlocks([{ id: block.id, type: 'paragraph', content: [{ text: variant, marks: [] }] }]);
+                    setVersion((n) => n + 1);
+                    variants.reset();
+                }}>{variant}</button>
+            ))}
             {shown !== text(block.content) && (
                 <>
                     <DiffModeSwitch />
@@ -142,8 +197,9 @@ export function EditSheet({ chapter, block, existing, onClose, onSaved }: {
             <p className={styles.hint}>
                 {team ? 'Ви в команді перекладу: абзац зміниться для читачів одразу, а зміна залишиться в історії глави.'
                     : 'Правки збираються в пакет. Надіслати його можна з панелі читалки або наприкінці глави.'}
+                {' '}Esc — скасувати, Ctrl+Enter — зберегти.
             </p>
-        </Sheet>
+        </div>
     );
 }
 

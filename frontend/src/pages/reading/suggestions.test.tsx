@@ -182,6 +182,7 @@ describe('a paragraph fixed by the team', () => {
             'GET /api/suggestions/mine': { body: { items: [], draftsInEdition: 0 } },
             'GET /api/studio/editions/7/chapters/12/suggestions': { body: [] },
             'POST /api/studio/editions/7/chapters/12/blocks/apply': { status: 204 },
+            'GET /api/studio/editions/7/chapters/12/original': { body: { title: '第12話', blocks: [{ id: 'b2', type: 'paragraph', text: 'ベッドが軋んだ。' }] } },
         });
         await screen.findByRole('heading', { name: '12. Спокійне життя' });
 
@@ -193,14 +194,41 @@ describe('a paragraph fixed by the team', () => {
         document.dispatchEvent(new Event('selectionchange'));
         await userEvent.click(await screen.findByRole('button', { name: '✎ Виправити абзац' }));
 
-        const dialog = await screen.findByRole('dialog');
-        expect(within(dialog).queryByRole('button', { name: 'Додати до пакета' })).not.toBeInTheDocument();
-        await userEvent.click(within(dialog).getByRole('button', { name: 'Зберегти в главі' }));
+        // The paragraph becomes a field where it stands (етап 20, рішення 3), not a sheet over the text.
+        const field = await screen.findByRole('group', { name: 'Правка абзацу' });
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(within(field).queryByRole('button', { name: 'Додати до пакета' })).not.toBeInTheDocument();
+        await userEvent.click(within(field).getByRole('button', { name: 'Показати оригінал' }));
+        expect(await within(field).findByText('ベッドが軋んだ。')).toBeInTheDocument();
+        await userEvent.click(within(field).getByRole('button', { name: 'Зберегти в главі' }));
 
         await waitFor(() => expect(calls.find((call) => call.path === '/api/studio/editions/7/chapters/12/blocks/apply')?.body)
             .toMatchObject({ blockId: 'b2', content: [{ text: 'Ліжко скрипнуло.', marks: [] }] }));
         // The reader shows the new text without waiting for the cached chapter to go stale.
-        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        await waitFor(() => expect(screen.queryByRole('group', { name: 'Правка абзацу' })).not.toBeInTheDocument());
         expect(queryClient.getQueryState(['chapter', 'mah-vody', '', 12])?.dataUpdateCount).toBeGreaterThan(1);
+    });
+
+    it('leaves the paragraph as it was on Esc, and offers no original to a reader', async () => {
+        await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'GET /api/suggestions/mine': { body: { items: [], draftsInEdition: 0 } },
+        });
+        await screen.findByRole('heading', { name: '12. Спокійне життя' });
+        const paragraph = screen.getByText('Ліжко скрипнуло.');
+        const range = document.createRange();
+        range.selectNodeContents(paragraph.firstChild!);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(range);
+        document.dispatchEvent(new Event('selectionchange'));
+        await userEvent.click(await screen.findByRole('button', { name: '✎ Виправити абзац' }));
+        const field = await screen.findByRole('group', { name: 'Правка абзацу' });
+        expect(within(field).getByRole('button', { name: 'Додати до пакета' })).toBeInTheDocument();
+        expect(within(field).queryByRole('button', { name: 'Показати оригінал' })).not.toBeInTheDocument();
+        await userEvent.click(within(field).getByRole('textbox', { name: 'Текст абзацу' }));
+        await userEvent.keyboard('{Escape}');
+        await waitFor(() => expect(screen.queryByRole('group', { name: 'Правка абзацу' })).not.toBeInTheDocument());
+        expect(screen.getByText('Ліжко скрипнуло.')).toBeInTheDocument();
     });
 });

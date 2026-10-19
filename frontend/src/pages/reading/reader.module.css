@@ -344,3 +344,24 @@
     text-align: left;
     cursor: pointer;
 }
+
+/* The pencil left of the paragraph under the mouse (етап 20, рішення 3). */
+.pencil {
+    position: absolute;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.pencil:hover {
+    background: var(--surface-2);
+    color: var(--accent);
+}
