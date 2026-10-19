@@ -107,7 +107,10 @@ describe('шаги without payments', () => {
         await userEvent.click(within(qualities).getByRole('button', { name: /Найкраща/ }));
         await userEvent.click(screen.getByRole('switch', { name: "Запам'ятати для наступних" }));
         await userEvent.type(screen.getByLabelText('По главу'), '3');
-        await userEvent.click(await screen.findByRole('button', { name: /^Запустити/ }, { timeout: 2000 }));
+        // The price comes once typing stops; until then the button waits.
+        const run = screen.getByRole('button', { name: /^Запустити/ });
+        await waitFor(() => expect(run).toBeEnabled(), { timeout: 2000 });
+        await userEvent.click(run);
         await waitFor(() => expect(calls.find((call) => call.path === '/api/studio/autotranslate/choice')?.body)
             .toEqual({ preset: 9, steps: ['analyze', 'translate', 'proofread'], publish: true }));
         expect(calls.find((call) => call.path === '/api/studio/editions/4/autotranslate/jobs')?.body).toMatchObject({ preset: 9 });
