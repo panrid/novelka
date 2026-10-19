@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
 import { ArrowLeft, ChevronLeft, ChevronRight, Lightbulb, List, MessageCircle, PenLine, Type } from '../../ui/icons';
 import { createPortal } from 'react-dom';
+import { useWide } from '../../lib/useWide';
 import { hintsRemembered, rememberHints, useGlossaryHints } from '../../reading/useGlossaryHints';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useMe } from '../../auth/me';
@@ -551,8 +552,9 @@ function WhoSheet({ slug, team, chapter, text, blockId, editionId, onClose }: {
             void client.invalidateQueries({ queryKey: ['hints', slug] });
         },
     });
-    return (
-        <Sheet open onClose={onClose} title={whoTitle(cards.data)} peek>
+    // On a computer the card stands in the margin beside the text (етап 20, рішення 6); on a phone, a sheet.
+    const wide = useWide();
+    const body = (
             <div className={styles.who}>
                 {cards.isPending && <p className={styles.whoMuted}>Шукаємо в словнику…</p>}
                 {cards.isError && <Notice tone="error">{cards.error.message}</Notice>}
@@ -561,10 +563,17 @@ function WhoSheet({ slug, team, chapter, text, blockId, editionId, onClose }: {
                 )}
                 {cards.data?.map((card) => (
                     <section key={card.id} className={styles.whoCard}>
-                        <h3>{card.ukrainian} <span className={styles.whoMuted}>· {WHO_KINDS[card.kind] ?? 'інше'}</span></h3>
+                        <div className={styles.whoHead}>
+                            {/* A portrait when the team adds one (Студія, словник); until then the name's first letter. */}
+                            <span className={styles.whoPortrait} style={{ background: `hsl(${(card.id * 47) % 360} 35% 32%)` }} aria-hidden>
+                                {card.ukrainian.trim().charAt(0).toUpperCase()}
+                            </span>
+                            <h3>{card.ukrainian} <span className={styles.whoMuted}>· {WHO_KINDS[card.kind] ?? 'інше'}</span></h3>
+                        </div>
                         {card.facts.length > 0
                             ? <ul>{card.facts.map((fact, index) => <li key={index}>{fact}</li>)}</ul>
                             : <p className={styles.whoMuted}>Поки що про це нічого не відомо.</p>}
+                        <p className={styles.whoMuted}>Лише те, що відомо до глави {chapter}: без спойлерів.</p>
                         {editionId !== null && (
                             <button type="button" className={styles.whoAction} onClick={() => untie.mutate(card.id)} disabled={untie.isPending}>
                                 Тут «{text.trim().slice(0, 30)}» не про це — відв’язати
@@ -573,6 +582,21 @@ function WhoSheet({ slug, team, chapter, text, blockId, editionId, onClose }: {
                     </section>
                 ))}
             </div>
+    );
+    if (wide) {
+        return (
+            <aside className={styles.whoAside} aria-label={whoTitle(cards.data)}>
+                <div className={styles.whoAsideHead}>
+                    <b>{whoTitle(cards.data)}</b>
+                    <button type="button" className={styles.icon} aria-label="Закрити" onClick={onClose}>×</button>
+                </div>
+                {body}
+            </aside>
+        );
+    }
+    return (
+        <Sheet open onClose={onClose} title={whoTitle(cards.data)} peek>
+            {body}
         </Sheet>
     );
 }
