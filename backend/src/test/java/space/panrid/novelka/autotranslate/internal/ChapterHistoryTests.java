@@ -92,7 +92,7 @@ class ChapterHistoryTests {
         JsonNode restored = read(owner.browser().get(chapter + "/revisions"));
         assertThat(restored.path(0).path("origin").asString()).isEqualTo("editor");
         assertThat(restored.path(0).path("published").asBoolean()).isTrue();
-        assertThat(restored).hasSize(3).as("the later version stays in the history");
+        assertThat(restored).as("the later version stays in the history").hasSize(3);
         JsonNode text = read(owner.browser().get(chapter + "/revisions/" + restored.path(0).path("id").asLong()));
         JsonNode original = read(owner.browser().get(chapter + "/revisions/" + machine));
         assertThat(text.path("blocks")).isEqualTo(original.path("blocks"));
