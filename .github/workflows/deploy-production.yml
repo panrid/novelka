@@ -139,7 +139,7 @@ jobs:
             # The server puts each page's title and text into these two places (SearchPages); backend tests use a stand-in.
             - name: Page shell the server fills
               run: grep -q -F '<title>Новелка</title>' frontend/dist/index.html && grep -q -F '<div id="root"></div>' frontend/dist/index.html
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               with:
                   name: novelka
                   path: backend/build/libs/novelka.jar
