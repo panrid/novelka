@@ -560,7 +560,7 @@ class AutotranslateController {
     Source source(@PathVariable long editionId, @PathVariable int number, @RequestBody SourceQuestion body) {
         Viewer viewer = access.requireTranslator(editionId).viewer();
         access.requireAi();
-        String language = glossary.scope(editionId).language();
+        String language = glossary.scope(editionId, number).language();
         String paragraph = glossary.originalBlock(editionId, number, body.blockId() == null ? "" : body.blockId()).orElse(null);
         if (paragraph == null) {
             return new Source(null, null, language);

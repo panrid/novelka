@@ -69,11 +69,15 @@ type Props = {
     onGlossary?: ((pick: { selection: string; blockId: string | null; paragraph: string }) => void) | undefined;
 };
 
+/** The top-level block where the cursor or the selection starts (a select-all starts at the document). */
+function cursorNode(editor: Editor) {
+    const { $from } = editor.state.selection;
+    return $from.depth >= 1 ? $from.node(1) : editor.state.doc.nodeAt($from.pos);
+}
+
 /** The top-level block holding the cursor keeps the paragraph's id from the original. */
 function cursorBlock(editor: Editor): string | null {
-    const { $from } = editor.state.selection;
-    const node = $from.depth >= 1 ? $from.node(1) : editor.state.doc.nodeAt($from.pos);
-    return (node?.attrs.blockId as string | null | undefined) ?? null;
+    return (cursorNode(editor)?.attrs.blockId as string | null | undefined) ?? null;
 }
 
 export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate, onCursorBlock, onGlossary }: Props) {
@@ -159,10 +163,10 @@ function Toolbar({ editor, chapter, mayAddPictures, onIllustrate, onGlossary }: 
 
 /** The selected words and the paragraph they are in, with the id it keeps from the original. */
 function glossary(editor: Editor, onGlossary: NonNullable<Props['onGlossary']>) {
-    const { from, to, $from } = editor.state.selection;
+    const { from, to } = editor.state.selection;
     const selection = editor.state.doc.textBetween(from, to, ' ').trim();
     if (!selection) return;
-    onGlossary({ selection, blockId: cursorBlock(editor), paragraph: $from.depth >= 1 ? $from.node(1).textContent : '' });
+    onGlossary({ selection, blockId: cursorBlock(editor), paragraph: cursorNode(editor)?.textContent ?? '' });
 }
 
 /** The selected text, or the whole paragraph when nothing is selected; the picture goes after that paragraph. */
