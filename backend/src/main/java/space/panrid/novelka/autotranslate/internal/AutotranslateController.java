@@ -641,6 +641,18 @@ class AutotranslateController {
         return Map.of("variants", editorAi.variants(editionId, number, body.blockId(), body.text(), personal(viewer) ? viewer.accountId() : null));
     }
 
+    /** @param text the proofread paragraph, or null when AI would change nothing */
+    record Proofread(String text) {
+    }
+
+    /** «Вичитати абзац» (етап 19): AI's proofreading of the paragraph with the cursor, shown before it is taken. */
+    @PostMapping("/editions/{editionId}/chapters/{number}/proofread-paragraph")
+    Proofread proofreadParagraph(@PathVariable long editionId, @PathVariable int number, @RequestBody VariantsQuestion body) {
+        Viewer viewer = access.requireTextEditor(editionId).viewer();
+        access.requireAi();
+        return new Proofread(editorAi.proofread(editionId, number, body.blockId(), body.text(), personal(viewer) ? viewer.accountId() : null));
+    }
+
     /**
      * «Перевірити главу» (етап 19, п. 5): AI reads the published chapter against its original; each paragraph it
      * would change waits as a suggestion, accepted or rejected one by one.

@@ -77,6 +77,19 @@ class EditorAiTests {
     }
 
     @Test
+    void aParagraphIsProofreadAgainstItsOriginal() {
+        String block = read(owner.browser().get(base() + "/originals/1")).path("blocks").path(0).path("id").asString();
+        JsonNode proofread = read(owner.browser().post(base() + "/chapters/1/proofread-paragraph",
+                json("blockId", block, "text", "Дзвін задзвонив двічі.")));
+        assertThat(proofread.path("text").asString()).isEqualTo("Дзвін задзвонив двічі. ✓");
+        String asked = model.requests.getLast().path("messages").path(1).path("content").asString();
+        assertThat(asked).as("read against its original").contains("The bell rang twice.");
+        Response none = owner.browser().post(base() + "/chapters/1/proofread-paragraph", json("blockId", "no-such", "text", "Абзац."));
+        assertThat(none.status()).isEqualTo(400);
+        assertThat(none.body()).contains("немає оригіналу");
+    }
+
+    @Test
     void theChapterCheckWaitsAsSuggestionsAcceptedOneByOne() {
         JsonNode checked = read(owner.browser().post(base() + "/chapters/1/check", "{}"));
         assertThat(checked.path("proposed").asInt()).isEqualTo(2);

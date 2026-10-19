@@ -11,7 +11,7 @@ import Text from '@tiptap/extension-text';
 import Underline from '@tiptap/extension-underline';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
-import { ArrowRightLeft, BookmarkPlus, ImagePlus, Images, Link2, Minus, RefreshCw, Redo2, Sparkles, Undo2 } from '../ui/icons';
+import { ArrowRightLeft, BookmarkPlus, Check, ImagePlus, Images, Link2, Minus, RefreshCw, Redo2, Sparkles, Undo2 } from '../ui/icons';
 import { askText } from '../ui/ask';
 import { showInfo } from '../ui/toast';
 import { useImperativeHandle, useRef, useState } from 'react';
@@ -73,6 +73,8 @@ type Props = {
     onCursorBlock?: (blockId: string | null) => void;
     /** «Інший варіант» (етап 19): the paragraph with the cursor, its id and its text as it is now. */
     onVariants?: ((pick: { blockId: string | null; paragraph: string }) => void) | undefined;
+    /** «Вичитати абзац» (етап 19): the same, for AI to proofread against the original. */
+    onProofread?: ((pick: { blockId: string | null; paragraph: string }) => void) | undefined;
     /** «До словника» (етап 19): the selected words, their paragraph's id and its text as it is now. */
     onGlossary?: ((pick: { selection: string; blockId: string | null; paragraph: string }) => void) | undefined;
 };
@@ -88,7 +90,7 @@ function cursorBlock(editor: Editor): string | null {
     return (cursorNode(editor)?.attrs.blockId as string | null | undefined) ?? null;
 }
 
-export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate, onCursorBlock, onGlossary, onVariants }: Props) {
+export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate, onCursorBlock, onGlossary, onVariants, onProofread }: Props) {
     const chapter = mode === 'chapter';
     const editor = useEditor({
         extensions: [
@@ -133,14 +135,14 @@ export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = fa
             <EditorContent editor={editor} />
             <Toolbar editor={editor} chapter={chapter} mayAddPictures={chapter && mayAddPictures}
                 onIllustrate={chapter && mayAddPictures ? onIllustrate : undefined} onGlossary={chapter ? onGlossary : undefined}
-                onVariants={chapter ? onVariants : undefined} />
+                onVariants={chapter ? onVariants : undefined} onProofread={chapter ? onProofread : undefined} />
         </div>
     );
 }
 
-function Toolbar({ editor, chapter, mayAddPictures, onIllustrate, onGlossary, onVariants }: {
+function Toolbar({ editor, chapter, mayAddPictures, onIllustrate, onGlossary, onVariants, onProofread }: {
     editor: Editor; chapter: boolean; mayAddPictures: boolean; onIllustrate: Props['onIllustrate']; onGlossary: Props['onGlossary'];
-    onVariants: Props['onVariants'];
+    onVariants: Props['onVariants']; onProofread: Props['onProofread'];
 }) {
     const state = useEditorState({
         editor,
@@ -165,10 +167,13 @@ function Toolbar({ editor, chapter, mayAddPictures, onIllustrate, onGlossary, on
             {mayAddPictures && <PictureButtons editor={editor} />}
             {onIllustrate && button('Намалювати сцену', false, () => illustrate(editor, onIllustrate), <Sparkles size={18} aria-hidden />)}
             {onVariants && button('Інший варіант', false, () => {
-                const { $from } = editor.state.selection;
-                const paragraph = $from.depth >= 1 ? $from.node(1).textContent.trim() : '';
+                const paragraph = cursorNode(editor)?.textContent.trim() ?? '';
                 if (paragraph) onVariants({ blockId: cursorBlock(editor), paragraph });
             }, <RefreshCw size={18} aria-hidden />)}
+            {onProofread && button('Вичитати абзац', false, () => {
+                const paragraph = cursorNode(editor)?.textContent.trim() ?? '';
+                if (paragraph) onProofread({ blockId: cursorBlock(editor), paragraph });
+            }, <Check size={18} aria-hidden />)}
             {onGlossary && (
                 <button type="button" className={styles.tool} aria-label="До словника" disabled={!state.selected}
                     title={state.selected ? 'Додати виділене до словника' : 'Виділіть слово в тексті'}

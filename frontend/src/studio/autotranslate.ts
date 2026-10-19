@@ -208,6 +208,9 @@ export const autotranslateApi = {
     /** «Інший варіант» (етап 19): other versions of a paragraph, from its original when there is one. */
     variants: (id: number, chapter: number, blockId: string | null, text: string) =>
         api<{ variants: string[] }>(`${base(id)}/chapters/${chapter}/variants`, json('POST', { blockId, text })),
+    /** «Вичитати абзац» (етап 19): the paragraph proofread against its original; null text — nothing to change. */
+    proofreadParagraph: (id: number, chapter: number, blockId: string | null, text: string) =>
+        api<{ text: string | null }>(`${base(id)}/chapters/${chapter}/proofread-paragraph`, json('POST', { blockId, text })),
     /** «Перевірити главу»: AI's changes wait as suggestions; how many it made. */
     check: (id: number, chapter: number) => api<{ proposed: number }>(`${base(id)}/chapters/${chapter}/check`, json('POST', {})),
     /** «Додати до словника»: the team's own entry, approved at once. */

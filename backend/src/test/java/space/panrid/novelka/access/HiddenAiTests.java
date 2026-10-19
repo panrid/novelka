@@ -106,6 +106,7 @@ class HiddenAiTests {
             browser.post(at + "/chapters/1/glossary/source", json("blockId", "b1", "translation", "Кай пішов.", "selection", "Кай")),
             browser.post(at + "/chapters/1/variants", json("blockId", "b1", "text", "Кай пішов.")),
             browser.post(at + "/chapters/1/check", "{}"),
+            browser.post(at + "/chapters/1/proofread-paragraph", json("blockId", "b1", "text", "Кай пішов.")),
             browser.get(at + "/illustrations/price"),
             browser.post(at + "/illustrations/prompt", json("fragment", "Маяк уночі.")),
             browser.post(at + "/illustrations", json("prompt", "A lighthouse at night", "aspect", "1:1")),
