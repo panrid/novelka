@@ -37,9 +37,9 @@ export function JobLogPage() {
 
     return (
         <section className={styles.page}>
-            <Link to="/studio/$editionId/translate" params={{ editionId }} className={styles.muted}>‹ Автопереклад</Link>
+            <Link to="/studio/$editionId/translate/jobs/$jobId" params={{ editionId, jobId }} className={styles.muted}>‹ Хід перекладу наживо</Link>
             <div className={styles.head}>
-                <h1 className={styles.title}>Хід перекладу</h1>
+                <h1 className={styles.title}>Хід перекладу: подробиці</h1>
                 {['queued', 'running'].includes(log.data?.job.state ?? '') && (
                     <RefreshTick at={Math.max(log.dataUpdatedAt, log.errorUpdatedAt)} failed={log.isRefetchError} />
                 )}

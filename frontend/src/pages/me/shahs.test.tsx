@@ -160,7 +160,8 @@ describe('шаги without payments', () => {
             'GET /api/me/shahs': { body: { ...MINE, available: 0, reserved: 0 } },
             'GET /api/me/teams': { body: [] },
         });
-        expect(await screen.findByText('Свій переклад')).toBeInTheDocument();
+        expect(await screen.findByText('Перекладаю сам')).toBeInTheDocument();
+        expect(screen.getByText('Вставлю оригінал')).toBeInTheDocument();
         expect(screen.queryByText('Вставлю оригінал — перекладе ШІ')).not.toBeInTheDocument();
         expect(screen.queryByText('Автопереклад із сайту')).not.toBeInTheDocument();
     });
@@ -174,7 +175,8 @@ describe('шаги without payments', () => {
             'POST /api/autotranslate/request': () => { asked = true; return { status: 204 }; },
         });
         expect(await screen.findByText('Вставлю оригінал — перекладе ШІ')).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('button', { name: /Автопереклад із сайту/ }));
+        await userEvent.click(screen.getByRole('radio', { name: /Автопереклад із сайту/ }));
+        expect(screen.getByRole('radio', { name: /Автопереклад із сайту/ })).toHaveAccessibleName(/З дозволу/);
         expect(screen.queryByLabelText('Посилання на новелу')).not.toBeInTheDocument();
         await userEvent.click(screen.getByRole('button', { name: 'Попросити доступ' }));
         expect(await screen.findByText(/Запит надіслано/)).toBeInTheDocument();

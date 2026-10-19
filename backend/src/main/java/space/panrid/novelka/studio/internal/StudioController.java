@@ -10,6 +10,7 @@ import static space.panrid.novelka.jooq.Tables.JOB;
 import static space.panrid.novelka.jooq.Tables.JOB_STEP;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.SOURCE_CHAPTER;
+import static space.panrid.novelka.jooq.Tables.SOURCE_TOC;
 import static space.panrid.novelka.jooq.Tables.SUGGESTION;
 import static space.panrid.novelka.jooq.Tables.TEAM;
 import static space.panrid.novelka.jooq.Tables.TEAM_MEMBER;
@@ -75,16 +76,26 @@ class StudioController {
      * @param newWords   glossary entries analysis added and nobody checked yet
      * @param jobState   the translation's unfinished autotranslation run (queued, running, failed), or null
      * @param jobChapter the chapter that run is at
+     * @param originals      chapters of the original the team has: pasted, or listed on the original's site
+     * @param sourceLanguage the language the original is in (ja, en, zh, ko), when known
+     * @param lastChapter    the newest chapter of the translation, published or not: «Мої переклади» open it
      */
     record MyEdition(long editionId, String novelSlug, String title, String coverUrl, String kind, String status,
             int chapterCount, String teamHandle, String teamName, String role, int drafts, int pendingSuggestions,
-            int newWords, String jobState, Integer jobChapter) {
+            int newWords, String jobState, Integer jobChapter, int originals, String sourceLanguage, Integer lastChapter) {
     }
 
-    /** {@code rightsConfirmed}: «Маю право перекладати цей текст» was ticked (етап 19); an own work needs none. */
+    /**
+     * {@code rightsConfirmed}: «Маю право перекладати цей текст» was ticked (етап 19); an own work needs none.
+     * {@code titleOriginal} and {@code language} («Новий переклад»): the name in the original and the
+     * language it is written in (ja, en, zh, ko), both optional.
+     */
     record CreateRequest(String kind, String title, String author, List<Block> description, List<String> tags,
-            Boolean adult, String team, Boolean rightsConfirmed) {
+            Boolean adult, String team, Boolean rightsConfirmed, String titleOriginal, String language) {
     }
+
+    /** Languages a pasted original may be in (edition_original). */
+    private static final Set<String> ORIGINAL_LANGUAGES = Set.of("ja", "en", "zh", "ko");
 
     record Created(long editionId, String novelSlug) {
     }
@@ -191,8 +202,14 @@ class StudioController {
                 .where(CHAPTER.EDITION_ID.eq(EDITION.ID).and(SUGGESTION.STATE.eq("pending"))).<Integer>asField("pending");
         var words = DSL.select(DSL.count()).from(GLOSSARY_ENTRY)
                 .where(GLOSSARY_ENTRY.NOVEL_ID.eq(NOVEL.ID).and(GLOSSARY_ENTRY.STATUS.eq("new"))).<Integer>asField("words");
+        // The original: chapters the team pasted, or those the original's site lists.
+        var pasted = DSL.select(DSL.count()).from(EDITION_ORIGINAL).where(EDITION_ORIGINAL.EDITION_ID.eq(EDITION.ID)).<Integer>asField("pasted");
+        var listed = DSL.select(DSL.count()).from(SOURCE_TOC).where(SOURCE_TOC.NOVEL_ID.eq(NOVEL.ID)).<Integer>asField("listed");
+        var last = DSL.select(DSL.max(CHAPTER.NUMBER)).from(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(EDITION.ID), CHAPTER.DELETED_AT.isNull()).<Integer>asField("last_chapter");
         var rows = db.select(EDITION.ID, NOVEL.SLUG, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), EDITION.COVER_IMAGE_ID,
-                        EDITION.KIND, EDITION.STATUS, EDITION.CHAPTER_COUNT, TEAM.ID, drafts, pending, words)
+                        EDITION.KIND, EDITION.STATUS, EDITION.CHAPTER_COUNT, TEAM.ID, drafts, pending, words, pasted, listed,
+                        NOVEL.SOURCE_LANGUAGE, last)
                 .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
                 .where(TEAM.OWNER_ID.eq(viewer.accountId()).or(TEAM.ID.in(member)), EDITION.DELETED_AT.isNull())
                 .orderBy(DSL.greatest(EDITION.CREATED_AT, DSL.coalesce(EDITION.LAST_PUBLISHED_AT, EDITION.CREATED_AT)).desc())
@@ -220,7 +237,7 @@ class StudioController {
             var job = jobs.get(r.value1());
             return new MyEdition(r.value1(), r.value2(), r.value3(), cover(covers, r.value4()), r.value5(), r.value6(),
                     r.value7(), team.handle(), team.name(), role.code(), r.value9(), r.value10(), r.value11(),
-                    job == null ? null : job.state(), at.get(r.value1()));
+                    job == null ? null : job.state(), at.get(r.value1()), Math.max(r.value12(), r.value13()), r.value14(), r.value15());
         });
     }
 
@@ -244,6 +261,20 @@ class StudioController {
                 original ? viewer.accountId() : null));
         if (!original && Boolean.TRUE.equals(body.rightsConfirmed())) {
             db.update(EDITION).set(EDITION.RIGHTS_CONFIRMED_AT, DSL.currentOffsetDateTime()).where(EDITION.ID.eq(ref.editionId())).execute();
+        }
+        if (!original) {
+            var novelId = DSL.select(EDITION.NOVEL_ID).from(EDITION).where(EDITION.ID.eq(ref.editionId()));
+            String titleOriginal = body.titleOriginal() == null ? "" : body.titleOriginal().strip();
+            if (!titleOriginal.isEmpty()) {
+                if (titleOriginal.length() > 300) {
+                    throw UserFacingException.badRequest("Назва в оригіналі задовга: до 300 знаків.");
+                }
+                db.update(NOVEL).set(NOVEL.TITLE_ORIGINAL, titleOriginal).where(NOVEL.ID.eq(novelId)).execute();
+            }
+            // The glossary keeps the original's forms per language: the first pasted chapter needs no guess.
+            if (body.language() != null && ORIGINAL_LANGUAGES.contains(body.language())) {
+                db.update(NOVEL).set(NOVEL.SOURCE_LANGUAGE, body.language()).where(NOVEL.ID.eq(novelId)).execute();
+            }
         }
         return new Created(ref.editionId(), ref.novelSlug());
     }

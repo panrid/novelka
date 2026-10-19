@@ -12,6 +12,7 @@ import styles from './Shell.module.css';
 import { AskHost } from '../ui/ask';
 import { InboxRail, MeRail } from './SideRails';
 import { StudioRail } from './StudioRail';
+import { StudioBar } from './StudioBar';
 import { ToastHost } from '../ui/toast';
 import { useKeyboardInset } from '../ui/keyboard';
 import { studioApi } from '../studio/api';
@@ -63,6 +64,7 @@ export function Shell() {
                     {side === 'me' && <MeRail />}
                     {side === 'inbox' && <InboxRail />}
                     <div className={styles.slot}>
+                        {side === 'studio' && <StudioBar />}
                         <Outlet />
                     </div>
                 </div>
