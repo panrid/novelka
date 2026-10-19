@@ -344,3 +344,92 @@
     text-align: left;
     cursor: pointer;
 }
+
+/* Безшовне читання (етап 20, рішення 7): where this chapter ends and the next one begins. */
+.chapterDivider {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    max-width: var(--reading-width, 42rem);
+    margin: 48px auto 8px;
+    padding: 0 var(--gutter);
+    color: var(--muted);
+    font: 600 13px var(--font-ui);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.chapterDivider::before,
+.chapterDivider::after {
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+    content: '';
+}
+
+/* The pencil left of the paragraph under the mouse (етап 20, рішення 3). */
+.pencil {
+    position: absolute;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.pencil:hover {
+    background: var(--surface-2);
+    color: var(--accent);
+}
+
+/* «Хто це» (етап 20, рішення 6): a portrait or the name's letter; on a computer, a card in the margin. */
+.whoHead {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.whoHead h3 {
+    margin: 0;
+}
+
+.whoPortrait {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--portrait-radius, 50%);
+    color: #fff;
+    font: 600 20px var(--font-reading);
+}
+
+.whoAside {
+    position: fixed;
+    top: 72px;
+    right: 24px;
+    z-index: 20;
+    width: 320px;
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+
+.whoAsideHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font: 600 15px var(--font-ui);
+}

@@ -141,3 +141,60 @@
     border: var(--card-border);
     box-shadow: var(--card-shadow);
 }
+
+/* A paragraph being rewritten where it stands (етап 20, рішення 3). */
+.inline {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 1em;
+    padding: 10px 12px;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    font-family: var(--font-ui);
+    font-size: 15px;
+}
+
+.tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tool {
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.tool[aria-pressed='true'] {
+    border-color: var(--accent);
+}
+
+.original {
+    padding: 8px 10px;
+    border-radius: var(--radius-xs);
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.variant {
+    padding: 8px 10px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-xs);
+    background: none;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.variant:hover {
+    border-color: var(--accent);
+}

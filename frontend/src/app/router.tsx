@@ -244,3 +244,10 @@ declare module '@tanstack/react-router' {
         router: ReturnType<typeof createAppRouter>;
     }
 }
+
+declare module '@tanstack/react-router' {
+    interface HistoryState {
+        /** Безшовне читання: the paragraph on screen when the reader moved on, and how far from the top it stood. */
+        seamless?: { anchor: string | null; offset: number };
+    }
+}

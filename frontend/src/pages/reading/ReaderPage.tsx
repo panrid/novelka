@@ -1,7 +1,9 @@
 import { DiffModeSwitch } from '../../ui/WordDiff';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate, useParams, useRouterState, useSearch } from '@tanstack/react-router';
-import { ArrowLeft, ChevronLeft, ChevronRight, Lightbulb, List, MessageCircle, Type } from '../../ui/icons';
+import { ArrowLeft, ChevronLeft, ChevronRight, Lightbulb, List, MessageCircle, PenLine, Type } from '../../ui/icons';
+import { createPortal } from 'react-dom';
+import { useWide } from '../../lib/useWide';
 import { hintsRemembered, rememberHints, useGlossaryHints } from '../../reading/useGlossaryHints';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useMe } from '../../auth/me';
@@ -21,7 +23,7 @@ import { TextInput } from '../../ui/TextInput';
 import { autotranslateApi } from '../../studio/autotranslate';
 import { ReportEdition } from '../../reading/ReportEdition';
 import { usePages } from './usePages';
-import { EditSheet, ReplaceSheet, ReviewCard, SelectionBar, useMySuggestions, useReview } from './Suggestions';
+import { InlineEdit, ReplaceSheet, ReviewCard, SelectionBar, useMySuggestions, useReview } from './Suggestions';
 import suggestionStyles from './suggestions.module.css';
 import styles from './reader.module.css';
 
@@ -92,14 +94,26 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     // already have scrolled the next page to the top, and 0 would overwrite the real place.
     const place = useRef(0);
     const search = team ? { t: team } : {};
+    const routerState = useRouterState();
 
     // The component is keyed by chapter, so what it was opened with stays fixed for its life;
     // later cache updates (saved place) must not re-run the restore or re-subscribe listeners.
     const [opened] = useState(chapter);
     const lookOnly = useRef(Boolean(find) || look);
 
+    // Came here reading on from the chapter before (безшовне читання): the same paragraph stays where it was.
+    const [arrived] = useState(() => routerState.location.state.seamless);
+
     // Start where the reader stopped: from the server (any device), else from this browser.
     useEffect(() => {
+        if (arrived) {
+            requestAnimationFrame(() => {
+                const anchor = arrived.anchor ? document.querySelector(`[data-block-id="${CSS.escape(arrived.anchor)}"]`) : null;
+                window.scrollTo(0, anchor ? anchor.getBoundingClientRect().top + window.scrollY - arrived.offset : 0);
+                place.current = currentPosition();
+            });
+            return;
+        }
         // Opened to show a word (from the glossary): go to where it first appears.
         const mark = find ? document.querySelector('mark[data-found]') : null;
         if (mark) {
@@ -114,7 +128,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
         } else {
             window.scrollTo(0, 0);
         }
-    }, [opened, find]);
+    }, [opened, find, arrived]);
 
     const save = useCallback((force: boolean) => {
         // Opened to show a word or to review suggestions: a look, not reading — the place stays.
@@ -201,6 +215,12 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
         if (reviewing) lookOnly.current = true;
     }, [reviewing]);
     const editingBlock = chapter.blocks.find((block) => block.id === editing);
+    // The paragraph being rewritten becomes a field where it stands (етап 20, рішення 3).
+    const inlineEdit = editingBlock ? {
+        blockId: editingBlock.id,
+        node: <InlineEdit chapter={chapter} block={editingBlock} onClose={() => setEditing(null)} onSaved={mine.refresh}
+            existing={mine.items.find((item) => item.kind === 'block' && item.blockId === editingBlock.id && item.state === 'draft')} />,
+    } : undefined;
     // A link to a comment (#c40 from the inbox) opens the discussion at it.
     const hash = useRouterState({ select: (state) => state.location.hash });
     const focus = /^c(\d+)$/.exec(hash)?.[1];
@@ -211,7 +231,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     /** A tap on the text toggles the controls; in «режим правок» it opens the paragraph instead. */
     function toggleBars(event: MouseEvent) {
         const target = event.target as HTMLElement;
-        if (target.closest('a, button') || window.getSelection()?.toString()) return;
+        if (target.closest('a, button, [data-inline-edit]') || window.getSelection()?.toString()) return;
         const marked = hints.at(event.clientX, event.clientY);
         if (marked && !editMode) {
             setAsking({ text: marked.text, blockId: marked.blockId });
@@ -236,7 +256,8 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     });
 
     // Pages like a book (етап 18); while making or checking suggestions the chapter scrolls as usual.
-    const paged = view.mode === 'pages' && !editMode && !reviewing && !find;
+    // A paragraph being rewritten needs the text to scroll: pages wait until it is saved or left.
+    const paged = view.mode === 'pages' && !editMode && !reviewing && !find && !editing;
     // A book does not scroll: without this a phone moves the page a little up and down before turning it.
     useEffect(() => {
         if (!paged) return;
@@ -267,12 +288,17 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
             if (hideBars.current) setBarsVisible(false);
         },
         onBeforeStart: () => { if (chapter.previous) void navigate(chapterLink(chapter.previous)); },
-        onAfterEnd: () => { if (chapter.next) void navigate(chapterLink(chapter.next)); },
+        // Безшовне читання: past the last page the next chapter opens at its first page.
+        onAfterEnd: () => {
+            if (chapter.next) void navigate({ ...chapterLink(chapter.next), ...(view.seamless ? { state: { seamless: { anchor: null, offset: 0 } } } : {}) });
+        },
     });
 
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
-            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+            // Typing (a field, or a paragraph rewritten in its place) moves the caret, not the chapter.
+            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement
+                || event.target instanceof HTMLElement && event.target.isContentEditable) return;
             if (paged && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
                 pages.turn(event.key === 'ArrowLeft' ? -1 : 1);
             } else if (event.key === 'ArrowLeft' && chapter.previous) {
@@ -334,7 +360,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                         onDecide={(verdict) => review.decide(item.id, verdict)} />
                 ))}
                 {editMode && <p className={suggestionStyles.banner}>Режим правок: торкніться абзацу, щоб його виправити.</p>}
-                <Blocks blocks={chapter.blocks} highlight={find} overlay={mine.overlay}
+                <Blocks blocks={chapter.blocks} highlight={find} overlay={mine.overlay} replace={inlineEdit}
                     after={reviewing ? (blockId) => review.items.filter((item) => item.kind === 'block' && item.blockId === blockId).map((item) => (
                         <ReviewCard key={item.id} item={item} verdict={review.verdicts[item.id]} onDecide={(verdict) => review.decide(item.id, verdict)} />
                     )) : undefined} />
@@ -404,7 +430,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                         onDecide={(verdict) => review.decide(item.id, verdict)} />
                 ))}
                 {editMode && <p className={suggestionStyles.banner}>Режим правок: торкніться абзацу, щоб його виправити.</p>}
-                <Blocks blocks={chapter.blocks} highlight={find} overlay={mine.overlay}
+                <Blocks blocks={chapter.blocks} highlight={find} overlay={mine.overlay} replace={inlineEdit}
                     after={reviewing ? (blockId) => review.items.filter((item) => item.kind === 'block' && item.blockId === blockId).map((item) => (
                         <ReviewCard key={item.id} item={item} verdict={review.verdicts[item.id]} onDecide={(verdict) => review.decide(item.id, verdict)} />
                     )) : undefined} />
@@ -449,6 +475,17 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                 {!chapter.teamRole && <ReportEdition editionId={chapter.edition.editionId} chapterLabel={chapter.label ?? String(chapter.number)} chapterNumber={chapter.number} />}
             </article>
             )}
+            {!paged && view.seamless && chapter.next && !reviewing && !editMode && !find && !look && (
+                <NextChapter slug={chapter.novelSlug} team={team} number={chapter.next} style={{
+                    fontSize: view.size, fontFamily: FONT_STACKS[view.font], lineHeight: view.lineHeight, textAlign: view.align,
+                    hyphens: view.align === 'justify' ? 'auto' : 'manual', maxWidth: READER_WIDTHS[view.width], paddingInline: view.margin,
+                }} paragraphs={view.paragraphs} onReached={(anchor, offset) => {
+                    // The chapter is read to its end: that is saved (and marks it read) before the next one opens.
+                    place.current = 1;
+                    save(true);
+                    void navigate({ ...chapterLink(chapter.next!), state: { seamless: { anchor, offset } } });
+                }} />
+            )}
 
             {!reviewing && (
                 <SelectionBar onWho={(text, blockId) => setAsking({ text, blockId })}
@@ -466,10 +503,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                 <LinkSheet slug={chapter.novelSlug} editionId={chapter.edition.editionId} chapter={chapter.number} text={linking.text}
                     blockId={linking.blockId} onClose={() => setLinking(null)} />
             )}
-            {editingBlock && (
-                <EditSheet chapter={chapter} block={editingBlock} onClose={() => setEditing(null)} onSaved={mine.refresh}
-                    existing={mine.items.find((item) => item.kind === 'block' && item.blockId === editingBlock.id && item.state === 'draft')} />
-            )}
+            {me && !editMode && !paged && !editing && <HoverPencil onEdit={setEditing} />}
             <Sheet open={talking} onClose={() => setTalking(false)} title="Обговорення глави" tall>
                 <Discussion editionId={chapter.edition.editionId} chapter={chapter.number} focus={focus ? Number(focus) : undefined}
                     quote={quote} onDropQuote={() => setQuote(null)} goTo={(blockId) => { setTalking(false); showBlock(blockId); }} />
@@ -544,8 +578,9 @@ function WhoSheet({ slug, team, chapter, text, blockId, editionId, onClose }: {
             void client.invalidateQueries({ queryKey: ['hints', slug] });
         },
     });
-    return (
-        <Sheet open onClose={onClose} title={whoTitle(cards.data)} peek>
+    // On a computer the card stands in the margin beside the text (етап 20, рішення 6); on a phone, a sheet.
+    const wide = useWide();
+    const body = (
             <div className={styles.who}>
                 {cards.isPending && <p className={styles.whoMuted}>Шукаємо в словнику…</p>}
                 {cards.isError && <Notice tone="error">{cards.error.message}</Notice>}
@@ -554,10 +589,17 @@ function WhoSheet({ slug, team, chapter, text, blockId, editionId, onClose }: {
                 )}
                 {cards.data?.map((card) => (
                     <section key={card.id} className={styles.whoCard}>
-                        <h3>{card.ukrainian} <span className={styles.whoMuted}>· {WHO_KINDS[card.kind] ?? 'інше'}</span></h3>
+                        <div className={styles.whoHead}>
+                            {/* A portrait when the team adds one (Студія, словник); until then the name's first letter. */}
+                            <span className={styles.whoPortrait} style={{ background: `hsl(${(card.id * 47) % 360} 35% 32%)` }} aria-hidden>
+                                {card.ukrainian.trim().charAt(0).toUpperCase()}
+                            </span>
+                            <h3>{card.ukrainian} <span className={styles.whoMuted}>· {WHO_KINDS[card.kind] ?? 'інше'}</span></h3>
+                        </div>
                         {card.facts.length > 0
                             ? <ul>{card.facts.map((fact, index) => <li key={index}>{fact}</li>)}</ul>
                             : <p className={styles.whoMuted}>Поки що про це нічого не відомо.</p>}
+                        <p className={styles.whoMuted}>Лише те, що відомо до глави {chapter}: без спойлерів.</p>
                         {editionId !== null && (
                             <button type="button" className={styles.whoAction} onClick={() => untie.mutate(card.id)} disabled={untie.isPending}>
                                 Тут «{text.trim().slice(0, 30)}» не про це — відв’язати
@@ -566,6 +608,21 @@ function WhoSheet({ slug, team, chapter, text, blockId, editionId, onClose }: {
                     </section>
                 ))}
             </div>
+    );
+    if (wide) {
+        return (
+            <aside className={styles.whoAside} aria-label={whoTitle(cards.data)}>
+                <div className={styles.whoAsideHead}>
+                    <b>{whoTitle(cards.data)}</b>
+                    <button type="button" className={styles.icon} aria-label="Закрити" onClick={onClose}>×</button>
+                </div>
+                {body}
+            </aside>
+        );
+    }
+    return (
+        <Sheet open onClose={onClose} title={whoTitle(cards.data)} peek>
+            {body}
         </Sheet>
     );
 }
@@ -667,8 +724,12 @@ function useWakeLock(on: boolean) {
     }, [on]);
 }
 
+/** How far the chapter scrolls: to its end, not into the next chapter shown after it (безшовне читання). */
 function scrollable() {
-    return Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    const rect = document.querySelector('[data-chapter-end]')?.getBoundingClientRect();
+    // Without layout (a box with no size) the marker says nothing: the whole page counts, as before.
+    const bottom = rect && rect.width > 0 ? rect.top + window.scrollY : document.documentElement.scrollHeight;
+    return Math.max(1, bottom - window.innerHeight);
 }
 
 function currentPosition() {
@@ -708,5 +769,71 @@ function ReviewSteps({ count }: { count: number }) {
             <button type="button" aria-label="Наступна правка"
                 onClick={() => go(cards().find((card) => card.getBoundingClientRect().top > middle() + 10))}>›</button>
         </div>
+    );
+}
+
+/**
+ * On a computer a pencil stands left of the paragraph under the mouse (етап 20, рішення 3): a click
+ * rewrites it right there. Touch screens have «режим правок» and «Виправити абзац» instead.
+ */
+function HoverPencil({ onEdit }: { onEdit: (blockId: string) => void }) {
+    const [at, setAt] = useState<{ id: string; top: number; left: number } | null>(null);
+    useEffect(() => {
+        if (!window.matchMedia?.('(hover: hover) and (pointer: fine)').matches) return;
+        function over(event: globalThis.MouseEvent) {
+            const target = event.target as HTMLElement | null;
+            if (!target || target.closest('[data-pencil]')) return;
+            const block = target.closest('article p[data-block-id], article h2[data-block-id]');
+            if (!block) return;
+            const rect = block.getBoundingClientRect();
+            setAt({ id: block.getAttribute('data-block-id')!, top: rect.top + window.scrollY, left: rect.left + window.scrollX - 40 });
+        }
+        document.addEventListener('mouseover', over);
+        return () => document.removeEventListener('mouseover', over);
+    }, []);
+    if (!at) return null;
+    return createPortal(
+        <button type="button" data-pencil className={styles.pencil} style={{ top: at.top, left: at.left }} aria-label="Виправити абзац"
+            onClick={() => onEdit(at.id)}>
+            <PenLine size={18} aria-hidden />
+        </button>,
+        document.body,
+    );
+}
+
+/**
+ * Безшовне читання (етап 20, рішення 7): the next chapter, fetched ahead, follows this one under its
+ * divider. When the divider passes the top of the screen the reader moves on to it, keeping the paragraph
+ * in view where it is, so the chapter behind leaves the page and the address and header follow.
+ */
+function NextChapter({ slug, team, number, style, paragraphs, onReached }: {
+    slug: string; team: string | undefined; number: number; style: React.CSSProperties; paragraphs: string;
+    onReached: (anchor: string | null, offset: number) => void;
+}) {
+    const next = useQuery({ ...chapterQuery(slug, number, team), retry: false });
+    const divider = useRef<HTMLDivElement>(null);
+    const body = useRef<HTMLElement>(null);
+    const gone = useRef(false);
+    useEffect(() => {
+        if (!next.data) return;
+        const onScroll = () => {
+            const top = divider.current?.getBoundingClientRect().top;
+            if (gone.current || top === undefined || top > 0) return;
+            gone.current = true;
+            const first = Array.from(body.current?.querySelectorAll('[data-block-id]') ?? []).find((element) => element.getBoundingClientRect().bottom > 0);
+            onReached(first?.getAttribute('data-block-id') ?? null, first ? first.getBoundingClientRect().top : 0);
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, [next.data, onReached]);
+    if (!next.data) return <div data-chapter-end />;
+    return (
+        <section data-chapter-end aria-label={`Далі: ${chapterHeading(next.data)}`}>
+            <div ref={divider} className={styles.chapterDivider} role="separator">Глава {next.data.label ?? number}</div>
+            <article ref={body} className={styles.text} lang="uk" data-paragraphs={paragraphs} style={style}>
+                <h2 className={styles.chapterTitle}>{chapterHeading(next.data)}</h2>
+                <Blocks blocks={next.data.blocks} />
+            </article>
+        </section>
     );
 }
