@@ -94,6 +94,26 @@ class WhoIsTests {
     }
 
     @Test
+    void theCharactersTabCountsOnlyCharactersTheGlossaryDescribes() {
+        Browser guest = new Browser(port);
+        entry("Юко", "character", null, 1, "approved");
+        entry("Сора", "character", "  ", 1, "approved");
+        assertThat(JSON.readTree(guest.get("/api/novels/" + slug).body()).path("characters").asInt())
+                .as("names without a note or a fact are no reason for the tab").isEqualTo(1);
+
+        long sora = db.select(GLOSSARY_ENTRY.ID).from(GLOSSARY_ENTRY).where(GLOSSARY_ENTRY.NOVEL_ID.eq(novelId), GLOSSARY_ENTRY.UKRAINIAN.eq("Сора"))
+                .fetchSingle().value1();
+        fact(sora, 2, "Сестра Юко.");
+        assertThat(JSON.readTree(guest.get("/api/novels/" + slug).body()).path("characters").asInt()).as("a fact is a description").isEqualTo(2);
+
+        db.deleteFrom(GLOSSARY_FACT).where(GLOSSARY_FACT.ENTRY_ID.in(db.select(GLOSSARY_ENTRY.ID).from(GLOSSARY_ENTRY)
+                .where(GLOSSARY_ENTRY.NOVEL_ID.eq(novelId)))).execute();
+        db.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.NOTE, (String) null).where(GLOSSARY_ENTRY.NOVEL_ID.eq(novelId)).execute();
+        assertThat(JSON.readTree(guest.get("/api/novels/" + slug).body()).path("characters").asInt())
+                .as("translated by hand, no descriptions — no tab").isZero();
+    }
+
+    @Test
     void otherNamesLeadToOneCardAndOnlyActingCharactersAreListed() {
         db.update(ACCOUNT).set(ACCOUNT.SITE_ROLE, "reader").where(ACCOUNT.SITE_ROLE.eq("owner")).execute();
         db.update(ACCOUNT).set(ACCOUNT.SITE_ROLE, "owner").where(ACCOUNT.NICK.eq(admin.nick())).execute();

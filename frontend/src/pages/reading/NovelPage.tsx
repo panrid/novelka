@@ -12,7 +12,8 @@ import { Sheet } from '../../ui/Sheet';
 import { Toggle } from '../../ui/Toggle';
 import { Blocks } from '../../reading/Blocks';
 import { Cover } from '../../reading/Cover';
-import { LIST_LABELS, SOURCE_STATUS_LABELS, chapterHeading, chaptersWord, otherNames, readingApi, translationStatus, volumeTitle, type ChapterRow as ChapterRowType, type ContentsVolume, type ListName, type NovelPage as Novel, type WhoCard, type CharacterSort } from '../../reading/api';
+import { LIST_LABELS, SOURCE_STATUS_LABELS, chapterHeading, chaptersWord, otherNames, readingApi, translationStatus, volumeTitle, type ChapterRow as ChapterRowType, type ContentsVolume, type ListName, type NovelPage as Novel, type TextBlock, type WhoCard, type CharacterSort } from '../../reading/api';
+import { relativeTime } from '../../lib/dates';
 import { relayApi, teamApi } from '../../studio/api';
 import { Segmented } from '../../ui/Segmented';
 import { clearLocalProgress, localProgress } from '../../reading/progress';
@@ -56,7 +57,7 @@ export function NovelPage() {
     return <NovelView novel={novel.data} team={t} />;
 }
 
-type NovelTab = 'about' | 'chapters' | 'characters' | 'talk';
+type NovelTab = 'chapters' | 'characters' | 'talk';
 
 function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) {
     const edition = novel.edition;
@@ -81,14 +82,20 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
         ? (novel.viewer.chapterLabel ?? String(novel.viewer.chapterNumber))
         : local ? (local.label ?? String(local.number)) : null;
     const resumeLabel = shown ? `Продовжити · гл. ${shown}` : 'Продовжити';
+    const position = novel.viewer ? novel.viewer.position : local?.position ?? null;
     const machine = edition.kind === 'machine' || edition.kind === 'mixed';
-    const meta = [
-        novel.author,
-        novel.origin === 'original' ? 'оригінальний твір' : translatedFrom(novel.language).replace(/^переклад /, ''),
-        `$${edition.teamHandle}`,
+    const facts = novel.facts;
+    // Under the title, as on the mockup: the name the novel is known by abroad and its author.
+    const subtitle = [facts?.titleEnglish || facts?.titleOriginal, novel.author].filter(Boolean).join(' · ');
+    const sourceChapters = novel.origin === 'original' ? null : facts?.sourceChapterCount ?? null;
+    const stats = [
+        translationStatus(edition.status, edition.pausedUntil),
+        novel.origin !== 'original' && facts?.sourceStatus && `оригінал ${SOURCE_STATUS_LABELS[facts.sourceStatus]}`,
+        `${novel.origin === 'original' ? 'оригінальний твір' : translatedFrom(novel.language)} · $${edition.teamHandle}`,
         machine && 'ШІ',
         novel.adult && '18+',
-    ].filter(Boolean).join(' · ');
+        novel.lastPublishedAt && `оновлено ${relativeTime(new Date(novel.lastPublishedAt))}`,
+    ].filter((item): item is string => Boolean(item));
 
     return (
         <section className={`${styles.page} ${styles.novel}`}>
@@ -105,37 +112,41 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
                     <BellButton novel={novel} />
                     <MoreButton novel={novel} onGuestReset={local ? () => setForgotten((n) => n + 1) : undefined} />
                 </div>
+                {novel.viewer?.teamRole && (
+                    <Link to="/studio/$editionId" params={{ editionId: String(edition.editionId) }} className={styles.manage}>
+                        Керувати перекладом
+                    </Link>
+                )}
             </div>
             <div className={styles.content}>
                 <div className={styles.headText}>
                     <h1 className={styles.title}>{novel.title}</h1>
-                    <p className={styles.meta} title={edition.teamName}>{meta}</p>
-                    <p className={styles.muted}>
-                        {edition.chapterCount} {chaptersWord(edition.chapterCount)} · {translationStatus(edition.status, edition.pausedUntil)}
-                    </p>
-                    {novel.origin !== 'original' && <OriginalProgress novel={novel} />}
-                    <p className={styles.muted}>
-                        {edition.rating != null
-                            ? <><span className={styles.starOn} aria-hidden>★</span> {edition.rating.toFixed(1).replace('.', ',')} · оцінок: {edition.ratings ?? 0}</>
-                            : 'ще без оцінок'}
+                    {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
+                    <p className={styles.stats}>
+                        <span className={styles.count}>
+                            <b>{edition.chapterCount}</b> {chaptersWord(edition.chapterCount)}{sourceChapters ? ` з ${sourceChapters}` : ''}
+                        </span>
+                        {stats.map((item) => <span key={item}>{item}</span>)}
+                        <span>
+                            {edition.rating != null
+                                ? <><span className={styles.starOn} aria-hidden>★</span> {edition.rating.toFixed(1).replace('.', ',')} · оцінок: {edition.ratings ?? 0}</>
+                                : 'ще без оцінок'}
+                        </span>
                     </p>
                 </div>
+                <About novel={novel} />
                 <Tabs selectedKey={tab} onSelectionChange={(key) => setTab(key as NovelTab)} className={styles.tabsBox}>
                     <TabList aria-label="Розділи новели" className={styles.tabs}>
-                        <Tab id="about" className={styles.tab}>Про новелу</Tab>
                         <Tab id="chapters" className={styles.tab}>Глави · {edition.chapterCount}</Tab>
                         {(novel.characters ?? 0) > 0 && <Tab id="characters" className={styles.tab}>Персонажі</Tab>}
                         <Tab id="talk" className={styles.tab}>Обговорення{comments > 0 ? ` · ${comments}` : ''}</Tab>
                     </TabList>
                     <TabPanel id="characters" className={styles.panel}>
-                        <Characters slug={novel.slug} team={team} chapter={resume ?? 0} />
-                    </TabPanel>
-                    <TabPanel id="about" className={styles.panel}>
-                        <About novel={novel} />
+                        <Characters slug={novel.slug} team={team} chapter={resume ?? 0} chapterLabel={shown} />
                     </TabPanel>
                     <TabPanel id="chapters" className={styles.panel}>
                         {novel.viewer && <Skipped novel={novel} />}
-                        <ChapterList slug={novel.slug} team={team} current={resume} total={edition.chapterCount}
+                        <ChapterList slug={novel.slug} team={team} current={resume} position={position} total={edition.chapterCount}
                             editionId={novel.viewer ? edition.editionId : null} />
                         {novel.relay.continuations.map((next) => (
                             <Link key={next.teamHandle} to="/n/$slug/$number" params={{ slug: novel.slug, number: String(next.firstNumber) }}
@@ -153,7 +164,10 @@ function NovelView({ novel, team }: { novel: Novel; team: string | undefined }) 
     );
 }
 
-/** «Про новелу»: tags, the description, the reader's own stars, other names and the original. */
+/**
+ * Above the tabs, as on the mockup (етап 20): the description, the tags, the reader's own stars,
+ * other names and the original. A long description folds to a few lines until asked.
+ */
 function About({ novel }: { novel: Novel }) {
     const names = otherNames(novel.title, novel.facts);
     const facts = novel.facts;
@@ -161,17 +175,15 @@ function About({ novel }: { novel: Novel }) {
         facts?.sourceChapterCount && `${facts.sourceChapterCount} ${chaptersWord(facts.sourceChapterCount)}`].filter(Boolean).join(' · ');
     return (
         <div className={styles.about}>
+            {novel.description.length > 0 && <Description blocks={novel.description} />}
             {novel.tags.length > 0 && (
                 <div className={styles.chips}>
                     {novel.tags.map((tag) => (
-                        <Link key={tag} to="/catalog" search={{ tags: [tag.toLowerCase()] }} className={`${styles.chip} ${styles.ghost}`}>
+                        <Link key={tag} to="/catalog" search={{ tags: [tag.toLowerCase()] }} className={styles.chip}>
                             {tag}
                         </Link>
                     ))}
                 </div>
-            )}
-            {novel.description.length > 0 && (
-                <div className={styles.description}><Blocks blocks={novel.description} /></div>
             )}
             <MyRating novel={novel} />
             {names.length > 0 && (
@@ -188,6 +200,28 @@ function About({ novel }: { novel: Novel }) {
                         {novel.originalUrl && <>{original && ' · '}<a href={novel.originalUrl} target="_blank" rel="noopener noreferrer nofollow">відкрити ↗</a></>}
                     </p>
                 </div>
+            )}
+        </div>
+    );
+}
+
+/** Characters of a description past which it folds: about five lines on a phone. */
+const LONG_DESCRIPTION = 420;
+
+function Description({ blocks }: { blocks: TextBlock[] }) {
+    const [open, setOpen] = useState(false);
+    const length = blocks.reduce((sum, block) => sum + block.content.reduce((chars, span) => chars + span.text.length, 0), 0);
+    const long = length > LONG_DESCRIPTION || blocks.length > 3;
+    return (
+        <div>
+            <div id="novel-description" lang="uk" className={`${styles.description} ${long && !open ? styles.folded : ''}`}>
+                <Blocks blocks={blocks} />
+            </div>
+            {long && (
+                <button type="button" className={styles.unfold} aria-expanded={open} aria-controls="novel-description"
+                    onClick={() => setOpen(!open)}>
+                    {open ? 'Згорнути' : 'Читати опис повністю'}
+                </button>
             )}
         </div>
     );
@@ -285,14 +319,6 @@ function MoreButton({ novel, onGuestReset }: {
                             if (me) setRights(true);
                             else void navigate({ to: '/login', search: { next: window.location.pathname + window.location.search } });
                         })}>Скарга правовласника</button>
-                    )}
-                    {team && (
-                        <>
-                            <div className={styles.label}>Команда</div>
-                            <Link to="/studio/$editionId" params={{ editionId: String(edition.editionId) }} className={styles.sheetItem}>
-                                Керувати в Студії
-                            </Link>
-                        </>
                     )}
                     {admin && (
                         <>
@@ -452,14 +478,17 @@ function LibraryButton({ novel }: { novel: Novel }) {
         return (
             <Button variant="secondary" aria-label="Додати в бібліотеку"
                 onPress={() => void navigate({ to: '/login', search: { next: window.location.pathname + window.location.search } })}>
-                <BookmarkPlus size={20} aria-hidden />
+                <BookmarkPlus size={20} aria-hidden /><span className={styles.wideOnly}>У бібліотеку</span>
             </Button>
         );
     }
+    // On a computer the button has a row of its own and says it in words, as on the mockup.
     return (
         <MenuTrigger>
             <AriaButton className={styles.libraryButton} aria-label={current ? `У бібліотеці: ${LIST_LABELS[current]}` : 'Додати в бібліотеку'}>
-                {current ? <><Check size={18} aria-hidden /> {LIST_LABELS[current]}</> : <BookmarkPlus size={20} aria-hidden />}
+                {current
+                    ? <><Check size={18} aria-hidden /> <span className={styles.wideOnly}>У бібліотеці · </span>{LIST_LABELS[current]}</>
+                    : <><BookmarkPlus size={20} aria-hidden /><span className={styles.wideOnly}>У бібліотеку</span></>}
             </AriaButton>
             <Popover className={styles.popover} placement="bottom end">
                 <Menu className={styles.menu} onAction={(key) => set.mutate(key === 'remove' ? null : (key as ListName))}>
@@ -547,8 +576,10 @@ function Skipped({ novel }: { novel: Novel }) {
     );
 }
 
-function ChapterList({ slug, team, current, total, editionId }: {
+function ChapterList({ slug, team, current, position, total, editionId }: {
     slug: string; team: string | undefined; current: number | null; total: number;
+    /** How far into {@code current} the reader is (0–1), when known. */
+    position: number | null;
     /** The reader's own translation for marks; null for a guest. */
     editionId: number | null;
 }) {
@@ -563,21 +594,34 @@ function ChapterList({ slug, team, current, total, editionId }: {
     const setMode = (next: ListMode) => { setModeState(next); remember(MODE_KEY, next); };
     const top = useRef<HTMLDivElement>(null);
 
-    const row = (item: ChapterRowType) => (
-        <li key={item.number} className={editionId ? styles.markedRow : undefined}>
-            <Link to="/n/$slug/$number" params={{ slug, number: String(item.number) }} search={team ? { t: team } : {}}
-                className={`${styles.chapter} ${item.number === current ? styles.here : ''} ${item.read ? styles.read : ''}`}>
-                <span>{chapterHeading(item)}</span>
-                {item.number === current && <span className={styles.muted}>тут зупинились</span>}
-            </Link>
-            {editionId && (
-                <button type="button" className={`${styles.mark} ${item.read ? styles.markOn : ''}`} onClick={() => setMarking(item)}
-                    aria-label={`${chapterHeading(item)}: ${item.read ? 'прочитано' : 'не прочитано'}`}>
-                    {item.read && <Check size={14} aria-hidden />}
-                </button>
-            )}
-        </li>
-    );
+    // As on the mockup: number · title · date · «прочитано» or how far into the current chapter.
+    const row = (item: ChapterRowType) => {
+        const here = item.number === current;
+        const label = item.label ?? String(item.number);
+        return (
+            <li key={item.number} className={editionId ? styles.markedRow : undefined}>
+                <Link to="/n/$slug/$number" params={{ slug, number: String(item.number) }} search={team ? { t: team } : {}}
+                    className={`${styles.chapter} ${here ? styles.here : ''} ${item.read ? styles.read : ''}`}>
+                    <span className={styles.chapterNumber}>{label}{label && <span className="visually-hidden">. </span>}</span>
+                    <span className={styles.chapterTitle}>{item.title || (label ? `Глава ${label}` : 'Без назви')}</span>
+                    <span className={styles.chapterDate}>{chapterDate(item.publishedAt)}</span>
+                    <span className={styles.chapterMark}>
+                        {here
+                            ? position != null && position > 0
+                                ? <><span className="visually-hidden">тут зупинились · </span>{Math.round(position * 100)}%</>
+                                : 'тут зупинились'
+                            : item.read ? 'прочитано' : null}
+                    </span>
+                </Link>
+                {editionId && (
+                    <button type="button" className={`${styles.mark} ${item.read ? styles.markOn : ''}`} onClick={() => setMarking(item)}
+                        aria-label={`${chapterHeading(item)}: ${item.read ? 'прочитано' : 'не прочитано'}`}>
+                        {item.read && <Check size={14} aria-hidden />}
+                    </button>
+                )}
+            </li>
+        );
+    };
     const shown = order === 'asc' ? volumes : [...volumes].reverse();
     const holds = (volume: ContentsVolume) => current !== null && current >= volume.firstNumber
         && (volume.lastNumber === null || current <= volume.lastNumber);
@@ -620,6 +664,16 @@ function ChapterList({ slug, team, current, total, editionId }: {
             )}
         </div>
     );
+}
+
+const DAY = new Intl.DateTimeFormat('uk', { day: 'numeric', month: 'long' });
+const DAY_YEAR = new Intl.DateTimeFormat('uk', { day: 'numeric', month: 'long', year: 'numeric' });
+
+/** «2 жовтня», with the year when it is not this one. */
+function chapterDate(iso: string): string {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return '';
+    return (date.getFullYear() === new Date().getFullYear() ? DAY : DAY_YEAR).format(date);
 }
 
 type ListMode = 'volumes' | 'all';
@@ -730,7 +784,11 @@ function VolumeSection({ volume, slug, team, order, row, initiallyOpen, current 
  * pictures; circles or squares as «Вигляд» says) and the name; a tap tells who it is as of the
  * reader's chapter. «Показати всіх» lifts the limit — spoilers, by the reader's choice.
  */
-function Characters({ slug, team, chapter }: { slug: string; team: string | undefined; chapter: number }) {
+function Characters({ slug, team, chapter, chapterLabel }: {
+    slug: string; team: string | undefined; chapter: number;
+    /** The number readers see for {@code chapter} (0, 31.1). */
+    chapterLabel: string | null;
+}) {
     const [all, setAll] = useState(false);
     const [sort, setSort] = useState<CharacterSort>('mentions');
     const [open, setOpen] = useState<WhoCard | null>(null);
@@ -750,6 +808,7 @@ function Characters({ slug, team, chapter }: { slug: string; team: string | unde
             {list.isSuccess && people.length === 0 && (
                 <p className={styles.muted}>{chapter === 0 ? 'Почніть читати — тут з’являться персонажі, яких ви вже зустріли.' : 'Поки що нікого.'}</p>
             )}
+            {/* Cards as on the mockup: the letter (a portrait later), the name and what the novel told first. */}
             <ul className={styles.characterGrid}>
                 {people.map((person) => (
                     <li key={person.id}>
@@ -757,12 +816,18 @@ function Characters({ slug, team, chapter }: { slug: string; team: string | unde
                             <span className={styles.portrait} style={{ background: `hsl(${(person.id * 47) % 360} 35% 32%)` }} aria-hidden>
                                 {[...person.ukrainian][0]?.toUpperCase()}
                             </span>
-                            <span className={styles.characterName}>{person.ukrainian}</span>
-                            {person.mentions ? <span className={styles.characterMentions}>{mentions(person.mentions)}</span> : null}
+                            <span className={styles.characterText}>
+                                <span className={styles.characterName}>{person.ukrainian}</span>
+                                {person.facts[0] && <span className={styles.characterAbout}>{person.facts[0]}</span>}
+                                {person.mentions ? <span className={styles.characterMentions}>{mentions(person.mentions)}</span> : null}
+                            </span>
                         </button>
                     </li>
                 ))}
             </ul>
+            {!all && chapter > 0 && people.length > 0 && (
+                <p className={styles.muted}>Лише ті, кого ви вже зустріли, — до глави {chapterLabel ?? chapter}.</p>
+            )}
             <Toggle label="Показати всіх — можливі спойлери" isSelected={all} onChange={setAll} />
             {open && (
                 <Sheet open onClose={() => setOpen(null)} title={open.ukrainian} peek>
@@ -814,26 +879,4 @@ const FROM: Record<string, string> = {
 /** «переклад з японської», or just «переклад» when the site does not know the original's language. */
 function translatedFrom(language: string | null | undefined): string {
     return language && FROM[language] ? `переклад з ${FROM[language]}` : 'переклад';
-}
-
-/** «Оригінал: виходить · 822 глави» and how much of it this translation covers. */
-
-/** How much of the original this translation covers: «Перекладено 44 з 822 · оригінал виходить». */
-function OriginalProgress({ novel }: { novel: Novel }) {
-    const facts = novel.facts;
-    if (!facts?.sourceStatus && !facts?.sourceChapterCount) return null;
-    const total = facts.sourceChapterCount;
-    const done = novel.edition.chapterCount;
-    const status = facts.sourceStatus && `оригінал ${SOURCE_STATUS_LABELS[facts.sourceStatus]}`;
-    return (
-        <div className={styles.original}>
-            {total ? (
-                <div className={styles.progressBar} role="progressbar" aria-label="Перекладено" aria-valuemin={0}
-                    aria-valuemax={total} aria-valuenow={Math.min(done, total)}>
-                    <span style={{ width: `${Math.min(100, (done / total) * 100)}%` }} />
-                </div>
-            ) : null}
-            <div className={styles.muted}>{[total && `Перекладено ${done} з ${total}`, status].filter(Boolean).join(' · ')}</div>
-        </div>
-    );
 }

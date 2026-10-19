@@ -59,7 +59,10 @@ public interface GlossaryCards {
      */
     List<Card> characters(long editionId, Integer chapter, Sort sort);
 
-    /** How many characters the glossary has: the novel page shows «Персонажі» when there are some. */
+    /**
+     * How many characters the glossary describes (a note or a fact): the novel page shows
+     * «Персонажі» only when there are some.
+     */
     int characterCount(long editionId);
 
     /** Entries the novel has met by {@code chapter} and told something about (a note or a fact). */

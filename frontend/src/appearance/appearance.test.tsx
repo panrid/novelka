@@ -109,7 +109,7 @@ describe('the look of the site and of the reader', () => {
         expect(document.documentElement.style.getPropertyValue('--text')).toBe('#e8d9b8');
 
         await act(() => router.navigate({ to: '/me/settings/appearance' }));
-        await userEvent.click(await screen.findByRole('switch', { name: 'Студія в головному меню' }));
+        await userEvent.click(await screen.findByRole('switch', { name: 'Студія в нижньому меню на телефоні' }));
         await waitFor(() => expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ studioInMenu: true }));
     });
 
