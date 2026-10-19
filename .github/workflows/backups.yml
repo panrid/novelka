@@ -1,0 +1,19 @@
+name: Backup scripts
+on:
+  pull_request:
+    paths: ['infra/backup.sh', 'infra/offsite/**', 'infra/tests/**', '.github/workflows/backups.yml']
+  push:
+    branches: [main]
+    paths: ['infra/backup.sh', 'infra/offsite/**', 'infra/tests/**', '.github/workflows/backups.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backups:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - run: shellcheck infra/backup.sh infra/tests/integration-backup.sh
+      - run: python3 -m unittest discover -s infra/tests -v
+      - run: bash infra/tests/integration-backup.sh
