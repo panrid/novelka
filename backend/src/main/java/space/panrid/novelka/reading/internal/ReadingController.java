@@ -76,10 +76,11 @@ class ReadingController {
             @RequestParam(required = false) String source, @RequestParam(required = false) Integer chaptersFrom,
             @RequestParam(required = false) Integer chaptersTo, @RequestParam(defaultValue = "false") boolean rated,
             @RequestParam(required = false) String fresh, @RequestParam(defaultValue = "popular") String sort,
-            @RequestParam(defaultValue = "1") int page) {
+            @RequestParam(defaultValue = "1") int page, @RequestParam(required = false) String after) {
         Optional<Viewer> viewer = currentUser.viewer();
         return queries.search(filter(q, tag, kind, machine, status, source, chaptersFrom, chaptersTo, rated, fresh), sort,
-                adult(viewer), viewer.map(Viewer::accountId).orElse(null), Math.max(1, Math.min(page, 500)), PAGE_SIZE);
+                adult(viewer), viewer.map(Viewer::accountId).orElse(null), Math.max(1, Math.min(page, 500)),
+                after == null || after.isBlank() ? null : after, PAGE_SIZE);
     }
 
     /** A novel the same filters let through, picked at random; 404 when none does. */
@@ -208,15 +209,16 @@ class ReadingController {
         return cards.known(edition.id(), chapter);
     }
 
+    /** A page of the list by number ({@code page}), or the page after chapter {@code after} — by key. */
     @GetMapping("/novels/{slug}/chapters")
     Views.Page<Views.ChapterRow> chapters(@PathVariable String slug, @RequestParam(required = false) String t,
             @RequestParam(defaultValue = "asc") String order, @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "" + CHAPTERS_PAGE_SIZE) int size, @RequestParam(required = false) Integer from,
-            @RequestParam(required = false) Integer to) {
+            @RequestParam(required = false) Integer to, @RequestParam(required = false) Integer after) {
         EditionRow edition = pick(visibleEditions(queries.novel(slug).orElseThrow(ReadingController::noNovel),
                 currentUser.viewer()), t);
         return queries.chapters(edition.id(), order.equals("desc"), Math.max(1, page), Math.max(1, Math.min(size, 100)),
-                currentUser.accountId().orElse(null), from, to);
+                currentUser.accountId().orElse(null), from, to, after);
     }
 
     /** The volumes of the list of chapters «По томах»; empty when the translation has none. */

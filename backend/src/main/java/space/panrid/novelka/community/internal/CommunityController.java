@@ -49,8 +49,10 @@ class CommunityController {
     /** @param chapter the chapter's position; absent for the translation's own discussion */
     @GetMapping("/editions/{editionId}/comments")
     CommentService.Thread comments(@PathVariable long editionId, @RequestParam(required = false) Integer chapter,
-            @RequestParam(defaultValue = "new") String sort, @RequestParam(defaultValue = "1") int page) {
-        return comments.list(editionId, chapter, sort, page, currentUser.accountId().orElse(null));
+            @RequestParam(defaultValue = "new") String sort, @RequestParam(defaultValue = "1") int page,
+            @RequestParam(required = false) String after) {
+        return comments.list(editionId, chapter, sort, page, after == null || after.isBlank() ? null : after,
+                currentUser.accountId().orElse(null));
     }
 
     record NewComment(Integer chapter, String body, Long replyTo) {

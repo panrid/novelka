@@ -17,6 +17,8 @@ import java.util.Set;
 
 import org.jooq.Condition;
 import org.jooq.DSLContext;
+import org.jooq.Record;
+import org.jooq.SelectField;
 import org.jooq.impl.DSL;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
@@ -28,6 +30,7 @@ import space.panrid.novelka.account.Viewer;
 import space.panrid.novelka.community.CommentPosted;
 import space.panrid.novelka.community.Mentions;
 import space.panrid.novelka.jooq.tables.records.CommentRecord;
+import space.panrid.novelka.platform.db.Keyset;
 import space.panrid.novelka.platform.web.RateLimiter;
 import space.panrid.novelka.platform.web.UserFacingException;
 
@@ -64,32 +67,43 @@ class CommentService {
             OffsetDateTime editedAt, String removed, int score, int myVote, boolean mine, Long replyTo, List<Item> replies) {
     }
 
-    record Thread(List<Item> items, int total, int page, boolean hasMore) {
+    /**
+     * @param total how many comments there are; null on a page read by key — the first page told it
+     * @param next  the cursor of the page after this one ({@code after=}), null on the last page
+     */
+    record Thread(List<Item> items, Integer total, int page, boolean hasMore, String next) {
     }
 
-    Thread list(long editionId, Integer chapter, String sort, int page, Long viewerId) {
+    /** @param after the cursor of the page before: the comments after it, read by key (етап 21.5); null for the {@code page}-th page */
+    Thread list(long editionId, Integer chapter, String sort, int page, String after, Long viewerId) {
         requireEdition(editionId);
         Condition place = place(editionId, chapter);
         Condition shown = COMMENT.DELETED_AT.isNull().and(COMMENT.HIDDEN_AT.isNull());
         // A removed top-level comment stays only while it has replies to hold together.
         Condition rootVisible = shown.or(DSL.exists(DSL.selectOne().from(COMMENT.as("r"))
                 .where(COMMENT.as("r").REPLY_TO.eq(COMMENT.ID), COMMENT.as("r").DELETED_AT.isNull(), COMMENT.as("r").HIDDEN_AT.isNull())));
-        int total = db.fetchCount(COMMENT, place.and(shown));
-        List<CommentRecord> roots = db.selectFrom(COMMENT)
-                .where(place, COMMENT.REPLY_TO.isNull(), rootVisible)
-                .orderBy("top".equals(sort) ? List.of(COMMENT.SCORE.desc(), COMMENT.ID.desc()) : List.of(COMMENT.ID.desc()))
-                .limit(PAGE + 1).offset((Math.max(1, page) - 1) * PAGE)
+        Integer total = after == null ? db.fetchCount(COMMENT, place.and(shown)) : null;
+        List<Keyset.Key> keys = "top".equals(sort) ? List.of(Keyset.Key.desc(COMMENT.SCORE), Keyset.Key.desc(COMMENT.ID))
+                : List.of(Keyset.Key.desc(COMMENT.ID));
+        List<SelectField<?>> fields = new ArrayList<>(List.of(COMMENT.fields()));
+        fields.addAll(Keyset.columns(keys));
+        List<Record> rows = db.select(fields).from(COMMENT)
+                .where(place, COMMENT.REPLY_TO.isNull(), rootVisible, after == null ? DSL.noCondition() : Keyset.after(keys, after))
+                .orderBy(Keyset.order(keys))
+                .limit(PAGE + 1).offset(after == null ? (Math.max(1, page) - 1) * PAGE : 0)
                 .fetch();
-        boolean more = roots.size() > PAGE;
+        boolean more = rows.size() > PAGE;
         if (more) {
-            roots = roots.subList(0, PAGE);
+            rows = rows.subList(0, PAGE);
         }
+        String next = more ? Keyset.cursor(keys, rows.getLast()) : null;
+        List<CommentRecord> roots = rows.stream().map(r -> r.into(COMMENT)).toList();
         List<Long> rootIds = roots.stream().map(CommentRecord::getId).toList();
         List<CommentRecord> replies = rootIds.isEmpty() ? List.of() : db.selectFrom(COMMENT)
                 .where(COMMENT.REPLY_TO.in(rootIds), shown).orderBy(COMMENT.ID).fetch();
         List<CommentRecord> all = new ArrayList<>(roots);
         all.addAll(replies);
-        return new Thread(items(roots, replies, all, viewerId), total, Math.max(1, page), more);
+        return new Thread(items(roots, replies, all, viewerId), total, Math.max(1, page), more, next);
     }
 
     private List<Item> items(List<CommentRecord> roots, List<CommentRecord> replies, List<CommentRecord> all, Long viewerId) {

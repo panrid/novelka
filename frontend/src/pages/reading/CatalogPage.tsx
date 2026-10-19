@@ -88,13 +88,14 @@ export function CatalogPage() {
     const toggleTag = (slug: string) => update({ tags: tags.includes(slug) ? tags.filter((t) => t !== slug) : [...tags, slug] });
     const results = useInfiniteQuery({
         queryKey: ['catalog', search.q ?? '', tags, kind, sort, pick(search)],
-        queryFn: ({ pageParam }) => readingApi.catalog({ q: search.q ?? '', tags, kind, ...pick(search), sort, page: pageParam }),
-        initialPageParam: 1,
-        getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
+        // «Показати ще» reads by key: the page after the last card shown, not the n-th page.
+        queryFn: ({ pageParam }) => readingApi.catalog({ q: search.q ?? '', tags, kind, ...pick(search), sort, after: pageParam ?? undefined }),
+        initialPageParam: null as string | null,
+        getNextPageParam: (last) => (last.hasMore && last.next ? last.next : undefined),
     });
 
-    const items = results.data?.pages.flatMap((page) => page.items) ?? [];
-    const total = results.data?.pages[0]?.total;
+    const items = distinct(results.data?.pages.flatMap((page) => page.items) ?? []);
+    const total = results.data?.pages[0]?.total ?? undefined;
     const extras = EXTRA.filter((key) => search[key] !== undefined);
     const narrowed = Boolean(search.q) || tags.length > 0 || kind !== 'all' || extras.length > 0;
     const chosenFilters = tags.length + (kind !== 'all' ? 1 : 0) + extras.length;
@@ -298,6 +299,12 @@ function FilterGroup({ name, tags, chosen, onToggle }: { name: string; tags: Tag
             ) : null}
         </fieldset>
     );
+}
+
+/** Cards once each: a novel whose popularity moved between two pages may come again. */
+function distinct<T extends { editionId: number }>(cards: T[]): T[] {
+    const seen = new Set<number>();
+    return cards.filter((card) => !seen.has(card.editionId) && Boolean(seen.add(card.editionId)));
 }
 
 /** A chapter count typed in a field: empty clears it. */

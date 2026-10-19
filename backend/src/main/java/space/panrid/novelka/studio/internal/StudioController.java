@@ -4,11 +4,11 @@ import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL;
 import static space.panrid.novelka.jooq.Tables.EDITOR_DRAFT;
-import static space.panrid.novelka.jooq.Tables.GLOSSARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.IMAGE;
 import static space.panrid.novelka.jooq.Tables.JOB;
 import static space.panrid.novelka.jooq.Tables.JOB_STEP;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
+import static space.panrid.novelka.jooq.Tables.NOVEL_STAT;
 import static space.panrid.novelka.jooq.Tables.SOURCE_CHAPTER;
 import static space.panrid.novelka.jooq.Tables.SOURCE_TOC;
 import static space.panrid.novelka.jooq.Tables.SUGGESTION;
@@ -200,8 +200,9 @@ class StudioController {
         // Readers' suggestions waiting for the team: shown on the Studio tab and next to the translation.
         var pending = DSL.select(DSL.count()).from(SUGGESTION).join(CHAPTER).on(CHAPTER.ID.eq(SUGGESTION.CHAPTER_ID))
                 .where(CHAPTER.EDITION_ID.eq(EDITION.ID).and(SUGGESTION.STATE.eq("pending"))).<Integer>asField("pending");
-        var words = DSL.select(DSL.count()).from(GLOSSARY_ENTRY)
-                .where(GLOSSARY_ENTRY.NOVEL_ID.eq(NOVEL.ID).and(GLOSSARY_ENTRY.STATUS.eq("new"))).<Integer>asField("words");
+        // «Нових слів» is counted ahead (novel_stat, етап 21.5), not over the glossary per request.
+        var words = DSL.coalesce(DSL.field(DSL.select(NOVEL_STAT.NEW_WORDS).from(NOVEL_STAT).where(NOVEL_STAT.NOVEL_ID.eq(NOVEL.ID))),
+                DSL.inline(0)).as("words");
         // The original: chapters the team pasted, or those the original's site lists.
         var pasted = DSL.select(DSL.count()).from(EDITION_ORIGINAL).where(EDITION_ORIGINAL.EDITION_ID.eq(EDITION.ID)).<Integer>asField("pasted");
         var listed = DSL.select(DSL.count()).from(SOURCE_TOC).where(SOURCE_TOC.NOVEL_ID.eq(NOVEL.ID)).<Integer>asField("listed");
@@ -291,7 +292,8 @@ class StudioController {
                 CHAPTER.EDITION_ID.eq(editionId).and(SUGGESTION.STATE.eq("pending")));
         int drafts = db.fetchCount(EDITOR_DRAFT.join(CHAPTER).on(CHAPTER.ID.eq(EDITOR_DRAFT.CHAPTER_ID)),
                 CHAPTER.EDITION_ID.eq(editionId).and(EDITOR_DRAFT.ACCOUNT_ID.eq(who.viewer().accountId())));
-        int words = db.fetchCount(GLOSSARY_ENTRY, GLOSSARY_ENTRY.NOVEL_ID.eq(novel.value1()).and(GLOSSARY_ENTRY.STATUS.eq("new")));
+        int words = db.select(NOVEL_STAT.NEW_WORDS).from(NOVEL_STAT).where(NOVEL_STAT.NOVEL_ID.eq(novel.value1()))
+                .fetchOptional(NOVEL_STAT.NEW_WORDS).orElse(0);
         return new Overview(editionId, data.novelSlug(), data.title(), data.author(), studioBlocks(data.description()),
                 data.tags(), data.kind(), data.status(), data.adult(),
                 data.coverImageId() == null ? null : images.find(data.coverImageId()).map(image -> image.url(480)).orElse(null),

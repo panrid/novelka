@@ -50,7 +50,8 @@ final class Views {
     record Home(List<ContinueItem> continueReading, List<Card> popular, List<NewChapters> newChapters) {
     }
 
-    record Page<T>(List<T> items, int page, boolean hasMore) {
+    /** @param next the cursor of the page after this one ({@code after=}), null on the last page */
+    record Page<T>(List<T> items, int page, boolean hasMore, String next) {
     }
 
     record TagCount(String name, String slug, int novels) {
@@ -59,8 +60,13 @@ final class Views {
     record TagGroup(String name, List<TagCount> tags) {
     }
 
-    /** A page of the catalog with how many there are in all. */
-    record Found<T>(List<T> items, int page, boolean hasMore, int total) {
+    /**
+     * A page of the catalog with how many there are in all.
+     *
+     * @param total null on a page read by key ({@code after}): the first page told it already
+     * @param next  the cursor of the page after this one, null on the last page
+     */
+    record Found<T>(List<T> items, int page, boolean hasMore, Integer total, String next) {
     }
 
     /** What the search box offers while a person types. */

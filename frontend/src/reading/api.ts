@@ -41,9 +41,10 @@ export type Home = {
     newChapters: { card: Card; firstNumber: number; lastNumber: number; publishedAt: string; firstLabel?: string | null; lastLabel?: string | null }[];
 };
 
-export type Page<T> = { items: T[]; page: number; hasMore: boolean };
-/** A catalog page with how many novels match in all. */
-export type Found<T> = Page<T> & { total: number };
+/** {@code next}: the cursor of the page after this one (`after=`), read by key; null on the last page. */
+export type Page<T> = { items: T[]; page: number; hasMore: boolean; next?: string | null };
+/** A catalog page with how many novels match in all: told by the first page, null on those read by key after it. */
+export type Found<T> = Page<T> & { total: number | null };
 export type TagCount = { name: string; slug: string; novels: number };
 /** A group of the site's tag list: «Жанр», «Світ і сюжет», «Герой», «Настрій». */
 export type TagGroup = { name: string; tags: TagCount[] };
@@ -153,7 +154,8 @@ export type CatalogFilters = {
     q?: string; tags?: string[]; kind?: string; machine?: string; status?: string; source?: string;
     from?: number; to?: number; rated?: boolean; fresh?: string;
 };
-export type CatalogQuery = CatalogFilters & { sort?: string; page?: number };
+/** {@code after}: the cursor of the page before (its `next`), for the page after it. */
+export type CatalogQuery = CatalogFilters & { sort?: string; page?: number; after?: string | undefined };
 
 const catalogParams = ({ q, tags, kind, machine, status, source, from, to, rated, fresh }: CatalogFilters) =>
     ({ q, tag: tags, kind, machine, status, source, chaptersFrom: from, chaptersTo: to, rated: rated ? 'true' : undefined, fresh });
@@ -222,8 +224,8 @@ export const readingApi = {
     works: (nick: string) => api<Card[]>(`/api/users/${encodeURIComponent(nick)}/works`),
     activity: (nick: string) => api<{ reading: Card[]; acceptedSuggestions: number }>(`/api/users/${encodeURIComponent(nick)}/activity`),
     home: () => api<Home>('/api/home'),
-    catalog: ({ sort, page, ...filters }: CatalogQuery) =>
-        api<Found<Card>>(`/api/catalog${query({ ...catalogParams(filters), sort, page })}`),
+    catalog: ({ sort, page, after, ...filters }: CatalogQuery) =>
+        api<Found<Card>>(`/api/catalog${query({ ...catalogParams(filters), sort, page, after })}`),
     /** One novel the filters let through, at random. */
     randomNovel: (filters: CatalogFilters) => api<Card>(`/api/catalog/random${query(catalogParams(filters))}`),
     tags: () => api<TagCount[]>('/api/tags'),

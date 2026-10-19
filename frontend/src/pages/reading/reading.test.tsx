@@ -510,6 +510,32 @@ describe('catalog collections and filters', () => {
     });
 });
 
+describe('catalog read by key', () => {
+    it('loads the cards after the last one shown, and tells the count from the first page', async () => {
+        let further = false;
+        const { calls } = await renderAt('/catalog', {
+            'GET /api/catalog': () => (further
+                ? { body: { items: [CARD, { ...CARD, editionId: 8, novelSlug: 'drakon', title: 'Дракон' }], page: 1, hasMore: false, total: null, next: null } }
+                : { body: { items: [CARD], page: 1, hasMore: true, total: 2, next: 'po-mahu' } }),
+            'GET /api/tags/groups': { body: [] },
+        });
+
+        await waitFor(() => expect(screen.getByRole('heading', { name: /Каталог/ })).toHaveTextContent('Каталог 2 новели'));
+        const once = screen.getAllByText('Маг води').length;
+        further = true;
+        await userEvent.click(screen.getByRole('button', { name: 'Показати ще' }));
+        expect(await screen.findAllByText('Дракон')).not.toHaveLength(0);
+        const catalog = calls.filter((call) => call.path === '/api/catalog');
+        expect(new URLSearchParams(catalog[0]!.query).get('after')).toBeNull();
+        expect(new URLSearchParams(catalog.at(-1)!.query).get('after')).toBe('po-mahu');
+        expect(catalog.every((call) => !call.query.includes('page='))).toBe(true);
+        // A card that came again on the next page shows once; the count stays the first page's.
+        expect(screen.getAllByText('Маг води')).toHaveLength(once);
+        expect(screen.getByRole('heading', { name: /Каталог/ })).toHaveTextContent('Каталог 2 новели');
+        expect(screen.queryByRole('button', { name: 'Показати ще' })).toBeNull();
+    });
+});
+
 describe('the novel’s other names and the original', () => {
     it('shows the names under the title and how much of the original is translated', async () => {
         await renderAt('/n/mah-vody', {

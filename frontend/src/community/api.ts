@@ -6,7 +6,8 @@ export type Comment = {
     replyTo: number | null; replies: Comment[];
 };
 
-export type Thread = { items: Comment[]; total: number; page: number; hasMore: boolean };
+/** {@code total}: told by the first page, null on those read by key after it; {@code next}: the cursor of the page after. */
+export type Thread = { items: Comment[]; total: number | null; page: number; hasMore: boolean; next?: string | null };
 
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 const place = (chapter?: number) => (chapter ? `chapter=${chapter}&` : '');
@@ -19,8 +20,9 @@ export const mentionApi = {
 };
 
 export const commentApi = {
-    thread: (editionId: number, chapter: number | undefined, sort: 'new' | 'top', page = 1) =>
-        api<Thread>(`/api/editions/${editionId}/comments?${place(chapter)}sort=${sort}&page=${page}`),
+    /** {@code after}: the cursor of the page before (its `next`); none for the first page. */
+    thread: (editionId: number, chapter: number | undefined, sort: 'new' | 'top', after?: string | null) =>
+        api<Thread>(`/api/editions/${editionId}/comments?${place(chapter)}sort=${sort}${after ? `&after=${encodeURIComponent(after)}` : ''}`),
     post: (editionId: number, chapter: number | undefined, body: string, replyTo: number | null) =>
         api<{ id: number }>(`/api/editions/${editionId}/comments`, json('POST', { chapter: chapter ?? null, body, replyTo })),
     edit: (id: number, body: string) => api<void>(`/api/comments/${id}`, json('PATCH', { body })),

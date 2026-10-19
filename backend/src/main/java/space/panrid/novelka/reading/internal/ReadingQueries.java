@@ -5,12 +5,14 @@ import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.CHAPTER_READ;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITION_RATING;
+import static space.panrid.novelka.jooq.Tables.EDITION_STAT;
 import static space.panrid.novelka.jooq.Tables.EDITION_SUBSCRIPTION;
 import static space.panrid.novelka.jooq.Tables.LIBRARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.NOVEL_SLUG_ALIAS;
 import static space.panrid.novelka.jooq.Tables.NOVEL_TAG;
 import static space.panrid.novelka.jooq.Tables.READING_PROGRESS;
+import static space.panrid.novelka.jooq.Tables.READING_STAT;
 import static space.panrid.novelka.jooq.Tables.REVISION;
 import static space.panrid.novelka.jooq.Tables.SUGGESTION;
 import static space.panrid.novelka.jooq.Tables.TAG;
@@ -41,13 +43,13 @@ import org.jooq.Record;
 import org.jooq.Record3;
 import org.jooq.SelectField;
 import org.jooq.SelectJoinStep;
-import org.jooq.SortField;
 import org.jooq.impl.DSL;
 import org.springframework.stereotype.Component;
 
 import space.panrid.novelka.catalog.NovelFacts;
 import space.panrid.novelka.media.Images;
 import space.panrid.novelka.media.StoredImage;
+import space.panrid.novelka.platform.db.Keyset;
 import space.panrid.novelka.platform.text.Block;
 import space.panrid.novelka.reading.internal.Views.Card;
 import space.panrid.novelka.reading.internal.Views.ChapterRow;
@@ -84,13 +86,13 @@ class ReadingQueries {
         return adultConfirmed ? condition : condition.and(EDITION.ADULT.isFalse());
     }
 
-    /** Readers in the last 30 days count twice as much as library entries. */
-    Field<Integer> popularity() {
-        Field<Integer> readers = readersSince(now().minusDays(30));
-        Field<Integer> shelved = DSL.select(DSL.count()).from(LIBRARY_ENTRY)
-                .where(LIBRARY_ENTRY.EDITION_ID.eq(EDITION.ID).and(LIBRARY_ENTRY.LIST.in("reading", "planned", "done")))
-                .asField();
-        return readers.mul(2).plus(shelved);
+    /**
+     * Readers in the last 30 days count twice as much as library entries; counted ahead in
+     * {@code edition_stat} (етап 21.5), not per request.
+     */
+    static Field<Integer> popularity() {
+        return DSL.coalesce(DSL.field(DSL.select(EDITION_STAT.POPULARITY).from(EDITION_STAT)
+                .where(EDITION_STAT.EDITION_ID.eq(EDITION.ID))), DSL.inline(0));
     }
 
     /** People who read the edition since {@code since}. */
@@ -136,10 +138,11 @@ class ReadingQueries {
         Map<Long, Record3<Long, BigDecimal, Integer>> ratings = ids.isEmpty() ? Map.of()
                 : db.select(EDITION_RATING.EDITION_ID, DSL.avg(EDITION_RATING.SCORE), DSL.count()).from(EDITION_RATING)
                         .where(EDITION_RATING.EDITION_ID.in(ids)).groupBy(EDITION_RATING.EDITION_ID).fetchMap(EDITION_RATING.EDITION_ID);
+        // «Прочитано» is counted ahead (reading_stat), not over chapter_read per card.
         Map<Long, Integer> read = viewer == null || ids.isEmpty() ? Map.of()
-                : db.select(CHAPTER_READ.EDITION_ID, DSL.count()).from(CHAPTER_READ)
-                        .where(CHAPTER_READ.ACCOUNT_ID.eq(viewer), CHAPTER_READ.EDITION_ID.in(ids)).groupBy(CHAPTER_READ.EDITION_ID)
-                        .fetchMap(CHAPTER_READ.EDITION_ID, DSL.count());
+                : db.select(READING_STAT.EDITION_ID, READING_STAT.CHAPTERS_READ).from(READING_STAT)
+                        .where(READING_STAT.ACCOUNT_ID.eq(viewer), READING_STAT.EDITION_ID.in(ids))
+                        .fetchMap(READING_STAT.EDITION_ID, READING_STAT.CHAPTERS_READ);
         return rows.stream().map(r -> {
             StoredImage cover = r.get(EDITION.COVER_IMAGE_ID) == null ? null : covers.get(r.get(EDITION.COVER_IMAGE_ID));
             var rating = ratings.get(r.get(EDITION.ID));
@@ -273,26 +276,44 @@ class ReadingQueries {
      * @param sort popular, updated, new, title, or relevance — titles beginning with the words first
      */
     Views.Found<Card> search(Views.CatalogFilter filter, String sort, boolean adult, Long viewer, int page, int size) {
+        return search(filter, sort, adult, viewer, page, null, size);
+    }
+
+    /**
+     * @param after the cursor of the page before ({@code next}): the page after it, read by key
+     *              (етап 21.5); null for the {@code page}-th page. How many match in all is
+     *              counted only for a page by number — the first one tells it once.
+     */
+    Views.Found<Card> search(Views.CatalogFilter filter, String sort, boolean adult, Long viewer, int page, String after, int size) {
         Condition where = catalog(filter, adult);
         String words = filter.query() == null ? "" : filter.query().strip();
-        List<SortField<?>> order = switch (sort == null ? "popular" : sort) {
-            case "updated" -> List.of(EDITION.LAST_PUBLISHED_AT.desc().nullsLast());
-            case "new" -> List.of(EDITION.CREATED_AT.desc());
-            case "title" -> List.of(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).asc());
-            case "rating" -> List.of(averageScore().desc().nullsLast(), ratingCount().desc(), popularity().desc());
-            case "relevance" -> List.of(DSL.when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase(escapeLike(words) + "%"), 0)
-                    .when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase("%" + escapeLike(words) + "%"), 1)
-                    .when(NOVEL.TITLE_ENGLISH.likeIgnoreCase(escapeLike(words) + "%"), 1)
-                    .otherwise(2).asc(),
-                    popularity().desc());
-            default -> List.of(popularity().desc(), EDITION.LAST_PUBLISHED_AT.desc().nullsLast());
-        };
-        List<SortField<?>> stable = new ArrayList<>(order);
-        stable.add(EDITION.ID.asc());
-        List<Record> rows = cards().where(where).orderBy(stable).limit(size + 1).offset((page - 1) * size).fetch();
+        List<Keyset.Key> keys = catalogOrder(sort, words);
+        List<Record> rows = cards(Keyset.columns(keys).toArray(new SelectField<?>[0]))
+                .where(where.and(after == null ? DSL.noCondition() : Keyset.after(keys, after)))
+                .orderBy(Keyset.order(keys)).limit(size + 1).offset(after == null ? (page - 1) * size : 0).fetch();
         boolean more = rows.size() > size;
-        int total = page == 1 && !more ? rows.size() : db.fetchCount(cards().where(where));
-        return new Views.Found<>(toCards(more ? rows.subList(0, size) : rows, viewer), page, more, total);
+        List<Record> shown = more ? rows.subList(0, size) : rows;
+        Integer total = after != null ? null : page == 1 && !more ? rows.size() : db.fetchCount(cards().where(where));
+        return new Views.Found<>(toCards(shown, viewer), page, more, total,
+                more ? Keyset.cursor(keys, shown.getLast()) : null);
+    }
+
+    /** The catalog's orders as keys; the edition's id last, so every row has its own place. */
+    private List<Keyset.Key> catalogOrder(String sort, String words) {
+        List<Keyset.Key> keys = new ArrayList<>(switch (sort == null ? "popular" : sort) {
+            case "updated" -> List.of(Keyset.Key.desc(EDITION.LAST_PUBLISHED_AT));
+            case "new" -> List.of(Keyset.Key.desc(EDITION.CREATED_AT));
+            case "title" -> List.of(Keyset.Key.asc(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE)));
+            case "rating" -> List.of(Keyset.Key.desc(averageScore()), Keyset.Key.desc(ratingCount()), Keyset.Key.desc(popularity()));
+            case "relevance" -> List.of(Keyset.Key.asc(DSL.when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase(escapeLike(words) + "%"), 0)
+                            .when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase("%" + escapeLike(words) + "%"), 1)
+                            .when(NOVEL.TITLE_ENGLISH.likeIgnoreCase(escapeLike(words) + "%"), 1)
+                            .otherwise(2)),
+                    Keyset.Key.desc(popularity()));
+            default -> List.of(Keyset.Key.desc(popularity()), Keyset.Key.desc(EDITION.LAST_PUBLISHED_AT));
+        });
+        keys.add(Keyset.Key.asc(EDITION.ID));
+        return keys;
     }
 
     /** One novel the filters let through, picked at random: «🎲 Випадкова новела». */
@@ -493,29 +514,35 @@ class ReadingQueries {
     }
 
     Views.Page<ChapterRow> chapters(long editionId, boolean newestFirst, int page, int size, Long reader) {
-        return chapters(editionId, newestFirst, page, size, reader, null, null);
+        return chapters(editionId, newestFirst, page, size, reader, null, null, null);
     }
 
     /**
      * {@code reader}: marks each row read or not for that account; null for a guest.
      * {@code from}..{@code to}: only these chapters (one volume); null for no bound.
+     * {@code after}: the chapters after this number in the list's order, read by key along
+     * {@code chapter_published} (етап 21.5: «наступні 20 після глави N»); null for the
+     * {@code page}-th page.
      */
-    Views.Page<ChapterRow> chapters(long editionId, boolean newestFirst, int page, int size, Long reader, Integer from, Integer to) {
+    Views.Page<ChapterRow> chapters(long editionId, boolean newestFirst, int page, int size, Long reader, Integer from, Integer to,
+            Integer after) {
         Field<Boolean> read = reader == null ? DSL.inline((Boolean) null) : DSL.field(DSL.exists(DSL.selectOne().from(CHAPTER_READ)
                 .where(CHAPTER_READ.ACCOUNT_ID.eq(reader), CHAPTER_READ.EDITION_ID.eq(editionId),
                         CHAPTER_READ.CHAPTER_NUMBER.eq(CHAPTER.NUMBER))));
+        Condition beyond = after == null ? DSL.noCondition() : newestFirst ? CHAPTER.NUMBER.lt(after) : CHAPTER.NUMBER.gt(after);
         List<ChapterRow> rows = db.select(CHAPTER.NUMBER, REVISION.TITLE, CHAPTER.FIRST_PUBLISHED_AT, CHAPTER.LABEL, read)
                 .from(CHAPTER).join(REVISION).on(REVISION.ID.eq(CHAPTER.PUBLISHED_REVISION_ID))
-                .where(CHAPTER.EDITION_ID.eq(editionId), from == null ? DSL.noCondition() : CHAPTER.NUMBER.ge(from),
-                        to == null ? DSL.noCondition() : CHAPTER.NUMBER.le(to))
+                .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.PUBLISHED_REVISION_ID.isNotNull(),
+                        from == null ? DSL.noCondition() : CHAPTER.NUMBER.ge(from),
+                        to == null ? DSL.noCondition() : CHAPTER.NUMBER.le(to), beyond)
                 .orderBy(newestFirst ? CHAPTER.NUMBER.desc() : CHAPTER.NUMBER.asc())
-                .limit(size + 1).offset((page - 1) * size)
+                .limit(size + 1).offset(after == null ? (page - 1) * size : 0)
                 .fetch(r -> new ChapterRow(r.value1(), r.value2(), r.value3(), r.value4(), null, r.value5()));
         List<Views.VolumeRef> volumes = volumes(editionId);
-        rows = rows.stream().map(row -> new ChapterRow(row.number(), row.title(), row.publishedAt(), row.label(),
-                volumeOf(volumes, row.number()), row.read())).toList();
         boolean more = rows.size() > size;
-        return new Views.Page<>(more ? rows.subList(0, size) : rows, page, more);
+        List<ChapterRow> shown = (more ? rows.subList(0, size) : rows).stream().map(row -> new ChapterRow(row.number(), row.title(),
+                row.publishedAt(), row.label(), volumeOf(volumes, row.number()), row.read())).toList();
+        return new Views.Page<>(shown, page, more, more ? String.valueOf(shown.getLast().number()) : null);
     }
 
     record ChapterText(int number, String title, JSONB blocks, String label) {
