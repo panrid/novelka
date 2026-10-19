@@ -42,7 +42,7 @@ export type SiteAppearance = Partial<SiteLook>;
 export type ReaderPreset = 'site' | 'paper' | 'sepia' | 'gray' | 'night' | 'black' | 'book' | 'dyslexia';
 export type ReaderColors = 'site' | 'paper' | 'sepia' | 'gray' | 'night' | 'black' | 'tea' | 'dusk' | 'own';
 export type FontId = 'literata' | 'ptserif' | 'lora' | 'merriweather' | 'playfair' | 'inter' | 'nunito' | 'rubik' | 'plex'
-    | 'comfortaa' | 'jetbrains';
+    | 'comfortaa' | 'jetbrains' | 'golos';
 
 /** Everything the reader can change; a stored copy keeps only what differs from nothing at all. */
 export type ReaderLook = {
@@ -87,6 +87,8 @@ export const SITE_TONES: Record<'light' | 'dark', Tone[]> = {
         { name: 'Пергамент', bg: '#e9dcc0', surface: '#f3e9d3', surface2: '#ddcfaf', line: '#c9b791', text: '#3b2f22', reading: '#3b2f22', muted: '#6f5f48', faint: '#978569' },
         { name: 'Рожевий', bg: '#fbf1f3', surface: '#ffffff', surface2: '#f6e4e8', line: '#ecd2d8', text: '#2a1d21', reading: '#33242a', muted: '#7a5f67', faint: '#a08890' },
         { name: 'Блакитний', bg: '#eef4f6', surface: '#ffffff', surface2: '#e1ebef', line: '#cfdde3', text: '#17232a', reading: '#1f2c33', muted: '#566770', faint: '#82939b' },
+        // The new design (етап 20, doc/redesign/README.md «Вигляд»): its light pair of «Новелка».
+        { name: 'Новелка', bg: '#f3f4f6', surface: '#ffffff', surface2: '#f1f2f5', line: '#e3e5ea', text: '#15171c', reading: '#1b1d22', muted: '#5b6170', faint: '#8a8f9b' },
     ],
     dark: [
         { name: 'Графіт', bg: '#121412', surface: '#1b1e1b', surface2: '#242824', line: '#2f342f', text: '#e9e7df', reading: '#dcdad1', muted: '#9a9d94', faint: '#6d7069' },
@@ -95,15 +97,24 @@ export const SITE_TONES: Record<'light' | 'dark', Tone[]> = {
         { name: 'Мох', bg: '#172016', surface: '#1e2a1d', surface2: '#263425', line: '#324231', text: '#e6eadb', reading: '#d6dccb', muted: '#9aa58f', faint: '#6d7863' },
         { name: 'Фіолет', bg: '#0b0716', surface: '#140e24', surface2: '#1d1532', line: '#2a2045', text: '#ece6fa', reading: '#ddd5ef', muted: '#a497c2', faint: '#73688f' },
         { name: 'Термінал', bg: '#0a0f0a', surface: '#0f160f', surface2: '#142014', line: '#1e301e', text: '#b8f5c0', reading: '#a6e8ae', muted: '#5fae6a', faint: '#3f7a48' },
+        // The new design's dark (етап 20): the site's look unless a person chose another.
+        { name: 'Новелка', bg: '#0f1115', surface: '#171a20', surface2: '#1f232b', line: '#2a2f39', text: '#e8eaee', reading: '#dadde3', muted: '#a3a9b6', faint: '#6f7584' },
     ],
 };
 
 /** Accents picked so a button's text stays readable on them (dark or white ink is chosen for each). */
-export const SITE_ACCENTS = ['#8fb07f', '#4f7a40', '#2f4a6b', '#4fb3d9', '#6c7ae0', '#b48cff', '#c2456b', '#ff3ea5',
+/**
+ * The new design's tone and accent for each base (етап 20): the default look, and what the sun / moon
+ * button in the header switches between. Tones are added at the end, so people's chosen ones keep their place.
+ */
+export const NOVELKA_TONE = 6;
+export const NOVELKA_ACCENT: Record<'light' | 'dark', string> = { dark: '#8ea6ff', light: '#2a4bd7' };
+
+export const SITE_ACCENTS = ['#8ea6ff', '#2a4bd7', '#8fb07f', '#4f7a40', '#2f4a6b', '#4fb3d9', '#6c7ae0', '#b48cff', '#c2456b', '#ff3ea5',
     '#d9776b', '#e07b39', '#d8b45a', '#ffd400', '#7a5a2b', '#2a9d8f', '#8cff9c', '#111111'];
 
 const SITE_DEFAULTS: SiteLook = {
-    preset: 'default', custom: false, base: 'dark', bg: 0, accent: '#8fb07f', ui: 'inter', head: 'literata', scale: 1,
+    preset: 'default', custom: false, base: 'dark', bg: NOVELKA_TONE, accent: NOVELKA_ACCENT.dark, ui: 'golos', head: 'literata', scale: 1,
     radius: 12, density: 'normal', cards: 'flat', anim: 'system', icons: 'lucide', iconWeight: 1.75, iconColor: 'text', iconFill: false,
     nav: 'top', catalog: 'rows', portraits: 'round',
 };
@@ -134,7 +145,7 @@ export const SITE_PRESETS: { value: SiteStyle; label: string; look: Partial<Site
 export const SITE_SCALES = [0.9, 1, 1.1, 1.2];
 
 export const SITE_FONTS: { value: FontId; label: string }[] = [
-    { value: 'inter', label: 'Інтер' }, { value: 'rubik', label: 'Рубік' }, { value: 'nunito', label: 'Нуніто' },
+    { value: 'golos', label: 'Голос' }, { value: 'inter', label: 'Інтер' }, { value: 'rubik', label: 'Рубік' }, { value: 'nunito', label: 'Нуніто' },
     { value: 'plex', label: 'IBM Plex Sans' }, { value: 'comfortaa', label: 'Комфортаа' }, { value: 'jetbrains', label: 'JetBrains Mono' },
     { value: 'literata', label: 'Літерата' }, { value: 'lora', label: 'Лора' }, { value: 'ptserif', label: 'PT Serif' },
     { value: 'merriweather', label: 'Мерівезер' }, { value: 'playfair', label: 'Плейфер' },

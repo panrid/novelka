@@ -14,6 +14,7 @@ import { Sheet } from '../../ui/Sheet';
 import { TextInput } from '../../ui/TextInput';
 import { useEditionId } from './EditionPage';
 import styles from './structure.module.css';
+import { Loading } from '../../ui/Loading';
 
 /**
  * «Структура й томи» (етап 15): mark chapters, start a volume there, make them a prologue or
@@ -23,7 +24,7 @@ export function StructurePage() {
     const id = useEditionId();
     const structure = useQuery({ queryKey: ['structure', id], queryFn: () => structureApi.get(id) });
     if (structure.isError) return <section className={styles.page}><Notice tone="error">{structure.error.message}</Notice></section>;
-    if (!structure.data) return <section className={styles.page}><p className={styles.muted}>Завантажуємо…</p></section>;
+    if (!structure.data) return <section className={styles.page}><Loading shape="list" /></section>;
     return <Editor key={structure.dataUpdatedAt} id={id} saved={structure.data} />;
 }
 

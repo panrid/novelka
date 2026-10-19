@@ -6,13 +6,14 @@ import { Cover } from '../../reading/Cover';
 import { Notice } from '../../ui/Notice';
 import { relativeTime } from '../../lib/dates';
 import styles from './reading.module.css';
+import { Loading } from '../../ui/Loading';
 
 export function HomePage() {
     const home = useQuery({ queryKey: ['home'], queryFn: readingApi.home });
     const tags = useQuery({ queryKey: ['tags'], queryFn: readingApi.tags, staleTime: 5 * 60_000 });
 
     if (home.isPending) {
-        return <p className={styles.empty}>Завантажуємо…</p>;
+        return <Loading shape="list" />;
     }
     if (home.isError) {
         return <Notice tone="error">{home.error.message}</Notice>;

@@ -7,6 +7,7 @@ import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
 import styles from '../pages.module.css';
+import { Loading } from '../../ui/Loading';
 
 /** The first sign-in with Google: the person picks a nick, and the account is ready. */
 export function GoogleNewcomerPage() {
@@ -21,7 +22,7 @@ export function GoogleNewcomerPage() {
         );
     }
     if (!newcomer.data) {
-        return <section className={styles.narrow}><p className={styles.muted}>Завантажуємо…</p></section>;
+        return <section className={styles.narrow}><Loading shape="lines" /></section>;
     }
     return <NickForm email={newcomer.data.email} suggested={newcomer.data.nick} next={newcomer.data.next} />;
 }

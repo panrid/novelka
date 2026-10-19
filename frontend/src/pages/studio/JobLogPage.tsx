@@ -11,7 +11,7 @@ import { Pager } from '../../ui/Pager';
 import { Segmented } from '../../ui/Segmented';
 import styles from './jobLog.module.css';
 
-const STAGES: Record<string, string> = { analyze: 'аналіз', translate: 'переклад', proofread: 'вичитка' };
+const STAGES: Record<string, string> = { analyze: 'словник', translate: 'переклад', proofread: 'вичитка' };
 const ORDERS = [{ value: 'desc', label: 'Спершу останні' }, { value: 'asc', label: 'Спершу перші' }] as const;
 
 /**
@@ -39,7 +39,7 @@ export function JobLogPage() {
         <section className={styles.page}>
             <Link to="/studio/$editionId/translate" params={{ editionId }} className={styles.muted}>‹ Автопереклад</Link>
             <div className={styles.head}>
-                <h1 className={styles.title}>Журнал запуску</h1>
+                <h1 className={styles.title}>Хід перекладу</h1>
                 {['queued', 'running'].includes(log.data?.job.state ?? '') && (
                     <RefreshTick at={Math.max(log.dataUpdatedAt, log.errorUpdatedAt)} failed={log.isRefetchError} />
                 )}
@@ -98,7 +98,7 @@ function group(events: JobEvent[]) {
 function summaryOf(events: JobEvent[]): string {
     if (events.some((event) => event.kind === 'published')) return 'опубліковано';
     const last = events[events.length - 1];
-    return last ? ({ analysis: 'аналіз', translated: 'переклад', proofread: 'вичитка', retry: 'повтор' }[last.kind] ?? 'в роботі') : '';
+    return last ? ({ analysis: 'словник', translated: 'переклад', proofread: 'вичитка', retry: 'повтор' }[last.kind] ?? 'в роботі') : '';
 }
 
 const list = (value: unknown): string[] => (Array.isArray(value) ? value.map(String) : []);
@@ -164,7 +164,7 @@ function Line({ event, slug, team, editionId }: { event: JobEvent; slug: string 
                         ? <>Збережено чернеткою, не опубліковано{p.title ? ` — «${String(p.title)}»` : ''}.{' '}</>
                         : <>У вас уже була своя чернетка цієї глави — її не замінено, переклад не збережено.{' '}</>}
                     <Link to="/studio/$editionId/chapters/$number" params={{ editionId: String(editionId), number: String(event.chapter) }}>
-                        Відкрити в редакторі ›
+                        Відкрити в робочому місці ›
                     </Link>
                 </span>
             );

@@ -201,7 +201,7 @@ describe('AI hidden from people without шаги (етап 19, п. 7)', () => {
         expect(screen.queryByRole('link', { name: 'Словник' })).not.toBeInTheDocument();
         await userEvent.click(screen.getByRole('button', { name: 'Нова глава' }));
         expect(screen.queryByRole('radio', { name: /Автопереклад/ })).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Відкрити редактор' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Відкрити робоче місце' })).toBeInTheDocument();
     });
 
     it('offers no autotranslation in a new publication', async () => {
@@ -234,7 +234,7 @@ describe('without шаги', () => {
         });
         await userEvent.click(await screen.findByRole('button', { name: 'Нова глава' }));
         expect(screen.queryByRole('radio', { name: /Автопереклад/ })).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Відкрити редактор' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Відкрити робоче місце' })).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Автопереклад' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Словник' })).not.toBeInTheDocument();
     });
@@ -306,7 +306,7 @@ describe('new chapter', () => {
         await userEvent.click(await screen.findByRole('button', { name: 'Нова глава' }));
         expect(screen.queryByRole('radio', { name: /Автопереклад/ })).not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: /з файлу/ })).toHaveAttribute('href', '/studio/12/import');
-        await userEvent.click(screen.getByRole('button', { name: 'Відкрити редактор' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Відкрити робоче місце' }));
         await waitFor(() => expect(router.state.location.pathname).toBe('/studio/12/chapters/3'));
     });
 });

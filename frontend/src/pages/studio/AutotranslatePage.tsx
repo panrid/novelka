@@ -16,6 +16,7 @@ import { RefreshTick } from '../../ui/RefreshTick';
 import { Toggle } from '../../ui/Toggle';
 import { useEditionId } from './EditionPage';
 import styles from './studio.module.css';
+import { Loading } from '../../ui/Loading';
 
 const active = (job: Job | undefined) => job?.state === 'queued' || job?.state === 'running';
 const number = (text: string) => (/^\s*\d{1,5}\s*$/.test(text) ? Number(text) : undefined);
@@ -92,7 +93,7 @@ function AutotranslateTab() {
                     : `Оригінал вставлено до глави ${data.sourceChapters}.`;
         }
         else if (target < start && kind !== 'proofread' && !(redo || number(from) !== undefined)) {
-            problem = `Глави до ${firstOpen - 1} уже ${kind === 'analyze' ? 'проаналізовано' : 'перекладено'}. `
+            problem = `Глави до ${firstOpen - 1} уже ${kind === 'analyze' ? 'опрацьовано для словника' : 'перекладено'}. `
                 + 'Щоб повторити їх, увімкніть «Зробити заново» або вкажіть, з якої глави.';
         }
     }
@@ -118,7 +119,7 @@ function AutotranslateTab() {
     const resume = useMutation({ mutationFn: (jobId: number) => autotranslateApi.resume(id, jobId), onSuccess: refresh });
 
     if (!data && overview.isError) return <Notice tone="error">{overview.error.message}</Notice>;
-    if (!data) return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
+    if (!data) return <Loading />;
     const show = data.showShah;
     const job = data.jobs[0];
     const busy = job && (active(job) || job.state === 'failed');
@@ -135,7 +136,7 @@ function AutotranslateTab() {
                     ? <>Перекладаємо з оригіналу, вставленого на вкладці <Link to="/studio/$editionId/originals" params={{ editionId: String(id) }}>«Оригінал»</Link>{' '}
                         (до глави {data.sourceChapters})</>
                     : <>В оригіналі {data.sourceChapters} {chaptersWord(data.sourceChapters)}</>}, перекладено {data.publishedChapters}
-                {data.lastAnalyzed > 0 && <>, проаналізовано до {data.lastAnalyzed}</>}.
+                {data.lastAnalyzed > 0 && <>, словник — до глави {data.lastAnalyzed}</>}.
                 {data.personal
                     ? <> У вас <b>{data.balance?.shah ?? 0} {shahWord(data.balance?.shah ?? 0)}</b>{data.reserved > 0 && <>, ще {data.reserved} у резерві запусків</>}.</>
                     : data.balance && <> Баланс: <b>{money(data.balance.shah, data.balance.usd, show)}</b>.</>}
@@ -173,7 +174,7 @@ function AutotranslateTab() {
                             <Toggle label="Одразу опублікувати" isSelected={publish} onChange={setPublish} />
                             {!publish && (
                                 <p className={styles.muted}>
-                                    Глави збережуться вашими чернетками: їх видно лише вам у редакторі, поки ви їх не опублікуєте.
+                                    Глави збережуться вашими чернетками: їх видно лише вам у робочому місці, поки ви їх не опублікуєте.
                                 </p>
                             )}
                         </>
@@ -182,7 +183,7 @@ function AutotranslateTab() {
                     {redo && kind !== 'proofread' && (
                         <p className={styles.muted}>
                             {kind === 'analyze'
-                                ? 'Модель проаналізує глави знову; назви глав, які ви виправили, буде замінено новими. Словник лише доповниться.'
+                                ? 'Модель знову збере словник глав; назви глав, які ви виправили, буде замінено новими. Словник лише доповниться.'
                                 : 'Глави перекладуться знову й вийдуть новою версією; попередня лишиться в історії глави.'}
                         </p>
                     )}
@@ -226,7 +227,7 @@ function AutotranslateTab() {
                         {chosen && <p className={styles.muted}>{chosen.summary} Оцінка якості — {String(chosen.rating).replace('.', ',')} з 5.</p>}
                         {STEPS.filter((step) => has(step) || step === 'analyze' && kind === 'translate').map((step) => (
                             <StepModel key={`${step}-${preset}`} step={step} model={model(step)} chars={data.averageChars} show={modelShow}
-                                note={step === 'analyze' && !has('analyze') ? 'лише для глав, які ще не проаналізовано' : undefined}
+                                note={step === 'analyze' && !has('analyze') ? 'лише для глав, яких ще немає в словнику' : undefined}
                                 onChange={(id) => setModels({ ...models, [step]: id })} />
                         ))}
                         <label className={styles.check}>
@@ -430,7 +431,7 @@ const STEP_HINTS: Record<Step, string> = { analyze: 'словник, назви'
 function explain(steps: Step[]): string {
     const has = (step: Step) => steps.includes(step);
     if (has('translate')) {
-        return `${has('analyze') ? 'Спершу аналіз (словник і назви глав), тоді переклад' : 'Переклад; глави без аналізу проаналізуються дорогою'}${has('proofread') ? ' і вичитка' : ' без вичитки'}.`;
+        return `${has('analyze') ? 'Спершу словник (імена, терміни й назви глав), тоді переклад' : 'Переклад; глави без аналізу проаналізуються дорогою'}${has('proofread') ? ' і вичитка' : ' без вичитки'}.`;
     }
     if (has('proofread')) {
         return `${has('analyze') ? 'Аналіз, тоді вичитка' : 'Вичитка'} вже перекладених глав: виправлена версія публікується, попередня лишається в історії глави.`;
@@ -467,7 +468,7 @@ export function JobCard({ job, editionId, showShah, usdPerShah, onCancel, onResu
             {title}
             {/* The progress opens the run's journal: what each step did (етап 17). */}
             <Link to="/studio/$editionId/translate/jobs/$jobId" params={{ editionId: String(editionId), jobId: String(job.id) }}
-                className={styles.jobLink} aria-label={`Журнал запуску: ${JOB_NAMES[job.kind].toLowerCase()} ${range(job)}`}>
+                className={styles.jobLink} aria-label={`Хід перекладу: ${JOB_NAMES[job.kind].toLowerCase()} ${range(job)}`}>
             <div className={styles.jobHead}>
                 <b>{JOB_NAMES[job.kind]}: {range(job)}</b>
                 <span className={styles.jobState}>

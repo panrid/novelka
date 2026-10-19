@@ -14,6 +14,7 @@ import { Notice } from '../../ui/Notice';
 import { Pager } from '../../ui/Pager';
 import { PAGE_SIZE, usePaged } from '../../lib/usePage';
 import styles from '../pages.module.css';
+import { Loading } from '../../ui/Loading';
 
 
 export function UserPage() {
@@ -22,7 +23,7 @@ export function UserPage() {
     const profile = useQuery({ queryKey: ['user', nick.toLowerCase()], queryFn: () => peopleApi.profile(nick) });
 
     if (profile.isPending) {
-        return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
+        return <Loading />;
     }
     if (profile.isError) {
         return (

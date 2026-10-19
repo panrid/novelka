@@ -182,7 +182,7 @@ describe('autotranslate', () => {
             'POST /api/studio/editions/4/autotranslate/quote': { body: quote({ kind: 'proofread', from: 1, to: 3, steps: ['proofread'] }) },
             'POST /api/studio/editions/4/autotranslate/jobs': { status: 201, body: {} },
         });
-        await userEvent.click(await screen.findByRole('button', { name: /^Аналіз\s*словник/ }));
+        await userEvent.click(await screen.findByRole('button', { name: /^Словник(?!:)/ }));
         await userEvent.click(screen.getByRole('button', { name: /^Переклад\s*з оригіналу/ }));
         expect(screen.getByRole('button', { name: /^Вичитка\s*редагує/ })).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByText(/Вичитка вже перекладених глав/)).toBeInTheDocument();
@@ -233,7 +233,7 @@ describe('autotranslate', () => {
         await userEvent.click(screen.getByRole('button', { name: /^Вичитка\s*редагує/ }));
         const field = screen.getByLabelText('По главу');
         await userEvent.type(field, '3');
-        await vi.waitFor(() => expect(screen.getByText(/Глави до 20 уже проаналізовано/)).toBeInTheDocument(), { timeout: 2000 });
+        await vi.waitFor(() => expect(screen.getByText(/Глави до 20 уже опрацьовано для словника/)).toBeInTheDocument(), { timeout: 2000 });
         expect(calls.some((call) => call.path.endsWith('/quote'))).toBe(false);
         await userEvent.type(field, '0');
         await vi.waitFor(() => expect(screen.queryByText(/Глави до 20/)).not.toBeInTheDocument(), { timeout: 2000 });
@@ -252,8 +252,8 @@ describe('autotranslate', () => {
         await userEvent.click(screen.getByRole('button', { name: /^Вичитка\s*редагує/ }));
         await userEvent.type(screen.getByLabelText('З глави'), '1');
         await userEvent.click(screen.getByRole('switch', { name: 'Зробити заново вже опрацьовані глави' }));
-        await userEvent.click(screen.getByRole('button', { name: 'Аналіз: змінити модель' }));
-        const picker = screen.getByRole('combobox', { name: 'Модель: аналіз' });
+        await userEvent.click(screen.getByRole('button', { name: 'Словник: змінити модель' }));
+        const picker = screen.getByRole('combobox', { name: 'Модель: словник' });
         await userEvent.clear(picker);
         await userEvent.type(picker, 'better');
         const option = await screen.findByRole('option', { name: /fake\/better/ }, { timeout: 2000 });
@@ -269,8 +269,8 @@ describe('autotranslate', () => {
             .toEqual({ kind: 'analyze', steps: ['analyze'], to: 20, from: 1, redo: true, models: { analyze: 'fake/better' } });
 
         await userEvent.click(screen.getByRole('checkbox', { name: 'Показувати й слабкі моделі' }));
-        await userEvent.click(screen.getByRole('button', { name: 'Аналіз: змінити модель' }));
-        await userEvent.type(screen.getByRole('combobox', { name: 'Модель: аналіз' }), 'x');
+        await userEvent.click(screen.getByRole('button', { name: 'Словник: змінити модель' }));
+        await userEvent.type(screen.getByRole('combobox', { name: 'Модель: словник' }), 'x');
         await vi.waitFor(() => expect(calls.some((call) => call.query.includes('show=weak') && !call.query.includes('fake'))).toBe(true), { timeout: 2000 });
     });
 
@@ -301,7 +301,7 @@ describe('autotranslate', () => {
         expect(screen.queryByRole('button', { name: /^Запустити/ })).not.toBeInTheDocument();
         await userEvent.click(within(card).getByRole('button', { name: 'Продовжити' }));
         expect(calls.some((call) => call.method === 'POST' && call.path.endsWith('/jobs/9/resume'))).toBe(true);
-        expect(within(card).getByRole('link', { name: /Журнал запуску/ })).toHaveAttribute('href', '/studio/4/translate/jobs/9');
+        expect(within(card).getByRole('link', { name: /Хід перекладу/ })).toHaveAttribute('href', '/studio/4/translate/jobs/9');
     });
 
     it('asks before cancelling a run and restores the last one cancelled', async () => {

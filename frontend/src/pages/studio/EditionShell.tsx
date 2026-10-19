@@ -7,6 +7,7 @@ import { ROLE_LABELS, studioApi, type Overview } from '../../studio/api';
 import { Notice } from '../../ui/Notice';
 import { useEditionId } from './EditionPage';
 import styles from './editionShell.module.css';
+import { Loading } from '../../ui/Loading';
 
 export type EditionTab = 'overview' | 'chapters' | 'originals' | 'translate' | 'words' | 'suggestions' | 'settings';
 
@@ -46,7 +47,7 @@ export function EditionShell({ tab, children }: { tab: EditionTab; children: Rea
     const mayPaste = useMayPaste();
     const maySite = useMaySite();
     if (overview.isError) return <section className={styles.page}><Notice tone="error">{overview.error.message}</Notice></section>;
-    if (!overview.data) return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
+    if (!overview.data) return <Loading />;
     const edition = overview.data;
     const shown = editionTabs(edition, canRun, mayPaste, maySite);
     const params = { editionId: String(id) };

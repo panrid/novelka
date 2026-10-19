@@ -2,6 +2,7 @@ import { Link, useRouter, type ErrorComponentProps } from '@tanstack/react-route
 import { useEffect } from 'react';
 import { reportError } from '../app/clientErrors';
 import styles from './Placeholder.module.css';
+import { Loading } from '../ui/Loading';
 
 export function NotFoundPage() {
     return (
@@ -36,7 +37,7 @@ export function ErrorPage({ error }: Partial<ErrorComponentProps>) {
 export function PendingPage() {
     return (
         <section className={styles.page} aria-busy="true">
-            <p className={styles.text}>Завантажуємо…</p>
+            <Loading />
         </section>
     );
 }

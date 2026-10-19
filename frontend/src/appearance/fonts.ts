@@ -2,7 +2,7 @@ import type { FontId } from './model';
 
 /**
  * Open fonts with Ukrainian letters, served from the site itself (the CSP allows no other
- * font host). Inter and Literata are always there; the others load when someone picks them.
+ * font host). Golos Text, Inter and Literata are always there; the others load when someone picks them.
  */
 export const FONT_STACKS: Record<FontId, string> = {
     literata: "'Literata Variable', Georgia, serif",
@@ -13,6 +13,7 @@ export const FONT_STACKS: Record<FontId, string> = {
     plex: "'IBM Plex Sans Variable', -apple-system, sans-serif",
     comfortaa: "'Comfortaa Variable', -apple-system, sans-serif",
     inter: "'Inter Variable', -apple-system, 'Segoe UI', sans-serif",
+    golos: "'Golos Text Variable', -apple-system, 'Segoe UI', sans-serif",
     nunito: "'Nunito Variable', -apple-system, sans-serif",
     rubik: "'Rubik Variable', -apple-system, sans-serif",
     jetbrains: "'JetBrains Mono Variable', ui-monospace, monospace",
