@@ -16,9 +16,11 @@ www.novelka.in.ua, novelka.panrid.space {
     redir https://novelka.in.ua{uri} permanent
 }
 
-# The test site is yet to come; until then a short notice, kept out of search.
+# Test environment beside production: noindex, live updates without buffering.
 dev.novelka.in.ua {
     header X-Robots-Tag "noindex, nofollow"
-    header Content-Type "text/plain; charset=utf-8"
-    respond "Тестовий сайт Новелки ще готується." 503
+    encode gzip
+    reverse_proxy dev-app:8080 {
+        flush_interval -1
+    }
 }

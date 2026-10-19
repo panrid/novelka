@@ -14,7 +14,7 @@ DNS (у реєстратора `novelka.in.ua`): A-записи `@`, `www`, `dev
 |---|---|
 | `novelka.in.ua` | сайт; Студія — `/studio` |
 | `www.novelka.in.ua`, `novelka.panrid.space` | 301 на `https://novelka.in.ua` з тим самим шляхом і параметрами |
-| `dev.novelka.in.ua` | заглушка 503 з `noindex`, доки немає тестового сайту |
+| `dev.novelka.in.ua` | тестовий сайт із `X-Robots-Tag: noindex, nofollow`, власна база `dev_novelka` |
 
 Усі посилання, які будує застосунок (листи, `sitemap.xml`, `robots.txt`, canonical і превʼю,
 EPUB, Telegram, адреса повернення Google), беруться з `NOVELKA_PUBLIC_URL`; за замовчуванням у
@@ -84,6 +84,37 @@ GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, за бажан�
 
 Змінні `NOVELKA_*_MODEL` і `*_USD_M` від v1 новий сайт не читає: моделі й ціни власник
 задає на сторінці «Шаги».
+
+## Тестовий сайт (`dev.novelka.in.ua`)
+
+Тестове середовище працює поруч із робочим на тому самому VPS:
+- **Compose-проєкт**: `novelka-dev` (`infra/dev.compose.yaml`), сервіс `dev-app`;
+- **Мережа**: спільна мережа `novelka_default` проєкту `novelka`, щоб Caddy міг проксувати запити на `dev-app:8080`, а `dev-app` міг звертатися до PostgreSQL за адресою `postgres:5432`;
+- **Маршрутизація Caddy**: `dev.novelka.in.ua` проксується на `dev-app:8080` із обов'язковим заголовком `X-Robots-Tag: noindex, nofollow`, щоб тестовий сайт не індексувався пошуковиками;
+- **База даних**: власна база `dev_novelka` та власний користувач `dev_novelka` у тому самому контейнері PostgreSQL; доступ користувача `dev_novelka` до робочої бази `novelka` повністю заборонено;
+- **Обмеження ресурсів**: максимум 1 ГБ оперативної пам'яті (`1024M`) та 0.5 ядра CPU (`0.50`), щоб dev ні за яких умов не перевантажував сервер;
+- **Томи**: ізольований том `novelka-dev_media` для завантажень dev-середовища.
+
+### Змінні в `.env.dev`
+
+Файл `/opt/novelka/.env.dev` (права `600`, лише на сервері) містить окремі налаштування:
+
+| Змінна | Для чого |
+|---|---|
+| `NOVELKA_DB_PASSWORD` | пароль користувача `dev_novelka` до бази `dev_novelka` |
+| `NOVELKA_PUBLIC_URL` | адреса тестового сайту (`https://dev.novelka.in.ua`) |
+| `OPENROUTER_API_KEY`, `OPENROUTER_MANAGEMENT_KEY` | тестовий ключ ШІ (або порожньо для безпечного режиму без викликів моделей) |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` | окремий тестовий бот (не вказувати токен основного бота, щоб не перехопити вебхук!) |
+| `MAIL_*` | налаштування тестової пошти (відправник `no-reply@dev.novelka.in.ua`) |
+| `NOVELKA_OWNER_*` | початковий адміністратор dev-сайту |
+
+### Запуск та оновлення dev
+
+```sh
+ssh novelka@62.72.33.247 'sh /opt/novelka/infra/deploy-dev.sh'
+```
+
+Сценарій `infra/deploy-dev.sh` збирає актуальний образ `dev-app`, перезапускає сервіс, чекає успішної відповіді `/api/health` та оновлює конфігурацію Caddy.
 
 ## Від v1
 
