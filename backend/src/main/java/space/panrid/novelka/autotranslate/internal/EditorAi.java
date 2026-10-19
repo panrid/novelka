@@ -71,7 +71,7 @@ class EditorAi {
             throw UserFacingException.badRequest("Поставте курсор в абзац з текстом (до 3000 знаків).");
         }
         String original = blockId == null ? null : glossary.originalBlock(editionId, number, blockId).orElse(null);
-        String language = glossary.scope(editionId).language();
+        String language = glossary.scope(editionId, number).language();
         Map<String, String> input = new LinkedHashMap<>();
         if (original != null) {
             input.put("original", original);
@@ -129,7 +129,7 @@ class EditorAi {
         if (text.length() > MAX_CHAPTER) {
             throw UserFacingException.badRequest("Глава задовга, щоб перевірити її однією дією.");
         }
-        String language = glossary.scope(editionId).language();
+        String language = glossary.scope(editionId, number).language();
         String user = "Glossary:\n" + glossaryLines(editionId, text.toString()) + "\n\nBlocks (JSON):\n" + json.writeValueAsString(pairs);
         JsonNode answer = ask(Prompts.proofread(language), user, "proofread", Prompts.blocksSchema(false), text.length(), 1,
                 "Перевірити главу %d".formatted(number), payer);
