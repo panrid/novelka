@@ -23,7 +23,7 @@ export const threadKey = (editionId: number, chapter?: number) => ['comments', e
 export function useCommentCount(editionId: number, chapter?: number) {
     return useQuery({
         queryKey: [...threadKey(editionId, chapter), 'count'],
-        queryFn: async () => (await commentApi.thread(editionId, chapter, 'new')).total,
+        queryFn: async () => (await commentApi.thread(editionId, chapter, 'new')).total ?? 0,
         staleTime: 60_000,
     }).data ?? 0;
 }
@@ -46,11 +46,14 @@ export function Discussion({ editionId, chapter, focus, quote, onDropQuote, goTo
     const [reply, setReply] = useState<(ReplyTarget & { root: number }) | null>(null);
     const thread = useInfiniteQuery({
         queryKey: [...threadKey(editionId, chapter), sort],
+        // «Ще коментарі» reads by key: the comments after the last one shown, not the n-th page.
         queryFn: ({ pageParam }) => commentApi.thread(editionId, chapter, sort, pageParam),
-        initialPageParam: 1,
-        getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
+        initialPageParam: null as string | null,
+        getNextPageParam: (last) => (last.hasMore && last.next ? last.next : undefined),
     });
-    const items = thread.data?.pages.flatMap((page) => page.items) ?? [];
+    // A comment voted up between two pages of «Кращі» may come again: each shows once.
+    const items = (thread.data?.pages.flatMap((page) => page.items) ?? [])
+        .filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index);
     const refresh = () => client.invalidateQueries({ queryKey: threadKey(editionId, chapter) });
 
     useEffect(() => {

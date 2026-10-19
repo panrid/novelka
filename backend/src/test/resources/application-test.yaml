@@ -11,6 +11,9 @@ novelka:
   # Tests count achievements themselves (Achievements.sweep).
   achievements:
     sweep: false
+  # Tests recount popularity themselves (EditionStats.recount).
+  stats:
+    recount: false
   # Tests post updates to the webhook themselves; the fake bot needs a token to derive its secret.
   telegram:
     bot-token: test-token

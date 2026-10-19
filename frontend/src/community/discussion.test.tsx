@@ -85,3 +85,25 @@ describe('discussion', () => {
             .toMatchObject({ body: '>#b1 Текст\nГарно сказано' }));
     });
 });
+
+describe('discussion read by key', () => {
+    it('loads the comments after the last one shown', async () => {
+        let further = false;
+        const older = { ...THREAD.items[0]!, id: 30, body: 'Давніший коментар', replies: [] };
+        const { calls } = await renderAt('/n/mah-vody/12#c41', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'GET /api/editions/4/comments': () => (further
+                ? { body: { ...THREAD, total: null, hasMore: false, next: null, items: [older] } }
+                : { body: { ...THREAD, total: 3, hasMore: true, next: 'pislia-40' } }),
+        });
+        const sheet = await screen.findByRole('dialog', { name: 'Обговорення глави' });
+        const more = await within(sheet).findByRole('button', { name: 'Показати ще' });
+        further = true;
+        await userEvent.click(more);
+        expect(await within(sheet).findByText('Давніший коментар')).toBeInTheDocument();
+        const after = calls.filter((call) => call.path === '/api/editions/4/comments').map((call) => new URLSearchParams(call.query).get('after'));
+        expect(after).toContain('pislia-40');
+        expect(calls.every((call) => !call.query.includes('page='))).toBe(true);
+    });
+});
