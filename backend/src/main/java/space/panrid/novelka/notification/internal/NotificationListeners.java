@@ -3,7 +3,6 @@ package space.panrid.novelka.notification.internal;
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.EDITION;
-import static space.panrid.novelka.jooq.Tables.EDITION_SUBSCRIPTION;
 import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.REVISION;
 import static space.panrid.novelka.jooq.Tables.SOURCE_WATCH;
@@ -36,7 +35,6 @@ import space.panrid.novelka.ledger.ShahsGranted;
 import space.panrid.novelka.media.Images;
 import space.panrid.novelka.suggestion.SuggestionsReviewed;
 import space.panrid.novelka.suggestion.SuggestionsSubmitted;
-import space.panrid.novelka.text.ChaptersPublished;
 
 /**
  * Who hears about what. A person gets one row per event even when several reasons meet
@@ -83,28 +81,26 @@ class NotificationListeners {
         mentions(line.mentionedAccounts(), line.mentionedTeams(), base, told);
     }
 
-    /** Readers who rang the bell on the translation's page; the library alone tells nobody. */
-    @ApplicationModuleListener
-    void on(ChaptersPublished published) {
-        Map<String, Object> base = place(published.editionId(), null);
-        // What the row shows: the numbers readers see, the chapter's name when it is one, the cover.
-        Record first = chapter(published.editionId(), published.first());
-        Record last = chapter(published.editionId(), published.last());
-        base.put("firstLabel", label(first, published.first()));
-        base.put("lastLabel", label(last, published.last()));
-        if (published.first() == published.last() && first != null) {
+    /**
+     * What a «new chapters» row shows: the numbers readers see, the chapter's name when it is
+     * one, the cover. Readers who rang the bell hear through the queue ({@link ChapterNews}).
+     */
+    Map<String, Object> newChapters(long editionId, int firstNumber, int lastNumber) {
+        Map<String, Object> base = place(editionId, null);
+        Record first = chapter(editionId, firstNumber);
+        Record last = chapter(editionId, lastNumber);
+        base.put("firstLabel", label(first, firstNumber));
+        base.put("lastLabel", label(last, lastNumber));
+        if (firstNumber == lastNumber && first != null) {
             base.put("chapterTitle", first.get(REVISION.TITLE));
         }
-        Long cover = db.select(EDITION.COVER_IMAGE_ID).from(EDITION).where(EDITION.ID.eq(published.editionId())).fetchOne(EDITION.COVER_IMAGE_ID);
+        Long cover = db.select(EDITION.COVER_IMAGE_ID).from(EDITION).where(EDITION.ID.eq(editionId)).fetchOne(EDITION.COVER_IMAGE_ID);
         if (cover != null) {
             images.find(cover).ifPresent(image -> base.put("coverUrl", image.url(160)));
         }
-        List<Long> readers = db.select(EDITION_SUBSCRIPTION.ACCOUNT_ID).from(EDITION_SUBSCRIPTION)
-                .where(EDITION_SUBSCRIPTION.EDITION_ID.eq(published.editionId()))
-                .fetch(EDITION_SUBSCRIPTION.ACCOUNT_ID);
-        for (long reader : readers) {
-            inbox.addGrouped(reader, "new_chapters", "chapters:" + published.editionId(), base, published.first(), published.last());
-        }
+        base.put("first", firstNumber);
+        base.put("last", lastNumber);
+        return base;
     }
 
     /** The team members who rang the Studio's bell: the original has chapters to translate; one row per translation grows. */

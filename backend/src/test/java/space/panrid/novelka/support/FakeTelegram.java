@@ -1,6 +1,8 @@
 package space.panrid.novelka.support;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -16,6 +18,7 @@ public class FakeTelegram implements TelegramApi {
     private final List<Sent> sent = new CopyOnWriteArrayList<>();
     private final List<Sent> photos = new CopyOnWriteArrayList<>();
     private final Set<Long> blocked = ConcurrentHashMap.newKeySet();
+    private final Map<Long, Integer> failing = new HashMap<>();
 
     /** Everything the bot wrote to one chat, oldest first. */
     public List<String> to(long chatId) {
@@ -29,6 +32,27 @@ public class FakeTelegram implements TelegramApi {
 
     public void block(long chatId) {
         blocked.add(chatId);
+    }
+
+    /** The next {@code times} messages from the queue to this chat fail as if Telegram were down. */
+    public void failNext(long chatId, int times) {
+        failing.put(chatId, times);
+    }
+
+    @Override
+    public Delivery deliver(long chatId, String photoUrl, String html) {
+        synchronized (failing) {
+            Integer times = failing.get(chatId);
+            if (times != null) {
+                if (times > 1) {
+                    failing.put(chatId, times - 1);
+                } else {
+                    failing.remove(chatId);
+                }
+                return Delivery.of(Outcome.RETRY);
+            }
+        }
+        return TelegramApi.super.deliver(chatId, photoUrl, html);
     }
 
     @Override

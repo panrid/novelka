@@ -30,6 +30,34 @@ public interface TelegramApi {
      */
     boolean sendPhoto(long chatId, String photoUrl, String html);
 
+    /** How a message from the queue went. */
+    enum Outcome {
+        SENT,
+        /** The chat is gone for good: the person blocked the bot or deleted it. */
+        GONE,
+        /** Not now (too many messages, Telegram or the network down): try again later. */
+        RETRY,
+        /** Telegram refused this message; sending it again would not help. */
+        REFUSED
+    }
+
+    /** @param retryAfter for {@link Outcome#RETRY}: how long Telegram asked to wait, or {@code null} */
+    record Delivery(Outcome outcome, java.time.Duration retryAfter) {
+
+        public static Delivery of(Outcome outcome) {
+            return new Delivery(outcome, null);
+        }
+    }
+
+    /**
+     * {@link #sendPhoto} (or {@link #send} without a picture) for the queue, which needs to know
+     * whether to try again.
+     */
+    default Delivery deliver(long chatId, String photoUrl, String html) {
+        boolean kept = photoUrl == null ? send(chatId, html) : sendPhoto(chatId, photoUrl, html);
+        return Delivery.of(kept ? Outcome.SENT : Outcome.GONE);
+    }
+
     /** Telegram posts updates to {@code url} with {@code secret} in a header. */
     void setWebhook(String url, String secret);
 
