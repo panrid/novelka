@@ -13,6 +13,7 @@ const SECTIONS: readonly Section[] = [
     { to: '/me/settings/notifications', label: 'Сповіщення', signedIn: true },
     { to: '/me/settings/security', label: 'Вхід і безпека', signedIn: true },
     { to: '/me/settings/shahs', label: 'Шаги', signedIn: true },
+    { to: '/me/settings/api', label: 'API', signedIn: true },
 ];
 
 /** Whether «Шаги» belongs in the settings: the owner always, others once шаги came their way. */

@@ -406,6 +406,14 @@ function describe(entry: AuditEntry): string {
             && before.hideAiWithoutShahs !== after.hideAiWithoutShahs;
         return `${ACTIONS.settings}${ai ? (after!.hideAiWithoutShahs ? ' · ховає ШІ від людей без шагів' : ' · показує ШІ й людям без шагів') : ''}`;
     }
+    if (entry.action === 'api_token_revoked') {
+        const details = entry.details as { nick?: string; name?: string };
+        return `відкликає токен API «${details.name ?? ''}» ${details.nick ?? ''}`;
+    }
+    if (entry.action === 'api_admin') {
+        const details = entry.details as { method?: string; path?: string };
+        return `через токен API: ${details.method ?? ''} ${details.path ?? ''}`;
+    }
     if (entry.action === 'shah_price') {
         const micro = (entry.details as { microUsdPerShah?: number }).microUsdPerShah ?? 0;
         return `змінює ціну шагу для людей: ${dollars(micro / 1_000_000)}`;
