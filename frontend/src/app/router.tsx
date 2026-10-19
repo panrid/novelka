@@ -11,10 +11,9 @@ import { ErrorPage, NotFoundPage, PendingPage } from '../pages/ErrorPages';
 import { MePage } from '../pages/me/MePage';
 import { MySuggestionsPage } from '../pages/me/MySuggestionsPage';
 import { PicturesPage } from '../pages/me/PicturesPage';
-import { PrivacyPage } from '../pages/me/PrivacyPage';
 import { NotificationSettingsPage } from '../pages/me/NotificationSettingsPage';
 import { ReaderAppearancePage, SiteAppearancePage } from '../pages/me/AppearancePages';
-import { SettingsPage } from '../pages/me/SettingsPage';
+import { ProfileSettingsPage, SecuritySettingsPage, ShahsSettingsPage } from '../pages/me/SettingsPage';
 import { WelcomePage } from '../pages/me/WelcomePage';
 import { UserPage } from '../pages/people/UserPage';
 import { CatalogPage, validateCatalogSearch } from '../pages/reading/CatalogPage';
@@ -95,6 +94,9 @@ const readerSearch = (search: Record<string, unknown>): { t?: string; find?: str
     ...teamSearch(search), ...(typeof search.find === 'string' && search.find.trim() ? { find: search.find } : {}),
     ...(search.look === true || search.look === 'true' || search.look === 1 || search.look === '1' ? { look: true as const } : {}),
 });
+/** The chat's channel by its slug; «загальний» leaves the address clean. */
+const chatSearch = (search: Record<string, unknown>): { channel?: string } =>
+    typeof search.channel === 'string' && /^[a-z0-9-]{1,40}$/.test(search.channel) ? { channel: search.channel } : {};
 const LIST_NAMES = ['reading', 'planned', 'done', 'paused', 'dropped'] as const;
 const listSearch = (search: Record<string, unknown>): { list?: (typeof LIST_NAMES)[number]; page?: number } => ({
     ...(LIST_NAMES.includes(search.list as (typeof LIST_NAMES)[number]) ? { list: search.list as (typeof LIST_NAMES)[number] } : {}),
@@ -162,7 +164,7 @@ const routeTree = rootRoute.addChildren([
     studio('/admin/settings', SiteSettingsPage, 'Налаштування сайту'),
     studio('/admin/audit', AuditPage, 'Журнал дій'),
     studio('/admin/analytics', AnalyticsPage, 'Аналітика'),
-    createRoute({ getParentRoute: () => rootRoute, path: '/inbox/chat', component: ChatPage, head: title('Чат') }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/inbox/chat', component: ChatPage, validateSearch: chatSearch, head: title('Загальний чат') }),
     createRoute({ getParentRoute: () => rootRoute, path: '/me', component: MePage, head: title('Я') }),
     studio('/me/suggestions', MySuggestionsPage, 'Мої правки'),
     studio('/me/pictures', PicturesPage, 'Мої картинки'),
@@ -195,19 +197,30 @@ const routeTree = rootRoute.addChildren([
     studio('/studio/$editionId/chapters/$number/history', HistoryPage, 'Історія глави'),
     createRoute({ getParentRoute: () => rootRoute, path: '/team/$handle', component: TeamPage, head: ({ params }) => ({ meta: [{ title: `$${params.handle} — Новелка` }] }) }),
     createRoute({
-        getParentRoute: () => rootRoute, path: '/me/settings', component: SettingsPage,
-        beforeLoad: requireSignedIn, head: title('Акаунт'),
+        getParentRoute: () => rootRoute, path: '/me/settings', component: ProfileSettingsPage,
+        beforeLoad: requireSignedIn, head: title('Налаштування'),
+    }),
+    createRoute({
+        getParentRoute: () => rootRoute, path: '/me/settings/security', component: SecuritySettingsPage,
+        beforeLoad: requireSignedIn, head: title('Вхід і безпека'),
+    }),
+    createRoute({
+        getParentRoute: () => rootRoute, path: '/me/settings/shahs', component: ShahsSettingsPage,
+        beforeLoad: requireSignedIn, head: title('Шаги'),
     }),
     // The look of the site and of the reader: guests choose too, kept in their browser.
-    createRoute({ getParentRoute: () => rootRoute, path: '/me/settings/appearance', component: SiteAppearancePage, head: title('Вигляд') }),
-    createRoute({ getParentRoute: () => rootRoute, path: '/me/settings/reader', component: ReaderAppearancePage, head: title('Вигляд читалки') }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/me/settings/appearance', component: SiteAppearancePage, head: title('Вигляд сайту') }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/me/settings/reader', component: ReaderAppearancePage, head: title('Читання') }),
     createRoute({
         getParentRoute: () => rootRoute, path: '/me/settings/notifications', component: NotificationSettingsPage,
         beforeLoad: requireSignedIn, head: title('Сповіщення'),
     }),
+    // «Приватність» went into «Профіль», and «Мені є 18 років» (where the novel page sends) into «Читання».
     createRoute({
-        getParentRoute: () => rootRoute, path: '/me/settings/privacy', component: PrivacyPage,
-        beforeLoad: requireSignedIn, head: title('Приватність'),
+        getParentRoute: () => rootRoute, path: '/me/settings/privacy',
+        beforeLoad: () => {
+            throw redirect({ to: '/me/settings/reader' });
+        },
     }),
     createRoute({
         getParentRoute: () => rootRoute, path: '/welcome', component: WelcomePage,
@@ -224,7 +237,7 @@ const routeTree = rootRoute.addChildren([
     }),
     createRoute({
         getParentRoute: () => rootRoute, path: '/confirm-email', validateSearch: tokenSearch, head: title('Нова пошта'),
-        component: () => <TokenPage title="Підтверджуємо нову пошту" action={authApi.confirmEmail} then="/me/settings" />,
+        component: () => <TokenPage title="Підтверджуємо нову пошту" action={authApi.confirmEmail} then="/me/settings/security" />,
     }),
 ]);
 

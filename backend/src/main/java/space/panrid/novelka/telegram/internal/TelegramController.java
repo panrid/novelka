@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -23,9 +22,6 @@ import tools.jackson.databind.json.JsonMapper;
 class TelegramController {
 
     static final String WEBHOOK = "/api/telegram/webhook";
-
-    record Settings(Boolean notifyInbox, Boolean notifyChapters, Boolean notifyMessages, Boolean notifySource) {
-    }
 
     record StartLink(String url) {
     }
@@ -57,13 +53,6 @@ class TelegramController {
             throw UserFacingException.notFound("Telegram на сайті не налаштовано.");
         }
         return new StartLink(links.startLink(me));
-    }
-
-    @PatchMapping("/api/me/telegram")
-    TelegramLinks.Status settings(@RequestBody Settings body) {
-        long me = currentUser.requireSignedIn().accountId();
-        links.settings(me, body.notifyInbox(), body.notifyChapters(), body.notifyMessages(), body.notifySource());
-        return links.status(me);
     }
 
     @DeleteMapping("/api/me/telegram")

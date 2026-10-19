@@ -5,7 +5,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Composer, type ReplyTarget } from '../../community/Composer';
 import { Markup } from '../../community/Markup';
 import { messagingApi, type MessageLine } from '../../inbox/api';
-import { Avatar } from '../../ui/Avatar';
+import { Loading } from '../../ui/Loading';
+import { ConversationFace, MessagesFrame, conversationName } from './MessagesFrame';
 import { Notice } from '../../ui/Notice';
 import { members } from '../../lib/plural';
 import styles from './inbox.module.css';
@@ -42,35 +43,37 @@ export function ConversationPage() {
         end.current?.scrollIntoView?.({ block: 'end' });
     }, [newest]);
 
-    if (pages.isError) return <section className={styles.page}><Notice tone="error">{pages.error.message}</Notice></section>;
-    if (!first) return <p className={styles.muted} style={{ paddingTop: 24 }}>Відкриваємо розмову…</p>;
+    if (pages.isError) {
+        return <MessagesFrame openId={conversationId}><div className={styles.pick}><Notice tone="error">{pages.error.message}</Notice></div></MessagesFrame>;
+    }
+    if (!first) return <MessagesFrame openId={conversationId}><Loading shape="lines" onRetry={() => void pages.refetch()} /></MessagesFrame>;
     const refresh = () => client.invalidateQueries({ queryKey: ['conversation', conversationId] });
 
     return (
-        <section className={`${styles.page} ${styles.frame}`}>
-            <header className={styles.head}>
-                <Link to="/inbox/messages" aria-label="До розмов"><ArrowLeft size={22} aria-hidden /></Link>
-                {first.kind !== 'team' && <Avatar nick={first.title} url={first.avatarUrl} size={32} />}
+        <MessagesFrame openId={conversationId}>
+            <header className={styles.threadHead}>
+                <Link to="/inbox/messages" aria-label="До розмов" className={styles.back}><ArrowLeft size={22} aria-hidden /></Link>
+                <ConversationFace item={first} size={36} />
                 <div className={styles.grow}>
-                    <h1 className={styles.title}>{first.kind === 'team' ? `$${first.teamHandle}` : first.title}</h1>
+                    <h1 className={styles.threadTitle}>{conversationName(first)}</h1>
                     {first.kind === 'group' && <div className={styles.muted}>{members(first.members.length)}</div>}
-                    {first.kind === 'team' && <div className={styles.muted}>чат команди</div>}
+                    {first.kind === 'team' && <div className={styles.muted}>чат команди перекладу · {members(first.members.length)}</div>}
                 </div>
                 {first.kind === 'direct' && first.title && (
                     <Link to="/u/$nick" params={{ nick: first.title }} className={styles.muted}>профіль</Link>
                 )}
                 <Link to="/inbox/messages/$id/about" params={{ id }} aria-label="Про розмову"><Info size={22} aria-hidden /></Link>
             </header>
-            <div className={`${styles.lines} ${styles.scroll}`}>
+            <div className={`${styles.lines} ${styles.scroll} ${styles.threadLines}`}>
                 {pages.hasNextPage && (
                     <button type="button" className={styles.older} onClick={() => void pages.fetchNextPage()}>Давніші повідомлення</button>
                 )}
-                {lines.map((line) => <Bubble key={line.id} line={line} showAuthor={first.kind !== 'direct'}
+                {lines.map((line) => <Bubble key={line.id} line={line}
                     onReply={() => setReply({ id: line.id, who: line.authorNick ?? '', excerpt: line.body.slice(0, 80) })}
                     onChanged={() => void refresh()} />)}
                 <div ref={end} />
             </div>
-            <div className={styles.sticky}>
+            <div className={styles.threadComposer}>
                 {first.canWrite ? (
                     <Composer label="Повідомлення" reply={reply} onCancelReply={() => setReply(null)}
                         uploadPicture={(file) => messagingApi.uploadPicture(file)}
@@ -81,19 +84,19 @@ export function ConversationPage() {
                         }} />
                 ) : <Notice tone="info">{first.cannotWrite}</Notice>}
             </div>
-        </section>
+        </MessagesFrame>
     );
 }
 
-function Bubble({ line, showAuthor, onReply, onChanged }: { line: MessageLine; showAuthor: boolean; onReply: () => void; onChanged: () => void }) {
+/** One message: who and when above, the words in a bubble — mine on the right in the accent colour. */
+function Bubble({ line, onReply, onChanged }: { line: MessageLine; onReply: () => void; onChanged: () => void }) {
     const [error, setError] = useState<string | null>(null);
     if (line.kind === 'system') return <div className={styles.system}>{line.body}</div>;
     const time = messageTime(new Date(line.createdAt));
     return (
-        <div className={`${styles.bubbleRow} ${line.mine ? styles.mineRow : ''}`}>
-            {showAuthor && !line.mine && line.authorNick && <Avatar nick={line.authorNick} url={line.authorAvatarUrl} size={28} />}
+        <div className={`${styles.said} ${line.mine ? styles.saidMine : ''}`}>
+            <span className={styles.saidWho}>{line.mine ? 'ви' : line.authorNick} · {time}{line.editedAt ? ' · змінено' : ''}</span>
             <div className={`${styles.bubble} ${line.mine ? styles.mine : ''}`}>
-                {showAuthor && !line.mine && <div className={styles.author}>{line.authorNick}</div>}
                 {line.replyExcerpt && <div className={styles.quoted}>{line.replyExcerpt}</div>}
                 {line.deleted ? <span className={styles.muted}>Повідомлення видалено</span> : (
                     <>
@@ -107,7 +110,6 @@ function Bubble({ line, showAuthor, onReply, onChanged }: { line: MessageLine; s
                         {line.body && <Markup text={line.body} />}
                     </>
                 )}
-                <div className={styles.meta}>{time}{line.editedAt ? ' · змінено' : ''}</div>
                 {!line.deleted && (
                     <div className={styles.actions}>
                         <button type="button" onClick={onReply}>Відповісти</button>

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import space.panrid.novelka.account.AccountMessenger;
 import space.panrid.novelka.messaging.MessagePosted;
 import space.panrid.novelka.notification.NotificationAdded;
+import space.panrid.novelka.notification.NotificationChoices;
 import space.panrid.novelka.telegram.TelegramApi;
 
 /** Repeats in Telegram what the person chose: the inbox, new chapters, messages; account news always. */
@@ -18,26 +19,23 @@ class TelegramNotices implements AccountMessenger {
     private final TelegramApi telegram;
     private final TelegramLinks links;
     private final Texts texts;
+    private final NotificationChoices choices;
     /** Account news is told from the request that changed it; the request does not wait for Telegram. */
     private final ExecutorService background = Executors.newVirtualThreadPerTaskExecutor();
 
-    TelegramNotices(TelegramApi telegram, TelegramLinks links, Texts texts) {
+    TelegramNotices(TelegramApi telegram, TelegramLinks links, Texts texts, NotificationChoices choices) {
         this.telegram = telegram;
         this.links = links;
         this.texts = texts;
+        this.choices = choices;
     }
 
     @ApplicationModuleListener
     void on(NotificationAdded added) {
-        if (!telegram.configured()) {
+        if (!telegram.configured() || !choices.inTelegram(added.recipientId(), NotificationChoices.Topic.of(added.kind()))) {
             return;
         }
         links.of(added.recipientId())
-                .filter(link -> switch (added.kind()) {
-                    case "new_chapters" -> link.notifyChapters();
-                    case "source_chapters" -> link.notifySource();
-                    default -> link.notifyInbox();
-                })
                 .ifPresent(link -> {
                     String html = texts.notification(added.kind(), added.payload());
                     String photo = texts.photo(added.kind(), added.payload());
@@ -56,7 +54,9 @@ class TelegramNotices implements AccountMessenger {
         }
         String html = texts.message(posted.kind(), posted.title(), posted.authorNick(), posted.excerpt(), posted.conversationId());
         for (long person : posted.firstUnread()) {
-            links.of(person).filter(TelegramLinks.Link::notifyMessages).ifPresent(link -> send(link.chatId(), html));
+            if (choices.inTelegram(person, NotificationChoices.Topic.MESSAGES)) {
+                links.of(person).ifPresent(link -> send(link.chatId(), html));
+            }
         }
     }
 

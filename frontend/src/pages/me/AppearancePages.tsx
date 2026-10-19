@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { SettingsFrame } from './SettingsFrame';
+
 import { meApi } from '../../auth/api';
 import { useMe, useSetMe } from '../../auth/me';
 import { FONT_STACKS, loadFont } from '../../appearance/fonts';
@@ -24,8 +25,8 @@ export function SiteAppearancePage() {
     const look = siteLook(appearance);
     const base = SITE_PRESETS.find((item) => item.value === look.preset)!;
     return (
-        <section className={styles.page}>
-            <Heading at="site" />
+        <SettingsFrame title="Вигляд сайту">
+        <div className={styles.page}>
             <p className={styles.lead}>Готовий стиль або свій: змініть будь-що нижче, і стиль стане вашим. Читалка має свій вигляд — вкладка «Читалка».</p>
 
             <div className={styles.presets} role="radiogroup" aria-label="Готовий стиль">
@@ -160,7 +161,8 @@ export function SiteAppearancePage() {
                 <p className={form.note}>Меню збоку — лише на широкому екрані; на телефоні вкладки завжди внизу.</p>
                 <StudioInMenu />
             </div>
-        </section>
+        </div>
+        </SettingsFrame>
     );
 }
 
@@ -170,8 +172,8 @@ export function ReaderAppearancePage() {
     const look = readerLook(appearance);
     const colors = readerColors(appearance);
     return (
-        <section className={styles.page}>
-            <Heading at="reader" />
+        <SettingsFrame title="Читання">
+        <div className={styles.page}>
             <p className={styles.lead}>Окремо від вигляду сайту. Те саме можна змінити просто в читалці — кнопка «Аа».</p>
             <div className={styles.sample} lang="uk" data-paragraphs={look.paragraphs} style={{
                 background: colors.bg, color: colors.text, fontFamily: FONT_STACKS[look.font], fontSize: look.size,
@@ -184,21 +186,24 @@ export function ReaderAppearancePage() {
                 </div>
             </div>
             <ReaderLookForm />
-        </section>
+            <AdultSwitch />
+        </div>
+        </SettingsFrame>
     );
 }
 
-/** One «Вигляд» in the settings: the site and the reader are its two tabs. */
-function Heading({ at }: { at: 'site' | 'reader' }) {
+/** Novels marked 18+ are hidden until the person says they are 18 (signed in only). */
+function AdultSwitch() {
+    const me = useMe();
+    const setMe = useSetMe();
+    const save = useMutation({ mutationFn: (adultConfirmed: boolean) => meApi.update({ adultConfirmed }), onSuccess: setMe });
+    if (!me) return null;
     return (
-        <>
-            <Link to="/me" className={styles.back}>‹ Я</Link>
-            <h1 className={styles.title}>Вигляд</h1>
-            <nav className={styles.tabs} aria-label="Що налаштовуємо">
-                <Link to="/me/settings/appearance" className={styles.tab} aria-current={at === 'site' ? 'page' : undefined}>Сайт</Link>
-                <Link to="/me/settings/reader" className={styles.tab} aria-current={at === 'reader' ? 'page' : undefined}>Читалка</Link>
-            </nav>
-        </>
+        <div className={styles.group}>
+            <Toggle label="Мені є 18 років" isSelected={me.adultConfirmed} onChange={(value) => save.mutate(value)} />
+            <p className={form.note}>Відкриває новели з позначкою «18+». Без цього вони приховані.</p>
+            {save.isError && <Notice tone="error">{save.error.message}</Notice>}
+        </div>
     );
 }
 

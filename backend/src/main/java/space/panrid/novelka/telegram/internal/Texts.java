@@ -35,7 +35,7 @@ class Texts {
                 boolean chat = "chat".equals(text(p, "where"));
                 title = actor + (chat ? " згадує вас у чаті" : " згадує вас");
                 if (chat) {
-                    path = "/inbox/chat";
+                    path = "/inbox/chat" + (text(p, "channel").isEmpty() ? "" : "?channel=" + text(p, "channel"));
                 }
             }
             case "team_mention" -> title = actor + " згадує команду $" + text(p, "teamHandle");

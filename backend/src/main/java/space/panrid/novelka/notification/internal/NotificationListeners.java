@@ -77,6 +77,7 @@ class NotificationListeners {
         base.put("excerpt", line.excerpt());
         base.put("messageId", line.messageId());
         base.put("where", "chat");
+        base.put("channel", line.channel());
         Set<Long> told = new LinkedHashSet<>();
         told.add(line.authorId());
         mentions(line.mentionedAccounts(), line.mentionedTeams(), base, told);

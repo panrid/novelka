@@ -2,6 +2,7 @@ package space.panrid.novelka.admin.internal;
 
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
+import static space.panrid.novelka.jooq.Tables.CHAT_CHANNEL;
 import static space.panrid.novelka.jooq.Tables.CHAT_MESSAGE;
 import static space.panrid.novelka.jooq.Tables.COMMENT;
 import static space.panrid.novelka.jooq.Tables.EDITION;
@@ -269,10 +270,12 @@ class Moderation {
                         r.get(COMMENT.HIDDEN_AT) != null);
             }
             case "chat" -> {
-                Record r = db.select(ACCOUNT.NICK, CHAT_MESSAGE.BODY, CHAT_MESSAGE.HIDDEN_AT).from(CHAT_MESSAGE)
-                        .join(ACCOUNT).on(ACCOUNT.ID.eq(CHAT_MESSAGE.AUTHOR_ID)).where(CHAT_MESSAGE.ID.eq(id)).fetchOne();
+                Record r = db.select(ACCOUNT.NICK, CHAT_MESSAGE.BODY, CHAT_MESSAGE.HIDDEN_AT, CHAT_CHANNEL.NAME).from(CHAT_MESSAGE)
+                        .join(ACCOUNT).on(ACCOUNT.ID.eq(CHAT_MESSAGE.AUTHOR_ID))
+                        .join(CHAT_CHANNEL).on(CHAT_CHANNEL.ID.eq(CHAT_MESSAGE.CHANNEL_ID))
+                        .where(CHAT_MESSAGE.ID.eq(id)).fetchOne();
                 return r == null ? gone() : new Preview(r.get(ACCOUNT.NICK), mentions.render(r.get(CHAT_MESSAGE.BODY)), null,
-                        "загальний чат", null, null, null, r.get(CHAT_MESSAGE.HIDDEN_AT) != null);
+                        "загальний чат · #" + r.get(CHAT_CHANNEL.NAME), null, null, null, r.get(CHAT_MESSAGE.HIDDEN_AT) != null);
             }
             case "message" -> {
                 Record r = db.select(ACCOUNT.NICK, MESSAGE.BODY, MESSAGE.HIDDEN_AT).from(MESSAGE)

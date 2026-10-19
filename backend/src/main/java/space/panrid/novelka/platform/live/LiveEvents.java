@@ -66,6 +66,11 @@ public class LiveEvents {
         return !byAccount.getOrDefault(accountId, Set.of()).isEmpty();
     }
 
+    /** Everyone signed in with the site open in a tab right now («Зараз на сайті» in the chat). */
+    public Set<Long> online() {
+        return Set.copyOf(byAccount.keySet());
+    }
+
     /** Keeps proxies from closing idle streams and finds dead ones. */
     @Scheduled(fixedDelay = 25_000)
     void ping() {
