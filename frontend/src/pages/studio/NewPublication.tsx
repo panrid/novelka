@@ -128,8 +128,8 @@ export function NewPublication() {
                 {kind !== 'syosetu' && <Toggle label="Для дорослих (18+)" isSelected={adult} onChange={setAdult} />}
                 {needsRights && (
                     <div>
-                        <Toggle label="Маю право перекладати цей текст" isSelected={rights} onChange={setRights} />
-                        <p className={styles.muted}>Автор чи видавець дозволив, або твір вільний для перекладу. <Link to="/rules">Правила сайту</Link></p>
+                        <Toggle label="Я маю право перекладати цей текст і викладати переклад (дозвіл автора або вільна ліцензія)." isSelected={rights} onChange={setRights} />
+                        <p className={styles.muted}><Link to="/rules">Правила сайту</Link></p>
                     </div>
                 )}
                 {create.isError && <Notice tone="error">{create.error.message}</Notice>}
