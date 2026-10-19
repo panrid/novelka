@@ -196,6 +196,12 @@ export const autotranslateApi = {
     /** The entry's gender changed: a model makes the words about the character agree, as suggestions or at once. */
     regender: (id: number, entryId: number, apply: boolean) =>
         api<{ paragraphs: number; chapters: number }>(`${base(id)}/glossary/${entryId}/regender`, json('POST', { apply })),
+    /** «Словник» in the editor (етап 19): the piece of the original a selected translation was made from. */
+    sourceOf: (id: number, chapter: number, question: { blockId: string; translation: string; selection: string }) =>
+        api<{ paragraph: string | null; original: string | null; language: string }>(`${base(id)}/chapters/${chapter}/glossary/source`, json('POST', question)),
+    /** «Додати до словника»: the team's own entry, approved at once. */
+    addEntry: (id: number, entry: { chapter: number; ukrainian: string; original: string; kind: GlossaryKind; gender: Gender }) =>
+        api<{ id: number }>(`${base(id)}/glossary`, json('POST', entry)),
     rewrite: (id: number, entryId: number, from: string, apply: boolean, ai = false) =>
         api<{ paragraphs: number; chapters: number }>(`${base(id)}/glossary/${entryId}/rewrite`, json('POST', { from, apply, ai })),
     deleteEntry: (id: number, entryId: number) => api<void>(`${base(id)}/glossary/${entryId}`, { method: 'DELETE' }),

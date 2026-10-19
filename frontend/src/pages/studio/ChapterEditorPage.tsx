@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { ArrowLeft, History, Languages, Trash2 } from '../../ui/icons';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/client';
+import { GlossarySheet, type GlossaryPick } from './GlossarySheet';
 import { IllustrateSheet } from './IllustrateSheet';
 import { studioApi, type EditorView, type StudioBlock } from '../../studio/api';
 import { TextEditor, type EditorHandle } from '../../studio/TextEditor';
@@ -12,7 +13,7 @@ import { relativeTime } from '../../lib/dates';
 import { TRASH_NOTE } from './ChaptersPage';
 import styles from './editor.module.css';
 import { askConfirm } from '../../ui/ask';
-import { useCanDraw } from '../../ledger/api';
+import { useCanDraw, useCanRun } from '../../ledger/api';
 import { useWide } from '../../lib/useWide';
 
 const AUTOSAVE_MS = 1500;
@@ -45,6 +46,9 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
         onError: (error: Error) => window.alert(error.message),
     });
     // Drawing is for the site owner at launch (рішення 21).
+    // «До словника» (етап 19): for translators who see AI, in chapters with an original.
+    const [picked, setPicked] = useState<GlossaryPick | null>(null);
+    const canRun = useCanRun();
     const [drawing, setDrawing] = useState<{ fragment: string; insert: (picture: { id: number; url: string }) => void } | null>(null);
     const editor = useRef<EditorHandle>(null);
     const [blocks, setBlocks] = useState<StudioBlock[]>(view.draft?.blocks ?? view.blocks);
@@ -172,6 +176,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                     <input className={styles.titleInput} aria-label="Назва глави" placeholder="Назва глави" value={title}
                         onChange={(event) => changed(() => setTitle(event.target.value))} />
                 </div>
+                {picked && <GlossarySheet editionId={editionId} chapter={view.number} pick={picked} onClose={() => setPicked(null)} />}
                 {drawing && (
                     <IllustrateSheet editionId={editionId} chapter={view.number} fragment={drawing.fragment}
                         onInsert={drawing.insert} onClose={() => setDrawing(null)} />
@@ -179,6 +184,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                 <TextEditor handle={editor} mode="chapter" blocks={blocks} onChange={(next) => changed(() => setBlocks(next))}
                     onIllustrate={canDraw ? (fragment, insert) => setDrawing({ fragment, insert }) : undefined}
                     onCursorBlock={setCursor}
+                    onGlossary={canRun && view.hasOriginal && view.mayAddPictures ? setPicked : undefined}
                     mayAddPictures={view.mayAddPictures} label="Текст глави" placeholder="Почніть писати або вставте текст…" />
             </div>
             </div>
