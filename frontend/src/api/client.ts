@@ -1,3 +1,5 @@
+import { noteResponse } from '../offline/status';
+
 /**
  * The only way the app talks to the backend. Same origin, session cookie, CSRF header
  * on every change. Failures become {@link ApiError} carrying the server's human message.
@@ -58,6 +60,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     } catch {
         throw new ApiError(0, OFFLINE_MESSAGE);
     }
+    // The service worker answers with a kept copy when there is no network (public/sw.js).
+    noteResponse(response.headers?.get('X-Novelka-Cache') === 'offline');
     if (!response.ok) {
         throw await problem(response);
     }

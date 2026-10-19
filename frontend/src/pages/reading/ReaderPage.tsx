@@ -12,6 +12,9 @@ import { Blocks } from '../../reading/Blocks';
 import { chapterHeading, volumeTitle, readingApi, type NovelPage, type ReaderChapter } from '../../reading/api';
 import { localProgress, movesPlace, saveLocalProgress } from '../../reading/progress';
 import { chapterQuery } from '../../reading/queries';
+import { ApiError } from '../../api/client';
+import { prefetchAhead } from '../../offline/prefetch';
+import { dropQueuedProgress, queueProgress } from '../../offline/progressQueue';
 import { FONT_STACKS } from '../../appearance/fonts';
 import { READER_WIDTHS, readerLook, tapAt } from '../../appearance/model';
 import { ReaderLookForm } from '../../appearance/ReaderLookForm';
@@ -36,11 +39,11 @@ export function ReaderPage() {
     const client = useQueryClient();
     const chapter = useQuery(chapterQuery(slug, chapterNumber, t));
 
-    // The next chapter is loaded in the background, so turning the page is instant.
+    // The next chapters are loaded in the background: turning the page is instant, and they open offline.
     const next = chapter.data?.next;
     useEffect(() => {
         if (next) {
-            void client.prefetchQuery(chapterQuery(slug, next, t));
+            void prefetchAhead(client, slug, t, next);
         }
     }, [client, next, slug, t]);
 
@@ -154,12 +157,17 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                     ? { ...cached, viewer: { ...cached.viewer, chapterNumber: opened.number, position, chapterLabel: opened.label ?? null } }
                     : cached);
             void readingApi.saveProgress(opened.edition.editionId, opened.number, position).then(() => {
+                // A place read offline earlier must not come after this one.
+                dropQueuedProgress(me.id, opened.edition.editionId);
                 // Pages opened meanwhile may have read the place before it was saved.
                 for (const key of [['novel', opened.novelSlug], ['home'], ['library']]) {
                     void client.invalidateQueries({ queryKey: key });
                 }
-            }, () => {
-                // Offline or signed out elsewhere: the local copy keeps the place meanwhile.
+            }, (error: unknown) => {
+                // Offline: the place is sent once the network is back (offline/progressQueue.ts).
+                if (error instanceof ApiError && error.status === 0) {
+                    queueProgress({ account: me.id, editionId: opened.edition.editionId, chapterNumber: opened.number, position, at: now });
+                }
             });
         }
     }, [opened, client, me, team]);

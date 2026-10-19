@@ -1,5 +1,6 @@
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { noteAccount } from '../offline/personal';
 
 export type SiteRole = 'reader' | 'moderator' | 'admin' | 'owner';
 
@@ -37,7 +38,12 @@ export type Me = {
 
 export const meQuery = queryOptions({
     queryKey: ['me'],
-    queryFn: async () => (await api<Me | undefined>('/api/me')) ?? null,
+    queryFn: async () => {
+        const me = (await api<Me | undefined>('/api/me')) ?? null;
+        // Another account than before: what the phone kept offline for the last one goes.
+        await noteAccount(me?.id ?? null);
+        return me;
+    },
     staleTime: 60_000,
 });
 
