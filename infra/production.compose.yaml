@@ -71,7 +71,9 @@ services:
     volumes:
       - dkim:/etc/opendkim/keys
 
-  # Once a day: the database (14 days kept) and the pictures (7 days kept) into the «backups» volume.
+  # Once a day: the database (14 days kept) and the pictures (7 days kept) into the «backups» volume;
+  # a failed copy is deleted, logged as «BACKUP FAILED» and recorded in /backups/status for Grafana
+  # (infra/backup.sh). The owner's Mac takes a copy to iCloud through infra/backup-export.sh.
   # Restore: see doc/deployment.md.
   backup:
     image: postgres:17
@@ -81,19 +83,8 @@ services:
     volumes:
       - backups:/backups
       - media:/media:ro
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        while true; do
-          day=$$(date +%F)
-          pg_dump -h postgres -U novelka -d novelka -Fc -f /backups/novelka-$$day.dump.part \
-            && mv /backups/novelka-$$day.dump.part /backups/novelka-$$day.dump \
-            && echo "database saved: novelka-$$day.dump"
-          tar czf /backups/media-$$day.tgz.part -C /media . && mv /backups/media-$$day.tgz.part /backups/media-$$day.tgz
-          find /backups -name 'novelka-*.dump' -mtime +14 -delete
-          find /backups -name 'media-*.tgz' -mtime +7 -delete
-          sleep 86400
-        done
+      - ./backup.sh:/backup.sh:ro
+    entrypoint: ["sh", "/backup.sh"]
     depends_on:
       postgres:
         condition: service_healthy

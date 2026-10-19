@@ -1,0 +1,20 @@
+# Novelka's iCloud backup on the owner's Mac: ~/.config/novelka-backup/config (install.sh puts this
+# file there once). Only the PUBLIC age key goes here; the private one stays with the owner.
+
+# The age public key (age-keygen prints it as «Public key: age1…»).
+AGE_RECIPIENT=age1REPLACE_ME
+
+# The server and the key that may only fetch copies (forced command, see doc/deployment.md).
+NOVELKA_SSH_TARGET=novelka@62.72.33.247
+NOVELKA_SSH_KEY="$HOME/.ssh/novelka_icloud_backup"
+
+# Where the encrypted copies go, and for how long.
+DEST="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Novelka/копії"
+KEEP_DAYS=30
+
+# A dump smaller than this, or a newest dump older than this, is an error rather than a copy.
+MIN_DB_BYTES=1000000
+MAX_DUMP_AGE_HOURS=50
+
+# After this long without a good copy every failure also shows a macOS notification.
+NOTIFY_AFTER_HOURS=26

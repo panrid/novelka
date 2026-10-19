@@ -93,27 +93,148 @@ GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, за бажан�
 
 ## Резервні копії
 
-Сервіс `backup` раз на добу кладе в том `novelka_backups` копію бази
-(`novelka-РРРР-ММ-ДД.dump`, 14 днів) і картинок (`media-РРРР-ММ-ДД.tgz`, 7 днів).
-Копії лежать на тому самому сервері: від помилки чи поганої міграції вони рятують,
-від утрати сервера — ні. Час від часу забирайте свіжу копію собі:
+Два рівні: копії на самому сервері (рятують від помилки чи поганої міграції) і зашифровані копії
+в iCloud власника, які забирає його Mac (рятують від утрати сервера).
+
+### На сервері
+
+Сервіс `backup` (`infra/backup.sh`) щогодини перевіряє, чи є копія за сьогодні (UTC), і якщо
+немає — робить її: база — `novelka-РРРР-ММ-ДД.dump` (14 днів), картинки — `media-РРРР-ММ-ДД.tgz`
+(7 днів), у томі `novelka_backups`. Отже, копія з'являється невдовзі після півночі UTC, а невдала
+повторюється щогодини.
+
+Копія пишеться в `….part`, перевіряється й лише потім перейменовується. Копія бази добра, коли
+`pg_dump` завершився без помилки, файл не менший за `BACKUP_DB_MIN_BYTES` (1 МБ; зараз ≈ 40 МБ) і
+`pg_restore --list` його читає; картинок — коли `tar` завершився без помилки й `gzip -t` читає
+архів до кінця. **Невдала копія не мовчить** (як порожній `.part` від 2026-10-16): `.part`
+видаляється (і всі залишки `.part` — під час запуску сервісу), у журнал контейнера йде рядок
+`BACKUP FAILED: <що саме>` (stderr, `docker logs novelka-backup-1`; Loki його бачить), а у файлах
+стану — час невдачі й `novelka_backup_last_ok{…} 0`.
+
+### Стан для Grafana (п. 5 етапу 23)
+
+У томі `novelka_backups`, тека `status/` — файли в текстовому форматі Prometheus (для textfile
+collector у node_exporter: змонтувати том `novelka_backups` лише для читання, наприклад у
+`/backups`, і `--collector.textfile.directory=/backups/status`). Кожен файл замінюється цілком
+(запис у `.tmp` і перейменування). Часи — Unix-секунди за годинником сервера; 0 — «ще не було».
+
+| Файл | Метрика | Що означає |
+|---|---|---|
+| `server.prom` | `novelka_backup_last_success_timestamp_seconds{part="db"\|"media"}` | остання добра копія на сервері |
+| | `novelka_backup_last_failure_timestamp_seconds{part=…}` | остання невдала |
+| | `novelka_backup_last_ok{part=…}` | 1 — остання спроба вдалася, 0 — ні |
+| | `novelka_backup_last_size_bytes{part=…}` | розмір останньої доброї |
+| `offsite.prom` | `novelka_backup_offsite_last_success_timestamp_seconds{target="icloud"}` | **позначка Mac**: коли копія дійшла до iCloud |
+| | `novelka_backup_offsite_last_size_bytes{target="icloud"}` | скільки байт (база + картинки) забрано |
+
+Ті самі числа — окремими файлами в `status/state/` (`db.success`, `media.failure`, `icloud.success`
+…; `icloud.dump` — ім'я останньої копії, що дійшла до iCloud). `offsite.prom` з'являється після
+першої копії в iCloud. Подивитися: `docker exec novelka-backup-1 sh /backup.sh status`.
+
+Тривоги (Telegram):
+
+- копія на сервері не вдалася: `novelka_backup_last_ok == 0`;
+- копії на сервері немає понад добу: `time() - novelka_backup_last_success_timestamp_seconds > 30*3600`;
+- копії в iCloud немає понад 2 доби: `time() - novelka_backup_offsite_last_success_timestamp_seconds{target="icloud"} > 2*86400`,
+  а також `absent(novelka_backup_offsite_last_success_timestamp_seconds)`, коли файла немає;
+- запасна, з журналу (Loki): рядок `BACKUP FAILED` у контейнері `novelka-backup-1`.
+
+### Копія в iCloud (Mac власника)
+
+У iCloud немає входу для сервера, тож копію забирає Mac: задача `launchd`
+(`infra/mac/ua.in.novelka.icloud-backup.plist`) щогодини, під час входу й після пробудження
+запускає `infra/mac/novelka-icloud-backup.sh`. Скрипт робить щось лише тоді, коли на сервері є
+копія бази, якої ще немає в iCloud, — тобто раз на добу:
+
+1. через SSH бере список копій, найсвіжішу копію бази й картинки за той самий день (немає — найсвіжіші);
+2. перевіряє: копія бази не старша за 50 год (інакше на сервері копії не робляться — помилка),
+   не менша за 1 МБ, починається з `PGDMP`; довжина й SHA-256 обох файлів збігаються з серверними;
+   `gzip -t` для картинок;
+3. шифрує `age` для публічного ключа власника (приватного на Mac немає) і кладе в
+   `iCloud Drive/Novelka/копії` як `novelka-РРРР-ММ-ДД.dump.age` і `media-РРРР-ММ-ДД.tgz.age`
+   (через прихований `.….partial` і перейменування); незашифровані файли — лише в тимчасовій теці;
+4. ставить позначку на сервері (`mark-offsite`, див. вище); не вдалося — поставить наступного запуску;
+5. видаляє копії, старші за 30 днів (за датою в імені, зокрема вивантажені з Mac `.….icloud`).
+
+Журнал — `~/Library/Logs/novelka-icloud-backup.log`. Помилку видно там; якщо доброї копії немає
+понад 26 год — ще й сповіщення macOS; через 2 доби — тривога Grafana.
+
+**Ключ SSH лише для копій.** Ключ Mac на сервері може тільки те, що дозволяє
+`infra/backup-export.sh`: `list`, `get <копія>`, `sha256 <копія>`, `mark-offsite icloud …`,
+`status`. Ні оболонки, ні переадресацій, ні запису поза файлами стану. Рядок у
+`~novelka/.ssh/authorized_keys` на сервері (одним рядком):
+
+```
+restrict,command="sh /opt/novelka/infra/backup-export.sh" ssh-ed25519 AAAA… novelka-icloud-backup
+```
+
+`infra/backup-export.sh` і `infra/backup.sh` копіює на сервер деплой.
+
+**Встановлення** (раз, на Mac власника):
+
+1. `brew install age`.
+2. Ключ шифрування: `age-keygen -o novelka-backup-key.txt`. Рядок `Public key: age1…` — у
+   налаштування (крок 5). Сам файл — **приватний ключ**: зберегти в менеджері паролів і/або
+   надрукувати, з Mac і з iCloud Drive видалити. Без нього копії не розшифрувати.
+3. Ключ SSH: `ssh-keygen -t ed25519 -N '' -C novelka-icloud-backup -f ~/.ssh/novelka_icloud_backup`;
+   вміст `~/.ssh/novelka_icloud_backup.pub` дописати на сервері в `~novelka/.ssh/authorized_keys`
+   рядком, як вище. Ключ сервера — у `known_hosts`: один раз
+   `ssh -i ~/.ssh/novelka_icloud_backup novelka@62.72.33.247 list` і «yes»; у відповідь має прийти
+   список копій, а не оболонка.
+4. З теки репозиторію: `bash infra/mac/install.sh` — скрипт у `~/Library/Application Support/novelka-backup/`,
+   задача в `~/Library/LaunchAgents/`, налаштування `~/.config/novelka-backup/config` (з `infra/mac/config.example`).
+5. У `~/.config/novelka-backup/config` вписати `AGE_RECIPIENT=age1…`.
+6. Перший запуск: `launchctl kickstart -p gui/$(id -u)/ua.in.novelka.icloud-backup`, потім
+   `tail ~/Library/Logs/novelka-icloud-backup.log` — має бути «готово: …», а в Finder — файли в
+   iCloud Drive → Novelka → копії. На сервері: `docker exec novelka-backup-1 sh /backup.sh status`.
+   Якщо в журналі `Operation not permitted` для iCloud Drive — System Settings → Privacy & Security
+   → Full Disk Access → додати `/bin/bash` і запустити знову.
+
+Оновлення скрипта — знову `bash infra/mac/install.sh` (налаштування не чіпає). Видалення —
+`bash infra/mac/uninstall.sh` (налаштування й копії в iCloud лишаються), а на сервері — прибрати
+рядок з `authorized_keys`. Mac має бути ввімкнений і з інтернетом хоча б раз на 2 доби, інакше
+прийде тривога — так задумано.
+
+### Відновлення
+
+**Розшифрувати копію з iCloud** (на Mac, з приватним ключем):
+
+```sh
+cd ~/Desktop
+age -d -i novelka-backup-key.txt -o novelka.dump \
+    ~/Library/Mobile\ Documents/com~apple~CloudDocs/Novelka/копії/novelka-РРРР-ММ-ДД.dump.age
+age -d -i novelka-backup-key.txt -o media.tgz \
+    ~/Library/Mobile\ Documents/com~apple~CloudDocs/Novelka/копії/media-РРРР-ММ-ДД.tgz.age
+```
+
+Файл, вивантажений з Mac (у Finder — хмаринка), спершу завантажити: відкрити теку в Finder або
+`brctl download <файл>`. Залити на сервер звичайним ключем власника (не ключем копій):
+`scp novelka.dump media.tgz novelka@62.72.33.247:/tmp/`. Новий сервер спершу піднімається звичайним
+деплоєм (порожня база створиться сама), потім — відновлення, як нижче.
+
+**Копія з самого сервера** — у томі `novelka_backups`:
 
 ```sh
 ssh novelka@62.72.33.247 'docker run --rm -v novelka_backups:/b alpine ls -l /b'
 ssh novelka@62.72.33.247 'docker run --rm -v novelka_backups:/b alpine cat /b/novelka-РРРР-ММ-ДД.dump' > novelka.dump
 ```
 
-Відновлення бази (сайт на цей час зупиняється):
+**Відновлення бази** (на сервері; сайт на цей час зупиняється):
 
 ```sh
 cd /opt/novelka
 docker compose --env-file .env.production -f infra/production.compose.yaml stop app
 docker compose --env-file .env.production -f infra/production.compose.yaml exec -T postgres \
-    pg_restore -U novelka -d novelka --clean --if-exists < novelka.dump
+    pg_restore -U novelka -d novelka --clean --if-exists < /tmp/novelka.dump
 docker compose --env-file .env.production -f infra/production.compose.yaml start app
+rm /tmp/novelka.dump
 ```
 
-Картинки: `docker run --rm -v novelka_media:/m -v novelka_backups:/b alpine tar xzf /b/media-РРРР-ММ-ДД.tgz -C /m`.
+**Картинки:** з тому копій — `docker run --rm -v novelka_media:/m -v novelka_backups:/b alpine tar xzf /b/media-РРРР-ММ-ДД.tgz -C /m`;
+з розшифрованого файла — `docker run --rm -i -v novelka_media:/m alpine tar xzf - -C /m < /tmp/media.tgz`.
+
+Час від часу (скажімо, раз на кілька місяців) варто розшифрувати свіжу копію з iCloud і перевірити
+її: `pg_restore --list novelka.dump | head` — так видно, що і ключ, і копії справні.
 
 ## Пошта
 

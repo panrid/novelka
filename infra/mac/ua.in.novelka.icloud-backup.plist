@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Novelka's iCloud backup. install.sh replaces __HOME__ and puts this into ~/Library/LaunchAgents.
+     Every hour, at login and after the Mac wakes (a check missed while asleep runs then); the script
+     does the work only once the server has a new copy, so in effect once a day. -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ua.in.novelka.icloud-backup</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>__HOME__/Library/Application Support/novelka-backup/novelka-icloud-backup.sh</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>3600</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>__HOME__/Library/Logs/novelka-icloud-backup.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/Library/Logs/novelka-icloud-backup.log</string>
+</dict>
+</plist>
