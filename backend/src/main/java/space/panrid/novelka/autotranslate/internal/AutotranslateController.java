@@ -59,13 +59,15 @@ class AutotranslateController {
     private final Choices choices;
     private final SourceOf sourceOf;
     private final EditorAi editorAi;
+    private final MySets mySets;
     private final space.panrid.novelka.platform.audit.AuditLog audit;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
             Teams teams, Analyses analyses, Ledger ledger, Sources sources, space.panrid.novelka.suggestion.Suggestions suggestions,
             Agreement agreement, JobLog journal, Presets presets, ModelCosts costs, SourceWatch watch, StoryRoles storyRoles,
-            Choices choices, space.panrid.novelka.platform.audit.AuditLog audit, SourceOf sourceOf, EditorAi editorAi) {
+            Choices choices, space.panrid.novelka.platform.audit.AuditLog audit, SourceOf sourceOf, EditorAi editorAi, MySets mySets) {
         this.editorAi = editorAi;
+        this.mySets = mySets;
         this.sourceOf = sourceOf;
         this.audit = audit;
         this.choices = choices;
@@ -144,11 +146,31 @@ class AutotranslateController {
      * @param presets  ready sets of models: all of them for the site owner, the qualities people pick from for others (етап 19)
      * @param pasted   translated from the originals the team pasted: {@code sourceChapters} is the last one pasted
      * @param remembered what the person picked with «Запам'ятати для наступних»; null — nothing yet
+     * @param mySets     the person's own sets (етап 19, п. 8), priced for an average chapter of this novel
+     * @param peopleModels the models a person may put into a step: those the site's qualities use
      */
     record Overview(boolean configured, boolean showShah, int sourceChapters, int nextNumber, int publishedChapters,
             int lastAnalyzed, int nextToAnalyze, int averageChars, Jobs.Balance balance, BigDecimal usdPerShah, Settings settings,
             List<Jobs.JobView> jobs, boolean personal, int reserved, List<PresetView> presets, boolean pasted,
-            Choices.Choice remembered) {
+            Choices.Choice remembered, List<MySetView> mySets, List<String> peopleModels) {
+    }
+
+    /** A person's own set as the menu shows it: {@code chapterUsd} an average chapter of this novel at it. */
+    record MySetView(long id, String name, Long basedOn, String analyze, String translate, String proofread, BigDecimal chapterUsd) {
+    }
+
+    private List<MySetView> mySets(long accountId, int averageChars) {
+        return mySets.of(accountId).stream().map(set -> new MySetView(set.id(), set.name(), set.basedOn(), set.analyze(), set.translate(),
+                set.proofread(), Settings.usdOfMicro(safePrice(set, averageChars)))).toList();
+    }
+
+    /** A model OpenRouter no longer lists leaves the set unpriced rather than the page broken. */
+    private long safePrice(MySets.MySet set, int chars) {
+        try {
+            return jobs.chapterMicroUsd(set.models(), chars);
+        } catch (UserFacingException gone) {
+            return 0;
+        }
     }
 
     /**
@@ -182,13 +204,14 @@ class AutotranslateController {
                     novel.lastAnalyzed(), novel.nextToAnalyze(), averageChars,
                     new Jobs.Balance(mine.available(), Settings.usdOfMicro(mine.available() * price)), Settings.usdOfMicro(price),
                     settings.paidBy(price), jobs.jobs(editionId), true, mine.reserved(), presets(presets.forPeople(), averageChars),
-                    novel.pasted(), choices.of(viewer.accountId()).orElse(null));
+                    novel.pasted(), choices.of(viewer.accountId()).orElse(null), mySets(viewer.accountId(), averageChars), mySets.peopleModels());
         }
         int averageChars = jobs.averageChars(editionId);
         return new Overview(ai.configured(), showShah(viewer), novel.sourceChapters(), novel.nextNumber(), novel.publishedChapters(),
                 novel.lastAnalyzed(), novel.nextToAnalyze(), averageChars,
                 jobs.balance().orElse(null), Settings.usdOfMicro(settings.microUsdPerShah()), settings, jobs.jobs(editionId), false, 0,
-                presets(presets.list(), averageChars), novel.pasted(), choices.of(viewer.accountId()).orElse(null));
+                presets(presets.list(), averageChars), novel.pasted(), choices.of(viewer.accountId()).orElse(null),
+                mySets(viewer.accountId(), averageChars), mySets.peopleModels());
     }
 
     /** The Studio's bell for the original: whether this person hears of its new chapters, and when it was last looked at. */
@@ -291,7 +314,41 @@ class AutotranslateController {
                 throw UserFacingException.badRequest("Цей набір моделей сайт людям не пропонує.");
             }
         }
+        if (body.mySet() != null) {
+            mySets.find(viewer.accountId(), body.mySet()).orElseThrow(() -> UserFacingException.notFound("Такого набору немає."));
+        }
         choices.remember(viewer.accountId(), body);
+    }
+
+    /** @param basedOn the site's set it was changed from, or null */
+    record NewSet(String name, Long basedOn, Jobs.Models models) {
+    }
+
+    /** «Мої набори» (етап 19, п. 8): the person's own sets of models. */
+    @GetMapping("/autotranslate/my-sets")
+    List<MySetView> mySets() {
+        return mySets(access.requireAi().accountId(), 6_000);
+    }
+
+    /** «Зберегти як мій набір»: a quality with some steps' models changed, under a name. */
+    @PostMapping("/autotranslate/my-sets")
+    @ResponseStatus(HttpStatus.CREATED)
+    Map<String, Long> saveSet(@RequestBody NewSet body) {
+        Viewer viewer = access.requireAi();
+        return Map.of("id", mySets.create(viewer.accountId(), body.name(), body.basedOn(), body.models()));
+    }
+
+    record Rename(String name) {
+    }
+
+    @PutMapping("/autotranslate/my-sets/{id}")
+    void renameSet(@PathVariable long id, @RequestBody Rename body) {
+        mySets.rename(access.requireSignedIn().accountId(), id, body.name());
+    }
+
+    @DeleteMapping("/autotranslate/my-sets/{id}")
+    void deleteSet(@PathVariable long id) {
+        mySets.delete(access.requireSignedIn().accountId(), id);
     }
 
     /** A ready set of models and the quality people get it as (етап 19); null — the owner's alone. */

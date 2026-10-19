@@ -30,8 +30,10 @@ export type Preset = {
 export type Quality = 'best' | 'high' | 'draft';
 export const QUALITIES: Quality[] = ['best', 'high', 'draft'];
 export const QUALITY_LABELS: Record<Quality, string> = { best: 'Найкраща', high: 'Висока', draft: 'Швидка чернетка' };
-/** «Запам'ятати для наступних»: what the person picked for their runs. */
-export type Choice = { preset: number | null; steps: Step[]; publish: boolean };
+/** «Запам'ятати для наступних»: what the person picked for their runs; mySet — one of their own sets. */
+export type Choice = { preset: number | null; steps: Step[]; publish: boolean; mySet?: number | null };
+/** «Мій набір» (етап 19): a quality with some steps' models changed, saved under a name. */
+export type MySet = { id: number; name: string; basedOn: number | null; analyze: string; translate: string; proofread: string | null; chapterUsd: number };
 /** A set of models and its quality for people, as «Налаштування сайту» shows it. */
 export type PresetQuality = { id: number; name: string; summary: string; translate: string; quality: Quality | null };
 export type Quote = {
@@ -64,6 +66,10 @@ export type AutotranslateOverview = {
     pasted: boolean;
     /** What the person picked with «Запам'ятати для наступних». */
     remembered?: Choice | null;
+    /** The person's own sets, priced for an average chapter of this novel (етап 19). */
+    mySets?: MySet[];
+    /** The models a person may put into a step: those the site's qualities use. */
+    peopleModels?: string[];
 };
 /** One step of a run as the journal tells it; the payload depends on the kind. */
 export type JobEvent = { id: number; chapter: number; kind: string; payload: Record<string, unknown>; at: string };
@@ -228,6 +234,11 @@ export const autotranslateApi = {
         api<void>(`${base(id)}/glossary/${entryId}/facts/${factId}`, { method: 'DELETE' }),
     wallet: (days = 30) => api<Wallet>(`/api/studio/autotranslate/wallet?days=${days}`),
     saveSettings: (settings: Settings) => api<void>('/api/studio/autotranslate/settings', json('PUT', settings)),
+    mySets: () => api<MySet[]>('/api/studio/autotranslate/my-sets'),
+    saveSet: (name: string, basedOn: number | null, models: NonNullable<Plan['models']>) =>
+        api<{ id: number }>('/api/studio/autotranslate/my-sets', json('POST', { name, basedOn, models })),
+    renameSet: (id: number, name: string) => api<void>(`/api/studio/autotranslate/my-sets/${id}`, json('PUT', { name })),
+    deleteSet: (id: number) => api<void>(`/api/studio/autotranslate/my-sets/${id}`, { method: 'DELETE' }),
     remember: (choice: Choice) => api<void>('/api/studio/autotranslate/choice', json('PUT', choice)),
     qualities: () => api<PresetQuality[]>('/api/studio/autotranslate/qualities'),
     saveQualities: (chosen: Record<Quality, number | null>) => api<PresetQuality[]>('/api/studio/autotranslate/qualities', json('PUT', chosen)),

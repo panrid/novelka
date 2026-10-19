@@ -25,13 +25,16 @@ class Choices {
         this.db = db;
     }
 
-    /** @param preset null: the site's models, or the set that was picked is gone */
-    record Choice(Long preset, List<String> steps, boolean publish) {
+    /**
+     * @param preset null: the site's models, or the set that was picked is gone
+     * @param mySet  one of the person's own sets (етап 19, п. 8), or null
+     */
+    record Choice(Long preset, List<String> steps, boolean publish, Long mySet) {
     }
 
     Optional<Choice> of(long accountId) {
         return db.selectFrom(AUTOTRANSLATE_CHOICE).where(AUTOTRANSLATE_CHOICE.ACCOUNT_ID.eq(accountId))
-                .fetchOptional(r -> new Choice(r.getPresetId(), List.of(r.getSteps()), r.getPublish()));
+                .fetchOptional(r -> new Choice(r.getPresetId(), List.of(r.getSteps()), r.getPublish(), r.getMySetId()));
     }
 
     void remember(long accountId, Choice choice) {
@@ -45,10 +48,12 @@ class Choices {
                 .set(AUTOTRANSLATE_CHOICE.PRESET_ID, choice.preset())
                 .set(AUTOTRANSLATE_CHOICE.STEPS, kept)
                 .set(AUTOTRANSLATE_CHOICE.PUBLISH, choice.publish())
+                .set(AUTOTRANSLATE_CHOICE.MY_SET_ID, choice.mySet())
                 .onConflict(AUTOTRANSLATE_CHOICE.ACCOUNT_ID).doUpdate()
                 .set(AUTOTRANSLATE_CHOICE.PRESET_ID, choice.preset())
                 .set(AUTOTRANSLATE_CHOICE.STEPS, kept)
                 .set(AUTOTRANSLATE_CHOICE.PUBLISH, choice.publish())
+                .set(AUTOTRANSLATE_CHOICE.MY_SET_ID, choice.mySet())
                 .execute();
     }
 }
