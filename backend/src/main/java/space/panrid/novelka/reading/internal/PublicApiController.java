@@ -19,6 +19,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import space.panrid.novelka.account.CurrentUser;
 import space.panrid.novelka.account.Viewer;
@@ -36,9 +40,12 @@ import tools.jackson.databind.json.JsonMapper;
  * Lists are read by key ({@code after} → {@code next}); every answer has an ETag (304 when it has
  * not changed) and may be cached for a minute — privately when it depends on who asks. How often
  * one may ask is limited per token and per address (the security chain, {@code ApiRateLimits}).
+ * The {@code @Operation} and {@code @Parameter} texts describe it to developers (етап 22.4,
+ * {@code ApiDescription}); a change that breaks old programs fails {@code ApiDescriptionTests}.
  */
 @RestController
 @RequestMapping("/api/v1")
+@Tag(name = "Читання", description = "Новели, каталог, переклади, опубліковані глави, томи, теги й «Хто це» — те саме, що бачать читачі на сайті.")
 class PublicApiController {
 
     private static final int PAGE = 20;
@@ -62,13 +69,36 @@ class PublicApiController {
      * @param sort popular, updated, new, title, rating or relevance
      */
     @GetMapping("/catalog")
-    ResponseEntity<ApiV1.Page<ApiV1.Translation>> catalog(@RequestParam(required = false) String q,
-            @RequestParam(required = false) List<String> tag, @RequestParam(defaultValue = "all") String kind,
-            @RequestParam(defaultValue = "all") String machine, @RequestParam(required = false) String status,
-            @RequestParam(required = false) String source, @RequestParam(required = false) Integer chaptersFrom,
-            @RequestParam(required = false) Integer chaptersTo, @RequestParam(defaultValue = "false") boolean rated,
-            @RequestParam(required = false) String fresh, @RequestParam(defaultValue = "popular") String sort,
-            @RequestParam(required = false) String after, @RequestParam(defaultValue = "" + PAGE) int limit,
+    @Operation(operationId = "listCatalog", summary = "Каталог",
+            description = "Переклади так, як їх показує каталог сайту: пошук, теги й фільтри. Сторінки за ключем — `after` і `next`.")
+    ResponseEntity<ApiV1.Page<ApiV1.Translation>> catalog(
+            @Parameter(description = "Пошук: назва будь-якою мовою, автор, тег чи назва глави; до 100 символів", example = "маг води")
+            @RequestParam(required = false) String q,
+            @Parameter(description = "Адреса тегу; можна кілька (до 5) — тоді потрібні всі", example = "fentezi")
+            @RequestParam(required = false) List<String> tag,
+            @Parameter(description = "Переклади чи оригінальні твори", schema = @Schema(type = "string", defaultValue = "all", allowableValues = {"all", "translation", "original"}))
+            @RequestParam(defaultValue = "all") String kind,
+            @Parameter(description = "Людський переклад (`human`) чи з ШІ (`machine`)",
+                    schema = @Schema(type = "string", defaultValue = "all", allowableValues = {"all", "human", "machine"}))
+            @RequestParam(defaultValue = "all") String machine,
+            @Parameter(description = "Стан перекладу", schema = @Schema(type = "string", allowableValues = {"ongoing", "completed", "paused", "abandoned"}))
+            @RequestParam(required = false) String status,
+            @Parameter(description = "Стан оригіналу", schema = @Schema(type = "string", allowableValues = {"ongoing", "completed", "paused"}))
+            @RequestParam(required = false) String source,
+            @Parameter(description = "Щонайменше стільки опублікованих глав", example = "50")
+            @RequestParam(required = false) Integer chaptersFrom,
+            @Parameter(description = "Щонайбільше стільки опублікованих глав", example = "500")
+            @RequestParam(required = false) Integer chaptersTo,
+            @Parameter(description = "Лише ті, що читачі оцінили в середньому на 4 і вище")
+            @RequestParam(defaultValue = "false") boolean rated,
+            @Parameter(description = "Нові глави за тиждень чи місяць", schema = @Schema(type = "string", allowableValues = {"week", "month"}))
+            @RequestParam(required = false) String fresh,
+            @Parameter(description = "Порядок: популярні, оновлені, нові, за назвою, за оцінкою, за збігом із пошуком",
+                    schema = @Schema(type = "string", defaultValue = "popular", allowableValues = {"popular", "updated", "new", "title", "rating", "relevance"}))
+            @RequestParam(defaultValue = "popular") String sort,
+            @Parameter(description = "Ключ сторінки — `next` із попередньої відповіді")
+            @RequestParam(required = false) String after,
+            @Parameter(description = "Скільки записів на сторінці, 1–50") @RequestParam(defaultValue = "" + PAGE) int limit,
             HttpServletRequest request) {
         Views.Found<Views.Card> found = queries.search(
                 ReadingController.filter(q, tag, kind, machine, status, source, chaptersFrom, chaptersTo, rated, fresh), sort,
@@ -78,6 +108,7 @@ class PublicApiController {
     }
 
     @GetMapping("/tags")
+    @Operation(operationId = "listTags", summary = "Теги", description = "Теги каталогу й скільки новел кожним позначено, найуживаніші першими.")
     ResponseEntity<List<ApiV1.Tag>> tags(HttpServletRequest request) {
         return cached(request, queries.tags(ReadingController.adult(currentUser.viewer()), 300).stream()
                 .map(tag -> new ApiV1.Tag(tag.name(), tag.slug(), tag.novels())).toList());
@@ -85,7 +116,9 @@ class PublicApiController {
 
     /** The novel with every translation the asker may read, the most popular first. */
     @GetMapping("/novels/{slug}")
-    ResponseEntity<ApiV1.Novel> novel(@PathVariable String slug, HttpServletRequest request) {
+    @Operation(operationId = "getNovel", summary = "Новела", description = "Новела з усіма перекладами, які можна читати, — найпопулярніший першим.")
+    ResponseEntity<ApiV1.Novel> novel(@Parameter(description = "Адреса новели", example = "mag-vody") @PathVariable String slug,
+            HttpServletRequest request) {
         NovelRow novel = queries.novel(slug).orElseThrow(ReadingController::noNovel);
         List<EditionRow> editions = ReadingController.visibleEditions(queries, novel, currentUser.viewer());
         List<Views.EditionSummary> summaries = queries.summaries(editions);
@@ -108,9 +141,16 @@ class PublicApiController {
 
     /** Published chapters in order (or newest first with {@code order=desc}), at most 100 to a page. */
     @GetMapping("/novels/{slug}/translations/{team}/chapters")
-    ResponseEntity<ApiV1.Page<ApiV1.ChapterEntry>> chapters(@PathVariable String slug, @PathVariable String team,
-            @RequestParam(defaultValue = "asc") String order, @RequestParam(required = false) String after,
-            @RequestParam(defaultValue = "" + PAGE) int limit, HttpServletRequest request) {
+    @Operation(operationId = "listChapters", summary = "Глави перекладу",
+            description = "Опубліковані глави по порядку (або від нових до старих). Сторінки за ключем — `after` і `next`.")
+    ResponseEntity<ApiV1.Page<ApiV1.ChapterEntry>> chapters(
+            @Parameter(description = "Адреса новели", example = "mag-vody") @PathVariable String slug,
+            @Parameter(description = "Команда перекладу", example = "zoria") @PathVariable String team,
+            @Parameter(description = "Від першої (`asc`) чи від найновішої (`desc`)", schema = @Schema(type = "string", defaultValue = "asc", allowableValues = {"asc", "desc"}))
+            @RequestParam(defaultValue = "asc") String order,
+            @Parameter(description = "Ключ сторінки — `next` із попередньої відповіді") @RequestParam(required = false) String after,
+            @Parameter(description = "Скільки глав на сторінці, 1–100") @RequestParam(defaultValue = "" + PAGE) int limit,
+            HttpServletRequest request) {
         EditionRow edition = edition(slug, team);
         Views.Page<Views.ChapterRow> page = queries.chapters(edition.id(), order.equals("desc"), 1, Math.max(1, Math.min(limit, 100)),
                 null, null, null, number(after));
@@ -120,8 +160,11 @@ class PublicApiController {
     }
 
     @GetMapping("/novels/{slug}/translations/{team}/chapters/{number}")
-    ResponseEntity<ApiV1.Chapter> chapter(@PathVariable String slug, @PathVariable String team, @PathVariable int number,
-            HttpServletRequest request) {
+    @Operation(operationId = "getChapter", summary = "Глава",
+            description = "Текст опублікованої глави блоками й сусідні глави. Чернеток і оригіналу тут немає.")
+    ResponseEntity<ApiV1.Chapter> chapter(@Parameter(description = "Адреса новели", example = "mag-vody") @PathVariable String slug,
+            @Parameter(description = "Команда перекладу", example = "zoria") @PathVariable String team,
+            @Parameter(description = "Номер глави", example = "12") @PathVariable int number, HttpServletRequest request) {
         EditionRow edition = edition(slug, team);
         ReadingQueries.ChapterText text = queries.chapter(edition.id(), number)
                 .orElseThrow(() -> UserFacingException.notFound("Такої глави немає."));
@@ -134,7 +177,9 @@ class PublicApiController {
 
     /** The volumes that have published chapters. */
     @GetMapping("/novels/{slug}/translations/{team}/volumes")
-    ResponseEntity<List<ApiV1.Volume>> volumes(@PathVariable String slug, @PathVariable String team, HttpServletRequest request) {
+    @Operation(operationId = "listVolumes", summary = "Томи", description = "Томи перекладу, у яких є опубліковані глави.")
+    ResponseEntity<List<ApiV1.Volume>> volumes(@Parameter(description = "Адреса новели", example = "mag-vody") @PathVariable String slug,
+            @Parameter(description = "Команда перекладу", example = "zoria") @PathVariable String team, HttpServletRequest request) {
         EditionRow edition = edition(slug, team);
         return cached(request, queries.volumeChoices(edition.id()).stream()
                 .map(volume -> new ApiV1.Volume(volume.firstNumber(), volume.lastNumber(), volume.title(), volume.chapters())).toList());
@@ -142,8 +187,13 @@ class PublicApiController {
 
     /** «Хто це»: who or what {@code q} names, with what the novel has told by {@code chapter} — no spoilers. */
     @GetMapping("/novels/{slug}/translations/{team}/who")
-    ResponseEntity<List<ApiV1.Character>> who(@PathVariable String slug, @PathVariable String team, @RequestParam int chapter,
-            @RequestParam String q, HttpServletRequest request) {
+    @Operation(operationId = "findWho", summary = "Хто це",
+            description = "Кого чи що називає `q` і що новела розповіла про це до глави `chapter` — без спойлерів.")
+    ResponseEntity<List<ApiV1.Character>> who(@Parameter(description = "Адреса новели", example = "mag-vody") @PathVariable String slug,
+            @Parameter(description = "Команда перекладу", example = "zoria") @PathVariable String team,
+            @Parameter(description = "Глава, станом на яку розповідати", example = "12") @RequestParam int chapter,
+            @Parameter(description = "Ім'я чи слово з тексту, 1–200 символів", example = "Рьо") @RequestParam String q,
+            HttpServletRequest request) {
         if (q.isBlank() || q.length() > 200) {
             throw UserFacingException.badRequest("Запит — від 1 до 200 символів.");
         }
@@ -153,8 +203,13 @@ class PublicApiController {
 
     /** The characters met by {@code chapter}, each with what the novel told about them by then. */
     @GetMapping("/novels/{slug}/translations/{team}/characters")
-    ResponseEntity<List<ApiV1.Character>> characters(@PathVariable String slug, @PathVariable String team,
-            @RequestParam int chapter, HttpServletRequest request) {
+    @Operation(operationId = "listCharacters", summary = "Персонажі",
+            description = "Персонажі, що з'явилися до глави `chapter`, і що про кожного відомо на той час; найчастіше згадувані першими.")
+    ResponseEntity<List<ApiV1.Character>> characters(
+            @Parameter(description = "Адреса новели", example = "mag-vody") @PathVariable String slug,
+            @Parameter(description = "Команда перекладу", example = "zoria") @PathVariable String team,
+            @Parameter(description = "Глава, станом на яку розповідати", example = "12") @RequestParam int chapter,
+            HttpServletRequest request) {
         EditionRow edition = edition(slug, team);
         return cached(request, cards.characters(edition.id(), Math.max(0, chapter), GlossaryCards.Sort.MENTIONS).stream()
                 .map(PublicApiController::character).toList());

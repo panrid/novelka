@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import space.panrid.novelka.media.StoredImage;
 import space.panrid.novelka.platform.text.Block;
 import space.panrid.novelka.platform.text.Span;
@@ -30,6 +31,7 @@ final class StudioApiV1 {
      * @param role     the person's role in the team: owner, translator or editor
      * @param chapters published chapters
      */
+    @Schema(name = "StudioTranslation", description = "Переклад, у команді якого ви є.")
     record Translation(String novel, String team, String teamName, String title, String kind, String status, String role,
             int chapters, int pendingSuggestions, int originals) {
     }
@@ -40,6 +42,7 @@ final class StudioApiV1 {
      * @param label the number readers see when it is not the position; null shows {@code number}
      * @param draft the person has an unpublished draft of it
      */
+    @Schema(name = "StudioChapterEntry", description = "Глава в списку, як її бачить команда.")
     record ChapterEntry(int number, String label, String title, boolean published, boolean draft) {
     }
 
@@ -47,6 +50,7 @@ final class StudioApiV1 {
      * A chapter's text for the team: what readers see ({@code revision}, null before the first
      * publication) and the person's own draft, if any.
      */
+    @Schema(name = "StudioChapter", description = "Текст глави для команди: опублікований і ваша чернетка.")
     record Chapter(int number, String label, String title, Long revision, boolean published, List<TextBlock> blocks, Draft draft) {
     }
 

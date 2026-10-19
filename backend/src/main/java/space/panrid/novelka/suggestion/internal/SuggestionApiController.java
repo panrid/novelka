@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import space.panrid.novelka.access.AccessPolicy;
 import space.panrid.novelka.access.EditionAccess;
 import space.panrid.novelka.account.Viewer;
@@ -40,6 +42,7 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @RestController
 @RequestMapping("/api/v1/studio/novels/{novel}/translations/{team}/suggestions")
+@Tag(name = "Правки", description = "Надіслати пакет правок може кожен, хто читає переклад (право токена `suggest`); переглядає й вирішує команда (`studio`).")
 class SuggestionApiController {
 
     private static final TypeReference<List<Span>> SPANS = new TypeReference<>() { };
@@ -112,6 +115,7 @@ class SuggestionApiController {
 
     /** Sends the changes as one batch for the team; all or nothing. Drafts kept on the site stay drafts. */
     @PostMapping
+    @Operation(summary = "Надіслати правки", description = "Пакет правок для команди: усі або жодної.")
     @ResponseStatus(HttpStatus.CREATED)
     Sent send(@PathVariable String novel, @PathVariable String team, @RequestBody Batch body) {
         Viewer viewer = access.requireSignedIn();
@@ -128,6 +132,7 @@ class SuggestionApiController {
 
     /** Правки waiting for the team, the oldest first; {@code chapter} narrows them to one chapter. */
     @GetMapping
+    @Operation(summary = "Правки на перевірку", description = "Правки, що чекають на команду, — найстаріші першими; `chapter` звужує до глави.")
     Page<Pending> pending(@PathVariable String novel, @PathVariable String team, @RequestParam(required = false) Integer chapter,
             @RequestParam(required = false) String after, @RequestParam(defaultValue = "" + PAGE) int limit) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
@@ -165,6 +170,7 @@ class SuggestionApiController {
 
     /** Accepts or rejects правки of any chapters; each chapter's accepted ones become one revision. */
     @PostMapping("/review")
+    @Operation(summary = "Прийняти чи відхилити", description = "Прийняті правки кожної глави стають однією новою редакцією.")
     Reviewed review(@PathVariable String novel, @PathVariable String team, @RequestBody Review body) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
         List<SuggestionService.Decision> decisions = body.decisions() == null ? List.of() : body.decisions().stream().map(decision -> {

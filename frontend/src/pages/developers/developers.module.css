@@ -1,0 +1,113 @@
+/* «Для розробників» (етап 22.4): one column on a phone, a readable width on a computer. */
+.page {
+    max-width: 760px;
+    padding-top: 12px;
+    line-height: 1.55;
+}
+
+.page h2 {
+    margin-top: 32px;
+    scroll-margin-top: 16px;
+}
+
+.page code {
+    font-family: ui-monospace, 'JetBrains Mono Variable', monospace;
+    font-size: 0.92em;
+    overflow-wrap: anywhere;
+}
+
+.toc {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.code {
+    margin: 8px 0 16px;
+    padding: 12px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.code code {
+    overflow-wrap: normal;
+    white-space: pre;
+}
+
+.fields {
+    margin: 8px 0 16px;
+}
+
+.fields > div {
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+}
+
+.fields dt {
+    font-weight: 600;
+}
+
+.fields dd {
+    margin: 2px 0 0;
+    color: var(--muted);
+}
+
+.reference h3 {
+    margin-top: 24px;
+}
+
+.operation {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    margin: 8px 0;
+    padding: 0 12px;
+    background: var(--surface);
+}
+
+.operation[open] {
+    padding-bottom: 8px;
+}
+
+.operation summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    padding: 10px 0;
+    cursor: pointer;
+}
+
+.method {
+    font: 700 12px/1 var(--font-ui);
+    color: var(--accent);
+    letter-spacing: 0.04em;
+}
+
+.path {
+    min-width: 0;
+    font-weight: 600;
+}
+
+.summary {
+    color: var(--muted);
+}
+
+.type {
+    font-family: ui-monospace, 'JetBrains Mono Variable', monospace;
+    font-size: 0.88em;
+    font-weight: 400;
+    color: var(--accent);
+}
+
+.where {
+    font-weight: 400;
+    font-size: 0.88em;
+    color: var(--muted);
+}
+
+.values {
+    display: block;
+}
