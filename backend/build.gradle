@@ -99,6 +99,11 @@ tasks.named('test') {
     useJUnitPlatform()
     jvmArgs '-Duser.timezone=UTC'
     maxParallelForks = testForks
+    // A failed test shows its message in the build log, so CI tells why without the report.
+    testLogging {
+        events 'failed'
+        exceptionFormat 'full'
+    }
 }
 
 tasks.named('bootRun') {
