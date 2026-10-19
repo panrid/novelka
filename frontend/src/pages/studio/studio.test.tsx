@@ -134,11 +134,13 @@ describe('new publication', () => {
         await userEvent.click(await screen.findByRole('button', { name: 'Фентезі' }));
         await userEvent.click(screen.getByRole('button', { name: 'Затишне' }));
         expect(screen.getByRole('button', { name: 'Затишне' })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('button', { name: 'Створити' })).toBeDisabled();
+        await userEvent.click(screen.getByRole('switch', { name: 'Маю право перекладати цей текст' }));
         await userEvent.click(screen.getByRole('button', { name: 'Створити' }));
 
         await waitFor(() => expect(router.state.location.pathname).toBe('/studio/12'));
         expect(calls.find((call) => call.path === '/api/studio/editions')?.body).toMatchObject({
-            kind: 'human', title: 'Сто ночей', tags: ['Фентезі', 'Затишне'], team: 'mika',
+            kind: 'human', title: 'Сто ночей', tags: ['Фентезі', 'Затишне'], team: 'mika', rightsConfirmed: true,
         });
         expect(await screen.findByRole('button', { name: 'Нова глава' })).toBeInTheDocument();
     });

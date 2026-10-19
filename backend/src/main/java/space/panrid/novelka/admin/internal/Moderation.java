@@ -97,6 +97,25 @@ class Moderation {
         }
     }
 
+    /**
+     * «Скарга правовласника» (етап 19): a report on the translation that hides it at once; moderators
+     * hear of it as of any report, and «Повернути» brings the translation back.
+     */
+    @Transactional
+    void rightsComplaint(Viewer reporter, long editionId, String rawStatement, String rawContact) {
+        String statement = rawStatement == null ? "" : rawStatement.strip();
+        String contact = rawContact == null ? "" : rawContact.strip();
+        if (statement.isEmpty() || contact.isEmpty()) {
+            throw UserFacingException.badRequest("Опишіть, чиї права порушено, і як з вами зв'язатися.");
+        }
+        if (statement.length() + contact.length() > 450) {
+            throw UserFacingException.badRequest("Коротше, будь ласка: до 450 знаків разом.");
+        }
+        report(reporter, "edition", editionId, "Скарга правовласника: " + statement + " · Зв'язок: " + contact, null);
+        catalog.hideEdition(editionId, reporter.accountId(), "Скарга правовласника");
+        audit.record(reporter.accountId(), "rights_complaint", "edition", editionId, Map.of("contact", contact));
+    }
+
     private static final Map<String, String> TARGET_NAMES = Map.of("comment", "Коментар", "chat", "Чат", "message",
             "Особисте повідомлення", "image", "Картинка", "edition", "Переклад");
 

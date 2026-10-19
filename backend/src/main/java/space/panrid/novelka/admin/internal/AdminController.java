@@ -76,6 +76,21 @@ class AdminController {
         staff.requestAutotranslate(currentUser.requireSignedIn());
     }
 
+    /** @param contact how the rights holder is reached: an email, a site, a name */
+    record RightsComplaint(long editionId, String statement, String contact) {
+    }
+
+    /**
+     * «Скарга правовласника» (етап 19): the translation is hidden at once and moderators look at the
+     * complaint; they bring the translation back if it does not hold.
+     */
+    @PostMapping("/rights-complaints")
+    @ResponseStatus(HttpStatus.CREATED)
+    Map<String, Boolean> rightsComplaint(@RequestBody RightsComplaint body) {
+        moderation.rightsComplaint(currentUser.requireSignedIn(), body.editionId(), body.statement(), body.contact());
+        return Map.of("hidden", true);
+    }
+
     // ---- moderators ------------------------------------------------------------------------------
 
     record Overview(int openReports, int activeJobs, int failedJobs, String role) {

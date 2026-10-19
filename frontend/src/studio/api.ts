@@ -102,7 +102,9 @@ export type TrashedEdition = { editionId: number; title: string; teamName: strin
 
 export const studioApi = {
     mine: () => api<MyEdition[]>('/api/studio'),
-    create: (body: { kind: 'human' | 'original'; title: string; author: string; description: StudioBlock[]; tags: string[]; adult: boolean; team: string }) =>
+    create: (body: { kind: 'human' | 'original'; title: string; author: string; description: StudioBlock[]; tags: string[]; adult: boolean; team: string;
+        /** «Маю право перекладати цей текст» was ticked (етап 19). */
+        rightsConfirmed?: boolean }) =>
         api<{ editionId: number; novelSlug: string }>('/api/studio/editions', json('POST', body)),
     overview: (id: number) => api<Overview>(edition(id)),
     update: (id: number, patch: Partial<{ title: string; author: string; description: StudioBlock[]; tags: string[]; status: string; adult: boolean; downloadAllowed: boolean;

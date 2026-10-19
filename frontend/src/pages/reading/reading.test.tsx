@@ -349,6 +349,27 @@ describe('the novel page’s «⋯»', () => {
         await userEvent.click(await screen.findByRole('tab', { name: 'Обговорення · 3' }));
         expect(screen.getByRole('tab', { name: 'Обговорення · 3' })).toHaveAttribute('aria-selected', 'true');
     });
+
+    it('hides the translation on a rights holder’s complaint (етап 19)', async () => {
+        const { calls } = await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': { body: { ...NOVEL, origin: 'translation' } },
+            'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
+            'POST /api/rights-complaints': { status: 201, body: { hidden: true } },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Ще' }));
+        await userEvent.click(await screen.findByRole('button', { name: 'Скарга правовласника' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Скарга правовласника' });
+        await userEvent.type(within(dialog).getByLabelText(/Чиї права порушено/), 'Я видавець, дозволу не давав.');
+        await userEvent.type(within(dialog).getByLabelText(/Як з вами зв/), 'rights@example.com');
+        const send = within(dialog).getByRole('button', { name: 'Надіслати скаргу й приховати переклад' });
+        expect(send).toBeDisabled();
+        await userEvent.click(within(dialog).getByRole('switch', { name: 'Я правовласник або дію від його імені' }));
+        await userEvent.click(send);
+        expect(await within(dialog).findByText(/приховано від читачів/)).toBeInTheDocument();
+        expect(calls.find((call) => call.path === '/api/rights-complaints')?.body)
+            .toEqual({ editionId: 7, statement: 'Я видавець, дозволу не давав.', contact: 'rights@example.com' });
+    });
 });
 
 describe('downloading an EPUB', () => {

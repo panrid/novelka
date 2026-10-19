@@ -23,6 +23,7 @@ import { LinkButton } from '../../ui/LinkButton';
 import { Notice } from '../../ui/Notice';
 import { showInfo } from '../../ui/toast';
 import { useReportEdition } from '../../reading/ReportEdition';
+import { RightsComplaintSheet } from '../../reading/RightsComplaint';
 import styles from './novel.module.css';
 import { askConfirm, askText } from '../../ui/ask';
 
@@ -205,6 +206,7 @@ function MoreButton({ novel, onGuestReset }: {
     const [open, setOpen] = useState(false);
     const [own, setOwn] = useState(false);
     const [book, setBook] = useState(false);
+    const [rights, setRights] = useState(false);
     const edition = novel.edition;
     const { reset } = useReadMarks(novel.slug, novel.viewer ? edition.editionId : null);
     const report = useReportEdition(edition.editionId);
@@ -224,6 +226,7 @@ function MoreButton({ novel, onGuestReset }: {
             <AriaButton className={styles.libraryButton} aria-label="Ще" onPress={() => setOpen(true)}>
                 <Ellipsis size={20} aria-hidden />
             </AriaButton>
+            {rights && <RightsComplaintSheet editionId={edition.editionId} title={novel.title} onClose={() => setRights(false)} />}
             <Sheet open={open} onClose={() => setOpen(false)} title={novel.title}>
                 <div className={styles.sheetList}>
                     {novel.editions.length > 1 && (
@@ -275,6 +278,12 @@ function MoreButton({ novel, onGuestReset }: {
                     )}
                     {!team && (
                         <button type="button" className={styles.sheetItem} onClick={() => close(report.ask)}>Поскаржитися на переклад</button>
+                    )}
+                    {!team && novel.origin === 'translation' && (
+                        <button type="button" className={styles.sheetItem} onClick={() => close(() => {
+                            if (me) setRights(true);
+                            else void navigate({ to: '/login', search: { next: window.location.pathname + window.location.search } });
+                        })}>Скарга правовласника</button>
                     )}
                     {team && (
                         <>
