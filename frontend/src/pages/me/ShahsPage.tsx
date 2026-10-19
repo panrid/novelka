@@ -1,7 +1,9 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { shahApi } from '../../ledger/api';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { shahApi, useCanRun } from '../../ledger/api';
 import { relativeTime } from '../../lib/dates';
-import { dollars, shahWord } from '../../studio/autotranslate';
+import { autotranslateApi, dollars, shahWord } from '../../studio/autotranslate';
+import { modelName } from '../studio/AutotranslatePage';
+import { askConfirm, askText } from '../../ui/ask';
 import { Notice } from '../../ui/Notice';
 import { Pager } from '../../ui/Pager';
 import { PAGE_SIZE, usePage } from '../../lib/usePage';
@@ -56,6 +58,45 @@ export function ShahsPage() {
                     <Pager page={page} total={data.total} size={PAGE_SIZE} onPage={setPage} />
                 </>
             )}
+            <MySets />
         </section>
+    );
+}
+
+/** «Мої набори моделей» (етап 19, п. 8): the sets a person saved, to rename or delete. */
+function MySets() {
+    const canRun = useCanRun();
+    const client = useQueryClient();
+    const sets = useQuery({ queryKey: ['my-sets'], queryFn: autotranslateApi.mySets, enabled: canRun });
+    const change = useMutation({
+        mutationFn: (run: () => Promise<void>) => run(),
+        onSuccess: () => {
+            void client.invalidateQueries({ queryKey: ['my-sets'] });
+            void client.invalidateQueries({ queryKey: ['autotranslate'] });
+        },
+    });
+    if (!canRun || !sets.data || sets.data.length === 0) return null;
+    return (
+        <>
+            <h2 className={styles.sectionTitle}>Мої набори моделей</h2>
+            {change.isError && <Notice tone="error">{change.error.message}</Notice>}
+            {sets.data.map((set) => (
+                <div key={set.id} className={styles.row}>
+                    <div>
+                        <b>{set.name}</b>
+                        <div className={styles.muted}>
+                            словник {modelName(set.analyze)} · переклад {modelName(set.translate)}
+                            {set.proofread ? ` · вичитка ${modelName(set.proofread)}` : ' · без вичитки'}
+                        </div>
+                    </div>
+                    <button type="button" className={styles.linkButton} aria-label={`Перейменувати ${set.name}`} onClick={() => void askText({
+                        title: 'Перейменувати набір', label: 'Нова назва', hint: `Зараз: «${set.name}»`, confirmLabel: 'Зберегти',
+                    }).then((name) => { if (name) change.mutate(() => autotranslateApi.renameSet(set.id, name)); })}>перейменувати</button>
+                    <button type="button" className={styles.linkButton} aria-label={`Видалити ${set.name}`} onClick={() => void askConfirm({
+                        title: `Видалити набір «${set.name}»?`, text: 'Запуски, що вже йдуть, доробляться з ним.', confirmLabel: 'Видалити', danger: true,
+                    }).then((yes) => { if (yes) change.mutate(() => autotranslateApi.deleteSet(set.id)); })}>видалити</button>
+                </div>
+            ))}
+        </>
     );
 }

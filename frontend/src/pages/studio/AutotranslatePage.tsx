@@ -2,11 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { chaptersWord } from '../../reading/api';
-import { JOB_LABELS, JOB_NAMES, QUALITY_LABELS, STAGE_LABELS, STEP_NAMES, autotranslateApi, dollars, money, shahWord, type Job, type AutotranslateOverview, type JobKind, type ModelShow, type Plan, type Preset, type Step } from '../../studio/autotranslate';
+import { JOB_LABELS, JOB_NAMES, QUALITY_LABELS, STAGE_LABELS, STEP_NAMES, autotranslateApi, dollars, money, shahWord, type Job, type AutotranslateOverview, type MySet, type JobKind, type ModelShow, type Plan, type Preset, type Step } from '../../studio/autotranslate';
 import { ModelPicker } from '../../studio/ModelPicker';
 import { useDebounced } from '../../lib/useDebounced';
 import { relativeTime } from '../../lib/dates';
-import { askConfirm } from '../../ui/ask';
+import { askConfirm, askText } from '../../ui/ask';
 import { Collapsible } from '../../ui/Collapsible';
 import { EditionShell } from './EditionShell';
 import { Button } from '../../ui/Button';
@@ -48,9 +48,15 @@ function AutotranslateTab() {
     const [redo, setRedo] = useState(false);
     const [pickedPublish, setPublish] = useState<boolean | null>(null);
     const publish = pickedPublish ?? remembered?.publish ?? true;
-    const [models, setModels] = useState<NonNullable<Plan['models']>>({});
+    // A person's own set (етап 19, п. 8) is its site quality with the steps' models put over it.
+    const [pickedSet, setMySet] = useState<number | null | undefined>(undefined);
+    const mySet = pickedSet !== undefined ? pickedSet : startingSet(overview.data);
+    const [pickedModels, setModels] = useState<NonNullable<Plan['models']> | undefined>(undefined);
+    const models = pickedModels ?? setModels_(overview.data?.mySets?.find((item) => item.id === mySet));
     const [pickedPreset, setPreset] = useState<number | null | undefined>(undefined);
-    const preset = pickedPreset !== undefined ? pickedPreset : startingPreset(overview.data);
+    const preset = pickedPreset !== undefined ? pickedPreset
+        : mySet != null ? overview.data?.mySets?.find((item) => item.id === mySet)?.basedOn ?? null : startingPreset(overview.data);
+    const [changing, setChanging] = useState(false);
     const [withWeak, setWithWeak] = useState(false);
     const [remember, setRemember] = useState(false);
     const modelShow: ModelShow = withWeak ? 'weak' : 'usual';
@@ -103,7 +109,7 @@ function AutotranslateTab() {
     const startJob = useMutation({
         mutationFn: async () => {
             const job = await autotranslateApi.start(id, plan!);
-            if (remember) await autotranslateApi.remember({ preset, steps, publish });
+            if (remember) await autotranslateApi.remember({ preset, steps, publish, mySet });
             return job;
         },
         onSuccess: () => { setTo(''); refresh(); },
@@ -185,14 +191,26 @@ function AutotranslateTab() {
                         <h3 className={styles.subTitle}>Якість</h3>
                         <div className={styles.presets} role="group" aria-label="Якість">
                             {data.presets.map((item) => (
-                                <button key={item.id} type="button" aria-pressed={preset === item.id} onClick={() => setPreset(item.id)}>
+                                <button key={item.id} type="button" aria-pressed={mySet == null && preset === item.id && Object.keys(models).length === 0}
+                                    onClick={() => { setPreset(item.id); setMySet(null); setModels({}); }}>
                                     {item.quality ? QUALITY_LABELS[item.quality] : item.name}
                                     {' · '}≈ {perChapter(item, data.usdPerShah)} {shahWord(perChapter(item, data.usdPerShah))} за главу
                                     <small style={{ display: 'block' }}>{modelName(item.translate)}</small>
                                 </button>
                             ))}
+                            {data.mySets?.map((item) => (
+                                <button key={`my-${item.id}`} type="button" aria-pressed={mySet === item.id}
+                                    onClick={() => { setMySet(item.id); setPreset(item.basedOn); setModels(setModels_(item)); }}>
+                                    {item.name} <small>мій</small>
+                                    {' · '}≈ {perChapter(item, data.usdPerShah)} {shahWord(perChapter(item, data.usdPerShah))} за главу
+                                    <small style={{ display: 'block' }}>{modelName(item.translate)}</small>
+                                </button>
+                            ))}
                         </div>
-                        {chosen && <p className={styles.muted}>{chosen.summary}</p>}
+                        {chosen && mySet == null && <p className={styles.muted}>{chosen.summary}</p>}
+                        <MineSet data={data} preset={chosen ?? null} models={models} mySet={mySet} changing={changing}
+                            onChanging={setChanging} onModel={(step, id) => { setMySet(null); setModels({ ...models, [step]: id }); }}
+                            onSaved={(saved) => { setMySet(saved); void client.invalidateQueries({ queryKey: ['autotranslate', id] }); }} />
                     </>)}
                     {!data.personal && (<>
                         <h3 className={styles.subTitle}>Моделі</h3>
@@ -490,6 +508,70 @@ export function JobCard({ job, editionId, showShah, usdPerShah, onCancel, onResu
     );
 }
 
+/** The person's remembered own set while they still have it. */
+function startingSet(data: AutotranslateOverview | undefined): number | null {
+    const mine = data?.remembered?.mySet;
+    return mine != null && data?.mySets?.some((item) => item.id === mine) ? mine : null;
+}
+
+/** An own set's models as a run's plan gives them. */
+function setModels_(set: MySet | undefined): NonNullable<Plan['models']> {
+    if (!set) return {};
+    return { analyze: set.analyze, translate: set.translate, proofreadEnabled: set.proofread !== null, ...(set.proofread ? { proofread: set.proofread } : {}) };
+}
+
+/**
+ * «Свій набір» (етап 19, п. 8): the steps' models of the quality, any changed to another model the
+ * site's qualities use; once changed — «змінено з «Висока»: модель вичитки» and «Зберегти як мій набір».
+ */
+function MineSet({ data, preset, models, mySet, changing, onChanging, onModel, onSaved }: {
+    data: AutotranslateOverview; preset: Preset | null; models: NonNullable<Plan['models']>; mySet: number | null; changing: boolean;
+    onChanging: (open: boolean) => void; onModel: (step: Step, id: string) => void; onSaved: (id: number) => void;
+}) {
+    const save = useMutation({
+        mutationFn: (name: string) => autotranslateApi.saveSet(name, preset?.id ?? null, effective),
+        onSuccess: ({ id }) => onSaved(id),
+    });
+    const base = (step: Step) => (step === 'analyze' ? preset?.analyze : step === 'translate' ? preset?.translate : preset?.proofread) ?? '';
+    const of = (step: Step) => models[step] ?? base(step);
+    const effective: NonNullable<Plan['models']> = {
+        analyze: of('analyze'), translate: of('translate'), proofreadEnabled: Boolean(of('proofread')),
+        ...(of('proofread') ? { proofread: of('proofread') } : {}),
+    };
+    const changed = STEPS.filter((step) => models[step] !== undefined && models[step] !== base(step));
+    const offered = data.peopleModels ?? [];
+    if (offered.length === 0) return null;
+    return (
+        <>
+            {changed.length > 0 && mySet == null && (
+                <p className={styles.muted} aria-live="polite">
+                    Свій набір · змінено з «{preset?.quality ? QUALITY_LABELS[preset.quality] : preset?.name ?? 'набору сайту'}»:{' '}
+                    {changed.map((step) => `модель ${STEP_GENITIVE[step]}`).join(', ')}{' '}
+                    <button type="button" className={styles.linkButton} disabled={save.isPending} onClick={() => void askText({
+                        title: 'Зберегти як мій набір', label: 'Назва набору', confirmLabel: 'Зберегти',
+                    }).then((name) => { if (name) save.mutate(name); })}>Зберегти як мій набір</button>
+                </p>
+            )}
+            {save.isError && <Notice tone="error">{save.error.message}</Notice>}
+            <button type="button" className={styles.linkButton} aria-expanded={changing} onClick={() => onChanging(!changing)}>
+                {changing ? 'Сховати моделі етапів' : 'Змінити моделі етапів'}
+            </button>
+            {changing && STEPS.map((step) => (
+                <label key={step}>
+                    <div className={styles.label}>{STEP_NAMES[step]}</div>
+                    <select className={styles.select} aria-label={`Модель: ${STEP_NAMES[step].toLowerCase()}`} value={of(step)}
+                        onChange={(event) => onModel(step, event.target.value)}>
+                        {!offered.includes(of(step)) && of(step) && <option value={of(step)}>{modelName(of(step))}</option>}
+                        {offered.map((id) => <option key={id} value={id}>{modelName(id)}</option>)}
+                    </select>
+                </label>
+            ))}
+        </>
+    );
+}
+
+const STEP_GENITIVE: Record<Step, string> = { analyze: 'словника', translate: 'перекладу', proofread: 'вичитки' };
+
 /** The remembered set while the site still offers it; people without one start at «Висока». */
 function startingPreset(data: AutotranslateOverview | undefined): number | null {
     if (!data) return null;
@@ -499,7 +581,7 @@ function startingPreset(data: AutotranslateOverview | undefined): number | null 
 }
 
 /** A chapter of this novel at the set, in whole шаги at the people's price (етап 19). */
-function perChapter(preset: Preset, usdPerShah: number) {
+function perChapter(preset: { chapterUsd: number }, usdPerShah: number) {
     return Math.max(1, Math.ceil(preset.chapterUsd / usdPerShah));
 }
 

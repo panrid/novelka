@@ -76,6 +76,44 @@ describe('шаги without payments', () => {
         expect(screen.getByText(/заблокуємо 2 шаги, решту повернемо/)).toBeInTheDocument();
     });
 
+    it('a person changes a step’s model and saves the set as their own (етап 19)', async () => {
+        const preset = (id: number, quality: string, translate: string, chapterUsd: number) => ({
+            id, name: `набір ${id}`, summary: `Опис ${id}.`, rating: 4, analyze: 'deepseek/deepseek-v4-pro', translate, proofread: 'deepseek/deepseek-v4-flash',
+            analysisUsd: 0.01, chapterUsd, quality,
+        });
+        let saved: unknown[] = [];
+        const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
+            'GET /api/me': { body: { ...person('reader'), ai: true } },
+            'GET /api/me/shahs': { body: MINE },
+            'GET /api/studio/editions/4/autotranslate': () => ({ body: {
+                configured: true, showShah: true, sourceChapters: 50, nextNumber: 1, publishedChapters: 0, lastAnalyzed: 0, nextToAnalyze: 1,
+                averageChars: 6000, balance: { shah: 9, usd: 0.63 }, usdPerShah: 0.07, settings: SETTINGS, jobs: [], personal: true, reserved: 2,
+                presets: [preset(9, 'best', 'anthropic/claude-opus-5.5', 0.5), preset(8, 'high', 'anthropic/claude-sonnet-5.5', 0.2)],
+                remembered: null, mySets: saved,
+                peopleModels: ['anthropic/claude-opus-5.5', 'anthropic/claude-sonnet-5.5', 'deepseek/deepseek-v4-flash', 'deepseek/deepseek-v4-pro'],
+            } }),
+            'POST /api/studio/autotranslate/my-sets': (body) => {
+                saved = [{ id: 31, name: 'Мій', basedOn: 8, analyze: 'deepseek/deepseek-v4-pro', translate: 'anthropic/claude-sonnet-5.5',
+                    proofread: 'anthropic/claude-opus-5.5', chapterUsd: 0.35 }];
+                return { status: 201, body: { id: 31, sent: body } };
+            },
+        });
+        await screen.findByRole('group', { name: 'Якість' });
+        await userEvent.click(screen.getByRole('button', { name: 'Змінити моделі етапів' }));
+        await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Модель: вичитка' }), 'anthropic/claude-opus-5.5');
+        expect(screen.getByText(/Свій набір · змінено з «Висока»: модель вичитки/)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Зберегти як мій набір' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Зберегти як мій набір' });
+        await userEvent.type(within(dialog).getByLabelText('Назва набору'), 'Мій');
+        await userEvent.click(within(dialog).getByRole('button', { name: 'Зберегти' }));
+        await waitFor(() => expect(calls.find((call) => call.path === '/api/studio/autotranslate/my-sets')?.body).toEqual({
+            name: 'Мій', basedOn: 8,
+            models: { analyze: 'deepseek/deepseek-v4-pro', translate: 'anthropic/claude-sonnet-5.5', proofread: 'anthropic/claude-opus-5.5', proofreadEnabled: true },
+        }));
+        expect(await within(screen.getByRole('group', { name: 'Якість' })).findByRole('button', { name: /Мій мій/ })).toHaveAttribute('aria-pressed', 'true');
+    });
+
     it('a person picks a quality priced in шаги and remembers it for the next runs (етап 19)', async () => {
         const preset = (id: number, quality: string, translate: string, chapterUsd: number) => ({
             id, name: `набір ${id}`, summary: `Опис ${id}.`, rating: 4, analyze: translate, translate, proofread: null,
@@ -112,7 +150,7 @@ describe('шаги without payments', () => {
         await waitFor(() => expect(run).toBeEnabled(), { timeout: 2000 });
         await userEvent.click(run);
         await waitFor(() => expect(calls.find((call) => call.path === '/api/studio/autotranslate/choice')?.body)
-            .toEqual({ preset: 9, steps: ['analyze', 'translate', 'proofread'], publish: true }));
+            .toEqual({ preset: 9, steps: ['analyze', 'translate', 'proofread'], publish: true, mySet: null }));
         expect(calls.find((call) => call.path === '/api/studio/editions/4/autotranslate/jobs')?.body).toMatchObject({ preset: 9 });
     });
 

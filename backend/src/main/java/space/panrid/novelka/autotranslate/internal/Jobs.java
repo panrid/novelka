@@ -52,11 +52,13 @@ class Jobs {
     private final AuditLog audit;
     private final Presets presets;
     private final ModelCosts costs;
+    private final MySets peopleModels;
     /** A person's run holds this much more than the quote: chapters vary and answers get asked again. */
     static final double RESERVE_MARGIN = 1.5;
 
     Jobs(DSLContext db, Ai ai, SiteSettings siteSettings, JsonMapper json, Ledger ledger, AuditLog audit, Presets presets,
-            ModelCosts costs) {
+            ModelCosts costs, MySets peopleModels) {
+        this.peopleModels = peopleModels;
         this.costs = costs;
         this.presets = presets;
         this.audit = audit;
@@ -249,9 +251,10 @@ class Jobs {
     }
 
     private Prepared prepare(long editionId, Plan plan, boolean personal) {
-        if (personal && plan.models() != null && (plan.models().analyze() != null || plan.models().translate() != null
-                || plan.models().proofread() != null || plan.models().proofreadEnabled() != null)) {
-            throw UserFacingException.badRequest("Моделі для автоперекладу обирає сайт.");
+        // People change a step's model only to one the site's qualities use (етап 19, п. 8).
+        String refused = personal ? peopleModels.refusal(plan.models()) : null;
+        if (refused != null) {
+            throw UserFacingException.badRequest(refused);
         }
         Presets.Preset preset = plan.preset() == null ? null
                 : presets.find(plan.preset()).orElseThrow(() -> UserFacingException.notFound("Такого набору моделей немає."));
@@ -391,6 +394,12 @@ class Jobs {
     }
 
     /** The site's models with this run's choices, each priced from OpenRouter's catalogue. */
+    /** What a chapter of {@code chars} costs at these models, from their token prices (a person's own set). */
+    long chapterMicroUsd(Models models, int chars) {
+        Settings settings = withModels(settings(), models);
+        return settings.expectedMicroUsd(chars, true, true, models.proofread() != null);
+    }
+
     private Settings withModels(Settings base, Models models) {
         if (models == null) {
             return base;
