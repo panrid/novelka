@@ -83,7 +83,8 @@ class TranslateWithAiTests {
         assertThat(overview.path("personal").asBoolean()).as("paid with their own шаги").isTrue();
         assertThat(reader.browser().post(base + "/jobs", json("to", 1)).status()).isEqualTo(201);
         worker.drain();
-        assertThat(db.select(JOB.STATE).from(JOB).where(JOB.EDITION_ID.eq(edition)).fetchSingle().value1()).isEqualTo("done");
+        JsonNode job = read(reader.browser().get(base)).path("jobs").path(0);
+        assertThat(job.path("state").asString()).as(job.toString()).isEqualTo("done");
         assertThat(read(reader.browser().get("/api/me/shahs")).path("available").asInt()).isLessThan(10);
 
         Response site = reader.browser().post("/api/studio/autotranslate/prepare", json("url", "https://ncode.syosetu.com/n0001aa/"));
