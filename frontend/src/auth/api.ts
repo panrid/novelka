@@ -1,4 +1,5 @@
 import { api } from '../api/client';
+import { noteAccount } from '../offline/personal';
 import type { Me } from './me';
 
 const post = <T>(path: string, body: unknown) => api<T>(path, { method: 'POST', body: JSON.stringify(body) });
@@ -6,7 +7,8 @@ const post = <T>(path: string, body: unknown) => api<T>(path, { method: 'POST', 
 export const authApi = {
     register: (nick: string, email: string, password: string) => post<void>('/api/auth/register', { nick, email, password }),
     login: (login: string, password: string) => post<Me>('/api/auth/login', { login, password }),
-    logout: () => post<void>('/api/auth/logout', {}),
+    /** Signing out also forgets what the phone kept for offline reading: the library, the places. */
+    logout: () => post<void>('/api/auth/logout', {}).then(() => noteAccount(null)),
     verify: (token: string) => post<Me>('/api/auth/verify', { token }),
     resendVerification: (email: string) => post<void>('/api/auth/verify/resend', { email }),
     requestReset: (email: string) => post<void>('/api/auth/password-reset', { email }),
