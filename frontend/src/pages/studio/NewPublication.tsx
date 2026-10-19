@@ -71,7 +71,7 @@ export function NewPublication() {
             <h1 className={styles.title}>Нова публікація</h1>
             <div role="group" aria-label="Що публікуєте" style={{ margin: '14px 0' }}>
                 <Choice on={kind === 'human'} onPick={() => setKind('human')} icon={<PenLine size={22} />} title="Свій переклад"
-                    text="Ви перекладаєте самі. Далі — глави в редакторі або з файлів .txt і .md." />
+                    text="Ви перекладаєте самі. Далі — глави в робочому місці або з файлів .txt і .md." />
                 <Choice on={kind === 'original'} onPick={() => setKind('original')} icon={<Sparkles size={22} />} title="Свій твір"
                     text="Ваша власна історія українською. Ви — автор." />
                 {canRun && (

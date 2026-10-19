@@ -75,10 +75,35 @@
 }
 
 /* Wide screens: same links in the header, no bottom bar. */
+/* Sun / moon: on a computer only (етап 20). */
+.themeButton {
+    display: none;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin-left: -16px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.themeButton:hover {
+    background: var(--surface-2);
+    color: var(--text);
+}
+
 @media (min-width: 768px) {
     .topTabs {
         display: flex;
         gap: 24px;
+    }
+
+    .themeButton {
+        display: inline-flex;
     }
 
     .bottomTabs {

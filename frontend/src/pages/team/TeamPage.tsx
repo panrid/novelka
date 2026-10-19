@@ -13,13 +13,14 @@ import { PAGE_SIZE, usePaged } from '../../lib/usePage';
 import { TextInput } from '../../ui/TextInput';
 import styles from '../studio/studio.module.css';
 import { askConfirm } from '../../ui/ask';
+import { Loading } from '../../ui/Loading';
 
 export function TeamPage() {
     const { handle } = useParams({ strict: false }) as { handle: string };
     const team = useQuery({ queryKey: ['team', handle.toLowerCase()], queryFn: () => teamApi.page(handle) });
 
     if (team.isError) return <section className={`${styles.page} ${styles.centered}`}><Notice tone="error">{team.error.message}</Notice></section>;
-    if (!team.data) return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
+    if (!team.data) return <Loading />;
     const data = team.data;
     return <TeamView data={data} />;
 }

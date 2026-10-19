@@ -181,7 +181,7 @@ const routeTree = rootRoute.addChildren([
     studio('/studio/$editionId/relay', RelayPage, 'Естафета'),
     studio('/studio/$editionId/structure', StructurePage, 'Структура й томи'),
     studio('/studio/$editionId/translate', AutotranslatePage, 'Автопереклад'),
-    studio('/studio/$editionId/translate/jobs/$jobId', JobLogPage, 'Журнал запуску'),
+    studio('/studio/$editionId/translate/jobs/$jobId', JobLogPage, 'Хід перекладу'),
     studio('/studio/$editionId/glossary', GlossaryPage, 'Словник'),
     studio('/studio/$editionId/originals', OriginalsPage, 'Оригінал'),
     studio('/studio/$editionId/titles', TitlesPage, 'Назви глав'),

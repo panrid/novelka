@@ -13,6 +13,7 @@ import { relativeTime } from '../../lib/dates';
 import { characters, paragraphs } from '../../lib/plural';
 import styles from './studio.module.css';
 import editor from './editor.module.css';
+import { Loading } from '../../ui/Loading';
 
 const text = (block: StudioBlock) => block.content.map((span) => span.text).join('');
 
@@ -69,7 +70,7 @@ export function HistoryPage() {
 
     return (
         <section className={styles.page}>
-            <Link to="/studio/$editionId/chapters/$number" params={{ editionId, number }} className={styles.muted}>‹ До редактора</Link>
+            <Link to="/studio/$editionId/chapters/$number" params={{ editionId, number }} className={styles.muted}>‹ До робочого місця</Link>
             <h1 className={styles.title}>Історія: {view.data ? chapterHeading(view.data) : `глава ${chapter}`}</h1>
             {revisions.isError && <Notice tone="error">{revisions.error.message}</Notice>}
             {restore.isError && <Notice tone="error">{restore.error.message}</Notice>}
@@ -108,7 +109,7 @@ export function HistoryPage() {
 function RevisionDiff({ editionId, chapter, revisionId }: { editionId: number; chapter: number; revisionId: number }) {
     const revision = useQuery({ meta: { errorToast: true }, queryKey: ['studio-revision', revisionId], queryFn: () => studioApi.revision(editionId, chapter, revisionId) });
     if (revision.isError) return <p className={styles.muted}>Не вдалося показати зміни.</p>;
-    if (!revision.data) return <p className={styles.muted}>Завантажуємо…</p>;
+    if (!revision.data) return <Loading shape="lines" />;
     const before = new Map(revision.data.parentBlocks.map((block) => [block.id, block]));
     const after = new Set(revision.data.blocks.map((block) => block.id));
     const rows = revision.data.blocks.map((block) => {

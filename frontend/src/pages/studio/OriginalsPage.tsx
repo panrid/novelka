@@ -17,6 +17,7 @@ import { Trash2 } from '../../ui/icons';
 import { useEditionId } from './EditionPage';
 import { EditionShell } from './EditionShell';
 import styles from './originals.module.css';
+import { Loading } from '../../ui/Loading';
 
 const PAGE = 50;
 
@@ -355,7 +356,7 @@ function OriginalEditor({ editionId, row, onDone }: { editionId: number; row: Or
         },
     });
     if (original.isError) return <Notice tone="error">{original.error.message}</Notice>;
-    if (!original.data) return <p className={styles.muted}>Завантажуємо…</p>;
+    if (!original.data) return <Loading shape="lines" />;
     const loaded: GivenChapter = {
         title: original.data.title,
         text: original.data.blocks.filter((block) => block.type !== 'image')

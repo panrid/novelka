@@ -14,7 +14,7 @@ const short = (model: string) => model.slice(model.indexOf('/') + 1);
 
 /** What a preset costs here: its analysis for an analysis run, the whole chapter for a translation. */
 function price(preset: Preset, kind: JobKind): string {
-    return kind === 'analyze' ? `≈ ${dollars(preset.analysisUsd, 3)} за аналіз глави` : `≈ ${dollars(preset.chapterUsd, 3)} за главу`;
+    return kind === 'analyze' ? `≈ ${dollars(preset.analysisUsd, 3)} за словник глави` : `≈ ${dollars(preset.chapterUsd, 3)} за главу`;
 }
 
 function steps(preset: Preset, kind: JobKind): string {

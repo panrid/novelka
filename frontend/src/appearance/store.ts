@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { api } from '../api/client';
 import { loadFont } from './fonts';
 import {
+    NOVELKA_ACCENT, NOVELKA_TONE, SITE_TONES,
     clean, ownReaderVars, presetLook, readerColors, readerLook, siteLook, sitePresetLook, siteStyle,
     type Appearance, type ReaderAppearance, type ReaderPreset, type SiteAppearance, type SiteStyle,
 } from './model';
@@ -122,6 +123,20 @@ function changed(next: Appearance) {
 export function setSite(patch: SiteAppearance) {
     const site = { ...current.site, ...patch, custom: true };
     changed({ ...current, site, siteOwn: site });
+}
+
+/**
+ * The sun / moon button in the header (етап 20): the same look, light or dark. The new design's tone
+ * and accent follow to their pair; another tone keeps its place when the other base has it.
+ */
+export function toggleSiteBase() {
+    const look = siteLook(current);
+    const base = look.base === 'dark' ? 'light' : 'dark';
+    const patch: SiteAppearance = { base, bg: look.bg < SITE_TONES[base].length ? look.bg : 0 };
+    if (look.accent.toLowerCase() === NOVELKA_ACCENT[look.base]) patch.accent = NOVELKA_ACCENT[base];
+    if (look.bg === NOVELKA_TONE) patch.bg = NOVELKA_TONE;
+    const site = { ...current.site, ...patch };
+    changed({ ...current, site, ...(look.custom ? { siteOwn: site } : {}) });
 }
 
 /** A ready site style replaces whatever was changed before. */

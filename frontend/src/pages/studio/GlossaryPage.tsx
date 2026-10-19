@@ -21,6 +21,7 @@ import { WordsSwitch } from './WordsSwitch';
 import { PAGE_SIZE, usePage } from '../../lib/usePage';
 import { useEditionId } from './EditionPage';
 import styles from './studio.module.css';
+import { Loading } from '../../ui/Loading';
 
 const GENDER_LABELS: Record<Gender, string> = { male: 'чоловічий', female: 'жіночий', unknown: 'невідомо' };
 const STATUS_LABELS: Record<GlossaryStatus, string> = { new: 'Нові', approved: 'Затверджені', rejected: 'Відхилені' };
@@ -315,7 +316,7 @@ function SortRoles({ editionId, onDone }: { editionId: number; onDone: () => voi
             <Button variant="secondary" pending={run.isPending} pendingLabel="Розбираємо…"
                 onPress={() => void askConfirm({
                     title: 'Розібрати персонажів ШІ?',
-                    text: `Нерозібраних персонажів: ${quote.data!.characters}. Модель аналізу скаже, хто діє в історії, а хто лише згаданий чи монстр. Орієнтовно $${quote.data!.usd}.`,
+                    text: `Нерозібраних персонажів: ${quote.data!.characters}. Модель словника скаже, хто діє в історії, а хто лише згаданий чи монстр. Орієнтовно $${quote.data!.usd}.`,
                     confirmLabel: 'Розібрати',
                 }).then((yes) => { if (yes) run.mutate(); })}>
                 Розібрати персонажів ШІ · {quote.data.characters}
@@ -341,7 +342,7 @@ function FactsBox({ editionId, entry }: { editionId: number; entry: GlossaryItem
             <div className={styles.label}>Хто це — опис для читачів і для малювання</div>
             {facts.isError && <Notice tone="error">{facts.error.message}</Notice>}
             {facts.isSuccess && list.length === 0 && (
-                <p className={styles.muted}>Поки нічого. Факти додаються під час аналізу глав, а можна й самому.</p>
+                <p className={styles.muted}>Поки нічого. Факти додаються, коли ШІ складає словник глав, а можна й самому.</p>
             )}
             <ul className={styles.factList}>
                 {list.map((fact) => editing === fact.id
@@ -497,7 +498,7 @@ function Occurrences({ editionId, entry }: { editionId: number; entry: GlossaryI
                 </Link>
             ))}
             {found.data.chapters.length > 0 && (
-                <span className={styles.muted}>У редакторі: {found.data.chapters.map((chapter, index) => (
+                <span className={styles.muted}>У робочому місці: {found.data.chapters.map((chapter, index) => (
                     <Fragment key={chapter.number}>{index > 0 && ', '}
                         <Link to="/studio/$editionId/chapters/$number" params={{ editionId: String(editionId), number: String(chapter.number) }}>
                             гл. {chapter.label}
@@ -526,13 +527,13 @@ function OriginalBox({ editionId, entry }: { editionId: number; entry: GlossaryI
             {open && (
                 <div className={styles.originalBox}>
                     {original.isError && <Notice tone="error">{original.error.message}</Notice>}
-                    {!data && !original.isError && <span className={styles.muted}>Завантажуємо…</span>}
+                    {!data && !original.isError && <Loading shape="inline" />}
                     {data && (
                         <>
                             {data.original ? (
                                 <div lang={data.language}><b>{data.original}</b>{data.reading ? <span className={styles.muted}> · {data.reading}</span> : null}</div>
                             ) : (
-                                <div className={styles.muted}>Як це пишеться {inLanguage(data.language)}, аналіз ще не знайшов.</div>
+                                <div className={styles.muted}>Як це пишеться {inLanguage(data.language)}, ШІ ще не знайшов.</div>
                             )}
                             {data.aliases.length > 0 && <div className={styles.muted}>Ще пишеться: {data.aliases.join(', ')}</div>}
                             {data.others.map((form) => (

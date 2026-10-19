@@ -3,7 +3,7 @@ import { api } from '../api/client';
 export type JobKind = 'analyze' | 'translate' | 'proofread';
 /** The steps a run is made of, in any sensible set. */
 export type Step = 'analyze' | 'translate' | 'proofread';
-export const STEP_NAMES: Record<Step, string> = { analyze: 'Аналіз', translate: 'Переклад', proofread: 'Вичитка' };
+export const STEP_NAMES: Record<Step, string> = { analyze: 'Словник', translate: 'Переклад', proofread: 'Вичитка' };
 export const JOB_NAMES: Record<JobKind, string> = { analyze: 'Аналіз', translate: 'Переклад', proofread: 'Вичитка' };
 export type Stage = { model: string; inputPerMillion: number; outputPerMillion: number; enabled: boolean };
 export type Plan = {
@@ -268,7 +268,7 @@ export { dollars };
 
 export const STAGE_LABELS: Record<string, string> = {
     fetch: 'завантажуємо оригінал',
-    analyze: 'аналіз і словник',
+    analyze: 'словник',
     translate: 'переклад',
     proofread: 'вичитка',
     publish: 'публікуємо',

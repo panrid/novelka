@@ -12,6 +12,7 @@ import { Toggle } from '../../ui/Toggle';
 import { Pager } from '../../ui/Pager';
 import { PAGE_SIZE, usePaged } from '../../lib/usePage';
 import styles from './inbox.module.css';
+import { Loading } from '../../ui/Loading';
 
 /** Members, the group's name and picture, «Без звуку», leaving and blocking. */
 export function ConversationAboutPage() {
@@ -38,7 +39,7 @@ export function ConversationAboutPage() {
     const members = usePaged(about.data?.members);
 
     if (about.isError) return <section className={styles.page}><Notice tone="error">{about.error.message}</Notice></section>;
-    if (!about.data || !me) return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
+    if (!about.data || !me) return <Loading shape="lines" />;
     const c = about.data;
     const group = c.kind === 'group';
     const other = c.kind === 'direct' ? c.members.find((m) => m.nick !== me.nick)?.nick : undefined;

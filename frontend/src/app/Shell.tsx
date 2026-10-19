@@ -2,8 +2,9 @@ import { SearchBox } from '../reading/SearchBox';
 import { useQuery } from '@tanstack/react-query';
 import { HeadContent, Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { BookOpen, Home, Inbox, PenLine, Search, User, type LucideIcon } from '../ui/icons';
-import { syncWithAccount } from '../appearance/store';
+import { BookOpen, Home, Inbox, Moon, PenLine, Search, Sun, User, type LucideIcon } from '../ui/icons';
+import { syncWithAccount, toggleSiteBase, useAppearance } from '../appearance/store';
+import { siteLook } from '../appearance/model';
 import { meQuery, useMe } from '../auth/me';
 import { useInboxCounts, useLiveEvents } from '../inbox/live';
 import { Avatar } from '../ui/Avatar';
@@ -53,6 +54,7 @@ export function Shell() {
                     </Link>
                     <Tabs className={styles.topTabs} />
                     <HeaderSearch />
+                    <ThemeButton />
                 </header>
             )}
             <main className={reading ? undefined : styles.main}>
@@ -79,6 +81,20 @@ function useAppearanceSync() {
     useEffect(() => {
         if (loaded) syncWithAccount(me ? me.appearance ?? {} : null);
     }, [me, loaded]);
+}
+
+/**
+ * Sun / moon in the header on a computer (етап 20, рішення 2): the light look at once, and back.
+ * A phone keeps the look chosen in «Вигляд».
+ */
+function ThemeButton() {
+    const dark = siteLook(useAppearance()).base === 'dark';
+    const label = dark ? 'Світла тема' : 'Темна тема';
+    return (
+        <button type="button" className={styles.themeButton} aria-label={label} title={label} onClick={toggleSiteBase}>
+            {dark ? <Sun size={20} aria-hidden /> : <Moon size={20} aria-hidden />}
+        </button>
+    );
 }
 
 function railOf(path: string): 'studio' | 'me' | 'inbox' | null {

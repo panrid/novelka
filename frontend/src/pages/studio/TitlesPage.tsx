@@ -25,7 +25,7 @@ export function TitlesPage() {
                 глав зміна подіє, коли главу перекладуть заново.
             </p>
             {titles.isError && <Notice tone="error">{titles.error.message}</Notice>}
-            {titles.data?.total === 0 && <p className={styles.muted}>Назви з'являться після аналізу глав.</p>}
+            {titles.data?.total === 0 && <p className={styles.muted}>Назви з'являться, коли ШІ складе словник глав.</p>}
             {titles.data?.items.map((chapter) => <TitleRow key={chapter.number} editionId={id} chapter={chapter} />)}
             {titles.data && <Pager page={page} total={titles.data.total} size={PAGE_SIZE} onPage={setPage} />}
         </EditionShell>

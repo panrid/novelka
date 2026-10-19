@@ -1,21 +1,30 @@
 /*
- * Design tokens. Dark is the default theme (brief); light exists for readers who pick it.
- * Components use only these variables, never raw colours.
+ * Design tokens. Dark is the default theme (brief; the new design of етап 20, doc/redesign/README.md
+ * «Вигляд»); light exists for readers who pick it. Components use only these variables, never raw colours.
  */
 :root,
 :root[data-theme='dark'] {
     color-scheme: dark;
-    --bg: #121412;
-    --surface: #1b1e1b;
-    --surface-2: #242824;
-    --line: #2f342f;
-    --text: #e9e7df;
-    --text-reading: #dcdad1;
-    --muted: #9a9d94;
-    --faint: #6d7069;
-    --accent: #8fb07f;
-    --accent-ink: #10150e;
-    --warn: #d9a45b;
+    --bg: #0f1115;
+    --surface: #171a20;
+    --surface-2: #1f232b;
+    --line: #2a2f39;
+    --text: #e8eaee;
+    --text-reading: #dadde3;
+    --muted: #a3a9b6;
+    --faint: #6f7584;
+    --accent: #8ea6ff;
+    --accent-ink: #0b0d12;
+    /* Headings; a glossary word lit in the text; a selected word and its pair in the original; a правка's removed and added words. */
+    --strong: #f1f2f5;
+    --term: rgb(255 196 64 / 20%);
+    --sel: rgb(142 166 255 / 28%);
+    --del: rgb(255 140 80 / 18%);
+    --del-ink: #ffb48a;
+    --ins: rgb(142 166 255 / 22%);
+    --ins-ink: #d3dcff;
+    --warn-bg: rgb(242 196 107 / 14%);
+    --warn: #f2c46b;
     --danger: #d9776b;
     --focus: #b9d4aa;
     --shadow: 0 8px 24px rgb(0 0 0 / 45%);
@@ -35,6 +44,14 @@
     --faint: #8a8c85;
     --accent: #4f7a40;
     --accent-ink: #ffffff;
+    --strong: #0b0d12;
+    --term: #fff1c2;
+    --sel: #dce6ff;
+    --del: #fde6d3;
+    --del-ink: #7a3410;
+    --ins: #dce6ff;
+    --ins-ink: #102a8c;
+    --warn-bg: #fff1d6;
     --warn: #9a6516;
     --danger: #b04a3e;
     --focus: #4f7a40;
@@ -55,6 +72,14 @@
     --faint: #62655e;
     --accent: #8fb07f;
     --accent-ink: #10150e;
+    --strong: #f1f2f5;
+    --term: rgb(255 196 64 / 20%);
+    --sel: rgb(142 166 255 / 28%);
+    --del: rgb(255 140 80 / 18%);
+    --del-ink: #ffb48a;
+    --ins: rgb(142 166 255 / 22%);
+    --ins-ink: #d3dcff;
+    --warn-bg: rgb(242 196 107 / 14%);
     --warn: #d9a45b;
     --danger: #d9776b;
     --focus: #b9d4aa;

@@ -26,6 +26,7 @@ import { useReportEdition } from '../../reading/ReportEdition';
 import { RightsComplaintSheet } from '../../reading/RightsComplaint';
 import styles from './novel.module.css';
 import { askConfirm, askText } from '../../ui/ask';
+import { Loading } from '../../ui/Loading';
 
 export function NovelPage() {
     const { slug } = useParams({ strict: false }) as { slug: string };
@@ -33,7 +34,7 @@ export function NovelPage() {
     const novel = useQuery(novelQuery(slug, t));
 
     if (novel.isPending) {
-        return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
+        return <Loading />;
     }
     if (novel.isError) {
         const adult = novel.error instanceof ApiError && novel.error.reason === 'adult';

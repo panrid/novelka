@@ -2,7 +2,7 @@
 // Loaded only when someone picks the set; see ui/icons.tsx.
 
 import type { ComponentType, ReactElement } from 'react';
-import { Archive, ArrowLeft, Bell, BellNotification, BookmarkBook, ChatBubble, Check, ClockRotateRight, DataTransferBoth, EditPencil, Eye, EyeClosed, Group, Home, InfoCircle, Language, LightBulb, Link, List, Medal, MoreHoriz, MediaImagePlus, MediaImageList, Minus, NavArrowDown, NavArrowLeft, NavArrowRight, NavArrowUp, OpenBook, Plus, Redo, Refresh, Search, Send, Settings, Sort, Sparks, Text, Trash, TriangleFlag, Undo, Upload, User, Xmark } from 'iconoir-react';
+import { Archive, ArrowLeft, Bell, BellNotification, BookmarkBook, ChatBubble, Check, ClockRotateRight, DataTransferBoth, EditPencil, Eye, EyeClosed, Group, Home, InfoCircle, Language, LightBulb, Link, List, Medal, MoreHoriz, MediaImagePlus, MediaImageList, Minus, NavArrowDown, NavArrowLeft, NavArrowRight, NavArrowUp, OpenBook, Plus, Redo, Refresh, Search, Send, Settings, Sort, Sparks, SunLight, HalfMoon, Text, Trash, TriangleFlag, Undo, Upload, User, Xmark } from 'iconoir-react';
 import type { SetIconProps } from '../icons';
 
 function draw(Icon: ComponentType<Record<string, unknown>>, { size, stroke }: SetIconProps) {
@@ -53,6 +53,8 @@ const ICONS: Record<string, ComponentType<Record<string, unknown>>> = {
     Trash2: Trash,
     Type: Text,
     Undo2: Undo,
+    Sun: SunLight,
+    Moon: HalfMoon,
     User: User,
     Users: Group,
     X: Xmark,

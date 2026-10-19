@@ -14,6 +14,7 @@ import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
 import { chaptersWord } from '../../reading/api';
 import styles from '../studio/studio.module.css';
+import { Loading } from '../../ui/Loading';
 
 const PERIODS = [
     { value: '7', label: '7 днів' },
@@ -29,7 +30,7 @@ export function WalletPage() {
     const [days, setDays] = useState<'7' | '30' | '365'>('30');
     const wallet = useQuery({ queryKey: ['wallet', days], queryFn: () => autotranslateApi.wallet(Number(days)) });
     if (wallet.isError) return <Notice tone="error">{wallet.error.message}</Notice>;
-    if (!wallet.data) return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
+    if (!wallet.data) return <Loading />;
     const data = wallet.data;
     const show = data.showShah;
 

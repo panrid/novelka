@@ -41,7 +41,7 @@ export function NewChapterSheet({ editionId, machine, onClose }: { editionId: nu
                 <button type="button" role="radio" aria-checked={way === 'manual'} className={styles.choice} onClick={() => setWay('manual')}>
                     <PenLine size={20} aria-hidden />
                     <b>Вручну</b>
-                    <span>Написати або вставити текст у редактор</span>
+                    <span>Написати або вставити текст у робочому місці</span>
                 </button>
             </div>
             {way === 'auto' && machine ? (
@@ -49,7 +49,7 @@ export function NewChapterSheet({ editionId, machine, onClose }: { editionId: nu
             ) : (
                 <div className={styles.footer}>
                     {add.isError && <Notice tone="error">{add.error.message}</Notice>}
-                    <Button onPress={() => add.mutate()} pending={add.isPending} pendingLabel="Створюємо…">Відкрити редактор</Button>
+                    <Button onPress={() => add.mutate()} pending={add.isPending} pendingLabel="Створюємо…">Відкрити робоче місце</Button>
                     <Link to="/studio/$editionId/import" params={{ editionId: String(editionId) }} className={styles.file}>
                         <FileUp size={16} aria-hidden /> Або завантажити з файлу (.docx, .txt, .md)
                     </Link>
