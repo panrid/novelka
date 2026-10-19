@@ -59,6 +59,16 @@ export type EditorView = {
 /** The original a chapter was translated from; paragraph ids match the translation's. */
 export type ChapterOriginal = { title: string; blocks: { id: string; type: string; text: string }[] };
 
+/**
+ * What «Як у книжці» marks beside each paragraph (етап 20, крок 3): the text it had when the team
+ * checked it, the text the AI wrote, and paragraphs a reader's правка waits for.
+ */
+export type ParagraphMarks = {
+    checked: { blockId: string; text: string }[];
+    machine: { blockId: string; text: string }[];
+    offers: string[];
+};
+
 export type RevisionInfo = {
     id: number; authorNick: string | null; origin: string; createdAt: string; blocksChanged: number; charsChanged: number;
     published: boolean;
@@ -137,6 +147,12 @@ export const studioApi = {
     discardDraft: (id: number, number: number) => api<void>(`${chapter(id, number)}/draft`, { method: 'DELETE' }),
     publish: (id: number, number: number, body: { title: string; blocks: StudioBlock[]; baseRevisionId: number | null }) =>
         api<{ revisionId: number }>(`${chapter(id, number)}/publish`, json('POST', body)),
+    paragraphs: (id: number, number: number) => api<ParagraphMarks>(`${chapter(id, number)}/paragraphs`),
+    /** «Позначити перевіреним»: the paragraph as it reads now; an edit unchecks it. */
+    checkParagraph: (id: number, number: number, blockId: string, text: string) =>
+        api<void>(`${chapter(id, number)}/paragraphs/${encodeURIComponent(blockId)}/check`, json('PUT', { text })),
+    uncheckParagraph: (id: number, number: number, blockId: string) =>
+        api<void>(`${chapter(id, number)}/paragraphs/${encodeURIComponent(blockId)}/check`, { method: 'DELETE' }),
     setLabel: (id: number, number: number, label: string | null) => api<void>(`${chapter(id, number)}/label`, json('PUT', { label })),
     revisions: (id: number, number: number) => api<RevisionInfo[]>(`${chapter(id, number)}/revisions`),
     revision: (id: number, number: number, revisionId: number) => api<RevisionView>(`${chapter(id, number)}/revisions/${revisionId}`),

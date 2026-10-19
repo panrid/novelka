@@ -1,0 +1,265 @@
+/* «Як у книжці» (новий дизайн, WorkspaceFocus.dc.html): the translation alone, set like the book. */
+.page {
+    min-height: 100dvh;
+}
+
+.top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+    padding: 10px var(--gutter);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+}
+
+.back {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.back:hover {
+    background: var(--surface-2);
+}
+
+.where {
+    flex: 1;
+    min-width: 180px;
+}
+
+.heading {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.title {
+    overflow: hidden;
+    color: var(--strong);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.bar {
+    width: 120px;
+    height: 6px;
+    border-radius: 6px;
+    background: var(--surface-2);
+}
+
+.bar span {
+    display: block;
+    height: 6px;
+    border-radius: 6px;
+    background: var(--accent);
+}
+
+.toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.toggle input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+}
+
+@media (max-width: 640px) {
+    .progress .bar {
+        display: none;
+    }
+}
+
+.main {
+    display: flex;
+    flex-direction: column;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 32px var(--gutter) 48px;
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin: 0 0 24px 56px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.legend > span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chapterTitle {
+    margin: 0 0 24px 56px;
+    color: var(--strong);
+    font: 600 30px/1.25 var(--font-reading);
+}
+
+.row {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    column-gap: 16px;
+    margin-bottom: 14px;
+}
+
+.number {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    height: 32px;
+    margin-top: 6px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font: 500 12px var(--font-ui);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+
+.dot {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.machine {
+    background: var(--muted);
+}
+
+.unchecked {
+    box-shadow: inset 0 0 0 2px var(--line);
+}
+
+.checked {
+    border-radius: 3px;
+    background: var(--accent);
+}
+
+.offer {
+    box-shadow: inset 0 0 0 2px var(--warn);
+}
+
+.paragraph {
+    padding: 8px 14px;
+    border-radius: 12px;
+}
+
+.paragraphLit {
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.text,
+.subheading {
+    margin: 0;
+    color: var(--text-reading);
+    font: 18px/1.7 var(--font-reading);
+    text-align: justify;
+    hyphens: auto;
+    cursor: pointer;
+}
+
+.subheading {
+    font-weight: 600;
+    text-align: left;
+}
+
+.original {
+    margin: 8px 0 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font: 14px/1.6 var(--font-reading);
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.action,
+.actionMain {
+    height: 32px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text);
+    font: 500 12px var(--font-ui);
+    cursor: pointer;
+}
+
+.actionMain {
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+}
+
+.action:disabled,
+.actionMain:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.separator {
+    margin: 8px 0 22px 56px;
+    color: var(--faint);
+    text-align: center;
+}
+
+.picture {
+    display: block;
+    max-width: calc(100% - 56px);
+    height: auto;
+    margin: 8px 0 22px 56px;
+    border-radius: 12px;
+}
+
+@media (max-width: 640px) {
+    .legend,
+    .chapterTitle {
+        margin-left: 0;
+    }
+
+    .row {
+        grid-template-columns: 32px minmax(0, 1fr);
+        column-gap: 8px;
+    }
+
+    .text {
+        font-size: 17px;
+    }
+}

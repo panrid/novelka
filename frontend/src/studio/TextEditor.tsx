@@ -14,7 +14,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/r
 import { ArrowRightLeft, BookmarkPlus, Check, ImagePlus, Images, Link2, Minus, RefreshCw, Redo2, Sparkles, Undo2 } from '../ui/icons';
 import { askText } from '../ui/ask';
 import { showInfo } from '../ui/toast';
-import { useImperativeHandle, useRef, useState } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Dialog, Heading as DialogHeading, Modal, ModalOverlay } from 'react-aria-components';
 import { Button } from '../ui/Button';
 import { Notice } from '../ui/Notice';
@@ -22,6 +22,7 @@ import { TextInput } from '../ui/TextInput';
 import { studioApi, type StudioBlock } from './api';
 import { toBlocks, toDocument } from './document';
 import { PicturePicker } from './PicturePicker';
+import { gridKey, WorkspaceGrid, type GridOriginal, type GridSource } from './workspaceGrid';
 import styles from './TextEditor.module.css';
 
 /** Keeps each paragraph's id and kind (preface, afterword) on its editor node. */
@@ -77,6 +78,11 @@ type Props = {
     onProofread?: ((pick: { blockId: string | null; paragraph: string }) => void) | undefined;
     /** «До словника» (етап 19): the selected words, their paragraph's id and its text as it is now. */
     onGlossary?: ((pick: { selection: string; blockId: string | null; paragraph: string }) => void) | undefined;
+    /**
+     * The workspace grid on a wide screen (новий дизайн, рішення 9): numbers, and the original beside
+     * each paragraph while {@code original} is given. Left out — the text alone, as on a phone.
+     */
+    grid?: { original: GridOriginal[] | null } | undefined;
 };
 
 /** The top-level block where the cursor or the selection starts (a select-all starts at the document). */
@@ -90,13 +96,14 @@ function cursorBlock(editor: Editor): string | null {
     return (cursorNode(editor)?.attrs.blockId as string | null | undefined) ?? null;
 }
 
-export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate, onCursorBlock, onGlossary, onVariants, onProofread }: Props) {
+export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate, onCursorBlock, onGlossary, onVariants, onProofread, grid }: Props) {
     const chapter = mode === 'chapter';
     const editor = useEditor({
         extensions: [
             Document, Text, Paragraph, Bold, Italic, Underline, Strike, UndoRedo, BlockIdentity,
             Placeholder.configure({ placeholder: placeholder ?? '' }),
             ...(chapter ? [Heading.configure({ levels: [2] }), HorizontalRule, Picture.configure({ inline: false })] : []),
+            ...(chapter ? [WorkspaceGrid] : []),
         ],
         content: toDocument(blocks) as JSONContent,
         editorProps: {
@@ -127,11 +134,31 @@ export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = fa
         },
     }), [editor, blocks]);
 
+    const gridOn = Boolean(grid);
+    const gridOriginal = grid?.original ?? null;
+    // The grid is told what to draw by a transaction of its own.
+    useEffect(() => {
+        if (!chapter || !editor || editor.isDestroyed) return;
+        const source: GridSource = { on: gridOn, original: gridOriginal };
+        const tell = () => {
+            try {
+                editor.view.dispatch(editor.state.tr.setMeta(gridKey, source));
+                return true;
+            } catch {
+                return false; // the view is not on the page yet
+            }
+        };
+        if (tell()) return undefined;
+        const later = setTimeout(tell, 0);
+        return () => clearTimeout(later);
+    }, [editor, chapter, gridOn, gridOriginal]);
+
     if (!editor) {
         return null;
     }
+    const gridClass = grid ? ` ${styles.grid} ${grid.original ? styles.gridWithOriginal : ''}` : '';
     return (
-        <div className={styles.wrap}>
+        <div className={`${styles.wrap}${gridClass}`}>
             <EditorContent editor={editor} />
             <Toolbar editor={editor} chapter={chapter} mayAddPictures={chapter && mayAddPictures}
                 onIllustrate={chapter && mayAddPictures ? onIllustrate : undefined} onGlossary={chapter ? onGlossary : undefined}

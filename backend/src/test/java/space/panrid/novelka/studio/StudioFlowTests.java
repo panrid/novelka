@@ -82,6 +82,34 @@ class StudioFlowTests {
     }
 
     @Test
+    void theTeamMarksParagraphsCheckedAndOnlyTheTeamSeesTheMarks() {
+        long edition = createPublication(owner, "Як у книжці", "human");
+        int number = read(owner.browser().post("/api/studio/editions/" + edition + "/chapters", "{}")).path("number").asInt();
+        read(owner.browser().post(chapter(edition, number) + "/publish", text("Перша", null, "Маяк стояв темним.")));
+
+        JsonNode none = read(owner.browser().get(chapter(edition, number) + "/paragraphs"));
+        assertThat(none.path("checked")).isEmpty();
+        assertThat(none.path("machine")).as("written by hand, not by the AI").isEmpty();
+        assertThat(none.path("offers")).isEmpty();
+
+        assertThat(owner.browser().put(chapter(edition, number) + "/paragraphs/b1/check", json("text", "Маяк стояв темним.")).status())
+                .isEqualTo(204);
+        JsonNode checked = read(owner.browser().get(chapter(edition, number) + "/paragraphs")).path("checked");
+        assertThat(checked).hasSize(1);
+        assertThat(checked.get(0).path("blockId").asString()).isEqualTo("b1");
+        assertThat(checked.get(0).path("text").asString()).as("the text as checked: an edit unchecks it").isEqualTo("Маяк стояв темним.");
+
+        assertThat(owner.browser().put(chapter(edition, number) + "/paragraphs/b1/check", json("text", " ")).status()).isEqualTo(400);
+        Person stranger = Accounts.signedIn(port, mailbox);
+        assertThat(stranger.browser().get(chapter(edition, number) + "/paragraphs").status()).isBetween(400, 499);
+        assertThat(stranger.browser().put(chapter(edition, number) + "/paragraphs/b1/check", json("text", "Інше.")).status())
+                .isBetween(400, 499);
+
+        assertThat(owner.browser().delete(chapter(edition, number) + "/paragraphs/b1/check").status()).isEqualTo(204);
+        assertThat(read(owner.browser().get(chapter(edition, number) + "/paragraphs")).path("checked")).isEmpty();
+    }
+
+    @Test
     void aColleaguesNewerVersionIsNeverOverwrittenSilently() {
         long edition = createPublication(owner, "Спільна глава", "human");
         String handle = read(owner.browser().get("/api/studio/editions/" + edition)).path("teamHandle").asString();
