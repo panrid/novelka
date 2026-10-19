@@ -81,19 +81,8 @@ services:
     volumes:
       - backups:/backups
       - media:/media:ro
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        while true; do
-          day=$$(date +%F)
-          pg_dump -h postgres -U novelka -d novelka -Fc -f /backups/novelka-$$day.dump.part \
-            && mv /backups/novelka-$$day.dump.part /backups/novelka-$$day.dump \
-            && echo "database saved: novelka-$$day.dump"
-          tar czf /backups/media-$$day.tgz.part -C /media . && mv /backups/media-$$day.tgz.part /backups/media-$$day.tgz
-          find /backups -name 'novelka-*.dump' -mtime +14 -delete
-          find /backups -name 'media-*.tgz' -mtime +7 -delete
-          sleep 86400
-        done
+      - ./backup.sh:/backup.sh:ro
+    entrypoint: ["/bin/bash", "/backup.sh"]
     depends_on:
       postgres:
         condition: service_healthy

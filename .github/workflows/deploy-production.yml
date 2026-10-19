@@ -205,7 +205,7 @@ jobs:
               run: |
                   ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p /opt/novelka/app /opt/novelka/infra'
                   scp -i ~/.ssh/deploy release/novelka.jar backend/Dockerfile "$TARGET:/opt/novelka/app/"
-                  scp -i ~/.ssh/deploy infra/production.compose.yaml infra/Caddyfile infra/deploy.sh "$TARGET:/opt/novelka/infra/"
+                  scp -i ~/.ssh/deploy infra/production.compose.yaml infra/Caddyfile infra/deploy.sh infra/backup.sh "$TARGET:/opt/novelka/infra/"
             - name: Restart
               env:
                   TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}

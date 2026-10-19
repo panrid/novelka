@@ -93,27 +93,227 @@ GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, за бажан�
 
 ## Резервні копії
 
-Сервіс `backup` раз на добу кладе в том `novelka_backups` копію бази
-(`novelka-РРРР-ММ-ДД.dump`, 14 днів) і картинок (`media-РРРР-ММ-ДД.tgz`, 7 днів).
-Копії лежать на тому самому сервері: від помилки чи поганої міграції вони рятують,
-від утрати сервера — ні. Час від часу забирайте свіжу копію собі:
+Рішення власника 2026-10-19, #192: **Google Drive із сервера замість iCloud із Mac**.
+Ноутбук не бере участі в добовому копіюванні. Серверні копії лишаються в
+`novelka_backups`: `novelka-РРРР-ММ-ДД.dump` (PostgreSQL custom format, 14 днів),
+`media-РРРР-ММ-ДД.tgz` (7 днів). Приватний ключ розшифрування на сервер не передається.
+
+### Як працює
+
+`infra/backup.sh` у сервісі `backup` перевіряє дату UTC щогодини, а також відразу після
+перезапуску. Нову пару створює раз на добу. Спершу пише в прихований тимчасовий каталог,
+перевіряє коди `pg_dump`/`tar`, непорожність, `pg_restore --list` та `gzip -t`.
+Останнім публікує `novelka-РРРР-ММ-ДД.sha256` з контрольними сумами **обох** файлів.
+Лише цей manifest означає готову пару. Помилка дає `BACKUP FAILED`, ненульовий код
+режиму `once` і метрику невдачі; цикл повторює спробу через годину. Старі копії після
+невдачі не видаляються. Уже опублікована пошкоджена пара потребує розслідування,
+її не замінюємо мовчки. Старі `.part` не вважаються копіями й не експортуються.
+
+Окремий Compose-проєкт `novelka-offsite` (`infra/offsite/compose.yaml`) має власний цикл
+раз на годину, негайну перевірку після перезапуску та системне блокування `flock`.
+Він читає `novelka_backups` **лише для читання**, без доступу до живої бази, Docker socket
+чи секретів застосунку. Бере найновішу завершену пару однієї дати, не старшу 48 годин
+від початку її доби UTC. Пропущені дні не відтворює: зберігає свіжу доступну пару.
+
+Формат у `Google Drive/Novelka/копії` — `novelka-drive-v1-РРРР-ММ-ДД.tar.age`:
+всередині `novelka-РРРР-ММ-ДД.dump`, `media-РРРР-ММ-ДД.tgz`, `SHA256SUMS`.
+Незашифровані тимчасові файли — лише в томі `novelka-offsite_work`; прибираються
+після пакування, а залишені аварійним завершенням — перед наступною спробою.
+Додаткове стиснення всього tar не потрібне: dump і media вже стиснуті.
+
+У Drive спершу потрапляє **зашифрований** `.tar.age.upload`. Перевіряються розмір і
+MD5 від Drive, потім файл завантажується назад і перевіряється SHA-256. Після перейменування
+остаточний файл також завантажується й перевіряється. Це підтвердження фактичного файла
+в хмарі, а не запису в локальну синхронізовану папку. Журнал `pending.json` зберігає
+контрольні суми шифротексту до завантаження: обрив після upload/rename не створює дубль.
+Повторна перевірка вже збереженого дня звіряє віддалені розмір і MD5 та не оновлює час
+первісного підтвердження. При помилці завантаження зашифрований файл лишається для повтору.
+
+Після успіху видаляються лише файли цього формату старше 30 днів, для яких є локальна
+квитанція успіху й збігаються віддалені розмір/MD5. Видалення остаточне, щоб корзина
+Drive не займала квоту; чужі файли й корзина не очищуються. Втрата тому стану не дає права
+видаляти чи перезаписувати наявні хмарні архіви — спершу відновити журнал або вручну
+перевірити архіви. Розбіжності/дублікати імен зупиняють операцію.
+
+### Перше встановлення — лише після дозволу власника
+
+На сервері вже потрібні Docker і Compose. `age`, `rclone`, Python та CA-сертифікати
+встановлюються **всередині** образу worker. На Mac для первісної авторизації та контрольного
+відновлення (без запуску постійного сервісу PostgreSQL):
 
 ```sh
-ssh novelka@62.72.33.247 'docker run --rm -v novelka_backups:/b alpine ls -l /b'
-ssh novelka@62.72.33.247 'docker run --rm -v novelka_backups:/b alpine cat /b/novelka-РРРР-ММ-ДД.dump' > novelka.dump
+brew install age rclone postgresql@17
+install -d -m 700 "$HOME/.config/novelka-backup"
+umask 077
+age-keygen -o "$HOME/.config/novelka-backup/identity.txt"
+age-keygen -y "$HOME/.config/novelka-backup/identity.txt" > "$HOME/.config/novelka-backup/recipient.txt"
 ```
 
-Відновлення бази (сайт на цей час зупиняється):
+`identity.txt` — **приватний ключ**, режим `600`. Зберегти запасний примірник у менеджері
+паролів із доступом після втрати Mac або на окремому захищеному носії; перевірити
+розшифрування саме запасним примірником. Не додавати ключ до Git, Google Drive, архіву
+копій чи повідомлення в чаті. `recipient.txt` — публічний ключ для сервера.
+
+Google Drive: створити **окремий** проєкт Google Cloud, увімкнути Drive API та OAuth client
+типу Desktop app (не змінювати Google-вхід сайту). Для особистого облікового запису —
+OAuth користувача, не service account. Consent screen перевести з Testing у Production,
+інакше тестова авторизація спливатиме за сім днів. Власний client ID потрібен, оскільки
+спільний клієнт rclone виводиться з використання у 2026 році.
+[Офіційна інструкція](https://rclone.org/drive/#making-your-own-client-id).
+
+```sh
+rclone --config "$HOME/.config/novelka-backup/rclone.conf" config
+```
+
+Створити remote `gdrive`, тип `drive`, власні client ID/secret, scope **`drive.file`**,
+звичайний My Drive. Дозволити доступ у браузері. Цей scope дозволяє працювати лише з
+файлами й папками, створеними цим OAuth-застосунком. Папку `Novelka/копії` створить worker;
+якщо така папка вже є від іншого застосунку, обрати окрему назву й змінити `DRIVE_ROOT`.
+Не використовувати повний scope `drive` без окремого погодження.
+[Права](https://rclone.org/drive/#scopes), [авторизація сервера](https://rclone.org/remote_setup/).
+Пароль Google на сервер не передається, але OAuth refresh token дає доступ до копій,
+включно з видаленням. `rclone.conf` — секрет, поза Git і резервними архівами.
+
+Після погодження, із worktree #192 на Mac:
+
+```sh
+ssh novelka@62.72.33.247 'install -d -m 700 /opt/novelka/secrets/drive-backup /opt/novelka/config/drive-backup /opt/novelka/infra/offsite'
+scp infra/offsite/Dockerfile infra/offsite/compose.yaml infra/offsite/backup.py novelka@62.72.33.247:/opt/novelka/infra/offsite/
+scp "$HOME/.config/novelka-backup/rclone.conf" novelka@62.72.33.247:/opt/novelka/secrets/drive-backup/rclone.conf
+scp "$HOME/.config/novelka-backup/recipient.txt" novelka@62.72.33.247:/opt/novelka/config/drive-backup/recipient.txt
+ssh novelka@62.72.33.247 'chmod 600 /opt/novelka/secrets/drive-backup/rclone.conf /opt/novelka/config/drive-backup/recipient.txt'
+```
+
+`backup.sh` і оновлений production Compose доставляє звичайний деплой після злиття.
+Перед першим запуском перевірити, що сервіс backup уже використовує `/backup.sh`.
+Перший запуск нової версії створює й перевіряє пару з manifest, навіть якщо за цю дату
+лишилися файли старої версії. Приватний ключ серед файлів для `scp` **відсутній**.
+
+На сервері після деплою та погодження:
 
 ```sh
 cd /opt/novelka
-docker compose --env-file .env.production -f infra/production.compose.yaml stop app
-docker compose --env-file .env.production -f infra/production.compose.yaml exec -T postgres \
-    pg_restore -U novelka -d novelka --clean --if-exists < novelka.dump
-docker compose --env-file .env.production -f infra/production.compose.yaml start app
+docker compose --env-file .env.production -f infra/production.compose.yaml exec -T backup bash /backup.sh once
+# Цикл уже тримає блокування; для готовності перевірити manifest, а не лише код команди:
+docker compose --env-file .env.production -f infra/production.compose.yaml exec -T backup sh -c 'test -s "/backups/novelka-$(date -u +%F).sha256"'
+docker compose -f infra/offsite/compose.yaml build
+docker compose -f infra/offsite/compose.yaml run --rm drive-backup once
+docker compose -f infra/offsite/compose.yaml up -d
 ```
 
-Картинки: `docker run --rm -v novelka_media:/m -v novelka_backups:/b alpine tar xzf /b/media-РРРР-ММ-ДД.tgz -C /m`.
+Каталог credentials монтується для запису: rclone оновлює OAuth-токен атомарною заміною
+конфігурації. Каталог із публічним ключем — лише для читання. У worker немає порту назовні.
+Не запускати другу інсталяцію worker з іншим томом state для тієї самої папки Drive.
+
+### Ручний запуск, журнали й видалення
+
+На сервері:
+
+```sh
+cd /opt/novelka
+docker compose -f infra/offsite/compose.yaml exec -T drive-backup python3 /app/backup.py once
+docker compose -f infra/offsite/compose.yaml logs --tail 100 drive-backup
+docker compose --env-file .env.production -f infra/production.compose.yaml logs --tail 100 backup
+docker compose -f infra/offsite/compose.yaml exec -T drive-backup cat /state/drive.prom
+```
+
+Журнали worker — Docker json-file, максимум 3 × 10 МБ. `once` повертає помилку при
+невдачі; при зайнятому блокуванні пише, що запуск пропущено. У постійному циклі помилка
+пише метрику `0` й повторюється через годину. Після вимкнення сервера перевірка відбувається
+відразу після запуску контейнера; залежності від сну Mac немає.
+
+Стан: том `novelka-offsite_state` (`receipts/*.json`, `pending.json`, `last-success.json`,
+`drive.prom`); тимчасові дані: `novelka-offsite_work`. Не видаляти state під час оновлення.
+Оновлення worker: `docker compose -f infra/offsite/compose.yaml up -d --build`.
+
+Видалення автоматичного копіювання:
+
+```sh
+cd /opt/novelka
+docker compose -f infra/offsite/compose.yaml down
+```
+
+Без `-v`: стан і копії зберігаються. Окремо відкликати OAuth-доступ у Google Account,
+видалити серверний `rclone.conf`, якщо копіювання більше не потрібне. Приватний ключ
+зберігати, доки потрібні архіви. launchd не встановлюється, змін SSH-доступів немає.
+
+### Відновлення на чистій машині
+
+Потрібні приватний age-ключ із запасного сховища, доступ до Google Drive, `age`,
+PostgreSQL **17 або новіший**. Один архів можна завантажити через браузер — rclone і
+старий OAuth-токен для відновлення не обов'язкові. Розшифрований dump містить приватні
+дані: робоча папка має бути поза хмарними каталогами з правами `700`.
+
+Приклад на Mac, змінити лише `archive` на завантажений файл:
+
+```sh
+umask 077
+archive="$HOME/Downloads/novelka-drive-v1-РРРР-ММ-ДД.tar.age"
+restore_dir=$(mktemp -d /private/tmp/novelka-restore.XXXXXX)
+age -d -i "$HOME/.config/novelka-backup/identity.txt" -o "$restore_dir/pair.tar" "$archive"
+tar -tf "$restore_dir/pair.tar"  # лише dump, media та SHA256SUMS, без абсолютних шляхів
+tar -xf "$restore_dir/pair.tar" -C "$restore_dir"
+(cd "$restore_dir" && shasum -a 256 -c SHA256SUMS)
+pg_bin="$(brew --prefix postgresql@17)/bin"
+"$pg_bin/initdb" -D "$restore_dir/pgdata" -U restore_owner -A trust > "$restore_dir/initdb.log"
+# Лише приватний Unix socket; жодного TCP-порту чи робочої бази.
+"$pg_bin/pg_ctl" -D "$restore_dir/pgdata" -l "$restore_dir/postgres.log" \
+  -o "-k $restore_dir -c listen_addresses=''" -w start
+"$pg_bin/createdb" -h "$restore_dir" -U restore_owner novelka_restore
+"$pg_bin/pg_restore" -h "$restore_dir" -U restore_owner -d novelka_restore \
+  --exit-on-error --no-owner --no-privileges "$restore_dir"/novelka-*.dump
+"$pg_bin/psql" -h "$restore_dir" -U restore_owner -d novelka_restore -v ON_ERROR_STOP=1 \
+  -c "SELECT count(*) AS tables FROM information_schema.tables WHERE table_schema='public';"
+mkdir "$restore_dir/media"
+tar -xzf "$restore_dir"/media-*.tgz -C "$restore_dir/media"
+"$pg_bin/pg_ctl" -D "$restore_dir/pgdata" -m fast -w stop
+```
+
+Додатково перевірити кількість рядків ключових таблиць, читабельність картинок та їхні
+контрольні суми проти вмісту архіву; не публікувати персональні дані. Після перевірки
+прибрати **саме створений** `restore_dir` і завантажений файл за рішенням власника.
+Не виконувати ці команди проти production. При збої відновлення все одно зупинити
+тимчасовий PostgreSQL командою `pg_ctl` вище.
+
+### Метрики й тривоги (#188)
+
+Серверна пара: `novelka_backups/status/server.prom`:
+`novelka_backup_last_attempt_ok`, `novelka_backup_last_attempt_timestamp_seconds`,
+`novelka_backup_last_success_timestamp_seconds`.
+Google Drive: `novelka-offsite_state/drive.prom`:
+`novelka_backup_drive_last_attempt_ok`, `novelka_backup_drive_last_attempt_timestamp_seconds`,
+`novelka_backup_drive_last_verified_timestamp_seconds`, `novelka_backup_drive_source_timestamp_seconds`.
+Остання метрика — дата **даних**, щоб повторне завантаження старої пари не приховувало застій.
+
+У #188 підключити ці `.prom` до textfile collector із доступом читання. Файли замінюються
+атомарно; `.tmp` не читати. Зараз вони закриті правами `600`, тому при встановленні
+експортера явно надати йому доступ через користувача/групу або підготовлений збирач;
+не робити весь том з базою загальнодоступним. Тривоги: latest attempt = 0; відсутня метрика;
+`time() - ...last_verified_timestamp_seconds > 172800`; застаріла дата даних; зупинений
+worker (вік last_attempt), аналогічно для серверної пари.
+
+Telegram — бот #189 `@novelka_watch_bot`, окремі правила для backup: одне повідомлення
+про перехід у збій, одне про відновлення, без щогодинних повторів. Налаштування контактної
+точки й усунення повторів — #188. **До #188 автоматичних Telegram-повідомлень про backup
+немає**, є явні журнали й метрики. `uptime.yml` не змінюється, його перевірка доступності
+не є перевіркою резервних копій.
+
+### Перевірки коду та межі готовності
+
+```sh
+shellcheck infra/backup.sh infra/tests/integration-backup.sh
+python3 -m unittest discover -s infra/tests -v
+bash infra/tests/integration-backup.sh  # потрібен Docker; лише одноразові тестові дані
+```
+
+Unit-тести підміняють Google Drive/age та помилки pg_dump/tar. На macOS shell-тест
+`flock` пропускається (Python-блокування перевіряється реально); Linux CI перевіряє і його.
+Інтеграційний тест запускає справжні PostgreSQL 17, age і rclone з **локальним** сховищем,
+розшифровує й відновлює тестову базу. Це не перевірка OAuth/Google Drive чи production-даних.
+
+Для закриття #192 окремо потрібні погоджене встановлення, справжній архів у Google Drive,
+зворотне завантаження, розшифрування приватним ключем власника й локальне відновлення
+справжньої бази/картинок. Наступний добовий запуск та тривоги #188 звітуються окремо.
 
 ## Пошта
 

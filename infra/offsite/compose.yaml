@@ -1,0 +1,36 @@
+# Separate from the site: normal deploys must not interrupt a Drive upload.
+name: novelka-offsite
+services:
+  drive-backup:
+    build: .
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      AGE_RECIPIENT_FILE: /config/recipient.txt
+      RCLONE_CONFIG: /credentials/rclone.conf
+      DRIVE_ROOT: 'gdrive:Novelka/копії'
+    volumes:
+      - backups:/backups:ro
+      - state:/state
+      - work:/work
+      # The directory must be writable: rclone renews OAuth tokens atomically.
+      - /opt/novelka/secrets/drive-backup:/credentials
+      - /opt/novelka/config/drive-backup:/config:ro
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    mem_limit: 256m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+volumes:
+  backups:
+    external: true
+    name: novelka_backups
+  state:
+  work:
