@@ -11,7 +11,7 @@ import Text from '@tiptap/extension-text';
 import Underline from '@tiptap/extension-underline';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
-import { BookmarkPlus, ImagePlus, Images, Link2, Minus, Redo2, Sparkles, Undo2 } from '../ui/icons';
+import { BookmarkPlus, ImagePlus, Images, Link2, Minus, RefreshCw, Redo2, Sparkles, Undo2 } from '../ui/icons';
 import { useImperativeHandle, useRef, useState } from 'react';
 import { Dialog, Heading as DialogHeading, Modal, ModalOverlay } from 'react-aria-components';
 import { Button } from '../ui/Button';
@@ -47,7 +47,11 @@ const Picture = Image.extend({
  * the field loses focus, so a button pressed right after typing must read the text here,
  * not from state that may not have caught up yet.
  */
-export type EditorHandle = { read: () => StudioBlock[] };
+export type EditorHandle = {
+    read: () => StudioBlock[];
+    /** Puts new text into the paragraph with this id, as one step «Скасувати» takes back. */
+    replaceBlock?: (blockId: string, text: string) => void;
+};
 
 type Props = {
     handle?: React.Ref<EditorHandle>;
@@ -65,6 +69,8 @@ type Props = {
     onIllustrate?: ((fragment: string, insert: (picture: { id: number; url: string }) => void) => void) | undefined;
     /** The id of the paragraph the cursor is in (null for one typed anew), as the cursor moves. */
     onCursorBlock?: (blockId: string | null) => void;
+    /** «Інший варіант» (етап 19): the paragraph with the cursor, its id and its text as it is now. */
+    onVariants?: ((pick: { blockId: string | null; paragraph: string }) => void) | undefined;
     /** «До словника» (етап 19): the selected words, their paragraph's id and its text as it is now. */
     onGlossary?: ((pick: { selection: string; blockId: string | null; paragraph: string }) => void) | undefined;
 };
@@ -80,7 +86,7 @@ function cursorBlock(editor: Editor): string | null {
     return (cursorNode(editor)?.attrs.blockId as string | null | undefined) ?? null;
 }
 
-export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate, onCursorBlock, onGlossary }: Props) {
+export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate, onCursorBlock, onGlossary, onVariants }: Props) {
     const chapter = mode === 'chapter';
     const editor = useEditor({
         extensions: [
@@ -108,6 +114,13 @@ export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = fa
             (editor.view as unknown as { domObserver?: { flush: () => void } }).domObserver?.flush();
             return toBlocks(editor.getJSON());
         },
+        replaceBlock: (blockId, text) => {
+            if (!editor) return;
+            editor.state.doc.forEach((node, at) => {
+                if (node.attrs.blockId !== blockId) return;
+                editor.chain().focus().insertContentAt({ from: at + 1, to: at + node.nodeSize - 1 }, text).run();
+            });
+        },
     }), [editor, blocks]);
 
     if (!editor) {
@@ -117,13 +130,15 @@ export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = fa
         <div className={styles.wrap}>
             <EditorContent editor={editor} />
             <Toolbar editor={editor} chapter={chapter} mayAddPictures={chapter && mayAddPictures}
-                onIllustrate={chapter && mayAddPictures ? onIllustrate : undefined} onGlossary={chapter ? onGlossary : undefined} />
+                onIllustrate={chapter && mayAddPictures ? onIllustrate : undefined} onGlossary={chapter ? onGlossary : undefined}
+                onVariants={chapter ? onVariants : undefined} />
         </div>
     );
 }
 
-function Toolbar({ editor, chapter, mayAddPictures, onIllustrate, onGlossary }: {
+function Toolbar({ editor, chapter, mayAddPictures, onIllustrate, onGlossary, onVariants }: {
     editor: Editor; chapter: boolean; mayAddPictures: boolean; onIllustrate: Props['onIllustrate']; onGlossary: Props['onGlossary'];
+    onVariants: Props['onVariants'];
 }) {
     const state = useEditorState({
         editor,
@@ -147,6 +162,11 @@ function Toolbar({ editor, chapter, mayAddPictures, onIllustrate, onGlossary }: 
             {chapter && button('Розділювач сцен', false, () => editor.chain().focus().setHorizontalRule().run(), <Minus size={18} aria-hidden />)}
             {mayAddPictures && <PictureButtons editor={editor} />}
             {onIllustrate && button('Намалювати сцену', false, () => illustrate(editor, onIllustrate), <Sparkles size={18} aria-hidden />)}
+            {onVariants && button('Інший варіант', false, () => {
+                const { $from } = editor.state.selection;
+                const paragraph = $from.depth >= 1 ? $from.node(1).textContent.trim() : '';
+                if (paragraph) onVariants({ blockId: cursorBlock(editor), paragraph });
+            }, <RefreshCw size={18} aria-hidden />)}
             {onGlossary && (
                 <button type="button" className={styles.tool} aria-label="До словника" disabled={!state.selected}
                     title={state.selected ? 'Додати виділене до словника' : 'Виділіть слово в тексті'}

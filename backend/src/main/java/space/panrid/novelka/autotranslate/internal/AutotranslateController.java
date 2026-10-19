@@ -58,12 +58,14 @@ class AutotranslateController {
     private final StoryRoles storyRoles;
     private final Choices choices;
     private final SourceOf sourceOf;
+    private final EditorAi editorAi;
     private final space.panrid.novelka.platform.audit.AuditLog audit;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
             Teams teams, Analyses analyses, Ledger ledger, Sources sources, space.panrid.novelka.suggestion.Suggestions suggestions,
             Agreement agreement, JobLog journal, Presets presets, ModelCosts costs, SourceWatch watch, StoryRoles storyRoles,
-            Choices choices, space.panrid.novelka.platform.audit.AuditLog audit, SourceOf sourceOf) {
+            Choices choices, space.panrid.novelka.platform.audit.AuditLog audit, SourceOf sourceOf, EditorAi editorAi) {
+        this.editorAi = editorAi;
         this.sourceOf = sourceOf;
         this.audit = audit;
         this.choices = choices;
@@ -568,6 +570,29 @@ class AutotranslateController {
         String found = sourceOf.find(paragraph, body.translation() == null ? "" : body.translation(), body.selection(), language,
                 personal(viewer) ? viewer.accountId() : null);
         return new Source(paragraph, found, language);
+    }
+
+    /** @param text the paragraph as it is in the editor now, saved or not */
+    record VariantsQuestion(String blockId, String text) {
+    }
+
+    /** «Інший варіант» (етап 19, п. 5): other versions of the paragraph with the cursor, to pick from in the editor. */
+    @PostMapping("/editions/{editionId}/chapters/{number}/variants")
+    Map<String, List<String>> variants(@PathVariable long editionId, @PathVariable int number, @RequestBody VariantsQuestion body) {
+        Viewer viewer = access.requireTextEditor(editionId).viewer();
+        access.requireAi();
+        return Map.of("variants", editorAi.variants(editionId, number, body.blockId(), body.text(), personal(viewer) ? viewer.accountId() : null));
+    }
+
+    /**
+     * «Перевірити главу» (етап 19, п. 5): AI reads the published chapter against its original; each paragraph it
+     * would change waits as a suggestion, accepted or rejected one by one.
+     */
+    @PostMapping("/editions/{editionId}/chapters/{number}/check")
+    Map<String, Integer> check(@PathVariable long editionId, @PathVariable int number) {
+        Viewer viewer = access.requireTextEditor(editionId).viewer();
+        access.requireAi();
+        return Map.of("proposed", editorAi.check(viewer, editionId, number, personal(viewer) ? viewer.accountId() : null));
     }
 
     /** {@code chapter}: where the word was met; {@code gender} only matters for characters. */

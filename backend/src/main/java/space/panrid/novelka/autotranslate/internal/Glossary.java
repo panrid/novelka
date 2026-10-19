@@ -386,7 +386,7 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
     // ---- what an entry is tied to in a chapter: the original, and the team's own links ----------
 
     /** The original paragraphs of a chapter (by the ids its translation keeps) and their language; empty when the site has none. */
-    private java.util.Optional<Map<String, String>> originalBlocks(long editionId, int chapter) {
+    java.util.Optional<Map<String, String>> originalBlocks(long editionId, int chapter) {
         Long sourceId = db.select(CHAPTER.SOURCE_CHAPTER_ID).from(CHAPTER)
                 .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(chapter)).fetchOne(CHAPTER.SOURCE_CHAPTER_ID);
         JSONB blocks = sourceId == null ? null
