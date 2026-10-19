@@ -19,10 +19,13 @@ import org.jooq.impl.DSL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import space.panrid.novelka.ai.AiException;
+import space.panrid.novelka.autotranslate.RunEnded;
 import space.panrid.novelka.autotranslate.internal.PipelineErrors.BadOutput;
 import space.panrid.novelka.autotranslate.internal.PipelineErrors.Cancelled;
 import space.panrid.novelka.autotranslate.internal.PipelineErrors.OverBudget;
@@ -58,8 +61,13 @@ class Worker {
     private final Progress progress;
     private final Jobs jobs;
     private final Shutdown shutdown;
+    private final TransactionTemplate transactions;
+    private final ApplicationEventPublisher events;
 
-    Worker(DSLContext db, Pipeline pipeline, Clock clock, Progress progress, Jobs jobs, Shutdown shutdown) {
+    Worker(DSLContext db, Pipeline pipeline, Clock clock, Progress progress, Jobs jobs, Shutdown shutdown,
+            TransactionTemplate transactions, ApplicationEventPublisher events) {
+        this.transactions = transactions;
+        this.events = events;
         this.shutdown = shutdown;
         this.jobs = jobs;
         this.progress = progress;
@@ -191,10 +199,17 @@ class Worker {
                 .where(JOB_STEP.ID.eq(step.getId())).execute();
     }
 
+    /** The run stops; those who listen for that (webhooks) hear in the same transaction. */
     private void fail(JobStepRecord step, JobRecord job, String message, String reason) {
-        finishStep(step, "failed", message, reason);
-        db.update(JOB).set(JOB.STATE, "failed").set(JOB.ERROR, message).set(JOB.FINISHED_AT, now())
-                .where(JOB.ID.eq(job.getId()), JOB.STATE.in("queued", "running")).execute();
+        transactions.executeWithoutResult(status -> {
+            finishStep(step, "failed", message, reason);
+            int stopped = db.update(JOB).set(JOB.STATE, "failed").set(JOB.ERROR, message).set(JOB.FINISHED_AT, now())
+                    .where(JOB.ID.eq(job.getId()), JOB.STATE.in("queued", "running")).execute();
+            if (stopped > 0) {
+                events.publishEvent(new RunEnded(job.getId(), job.getEditionId(), "failed", job.getFirstNumber(), job.getLastNumber(),
+                        message));
+            }
+        });
     }
 
     private void finishStep(JobStepRecord step, String state, String error, String reason) {
@@ -210,9 +225,16 @@ class Worker {
     private void finishJobIfComplete(long jobId) {
         boolean open = db.fetchExists(JOB_STEP, JOB_STEP.JOB_ID.eq(jobId).and(JOB_STEP.STATE.ne("done")));
         if (!open) {
-            int finished = db.update(JOB).set(JOB.STATE, "done").set(JOB.FINISHED_AT, now()).set(JOB.ERROR, (String) null)
-                    .where(JOB.ID.eq(jobId), JOB.STATE.eq("running")).execute();
-            if (finished > 0) {
+            Boolean finished = transactions.execute(status -> {
+                JobRecord job = db.update(JOB).set(JOB.STATE, "done").set(JOB.FINISHED_AT, now()).set(JOB.ERROR, (String) null)
+                        .where(JOB.ID.eq(jobId), JOB.STATE.eq("running")).returning().fetchOne();
+                if (job == null) {
+                    return false;
+                }
+                events.publishEvent(new RunEnded(jobId, job.getEditionId(), "done", job.getFirstNumber(), job.getLastNumber(), null));
+                return true;
+            });
+            if (Boolean.TRUE.equals(finished)) {
                 jobs.settle(jobId);
             }
         }

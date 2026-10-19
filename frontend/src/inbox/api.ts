@@ -5,7 +5,8 @@ const json = (method: string, body: unknown): RequestInit => ({ method, body: JS
 // ---- notifications ------------------------------------------------------------------------------
 
 export type NotificationKind = 'reply' | 'mention' | 'team_mention' | 'new_chapters' | 'suggestions_reviewed' | 'suggestions_submitted' | 'shahs_granted' | 'proposal_taken' | 'achievement'
-    | 'takeover_request' | 'takeover_answered' | 'report' | 'source_chapters' | 'autotranslate_request' | 'autotranslate_answered';
+    | 'takeover_request' | 'takeover_answered' | 'report' | 'source_chapters' | 'autotranslate_request' | 'autotranslate_answered'
+    | 'webhook_disabled';
 
 export type NotificationPayload = {
     editionId?: number; slug?: string; novelTitle?: string; teamHandle?: string;

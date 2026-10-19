@@ -23,12 +23,14 @@ import org.jooq.DSLContext;
 import org.jooq.JSONB;
 import org.jooq.Record;
 import org.jooq.impl.DSL;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import space.panrid.novelka.ai.Ai;
 import space.panrid.novelka.ai.AiCredits;
 import space.panrid.novelka.ai.AiModel;
+import space.panrid.novelka.autotranslate.RunEnded;
 import space.panrid.novelka.jooq.tables.records.JobRecord;
 import space.panrid.novelka.ledger.Ledger;
 import space.panrid.novelka.platform.SiteSettings;
@@ -53,11 +55,13 @@ class Jobs {
     private final Presets presets;
     private final ModelCosts costs;
     private final MySets peopleModels;
+    private final ApplicationEventPublisher events;
     /** A person's run holds this much more than the quote: chapters vary and answers get asked again. */
     static final double RESERVE_MARGIN = 1.5;
 
     Jobs(DSLContext db, Ai ai, SiteSettings siteSettings, JsonMapper json, Ledger ledger, AuditLog audit, Presets presets,
-            ModelCosts costs, MySets peopleModels) {
+            ModelCosts costs, MySets peopleModels, ApplicationEventPublisher events) {
+        this.events = events;
         this.peopleModels = peopleModels;
         this.costs = costs;
         this.presets = presets;
@@ -496,6 +500,8 @@ class Jobs {
         db.update(JOB_STEP).set(JOB_STEP.STATE, "cancelled")
                 .where(JOB_STEP.JOB_ID.eq(jobId), JOB_STEP.STATE.in("pending", "failed")).execute();
         settle(jobId);
+        JobRecord job = db.selectFrom(JOB).where(JOB.ID.eq(jobId)).fetchSingle();
+        events.publishEvent(new RunEnded(jobId, editionId, "cancelled", job.getFirstNumber(), job.getLastNumber(), null));
     }
 
     /**

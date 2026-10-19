@@ -106,6 +106,10 @@ class Texts {
                 title = "Нова скарга: " + text(p, "title");
                 path = "/admin/moderation";
             }
+            case "webhook_disabled" -> {
+                title = "Вебхук вимкнено: " + text(p, "title");
+                path = "/me/settings/api";
+            }
             default -> title = "Нове сповіщення";
         }
         StringBuilder html = new StringBuilder("🔔 <b>").append(escape(title)).append("</b>");

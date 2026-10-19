@@ -53,7 +53,7 @@ class Inbox {
             "replies", List.of("reply", "mention", "team_mention"),
             "studio", List.of("source_chapters", "takeover_request", "takeover_answered", "autotranslate_request",
                     "autotranslate_answered", "proposal_taken"),
-            "system", List.of("shahs_granted", "achievement", "report"));
+            "system", List.of("shahs_granted", "achievement", "report", "webhook_disabled"));
 
     /** The person turned this topic off on the site: no row, though Telegram may still tell. */
     private boolean offSite(long recipientId, String kind) {

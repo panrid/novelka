@@ -31,7 +31,7 @@ final class TokenScopes {
 
     static {
         // Only with the session, never with a token.
-        site("/api/me/api-tokens/**", "/api/admin/api-tokens/**", "/api/auth/**", "/api/me/password", "/api/me/email",
+        site("/api/me/api-tokens/**", "/api/admin/api-tokens/**", "/api/me/webhooks/**", "/api/auth/**", "/api/me/password", "/api/me/email",
                 "/api/me/nick", "/api/me/google", "/api/me/telegram/**", "/api/studio/editions/*/delete-code",
                 "/api/studio/editions/*/delete", "/api/admin/users/*/role");
 

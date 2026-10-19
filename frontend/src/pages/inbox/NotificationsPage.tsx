@@ -234,6 +234,7 @@ function toneOf(kind: Notification['kind']): Tone {
         case 'shahs_granted':
         case 'achievement':
         case 'report':
+        case 'webhook_disabled':
             return 'system';
         default:
             return 'studio';
@@ -333,6 +334,12 @@ function Row({ item, unread }: { item: Notification; unread: boolean }) {
             title = `Нова скарга: ${p.title ?? ''}`;
             letter = '!';
             break;
+        case 'webhook_disabled':
+            title = `Вебхук вимкнено: ${p.title ?? ''}`;
+            excerpt = undefined;
+            chapters = `Адреса не приймала події ${p.count ?? ''} разів поспіль понад добу. Увімкнути знову — в «Налаштування → API».`;
+            letter = '!';
+            break;
         default:
             title = 'Сповіщення';
     }
@@ -380,6 +387,9 @@ function Row({ item, unread }: { item: Notification; unread: boolean }) {
     }
     if (item.kind === 'report') {
         return <Link to="/admin/moderation" className={className}>{body}</Link>;
+    }
+    if (item.kind === 'webhook_disabled') {
+        return <Link to="/me/settings/api" className={className}>{body}</Link>;
     }
     if (item.kind === 'shahs_granted') {
         return <Link to="/me/shahs" className={className}>{body}</Link>;
