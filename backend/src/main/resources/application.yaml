@@ -11,6 +11,10 @@ spring:
     url: ${NOVELKA_DB_URL:jdbc:postgresql://127.0.0.1:5433/novelka}
     username: ${NOVELKA_DB_USER:novelka}
     password: ${NOVELKA_DB_PASSWORD:novelka}
+    hikari:
+      # Search (V58): a word with one wrong letter is still found. pg_trgm's default, 0.6, is
+      # stricter: «чаривниця» is 0.54 close to «чарівниця».
+      connection-init-sql: SET pg_trgm.word_similarity_threshold = 0.5
   jooq:
     sql-dialect: postgres
   flyway:

@@ -68,7 +68,7 @@ export function CatalogPage() {
     const [filtersOpen, setFiltersOpen] = useState(false);
     const tags = search.tags ?? [];
     const kind = search.kind ?? 'all';
-    const sort = search.sort ?? 'popular';
+    const sort = sortOf(search);
 
     const update = (patch: Patch) =>
         void navigate({ to: '/catalog', search: (previous: CatalogSearch) => clean({ ...previous, ...patch } as CatalogSearch), replace: true });
@@ -141,7 +141,7 @@ export function CatalogPage() {
                         </span>
                     )}
                 </h1>
-                <SearchBox label="Пошук новел" placeholder="Назва, автор або тег" value={text} onChange={setText}
+                <SearchBox label="Пошук новел" placeholder="Назва, автор, тег чи глава" value={text} onChange={setText}
                     onSubmit={(words) => update({ q: words })} />
             </div>
             <button type="button" className={styles.filtersToggle} aria-expanded={filtersOpen} onClick={() => setFiltersOpen(!filtersOpen)}>
@@ -152,6 +152,7 @@ export function CatalogPage() {
                 <label className={styles.small}>
                     Порядок{' '}
                     <select className={styles.select} value={sort} onChange={(event) => update({ sort: event.target.value })}>
+                        {search.q ? <option value="relevance">найкращий збіг</option> : null}
                         <option value="popular">популярні</option>
                         <option value="updated">нові глави</option>
                         <option value="new">нові на сайті</option>
@@ -330,8 +331,17 @@ function clean(search: CatalogSearch): CatalogSearch {
     if (search.q) out.q = search.q;
     if (search.tags && search.tags.length > 0) out.tags = search.tags;
     if (search.kind && search.kind !== 'all') out.kind = search.kind;
-    if (search.sort && search.sort !== 'popular') out.sort = search.sort;
+    if (search.sort && search.sort !== defaultSort(search) && (search.q || search.sort !== 'relevance')) out.sort = search.sort;
     return { ...out, ...pick(search) };
+}
+
+/** With words to search for, the best matches come first; without them, «найкращий збіг» means nothing. */
+function defaultSort(search: CatalogSearch): string {
+    return search.q ? 'relevance' : 'popular';
+}
+
+function sortOf(search: CatalogSearch): string {
+    return search.sort && (search.q || search.sort !== 'relevance') ? search.sort : defaultSort(search);
 }
 
 export function validateCatalogSearch(search: Record<string, unknown>): CatalogSearch {

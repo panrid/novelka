@@ -118,7 +118,7 @@ function HeaderSearch() {
     if (catalog) return <div className={styles.search} />;
     return (
         <div className={styles.search}>
-            <SearchBox compact label="Пошук новел" placeholder="Назва, автор або тег…" value={text} onChange={setText}
+            <SearchBox compact label="Пошук новел" placeholder="Назва, автор, тег чи глава…" value={text} onChange={setText}
                 onSubmit={(words) => {
                     void navigate({ to: '/catalog', search: words ? { q: words } : {} });
                     setText('');

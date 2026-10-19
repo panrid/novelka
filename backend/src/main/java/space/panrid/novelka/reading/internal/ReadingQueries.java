@@ -286,8 +286,7 @@ class ReadingQueries {
      */
     Views.Found<Card> search(Views.CatalogFilter filter, String sort, boolean adult, Long viewer, int page, String after, int size) {
         Condition where = catalog(filter, adult);
-        String words = filter.query() == null ? "" : filter.query().strip();
-        List<Keyset.Key> keys = catalogOrder(sort, words);
+        List<Keyset.Key> keys = catalogOrder(sort, Search.words(filter.query()));
         List<Record> rows = cards(Keyset.columns(keys).toArray(new SelectField<?>[0]))
                 .where(where.and(after == null ? DSL.noCondition() : Keyset.after(keys, after)))
                 .orderBy(Keyset.order(keys)).limit(size + 1).offset(after == null ? (page - 1) * size : 0).fetch();
@@ -299,17 +298,21 @@ class ReadingQueries {
     }
 
     /** The catalog's orders as keys; the edition's id last, so every row has its own place. */
-    private List<Keyset.Key> catalogOrder(String sort, String words) {
+    private List<Keyset.Key> catalogOrder(String sort, List<String> words) {
         List<Keyset.Key> keys = new ArrayList<>(switch (sort == null ? "popular" : sort) {
             case "updated" -> List.of(Keyset.Key.desc(EDITION.LAST_PUBLISHED_AT));
             case "new" -> List.of(Keyset.Key.desc(EDITION.CREATED_AT));
             case "title" -> List.of(Keyset.Key.asc(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE)));
             case "rating" -> List.of(Keyset.Key.desc(averageScore()), Keyset.Key.desc(ratingCount()), Keyset.Key.desc(popularity()));
-            case "relevance" -> List.of(Keyset.Key.asc(DSL.when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase(escapeLike(words) + "%"), 0)
-                            .when(DSL.coalesce(EDITION.TITLE, NOVEL.TITLE).likeIgnoreCase("%" + escapeLike(words) + "%"), 1)
-                            .when(NOVEL.TITLE_ENGLISH.likeIgnoreCase(escapeLike(words) + "%"), 1)
-                            .otherwise(2)),
-                    Keyset.Key.desc(popularity()));
+            case "relevance" -> {
+                // Search.relevance's keys are keyset-friendly: a whole place and a rounded closeness.
+                List<Keyset.Key> best = new ArrayList<>();
+                if (!words.isEmpty()) {
+                    best.addAll(Search.relevance(words));
+                }
+                best.add(Keyset.Key.desc(popularity()));
+                yield best;
+            }
             default -> List.of(Keyset.Key.desc(popularity()), Keyset.Key.desc(EDITION.LAST_PUBLISHED_AT));
         });
         keys.add(Keyset.Key.asc(EDITION.ID));
@@ -332,20 +335,12 @@ class ReadingQueries {
 
     private Condition catalog(Views.CatalogFilter filter, boolean adult) {
         Condition where = visible(adult).and(EDITION.CHAPTER_COUNT.gt(0));
-        String words = filter.query() == null ? "" : filter.query().strip();
         String kind = filter.kind();
         String machine = filter.machine();
         List<String> tagSlugs = filter.tags();
-        if (!words.isEmpty()) {
-            String escaped = escapeLike(words);
-            String like = "%" + escaped + "%";
-            where = where.and(NOVEL.TITLE.likeIgnoreCase(like).or(EDITION.TITLE.likeIgnoreCase(like))
-                    .or(NOVEL.AUTHOR.likeIgnoreCase(like))
-                    // The novel's other names: English, original, and any others readers know it by.
-                    .or(NOVEL.TITLE_ENGLISH.likeIgnoreCase(like)).or(NOVEL.TITLE_ORIGINAL.likeIgnoreCase(like))
-                    .or(DSL.condition("array_to_string({0}, ' ') ILIKE {1}", NOVEL.ALT_TITLES, DSL.val(like)))
-                    .or(DSL.exists(DSL.selectOne().from(NOVEL_TAG).join(TAG).on(TAG.ID.eq(NOVEL_TAG.TAG_ID))
-                            .where(NOVEL_TAG.NOVEL_ID.eq(NOVEL.ID).and(TAG.NAME.likeIgnoreCase(like))))));
+        if (filter.query() != null && !filter.query().isBlank()) {
+            // The novel's names (Ukrainian, English, original, any others), author, tags and chapter titles.
+            where = where.and(Search.catalog(Search.words(filter.query())));
         }
         for (String slug : tagSlugs) {
             where = where.and(DSL.exists(DSL.selectOne().from(NOVEL_TAG).join(TAG).on(TAG.ID.eq(NOVEL_TAG.TAG_ID))
@@ -382,22 +377,46 @@ class ReadingQueries {
         return where;
     }
 
-    private static String escapeLike(String words) {
-        return words.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-    }
-
-    /** Tags whose names hold the words, those on more novels first. */
-    List<Views.TagCount> tagsLike(String words, boolean adult, int limit) {
+    /** Tags whose names hold the words (or nearly, despite a typo): those beginning with them first, then the closest. */
+    List<Views.TagCount> tagsLike(String query, boolean adult, int limit) {
+        List<String> words = Search.words(query);
+        if (words.isEmpty()) {
+            return List.of();
+        }
         Field<Integer> novels = DSL.countDistinct(NOVEL_TAG.NOVEL_ID).as("novels");
-        String escaped = escapeLike(words.strip());
+        Field<String> name = Search.norm(TAG.NAME);
         return db.select(TAG.NAME, TAG.SLUG, novels).from(TAG)
                 .join(NOVEL_TAG).on(NOVEL_TAG.TAG_ID.eq(TAG.ID))
                 .join(EDITION).on(EDITION.NOVEL_ID.eq(NOVEL_TAG.NOVEL_ID))
-                .where(visible(adult).and(EDITION.CHAPTER_COUNT.gt(0)).and(TAG.NAME.likeIgnoreCase("%" + escaped + "%")))
+                .where(visible(adult).and(EDITION.CHAPTER_COUNT.gt(0)).and(Search.matchesAll(name, words)))
                 .groupBy(TAG.NAME, TAG.SLUG)
-                .orderBy(DSL.when(TAG.NAME.likeIgnoreCase(escaped + "%"), 0).otherwise(1), novels.desc(), TAG.NAME)
+                .orderBy(DSL.when(name.like(Search.norm(String.join(" ", words)).concat(DSL.inline("%"))), 0).otherwise(1),
+                        Search.closeness(words, name).desc(), novels.desc(), TAG.NAME)
                 .limit(limit)
                 .fetch(r -> new Views.TagCount(r.value1(), r.value2(), r.value3()));
+    }
+
+    /**
+     * Published chapters whose titles hold all the words, of translations the viewer may see:
+     * the closest titles first. Nothing for fewer than three letters: too many titles hold them.
+     */
+    List<Views.ChapterHint> chaptersLike(String query, boolean adult, int limit) {
+        List<String> words = Search.words(query);
+        if (!Search.searchesChapters(words)) {
+            return List.of();
+        }
+        Field<String> chapterTitle = Search.norm(REVISION.TITLE);
+        return db.select(NOVEL.SLUG, TEAM.HANDLE, title(), CHAPTER.NUMBER, CHAPTER.LABEL, REVISION.TITLE)
+                .from(CHAPTER)
+                .join(REVISION).on(REVISION.ID.eq(CHAPTER.PUBLISHED_REVISION_ID))
+                .join(EDITION).on(EDITION.ID.eq(CHAPTER.EDITION_ID))
+                .join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
+                .join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
+                .where(visible(adult).and(EDITION.CHAPTER_COUNT.gt(0)).and(CHAPTER.DELETED_AT.isNull())
+                        .and(Search.matchesAll(chapterTitle, words)))
+                .orderBy(Search.closeness(words, chapterTitle).desc(), EDITION.LAST_PUBLISHED_AT.desc().nullsLast(), CHAPTER.NUMBER)
+                .limit(limit)
+                .fetch(r -> new Views.ChapterHint(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(), r.value6()));
     }
 
     /** The site's tag list by groups, as filters in a shop, with how many novels have each. */

@@ -477,6 +477,39 @@ describe('catalog', () => {
         await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}');
         await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody'));
     });
+
+    it('hints at chapters by title and opens the chosen one in the reader', async () => {
+        const { router } = await renderAt('/catalog', {
+            'GET /api/catalog': { body: { items: [CARD], page: 1, hasMore: false, total: 1 } },
+            'GET /api/tags/groups': { body: [] },
+            'GET /api/search/hints': { body: { novels: [], tags: [], chapters: [
+                { novelSlug: 'mah-vody', teamHandle: 'panrid', novelTitle: 'Маг води', number: 12, label: '11.5', title: 'Старий маяк' },
+            ] } },
+        });
+        await userEvent.type(await screen.findByRole('combobox', { name: 'Пошук новел' }), 'маяк');
+        const hints = await screen.findByRole('listbox', { name: 'Підказки' });
+        expect(hints).toHaveTextContent('11.5. Старий маяк');
+        expect(hints).toHaveTextContent('Глава · Маг води');
+        await userEvent.keyboard('{ArrowDown}{Enter}');
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody/12'));
+        expect(router.state.location.search).toEqual({ t: 'panrid' });
+    });
+
+    it('orders found novels by the best match unless another order is chosen', async () => {
+        const { router, calls } = await renderAt('/catalog?q=%D0%BC%D0%B0%D0%B3', {
+            'GET /api/catalog': { body: { items: [CARD], page: 1, hasMore: false, total: 1 } },
+            'GET /api/tags/groups': { body: [] },
+            'GET /api/search/hints': { body: { novels: [], tags: [] } },
+        });
+        const order = await screen.findByRole('combobox', { name: /^Порядок/ });
+        expect(order).toHaveValue('relevance');
+        await waitFor(() => expect(calls.some((call) => call.path === '/api/catalog' && call.query.includes('sort=relevance'))).toBe(true));
+        expect(router.state.location.search).toEqual({ q: 'маг' });
+
+        await userEvent.selectOptions(order, 'popular');
+        await waitFor(() => expect(router.state.location.search).toEqual({ q: 'маг', sort: 'popular' }));
+        await waitFor(() => expect(calls.some((call) => call.path === '/api/catalog' && call.query.includes('sort=popular'))).toBe(true));
+    });
 });
 
 describe('catalog collections and filters', () => {

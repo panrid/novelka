@@ -49,7 +49,9 @@ export type TagCount = { name: string; slug: string; novels: number };
 /** A group of the site's tag list: «Жанр», «Світ і сюжет», «Герой», «Настрій». */
 export type TagGroup = { name: string; tags: TagCount[] };
 /** What the search box offers while a person types. */
-export type Hints = { novels: Card[]; tags: TagCount[] };
+export type Hints = { novels: Card[]; tags: TagCount[]; chapters?: ChapterHint[] };
+/** A published chapter whose title holds the words: «Бурштинове море · 2. Таємниця старого маяка». */
+export type ChapterHint = { novelSlug: string; teamHandle: string; novelTitle: string; number: number; label: string | null; title: string };
 
 export type EditionSummary = {
     editionId: number;
