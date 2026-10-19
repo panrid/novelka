@@ -117,8 +117,13 @@ docker compose --env-file .env.production -f infra/production.compose.yaml start
 
 ## Пошта
 
-Листи сайт надсилає сам: сервіс `mail` (Postfix з DKIM, образ `boky/postfix`) лише відправляє,
-порту назовні не має й приймає листи тільки з мережі Compose. Пошту на домен ми не приймаємо.
+Листи сайт надсилає сам, від `Новелка <no-reply@novelka.in.ua>` (з 2026-10-18; до того — через
+Resend). Шлях листа: застосунок → сервіс `mail` (Postfix з OpenDKIM, образ `boky/postfix`) на
+порту 587 усередині мережі Compose, без пароля → Postfix підписує лист ключем DKIM і сам
+доставляє його на поштовий сервер одержувача (порт 25, TLS, коли той його має; лише IPv4).
+Назовні в `mail` порту немає, листи він приймає тільки з приватних мереж (Compose). Пошту на
+домен ми не приймаємо. Розсилок листами поки немає — усі листи разові; коли з'являться, вони йдуть
+із `List-Unsubscribe` і відпискою в один клік (`doc/plan.md`, етап 23, п. 9).
 
 У `.env.production` для свого сервера:
 
@@ -132,8 +137,28 @@ MAIL_STARTTLS=false
 MAIL_FROM=Новелка <no-reply@novelka.in.ua>
 ```
 
-Запасний шлях — Resend: `MAIL_HOST=smtp.resend.com`, ключ у `MAIL_PASSWORD`, `MAIL_AUTH=true`,
-`MAIL_STARTTLS=true`. Перемикання — зміна `.env.production` і `sh infra/deploy.sh`.
+### Назад на Resend
+
+Якщо поштовики почнуть різати листи з нашого IP, повертаємось на Resend — лише змінними, без
+зміни коду. У `.env.production` замінити блок вище на
+
+```
+MAIL_HOST=smtp.resend.com
+MAIL_PORT=587
+MAIL_USERNAME=resend
+MAIL_PASSWORD=<ключ API Resend>
+MAIL_AUTH=true
+MAIL_STARTTLS=true
+MAIL_FROM=Новелка <no-reply@novelka.panrid.space>
+```
+
+і виконати погоджений деплой через `sh infra/deploy.sh` на сервері. Адреса відправника — на
+`novelka.panrid.space`, бо в Resend підтверджено саме цей домен; щоб слати з `novelka.in.ua`,
+його спершу треба додати в Resend і внести його записи в DNS. Ключ — у кабінеті Resend (у
+`.env.production` його зараз немає). Сервіс `mail` при цьому може працювати далі — він нікому
+не заважає. Назад на свій сервер — той самий блок, що вище.
+
+### DNS і PTR
 
 DNS домену `novelka.in.ua` (NIC.UA):
 
@@ -142,18 +167,41 @@ DNS домену `novelka.in.ua` (NIC.UA):
 | `@` | TXT | `v=spf1 ip4:62.72.33.247 -all` |
 | `novelka._domainkey` | TXT | публічний ключ DKIM (нижче, як його взяти) |
 | `_dmarc` | TXT | `v=DMARC1; p=none; rua=mailto:<пошта власника>` → згодом `p=quarantine` |
-| `@` | MX | `0 .` (пошту не приймаємо) |
 
-Зворотний запис IP (PTR) у панелі Hostinger — `novelka.in.ua`; так само звуть себе й Postfix.
+Станом на 2026-10-19 MX відсутній: після спроби додати `0 .` у NIC.UA запис не з’явився
+на авторитетних NS. Причину ще потрібно з’ясувати з підтримкою. Коректний MX і шлях повернень
+листів, зокрема придатність Null MX для домену відправника, перевіряємо в #284. Запис `_dmarc` має бути один — два
+записи поштовики вважають помилкою й не зважають на обидва.
 
-Ключ DKIM створюється сам при першому запуску й лежить у томі `novelka_dkim`; його публічна частина:
+Зворотний запис IP (PTR) у панелі Hostinger (VPS → Налаштування → IP-адреса) — `novelka.in.ua`
+для IPv4; так само звуть себе й Postfix (`POSTFIX_myhostname`). IPv6 мережа Compose не має, тож
+його PTR не потрібен.
+
+Ключ DKIM створюється сам при першому запуску й лежить у томі `novelka_dkim`; приватна частина
+не виходить із сервера. Публічна частина:
 
 ```
-ssh novelka@62.72.33.247 'docker run --rm -v novelka_dkim:/k alpine cat /k/novelka.in.ua.txt'
+ssh novelka@62.72.33.247 'docker exec novelka-mail-1 cat /etc/opendkim/keys/novelka.in.ua.txt'
 ```
 
-Перевірка: лист на адресу з https://www.mail-tester.com (має бути 10/10) і на Gmail, Outlook,
-ukr.net; журнал — `docker logs novelka-mail-1`.
+Якщо том пропаде, ключ створиться новий — його публічну частину треба знову внести в DNS, інакше
+листи не пройдуть DKIM.
+
+### Перевірка
+
+Записи: `dig +short TXT novelka.in.ua`, `dig +short TXT novelka._domainkey.novelka.in.ua`,
+`dig +short TXT _dmarc.novelka.in.ua`, `dig +short -x 62.72.33.247`. Лист: адресу з
+https://www.mail-tester.com (має бути 10/10) вписати як нову пошту в налаштуваннях акаунта —
+сайт надішле справжній лист «підтвердіть пошту», а сама пошта не зміниться, доки не підтвердити;
+так само — на Gmail, Outlook, ukr.net. Журнал — `docker logs novelka-mail-1`: `status=sent` —
+прийнято наступним поштовим сервером (це не гарантує потрапляння у вхідні), `deferred` —
+відкладено, `bounced` — остаточна відмова; причина в тому ж рядку.
+
+Перевірено 2026-10-19: справжній лист сайту отримав **7/10**, SPF, DKIM, DMARC і PTR/HELO
+успішні; −3 за відсутній MX. Досягнення 10/10 і перевірки скриньок перенесено в #284 за
+рішенням власника; #224 завершує перехід на власну відправку. Для DMARC-звітів на зовнішній
+домен потрібна його авторизація; наявність `rua` ще не гарантує отримання звітів. Перехід
+на `p=quarantine` — після аналізу накопичених звітів, окремим рішенням власника (#284).
 
 ## Моніторинг
 
