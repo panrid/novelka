@@ -28,8 +28,18 @@ public final class EditorModels {
     public record StudioChapters(java.util.List<StudioChapter> items, int total, int page, boolean hasMore) {
     }
 
+    /**
+     * One version of a chapter in its history (етап 20, історія глави).
+     *
+     * @param stage     for AI: «translate» or «proofread»; null otherwise
+     * @param model     for AI: the models of that stage; null otherwise
+     * @param jobId     for AI: the run that made it
+     * @param proposers for readers' правки: who proposed them; the reviewer who took them is {@code authorNick}
+     * @param notes     what the правки said about themselves (a reader's reason, «Вичитка ШІ», a glossary change)
+     */
     public record RevisionInfo(long id, String authorNick, String origin, OffsetDateTime createdAt,
-            int blocksChanged, int charsChanged, boolean published) {
+            int blocksChanged, int charsChanged, boolean published, String stage, String model, Long jobId,
+            List<String> proposers, List<String> notes) {
     }
 
     public record RevisionText(long id, String title, List<Block> blocks, String parentTitle, List<Block> parentBlocks) {

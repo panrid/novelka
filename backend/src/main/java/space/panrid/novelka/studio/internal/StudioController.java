@@ -464,6 +464,22 @@ class StudioController {
                 studioBlocks(text.parentBlocks()));
     }
 
+    /**
+     * «Повернути цю версію» (етап 20, історія глави): the version's text published anew as the
+     * person's own revision; the versions after it stay in the history.
+     */
+    @PostMapping("/editions/{editionId}/chapters/{number}/revisions/{revisionId}/restore")
+    Published restore(@PathVariable long editionId, @PathVariable int number, @PathVariable long revisionId) {
+        EditionAccess who = access.requireTextEditor(editionId);
+        EditorModels.RevisionText old = chapters.revision(editionId, number, revisionId);
+        EditorModels.CurrentText now = chapters.current(editionId, number);
+        if (now.revisionId() == revisionId) {
+            throw UserFacingException.badRequest("Ця версія вже в читачів.");
+        }
+        // Pictures of an old version were in the chapter once: bringing them back is not adding new ones.
+        return new Published(chapters.publish(editionId, number, who.viewer().accountId(), old.title(), old.blocks(), now.revisionId(), true));
+    }
+
     // ---- files and contribution ------------------------------------------------------------
 
     @PostMapping("/editions/{editionId}/import/preview")

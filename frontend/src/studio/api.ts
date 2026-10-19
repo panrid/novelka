@@ -62,6 +62,10 @@ export type ChapterOriginal = { title: string; blocks: { id: string; type: strin
 export type RevisionInfo = {
     id: number; authorNick: string | null; origin: string; createdAt: string; blocksChanged: number; charsChanged: number;
     published: boolean;
+    /** AI: «translate» or «proofread», the models of that stage and the run (етап 20, історія глави). */
+    stage?: 'translate' | 'proofread' | null; model?: string | null; jobId?: number | null;
+    /** Readers' правки: who proposed them (authorNick took them) and what they said. */
+    proposers?: string[]; notes?: string[];
 };
 
 export type RevisionView = { id: number; title: string; blocks: StudioBlock[]; parentTitle: string | null; parentBlocks: StudioBlock[] };
@@ -136,6 +140,9 @@ export const studioApi = {
     setLabel: (id: number, number: number, label: string | null) => api<void>(`${chapter(id, number)}/label`, json('PUT', { label })),
     revisions: (id: number, number: number) => api<RevisionInfo[]>(`${chapter(id, number)}/revisions`),
     revision: (id: number, number: number, revisionId: number) => api<RevisionView>(`${chapter(id, number)}/revisions/${revisionId}`),
+    /** «Повернути цю версію»: its text published anew; the later versions stay in the history. */
+    restore: (id: number, number: number, revisionId: number) =>
+        api<{ revisionId: number }>(`${chapter(id, number)}/revisions/${revisionId}/restore`, json('POST', {})),
     previewImport: (id: number, file: File) => {
         const request = upload(`${edition(id)}/import/preview`, file, file.name);
         return api<ImportPreview>(request.path, request.init);
