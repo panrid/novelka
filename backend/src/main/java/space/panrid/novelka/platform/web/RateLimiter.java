@@ -46,4 +46,24 @@ public final class RateLimiter {
         }
         return allowed[0];
     }
+
+    /** How long until {@code key} may try again: zero when it may now. */
+    public Duration retryAfter(String key) {
+        Instant now = clock.instant();
+        Duration[] wait = {Duration.ZERO};
+        events.computeIfPresent(key, (k, times) -> {
+            Instant oldest = times.peekFirst();
+            if (times.size() >= max && oldest != null) {
+                Duration left = Duration.between(now, oldest.plus(window));
+                wait[0] = left.isNegative() ? Duration.ZERO : left;
+            }
+            return times;
+        });
+        return wait[0];
+    }
+
+    /** Forgets every attempt, as a restart does. */
+    public void clear() {
+        events.clear();
+    }
 }

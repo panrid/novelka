@@ -36,7 +36,7 @@ class SecurityConfiguration {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityContextRepository contexts,
-            JsonMapper json, ObjectProvider<BearerTokens> tokens) throws Exception {
+            JsonMapper json, ObjectProvider<BearerTokens> tokens, ApiRateLimits limits) throws Exception {
         return http
                 .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
                 // The SPA reads XSRF-TOKEN from the cookie and sends it back in X-XSRF-TOKEN.
@@ -45,7 +45,7 @@ class SecurityConfiguration {
                         .ignoringRequestMatchers("/api/telegram/webhook", "/api/client-errors")
                         // A token is sent by the program itself, never added by a browser: no CSRF to forge.
                         .ignoringRequestMatchers((RequestMatcher) BearerFilter::carriesBearer))
-                .addFilterAfter(new BearerFilter(tokens.getIfAvailable(() -> REFUSE_TOKENS), json), CsrfFilter.class)
+                .addFilterAfter(new BearerFilter(tokens.getIfAvailable(() -> REFUSE_TOKENS), limits, json), CsrfFilter.class)
                 .securityContext(context -> context.securityContextRepository(contexts))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)

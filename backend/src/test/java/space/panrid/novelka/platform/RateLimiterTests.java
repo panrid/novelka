@@ -46,4 +46,20 @@ class RateLimiterTests {
         clock.now = clock.now.plus(Duration.ofMinutes(10));
         assertThat(limiter.tryAcquire("ip")).isTrue();
     }
+
+    @Test
+    void tellsHowLongToWaitAndForgetsOnClear() {
+        MovableClock clock = new MovableClock();
+        RateLimiter limiter = new RateLimiter(2, Duration.ofMinutes(1), clock);
+        assertThat(limiter.retryAfter("token")).isZero();
+        limiter.tryAcquire("token");
+        clock.now = clock.now.plusSeconds(20);
+        limiter.tryAcquire("token");
+        assertThat(limiter.tryAcquire("token")).isFalse();
+        assertThat(limiter.retryAfter("token")).isEqualTo(Duration.ofSeconds(40));
+
+        limiter.clear();
+        assertThat(limiter.retryAfter("token")).isZero();
+        assertThat(limiter.tryAcquire("token")).isTrue();
+    }
 }

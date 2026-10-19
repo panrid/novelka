@@ -1,6 +1,7 @@
 package space.panrid.novelka.platform.security;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -23,6 +24,8 @@ import tools.jackson.databind.json.JsonMapper;
  * replaces the session for this one request: nothing is saved, the cookie session (if any) is
  * ignored, and the request goes on only where the token's scopes reach. CSRF is not asked of
  * these requests — a browser never adds the header by itself — while cookie sessions keep it.
+ * Here too the API's limits are counted ({@link ApiRateLimits}): per token, and per address for the
+ * public {@code /api/v1} without one; past them the answer is 429 with {@code Retry-After}.
  * Not a bean: the security chain alone runs it.
  */
 final class BearerFilter extends OncePerRequestFilter {
@@ -31,10 +34,12 @@ final class BearerFilter extends OncePerRequestFilter {
     private static final String BEARER = "bearer ";
 
     private final BearerTokens tokens;
+    private final ApiRateLimits limits;
     private final JsonMapper json;
 
-    BearerFilter(BearerTokens tokens, JsonMapper json) {
+    BearerFilter(BearerTokens tokens, ApiRateLimits limits, JsonMapper json) {
         this.tokens = tokens;
+        this.limits = limits;
         this.json = json;
     }
 
@@ -45,14 +50,29 @@ final class BearerFilter extends OncePerRequestFilter {
                 && header.substring(0, BEARER.length()).toLowerCase(Locale.ROOT).equals(BEARER);
     }
 
+    /** The public reading API, open without a token. */
+    static boolean publicApi(HttpServletRequest request) {
+        String path = path(request);
+        return path.equals("/api/v1") || path.startsWith("/api/v1/");
+    }
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !carriesBearer(request);
+        return !carriesBearer(request) && !publicApi(request);
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+        if (!carriesBearer(request)) {
+            Duration wait = limits.address(request.getRemoteAddr());
+            if (wait != null) {
+                tooMany(response, wait);
+                return;
+            }
+            chain.doFilter(request, response);
+            return;
+        }
         String token = request.getHeader(HttpHeaders.AUTHORIZATION).substring(BEARER.length()).strip();
         String path = path(request);
         Optional<TokenGrant> found = tokens.authenticate(token, request.getRemoteAddr());
@@ -68,6 +88,11 @@ final class BearerFilter extends OncePerRequestFilter {
             SecurityConfiguration.problem(response, json, HttpStatus.FORBIDDEN, refusal);
             return;
         }
+        Duration wait = limits.token(grant.tokenId());
+        if (wait != null) {
+            tooMany(response, wait);
+            return;
+        }
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(grant.authentication());
         SecurityContextHolder.setContext(context);
@@ -81,6 +106,13 @@ final class BearerFilter extends OncePerRequestFilter {
                 log.error("Could not journal a request made with token {}", grant.tokenId(), error);
             }
         }
+    }
+
+    private void tooMany(HttpServletResponse response, Duration wait) throws IOException {
+        long seconds = Math.max(1, (wait.toMillis() + 999) / 1000);
+        response.setHeader(HttpHeaders.RETRY_AFTER, Long.toString(seconds));
+        SecurityConfiguration.problem(response, json, HttpStatus.TOO_MANY_REQUESTS,
+                "Забагато запитів. Зачекайте " + seconds + " с і спробуйте знову.");
     }
 
     static String path(HttpServletRequest request) {
