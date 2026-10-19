@@ -574,10 +574,11 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
                 DSLContext tx = trx.dsl();
                 tx.deleteFrom(GLOSSARY_MENTION).where(GLOSSARY_MENTION.EDITION_ID.eq(editionId), GLOSSARY_MENTION.CHAPTER_NUMBER.eq(number)).execute();
                 if (!counted.isEmpty()) {
-                    var insert = tx.insertInto(GLOSSARY_MENTION, GLOSSARY_MENTION.EDITION_ID, GLOSSARY_MENTION.CHAPTER_NUMBER,
-                            GLOSSARY_MENTION.ENTRY_ID, GLOSSARY_MENTION.MENTIONS);
-                    counted.forEach((entryId, times) -> insert.values(editionId, number, entryId, times));
-                    insert.onConflictDoNothing().execute();
+                    tx.insertInto(GLOSSARY_MENTION, GLOSSARY_MENTION.EDITION_ID, GLOSSARY_MENTION.CHAPTER_NUMBER,
+                                    GLOSSARY_MENTION.ENTRY_ID, GLOSSARY_MENTION.MENTIONS)
+                            .valuesOfRows(counted.entrySet().stream()
+                                    .map(entry -> DSL.row(editionId, number, entry.getKey(), entry.getValue())).toList())
+                            .onConflictDoNothing().execute();
                 }
                 tx.insertInto(GLOSSARY_MENTION_SCAN).set(GLOSSARY_MENTION_SCAN.EDITION_ID, editionId)
                         .set(GLOSSARY_MENTION_SCAN.CHAPTER_NUMBER, number).set(GLOSSARY_MENTION_SCAN.FINGERPRINT, fingerprint)

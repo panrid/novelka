@@ -314,8 +314,8 @@ class AutotranslateController {
                 throw UserFacingException.badRequest("Цей набір моделей сайт людям не пропонує.");
             }
         }
-        if (body.mySet() != null) {
-            mySets.find(viewer.accountId(), body.mySet()).orElseThrow(() -> UserFacingException.notFound("Такого набору немає."));
+        if (body.mySet() != null && mySets.find(viewer.accountId(), body.mySet()).isEmpty()) {
+            throw UserFacingException.notFound("Такого набору немає.");
         }
         choices.remember(viewer.accountId(), body);
     }

@@ -93,8 +93,8 @@ class Presets {
         if (sets.size() != new java.util.HashSet<>(sets).size()) {
             throw UserFacingException.badRequest("Один набір моделей не може бути двома якостями.");
         }
-        for (Long id : sets) {
-            find(id).orElseThrow(() -> UserFacingException.notFound("Такого набору моделей немає."));
+        if (sets.stream().anyMatch(id -> find(id).isEmpty())) {
+            throw UserFacingException.notFound("Такого набору моделей немає.");
         }
         db.update(AUTOTRANSLATE_PRESET).setNull(AUTOTRANSLATE_PRESET.QUALITY).where(AUTOTRANSLATE_PRESET.QUALITY.in(chosen.keySet())).execute();
         chosen.forEach((quality, id) -> {

@@ -1,5 +1,6 @@
 package space.panrid.novelka.platform.web;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
@@ -51,7 +52,7 @@ class ApiErrors extends ResponseEntityExceptionHandler {
     }
 
     @Override
-    protected ResponseEntity<Object> handleExceptionInternal(Exception error, Object body, HttpHeaders headers,
+    protected @Nullable ResponseEntity<Object> handleExceptionInternal(Exception error, @Nullable Object body, HttpHeaders headers,
             HttpStatusCode status, WebRequest request) {
         ProblemDetail problem = body instanceof ProblemDetail detail ? detail : ProblemDetail.forStatus(status);
         problem.setDetail(messageFor(status));

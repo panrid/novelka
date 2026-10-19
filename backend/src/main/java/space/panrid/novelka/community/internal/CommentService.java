@@ -122,7 +122,7 @@ class CommentService {
         People.Person author = names.get(c.getAuthorId());
         return new Item(c.getId(), removed == null ? author.nick() : null, removed == null ? author.avatarUrl() : null,
                 removed == null ? author.level() : null, removed == null ? bodies.get(c.getId()) : "", c.getCreatedAt(), c.getEditedAt(), removed, c.getScore(),
-                votes.getOrDefault(c.getId(), 0), viewerId != null && viewerId == c.getAuthorId(), c.getReplyTo(), replies);
+                votes.getOrDefault(c.getId(), 0), viewerId != null && viewerId.equals(c.getAuthorId()), c.getReplyTo(), replies);
     }
 
     @Transactional
