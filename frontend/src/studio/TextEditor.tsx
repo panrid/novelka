@@ -11,7 +11,7 @@ import Text from '@tiptap/extension-text';
 import Underline from '@tiptap/extension-underline';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
-import { ImagePlus, Images, Link2, Minus, Redo2, Sparkles, Undo2 } from '../ui/icons';
+import { BookmarkPlus, ImagePlus, Images, Link2, Minus, Redo2, Sparkles, Undo2 } from '../ui/icons';
 import { useImperativeHandle, useRef, useState } from 'react';
 import { Dialog, Heading as DialogHeading, Modal, ModalOverlay } from 'react-aria-components';
 import { Button } from '../ui/Button';
@@ -65,16 +65,22 @@ type Props = {
     onIllustrate?: ((fragment: string, insert: (picture: { id: number; url: string }) => void) => void) | undefined;
     /** The id of the paragraph the cursor is in (null for one typed anew), as the cursor moves. */
     onCursorBlock?: (blockId: string | null) => void;
+    /** «До словника» (етап 19): the selected words, their paragraph's id and its text as it is now. */
+    onGlossary?: ((pick: { selection: string; blockId: string | null; paragraph: string }) => void) | undefined;
 };
+
+/** The top-level block where the cursor or the selection starts (a select-all starts at the document). */
+function cursorNode(editor: Editor) {
+    const { $from } = editor.state.selection;
+    return $from.depth >= 1 ? $from.node(1) : editor.state.doc.nodeAt($from.pos);
+}
 
 /** The top-level block holding the cursor keeps the paragraph's id from the original. */
 function cursorBlock(editor: Editor): string | null {
-    const { $from } = editor.state.selection;
-    const node = $from.depth >= 1 ? $from.node(1) : editor.state.doc.nodeAt($from.pos);
-    return (node?.attrs.blockId as string | null | undefined) ?? null;
+    return (cursorNode(editor)?.attrs.blockId as string | null | undefined) ?? null;
 }
 
-export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate, onCursorBlock }: Props) {
+export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = false, label, placeholder, onIllustrate, onCursorBlock, onGlossary }: Props) {
     const chapter = mode === 'chapter';
     const editor = useEditor({
         extensions: [
@@ -111,19 +117,19 @@ export function TextEditor({ handle, blocks, onChange, mode, mayAddPictures = fa
         <div className={styles.wrap}>
             <EditorContent editor={editor} />
             <Toolbar editor={editor} chapter={chapter} mayAddPictures={chapter && mayAddPictures}
-                onIllustrate={chapter && mayAddPictures ? onIllustrate : undefined} />
+                onIllustrate={chapter && mayAddPictures ? onIllustrate : undefined} onGlossary={chapter ? onGlossary : undefined} />
         </div>
     );
 }
 
-function Toolbar({ editor, chapter, mayAddPictures, onIllustrate }: {
-    editor: Editor; chapter: boolean; mayAddPictures: boolean; onIllustrate: Props['onIllustrate'];
+function Toolbar({ editor, chapter, mayAddPictures, onIllustrate, onGlossary }: {
+    editor: Editor; chapter: boolean; mayAddPictures: boolean; onIllustrate: Props['onIllustrate']; onGlossary: Props['onGlossary'];
 }) {
     const state = useEditorState({
         editor,
         selector: ({ editor: e }) => ({
             bold: e.isActive('bold'), italic: e.isActive('italic'), underline: e.isActive('underline'), strike: e.isActive('strike'),
-            undo: e.can().undo(), redo: e.can().redo(),
+            undo: e.can().undo(), redo: e.can().redo(), selected: !e.state.selection.empty,
         }),
     });
     const button = (name: string, active: boolean, run: () => void, content: React.ReactNode) => (
@@ -141,11 +147,26 @@ function Toolbar({ editor, chapter, mayAddPictures, onIllustrate }: {
             {chapter && button('Розділювач сцен', false, () => editor.chain().focus().setHorizontalRule().run(), <Minus size={18} aria-hidden />)}
             {mayAddPictures && <PictureButtons editor={editor} />}
             {onIllustrate && button('Намалювати сцену', false, () => illustrate(editor, onIllustrate), <Sparkles size={18} aria-hidden />)}
+            {onGlossary && (
+                <button type="button" className={styles.tool} aria-label="До словника" disabled={!state.selected}
+                    title={state.selected ? 'Додати виділене до словника' : 'Виділіть слово в тексті'}
+                    onMouseDown={(event) => event.preventDefault()} onClick={() => glossary(editor, onGlossary)}>
+                    <BookmarkPlus size={18} aria-hidden />
+                </button>
+            )}
             <span className={styles.spacer} />
             {state.undo && button('Скасувати', false, () => editor.chain().focus().undo().run(), <Undo2 size={18} aria-hidden />)}
             {state.redo && button('Повторити', false, () => editor.chain().focus().redo().run(), <Redo2 size={18} aria-hidden />)}
         </div>
     );
+}
+
+/** The selected words and the paragraph they are in, with the id it keeps from the original. */
+function glossary(editor: Editor, onGlossary: NonNullable<Props['onGlossary']>) {
+    const { from, to } = editor.state.selection;
+    const selection = editor.state.doc.textBetween(from, to, ' ').trim();
+    if (!selection) return;
+    onGlossary({ selection, blockId: cursorBlock(editor), paragraph: cursorNode(editor)?.textContent ?? '' });
 }
 
 /** The selected text, or the whole paragraph when nothing is selected; the picture goes after that paragraph. */

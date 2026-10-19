@@ -57,12 +57,14 @@ class AutotranslateController {
     private final SourceWatch watch;
     private final StoryRoles storyRoles;
     private final Choices choices;
+    private final SourceOf sourceOf;
     private final space.panrid.novelka.platform.audit.AuditLog audit;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
             Teams teams, Analyses analyses, Ledger ledger, Sources sources, space.panrid.novelka.suggestion.Suggestions suggestions,
             Agreement agreement, JobLog journal, Presets presets, ModelCosts costs, SourceWatch watch, StoryRoles storyRoles,
-            Choices choices, space.panrid.novelka.platform.audit.AuditLog audit) {
+            Choices choices, space.panrid.novelka.platform.audit.AuditLog audit, SourceOf sourceOf) {
+        this.sourceOf = sourceOf;
         this.audit = audit;
         this.choices = choices;
         this.storyRoles = storyRoles;
@@ -537,6 +539,47 @@ class AutotranslateController {
                 : agreement.regender(paragraphs, entry.ukrainian(), entry.gender(), payer);
         int count = suggestions.propose(viewer, editionId, changes, "Словник: рід «%s»".formatted(entry.ukrainian()), body.apply());
         return new Rewritten(count, (int) changes.stream().mapToInt(space.panrid.novelka.suggestion.Suggestions.BlockChange::chapterNumber).distinct().count());
+    }
+
+    /** @param translation the paragraph as it is in the editor now, saved or not */
+    record SourceQuestion(String blockId, String translation, String selection) {
+    }
+
+    /**
+     * @param paragraph the original paragraph, or null when this chapter has no original
+     * @param original  the piece of it the selection translates, or null when none was found
+     */
+    record Source(String paragraph, String original, String language) {
+    }
+
+    /**
+     * «Словник» in the editor (етап 19, п. 4): what a word selected in the translation was translated
+     * from — a piece of the original itself. Asks AI, so it is for those who see it.
+     */
+    @PostMapping("/editions/{editionId}/chapters/{number}/glossary/source")
+    Source source(@PathVariable long editionId, @PathVariable int number, @RequestBody SourceQuestion body) {
+        Viewer viewer = access.requireTranslator(editionId).viewer();
+        access.requireAi();
+        String language = glossary.scope(editionId, number).language();
+        String paragraph = glossary.originalBlock(editionId, number, body.blockId() == null ? "" : body.blockId()).orElse(null);
+        if (paragraph == null) {
+            return new Source(null, null, language);
+        }
+        String found = sourceOf.find(paragraph, body.translation() == null ? "" : body.translation(), body.selection(), language,
+                personal(viewer) ? viewer.accountId() : null);
+        return new Source(paragraph, found, language);
+    }
+
+    /** {@code chapter}: where the word was met; {@code gender} only matters for characters. */
+    record NewEntry(int chapter, String ukrainian, String original, String kind, String gender) {
+    }
+
+    /** «Додати до словника» (етап 19, п. 4): the team's own entry, approved at once. */
+    @PostMapping("/editions/{editionId}/glossary")
+    @ResponseStatus(HttpStatus.CREATED)
+    Map<String, Long> addEntry(@PathVariable long editionId, @RequestBody NewEntry body) {
+        access.requireTranslator(editionId);
+        return Map.of("id", glossary.addByHand(editionId, body.chapter(), body.ukrainian(), body.original(), body.kind(), body.gender()));
     }
 
     @DeleteMapping("/editions/{editionId}/glossary/{entryId}")

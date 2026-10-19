@@ -162,6 +162,12 @@ public class FakeModel implements AiTransport {
                         // it was never shown.
                         "facts", facts(user));
             }
+            case "source_of" -> {
+                // Knows the hero's name; for anything else it «translates back», which the site must not take.
+                JsonNode asked = JSON.readTree(user);
+                yield Map.of("original", asked.path("selection").asString().startsWith("Зоріан") && asked.path("original").asString().contains("Zorian")
+                        ? "Zorian" : "back-translated " + asked.path("selection").asString());
+            }
             case "story_roles" -> {
                 // A monster by its name; everyone else takes part in the story.
                 List<Map<String, Object>> roles = new ArrayList<>();

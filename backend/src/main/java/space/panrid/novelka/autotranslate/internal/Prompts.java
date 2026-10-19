@@ -301,6 +301,16 @@ final class Prompts {
                 Return every id exactly once with its full text.""".formatted(name, now, name);
     }
 
+    /** «Словник» in the editor: the piece of the original paragraph a selected translation was made from. */
+    static String sourceOf(String language) {
+        return """
+                You align a paragraph of a %s web novel with its Ukrainian translation. The input is JSON: the original
+                paragraph, its translation, and a word or phrase selected in the translation. Find the piece of the
+                original that the selection translates and copy it exactly as it is written in the original, character
+                for character: no translation back, no reading, no added or dropped words. If the original has no such
+                piece, return an empty string.""".formatted(language);
+    }
+
     // ---- schemas ----------------------------------------------------------------------------
 
     private static Map<String, Object> object(Map<String, Object> properties) {
@@ -310,6 +320,10 @@ final class Prompts {
 
     private static Map<String, Object> string() {
         return Map.of("type", "string");
+    }
+
+    static Map<String, Object> sourceOfSchema() {
+        return object(Map.of("original", string()));
     }
 
     static final String STORY_ROLES = """

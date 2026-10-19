@@ -62,6 +62,14 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
     record Scope(long novelId, String language) {
     }
 
+    /** The novel, with the language this chapter's original is in: a pasted chapter says its own. */
+    Scope scope(long editionId, int chapter) {
+        Scope novel = scope(editionId);
+        String pasted = db.select(EDITION_ORIGINAL.LANGUAGE).from(EDITION_ORIGINAL)
+                .where(EDITION_ORIGINAL.EDITION_ID.eq(editionId), EDITION_ORIGINAL.NUMBER.eq(chapter)).fetchOne(EDITION_ORIGINAL.LANGUAGE);
+        return pasted == null ? novel : new Scope(novel.novelId(), pasted);
+    }
+
     Scope scope(long editionId) {
         var row = db.select(NOVEL.ID, NOVEL.SOURCE_LANGUAGE).from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
                 .where(EDITION.ID.eq(editionId)).fetchOptional()
@@ -917,6 +925,51 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
             linked += addForm(db, scope, item.id(), original, null);
         }
         return linked;
+    }
+
+    /**
+     * «Додати до словника» from the editor (етап 19, п. 4): the team's own word with the piece of the
+     * original it translates. Approved at once, as entries the team writes by hand are.
+     */
+    long addByHand(long editionId, int chapter, String ukrainian, String original, String kind, String gender) {
+        String word = ukrainian == null ? "" : ukrainian.strip();
+        String source = original == null ? "" : original.strip();
+        if (word.isEmpty() || source.isEmpty()) {
+            throw UserFacingException.badRequest("Потрібні обидві частини: слово в перекладі й в оригіналі.");
+        }
+        if (word.length() > 100 || source.length() > 100) {
+            throw UserFacingException.badRequest("До словника йдуть слова й короткі назви, до 100 знаків.");
+        }
+        if (!KINDS.contains(kind)) {
+            throw UserFacingException.badRequest("Оберіть, що це: персонаж, місце, організація, термін чи інше.");
+        }
+        Scope scope = scope(editionId, chapter);
+        return db.transactionResult(config -> {
+            DSLContext tx = DSL.using(config);
+            String taken = tx.select(GLOSSARY_ENTRY.UKRAINIAN).from(GLOSSARY_FORM).join(GLOSSARY_ENTRY).on(GLOSSARY_ENTRY.ID.eq(GLOSSARY_FORM.ENTRY_ID))
+                    .where(GLOSSARY_FORM.NOVEL_ID.eq(scope.novelId()), GLOSSARY_FORM.LANGUAGE.eq(scope.language()),
+                            GLOSSARY_FORM.ORIGINAL.eq(source))
+                    .fetchOne(GLOSSARY_ENTRY.UKRAINIAN);
+            if (taken != null) {
+                throw UserFacingException.badRequest("«%s» уже є в словнику: «%s».".formatted(source, taken));
+            }
+            long id = tx.insertInto(GLOSSARY_ENTRY)
+                    .set(GLOSSARY_ENTRY.NOVEL_ID, scope.novelId())
+                    .set(GLOSSARY_ENTRY.UKRAINIAN, word)
+                    .set(GLOSSARY_ENTRY.KIND, kind)
+                    .set(GLOSSARY_ENTRY.GENDER, GENDERS.contains(gender) ? gender : "unknown")
+                    .set(GLOSSARY_ENTRY.SOURCE_CHAPTER, chapter)
+                    .set(GLOSSARY_ENTRY.MANUAL, true)
+                    .set(GLOSSARY_ENTRY.STATUS, "approved")
+                    .returning(GLOSSARY_ENTRY.ID).fetchOne(GLOSSARY_ENTRY.ID);
+            addForm(tx, scope, id, source, null);
+            return id;
+        });
+    }
+
+    /** The original paragraph a translated one keeps the id of, or empty when the chapter has no original. */
+    java.util.Optional<String> originalBlock(long editionId, int chapter, String blockId) {
+        return originalBlocks(editionId, chapter).map(blocks -> blocks.get(blockId));
     }
 
     /** Nothing when the entry has a form in this language already or another entry has this one. */
