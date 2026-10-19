@@ -3,6 +3,10 @@ novelka:
     sign-ins-per-address: 1000
     sign-ins-per-login: 1000
     registrations-per-address: 1000
+  # The API's limits (етап 22.2), low enough for a test to reach; PublicApiTests forgets them per case.
+  api:
+    token-requests-per-minute: 40
+    address-requests-per-minute: 40
   media:
     dir: build/test-media
   # Tests run the queue themselves (Worker.drain) instead of on a schedule.

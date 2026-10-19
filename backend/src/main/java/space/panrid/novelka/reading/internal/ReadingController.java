@@ -95,7 +95,7 @@ class ReadingController {
                 .orElseThrow(() -> new UserFacingException(HttpStatus.NOT_FOUND, "Таких новел немає — спробуйте прибрати фільтри."));
     }
 
-    private static Views.CatalogFilter filter(String q, List<String> tag, String kind, String machine, String status, String source,
+    static Views.CatalogFilter filter(String q, List<String> tag, String kind, String machine, String status, String source,
             Integer chaptersFrom, Integer chaptersTo, boolean rated, String fresh) {
         if (q != null && q.length() > 100) {
             throw UserFacingException.badRequest("Запит задовгий.");
@@ -327,6 +327,11 @@ class ReadingController {
      * answers 403 with reason «adult», so the page can explain instead of pretending it is gone.
      */
     private List<EditionRow> visibleEditions(NovelRow novel, Optional<Viewer> viewer) {
+        return visibleEditions(queries, novel, viewer);
+    }
+
+    /** The same rule for the public API (етап 22.2): what readers see, the API gives, no more. */
+    static List<EditionRow> visibleEditions(ReadingQueries queries, NovelRow novel, Optional<Viewer> viewer) {
         List<EditionRow> alive = queries.editions(novel.id()).stream()
                 .filter(edition -> !edition.hidden() && edition.chapterCount() > 0).toList();
         if (alive.isEmpty()) {
@@ -342,7 +347,7 @@ class ReadingController {
     }
 
     /** The edition named in ?t=, otherwise the most popular one. */
-    private static EditionRow pick(List<EditionRow> editions, String handle) {
+    static EditionRow pick(List<EditionRow> editions, String handle) {
         if (handle == null || handle.isBlank()) {
             return editions.getFirst();
         }
@@ -350,15 +355,15 @@ class ReadingController {
                 .orElseThrow(() -> UserFacingException.notFound("Цього перекладу немає."));
     }
 
-    private static String origin(String source) {
+    static String origin(String source) {
         return source.equals("original") ? "original" : "translation";
     }
 
-    private static boolean adult(Optional<Viewer> viewer) {
+    static boolean adult(Optional<Viewer> viewer) {
         return viewer.map(Viewer::adultConfirmed).orElse(false);
     }
 
-    private static UserFacingException noNovel() {
+    static UserFacingException noNovel() {
         return UserFacingException.notFound("Такої новели немає.");
     }
 }
