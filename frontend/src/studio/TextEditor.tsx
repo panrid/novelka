@@ -11,7 +11,9 @@ import Text from '@tiptap/extension-text';
 import Underline from '@tiptap/extension-underline';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
-import { BookmarkPlus, ImagePlus, Images, Link2, Minus, RefreshCw, Redo2, Sparkles, Undo2 } from '../ui/icons';
+import { ArrowRightLeft, BookmarkPlus, ImagePlus, Images, Link2, Minus, RefreshCw, Redo2, Sparkles, Undo2 } from '../ui/icons';
+import { askText } from '../ui/ask';
+import { showInfo } from '../ui/toast';
 import { useImperativeHandle, useRef, useState } from 'react';
 import { Dialog, Heading as DialogHeading, Modal, ModalOverlay } from 'react-aria-components';
 import { Button } from '../ui/Button';
@@ -174,11 +176,52 @@ function Toolbar({ editor, chapter, mayAddPictures, onIllustrate, onGlossary, on
                     <BookmarkPlus size={18} aria-hidden />
                 </button>
             )}
+            {chapter && (
+                <button type="button" className={styles.tool} aria-label="Замінити в главі" disabled={!state.selected}
+                    title={state.selected ? 'Замінити виділене по всій главі' : 'Виділіть слово в тексті'}
+                    onMouseDown={(event) => event.preventDefault()} onClick={() => void replaceInChapter(editor)}>
+                    <ArrowRightLeft size={18} aria-hidden />
+                </button>
+            )}
             <span className={styles.spacer} />
             {state.undo && button('Скасувати', false, () => editor.chain().focus().undo().run(), <Undo2 size={18} aria-hidden />)}
             {state.redo && button('Повторити', false, () => editor.chain().focus().redo().run(), <Redo2 size={18} aria-hidden />)}
         </div>
     );
+}
+
+/**
+ * «Замінити в главі» (етап 19): the selected words, wherever they stand in this chapter's text, become
+ * what the person types — one step «Скасувати» takes back. Only whole runs of the same formatting match.
+ */
+async function replaceInChapter(editor: Editor) {
+    const { from, to } = editor.state.selection;
+    const find = editor.state.doc.textBetween(from, to, ' ');
+    if (!find.trim() || find.includes('\n')) return;
+    const replacement = await askText({ title: `Замінити «${find.trim()}» у главі`, label: 'На що замінити', confirmLabel: 'Замінити всюди' });
+    if (replacement === null) return;
+    const count = replaceAll(editor, find, replacement);
+    showInfo(count === 0 ? 'Такого в главі не знайшлося.' : `Замінено: ${count}.`);
+}
+
+/** Replaces every {@code find} inside a text run of the document, the last first so positions hold; returns how many. */
+export function replaceAll(editor: Editor, find: string, replacement: string): number {
+    const found: { from: number; to: number }[] = [];
+    editor.state.doc.descendants((node, at) => {
+        if (!node.isText || !node.text) return;
+        for (let index = node.text.indexOf(find); index !== -1; index = node.text.indexOf(find, index + find.length)) {
+            found.push({ from: at + index, to: at + index + find.length });
+        }
+    });
+    if (found.length === 0) return 0;
+    const transaction = editor.state.tr;
+    for (const range of found.reverse()) {
+        const marks = editor.state.doc.resolve(range.from + 1).marks();
+        if (replacement) transaction.replaceWith(range.from, range.to, editor.state.schema.text(replacement, marks));
+        else transaction.delete(range.from, range.to);
+    }
+    editor.view.dispatch(transaction);
+    return found.length;
 }
 
 /** The selected words and the paragraph they are in, with the id it keeps from the original. */
