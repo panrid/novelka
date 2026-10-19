@@ -206,6 +206,9 @@ jobs:
                   ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p /opt/novelka/app /opt/novelka/infra'
                   scp -i ~/.ssh/deploy release/novelka.jar backend/Dockerfile "$TARGET:/opt/novelka/app/"
                   scp -i ~/.ssh/deploy infra/production.compose.yaml infra/Caddyfile infra/deploy.sh "$TARGET:/opt/novelka/infra/"
+                  # Metrics, logs and alerts: the whole folder replaced, so a removed file leaves too.
+                  tar -C infra -cf - monitoring | ssh -i ~/.ssh/deploy "$TARGET" \
+                      'rm -rf /opt/novelka/infra/monitoring && tar -C /opt/novelka/infra -xf -'
             - name: Restart
               env:
                   TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}

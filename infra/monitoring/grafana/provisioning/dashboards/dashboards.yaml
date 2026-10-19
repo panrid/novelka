@@ -1,0 +1,12 @@
+# The panels «Сайт», «Автопереклад», «Сервер» come from infra/monitoring/grafana/dashboards; a change
+# made in Grafana itself is lost at the next deploy, so change the JSON here instead.
+apiVersion: 1
+
+providers:
+  - name: novelka
+    folder: Новелка
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards

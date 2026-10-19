@@ -15,7 +15,8 @@ npm --prefix frontend run dev       # сайт на http://127.0.0.1:5173
   бази можуть працювати поруч.
 - **Mailpit** — ловить усі листи сайту: http://127.0.0.1:8025.
 
-Vite пересилає `/api` на 8080.
+Vite пересилає `/api` на 8080. Метрики для Prometheus — на окремому порту:
+http://127.0.0.1:8081/actuator/prometheus.
 
 ## Перевірки
 
@@ -79,6 +80,7 @@ curl -b cookies.txt -H "X-XSRF-TOKEN: $XSRF" -X POST http://127.0.0.1:8080/api/a
 | `NOVELKA_DB_USER` / `NOVELKA_DB_PASSWORD` | `novelka` / `novelka` |
 | `NOVELKA_SERVER_ADDRESS` | `127.0.0.1` |
 | `NOVELKA_SERVER_PORT` | `8080` |
+| `NOVELKA_MANAGEMENT_PORT` / `NOVELKA_MANAGEMENT_ADDRESS` | `8081` / як `NOVELKA_SERVER_ADDRESS` — метрики `/actuator/prometheus`; Caddy цей порт не пересилає |
 | `NOVELKA_PUBLIC_URL` | `http://127.0.0.1:5173` — адреса сайту для посилань у листах |
 | `NOVELKA_SECURE_COOKIES` | `false`; у production — `true` (лише HTTPS) |
 | `NOVELKA_MEDIA_DIR` | `data/media` — завантажені картинки |

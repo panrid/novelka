@@ -16,6 +16,10 @@ novelka:
     bot-token: test-token
     bot-username: novelka_test_bot
     mode: "off"
+# Test JVMs run side by side: the metrics port is random too (MonitoringTests reads it).
+management:
+  server:
+    port: 0
 server:
   # Open event streams must not hold the test JVM for the graceful-shutdown timeout.
   shutdown: immediate

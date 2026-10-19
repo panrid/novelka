@@ -1,0 +1,65 @@
+// Every container's log goes to Loki with the Compose project and service as labels. The app's
+// lines (Spring Boot's own format) get a «level» label, and a stack trace stays with its line, so
+// Grafana can count errors and alert (план, етап 23, пп. 4–5).
+
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "15s"
+}
+
+discovery.relabel "containers" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "compose_project"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "compose_service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  relabel_rules = discovery.relabel.containers.rules
+  forward_to    = [loki.process.app.receiver]
+}
+
+loki.process "app" {
+  stage.match {
+    selector = "{compose_service=\"app\"}"
+
+    // 2026-10-19T09:15:42.123Z ERROR 1 --- [novelka] [thread] logger : message, then the stack trace.
+    stage.multiline {
+      firstline     = "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}"
+      max_wait_time = "3s"
+    }
+
+    stage.regex {
+      expression = "^\\S+\\s+(?P<level>TRACE|DEBUG|INFO|WARN|ERROR)\\s"
+    }
+
+    stage.labels {
+      values = {
+        level = "",
+      }
+    }
+  }
+
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
