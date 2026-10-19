@@ -5,7 +5,9 @@ import static space.panrid.novelka.jooq.Tables.NOTIFICATION;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import org.jooq.BatchBindStep;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.JSONB;
@@ -82,25 +84,51 @@ class Inbox {
             return;
         }
         // One statement, so chapters published at the same moment widen the row instead of racing.
-        db.execute("""
-                INSERT INTO notification (recipient_id, kind, group_key, payload) VALUES (?, ?, ?, ?::jsonb)
-                ON CONFLICT (recipient_id, group_key) WHERE read_at IS NULL AND group_key IS NOT NULL
-                DO UPDATE SET payload = (notification.payload || jsonb_build_object(
-                        'first', LEAST((notification.payload ->> 'first')::int, (EXCLUDED.payload ->> 'first')::int),
-                        'last', GREATEST((notification.payload ->> 'last')::int, (EXCLUDED.payload ->> 'last')::int),
-                        'firstLabel', CASE WHEN (EXCLUDED.payload ->> 'first')::int < (notification.payload ->> 'first')::int
-                            THEN EXCLUDED.payload -> 'firstLabel' ELSE notification.payload -> 'firstLabel' END,
-                        'lastLabel', CASE WHEN (EXCLUDED.payload ->> 'last')::int > (notification.payload ->> 'last')::int
-                            THEN EXCLUDED.payload -> 'lastLabel' ELSE notification.payload -> 'lastLabel' END))
-                        -- a chapter's name only while the row is about one chapter
-                        - CASE WHEN LEAST((notification.payload ->> 'first')::int, (EXCLUDED.payload ->> 'first')::int)
-                                  = GREATEST((notification.payload ->> 'last')::int, (EXCLUDED.payload ->> 'last')::int)
-                            THEN '' ELSE 'chapterTitle' END,
-                    created_at = now()
-                """, recipientId, kind, groupKey, json.writeValueAsString(fresh));
+        db.execute(WIDEN, recipientId, kind, groupKey, json.writeValueAsString(fresh));
         nudge(recipientId);
         events.publishEvent(new NotificationAdded(recipientId, kind, fresh));
     }
+
+    /**
+     * {@link #addGrouped} for a whole batch of readers at once (one round trip), without
+     * {@link NotificationAdded}: whoever sends the batch tells messengers in one event. Readers who
+     * keep the topic off the site get no row.
+     *
+     * @param payload the row as it is, with {@code first} and {@code last}
+     */
+    void addGroupedToMany(List<Long> recipientIds, String kind, String groupKey, Map<String, Object> payload) {
+        Set<Long> off = choices.offSite(recipientIds, NotificationChoices.Topic.of(kind));
+        List<Long> told = recipientIds.stream().filter(id -> !off.contains(id)).toList();
+        if (told.isEmpty()) {
+            return;
+        }
+        String body = json.writeValueAsString(payload);
+        BatchBindStep batch = db.batch(db.query(WIDEN, 0L, "", "", "{}"));
+        for (long recipientId : told) {
+            batch = batch.bind(recipientId, kind, groupKey, body);
+        }
+        batch.execute();
+        AfterCommit.run(() -> told.stream().filter(live::connected)
+                .forEach(id -> live.send(id, "notifications", Map.of("unread", unread(id)))));
+    }
+
+    /** A new row, or the reader's unread row of the group widened to the new chapters too. */
+    private static final String WIDEN = """
+            INSERT INTO notification (recipient_id, kind, group_key, payload) VALUES (?, ?, ?, ?::jsonb)
+            ON CONFLICT (recipient_id, group_key) WHERE read_at IS NULL AND group_key IS NOT NULL
+            DO UPDATE SET payload = (notification.payload || jsonb_build_object(
+                    'first', LEAST((notification.payload ->> 'first')::int, (EXCLUDED.payload ->> 'first')::int),
+                    'last', GREATEST((notification.payload ->> 'last')::int, (EXCLUDED.payload ->> 'last')::int),
+                    'firstLabel', CASE WHEN (EXCLUDED.payload ->> 'first')::int < (notification.payload ->> 'first')::int
+                        THEN EXCLUDED.payload -> 'firstLabel' ELSE notification.payload -> 'firstLabel' END,
+                    'lastLabel', CASE WHEN (EXCLUDED.payload ->> 'last')::int > (notification.payload ->> 'last')::int
+                        THEN EXCLUDED.payload -> 'lastLabel' ELSE notification.payload -> 'lastLabel' END))
+                    -- a chapter's name only while the row is about one chapter
+                    - CASE WHEN LEAST((notification.payload ->> 'first')::int, (EXCLUDED.payload ->> 'first')::int)
+                              = GREATEST((notification.payload ->> 'last')::int, (EXCLUDED.payload ->> 'last')::int)
+                        THEN '' ELSE 'chapterTitle' END,
+                created_at = now()
+            """;
 
     /** One unread row per group whose «count» grows: suggestions sent to a team one batch after another. */
     void addCounted(long recipientId, String kind, String groupKey, Map<String, Object> payload, int count) {

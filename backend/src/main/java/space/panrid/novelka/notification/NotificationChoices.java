@@ -3,9 +3,12 @@ package space.panrid.novelka.notification;
 import static space.panrid.novelka.jooq.Tables.NOTIFICATION_CHOICE;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.jooq.DSLContext;
 import org.springframework.stereotype.Component;
@@ -78,6 +81,28 @@ public class NotificationChoices {
                 .where(NOTIFICATION_CHOICE.ACCOUNT_ID.eq(accountId), NOTIFICATION_CHOICE.TOPIC.eq(topic.code()))
                 .fetchOne(NOTIFICATION_CHOICE.IN_TELEGRAM);
         return value == null || value;
+    }
+
+    /** Of {@code accountIds}, those who turned the topic off on the site: one query for a whole batch. */
+    public Set<Long> offSite(Collection<Long> accountIds, Topic topic) {
+        if (topic == Topic.MESSAGES || accountIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(db.select(NOTIFICATION_CHOICE.ACCOUNT_ID).from(NOTIFICATION_CHOICE)
+                .where(NOTIFICATION_CHOICE.ACCOUNT_ID.in(accountIds), NOTIFICATION_CHOICE.TOPIC.eq(topic.code()),
+                        NOTIFICATION_CHOICE.ON_SITE.isFalse())
+                .fetch(NOTIFICATION_CHOICE.ACCOUNT_ID));
+    }
+
+    /** Of {@code accountIds}, those who turned the topic off in Telegram. */
+    public Set<Long> offTelegram(Collection<Long> accountIds, Topic topic) {
+        if (accountIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(db.select(NOTIFICATION_CHOICE.ACCOUNT_ID).from(NOTIFICATION_CHOICE)
+                .where(NOTIFICATION_CHOICE.ACCOUNT_ID.in(accountIds), NOTIFICATION_CHOICE.TOPIC.eq(topic.code()),
+                        NOTIFICATION_CHOICE.IN_TELEGRAM.isFalse())
+                .fetch(NOTIFICATION_CHOICE.ACCOUNT_ID));
     }
 
     /** Changes what is given; {@code null} keeps it. */

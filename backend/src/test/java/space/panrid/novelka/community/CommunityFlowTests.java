@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
+import space.panrid.novelka.notification.ChapterNewsQueue;
 import space.panrid.novelka.support.Accounts;
 import space.panrid.novelka.support.Accounts.Person;
 import space.panrid.novelka.support.Browser;
@@ -34,6 +35,9 @@ class CommunityFlowTests {
     @Autowired
     DSLContext db;
 
+    @Autowired
+    ChapterNewsQueue chapterNews;
+
     Person translator;
     Person reader;
     long edition;
@@ -56,6 +60,8 @@ class CommunityFlowTests {
         translator.browser().post("/api/studio/editions/" + edition + "/chapters", "{}");
         translator.browser().post("/api/studio/editions/" + edition + "/chapters/" + number + "/publish", """
                 {"title":"Глава %d","blocks":[{"id":"b1","type":"paragraph","content":[{"text":"Текст.","marks":[]}]}]}""".formatted(number));
+        // Subscribers hear through the queue (план 21.9); its worker is off in tests.
+        chapterNews.drain();
     }
 
     private String comments() {

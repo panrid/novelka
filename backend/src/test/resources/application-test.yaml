@@ -14,11 +14,16 @@ novelka:
   # Tests recount popularity themselves (EditionStats.recount).
   stats:
     recount: false
+  # Tests tell subscribers about new chapters themselves (ChapterNewsQueue.drain).
+  notifications:
+    chapter-news: false
   # Tests post updates to the webhook themselves; the fake bot needs a token to derive its secret.
+  # They send the queued messages about new chapters themselves too (TelegramQueue.drain).
   telegram:
     bot-token: test-token
     bot-username: novelka_test_bot
     mode: "off"
+    outbox: false
 server:
   # Open event streams must not hold the test JVM for the graceful-shutdown timeout.
   shutdown: immediate

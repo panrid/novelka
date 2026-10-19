@@ -100,6 +100,15 @@ curl -b cookies.txt -H "X-XSRF-TOKEN: $XSRF" -X POST http://127.0.0.1:8080/api/a
 Листи не йдуть назовні, їх ловить Mailpit: http://127.0.0.1:8025. Зареєструйтеся на
 http://127.0.0.1:5173/register і відкрийте посилання з листа в Mailpit.
 
+## Розсилка про нові глави
+
+Публікація глави лише ставить задачу в `chapter_news`; воркер (кожні 2 с) розсилає її
+підписникам пачками по 500 і кладе повідомлення Telegram у `telegram_outbox`, звідки їх
+надсилає окремий відправник (кожну секунду, ≤ 25 на секунду, повтори з паузами). Що застрягло —
+видно в цих таблицях: `state`, `attempts`, `last_error`, `not_before`. У тестах розклад вимкнено
+(`novelka.notifications.chapter-news`, `novelka.telegram.outbox`), тести викликають
+`ChapterNewsQueue.drain()` і `TelegramQueue.drain()`.
+
 ## Автопереклад
 
 Черга живе в PostgreSQL (`job`, `job_step`), воркер бере наступну главу кожні 3 секунди.
