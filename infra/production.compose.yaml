@@ -1,6 +1,7 @@
 # Production on the VPS: PostgreSQL, the app and Caddy (HTTPS). Secrets come from
 # /opt/novelka/.env.production, which never leaves the server; the names there are
-# the ones v1 used, mapped here to the app's own.
+# the ones v1 used, mapped here to the app's own. PostgreSQL, Caddy and the network
+# «novelka_default» also serve the test site (dev.compose.yaml), with its own database.
 name: novelka
 
 services:
@@ -20,8 +21,8 @@ services:
       retries: 20
 
   app:
-    build:
-      context: ../app
+    # Built once per push from the JAR CI tested and tagged with what each site runs (infra/deploy.sh).
+    image: novelka:prod
     restart: unless-stopped
     # Time to wait for a model's answer already on its way before the old version stops.
     stop_grace_period: 180s
@@ -106,6 +107,8 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Who may enter the test site; kept only on the server (doc/deployment.md, «Тестовий сайт»).
+      - ../dev-access:/etc/caddy/dev-access:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:

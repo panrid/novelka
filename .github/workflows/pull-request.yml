@@ -2,7 +2,7 @@ name: Pull request checks
 
 # The same tests as before a deploy, without the deploy: a pull request is green before it reaches main.
 # The JAR built here is kept under the tree hash of the merged code, so the deploy after merging
-# reuses it instead of testing and building again (deploy-production.yml, job "find").
+# reuses it instead of testing and building again (deploy.yml, job "find").
 # Only what differs from the last deploy is checked (.github/scripts/changes.sh); the JAR is always built.
 on:
     pull_request:

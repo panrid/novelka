@@ -1,9 +1,25 @@
 # Деплой
 
-Прод — VPS `62.72.33.247`, адреса `https://novelka.in.ua`. На сервері в
-`/opt/novelka`: `.env.production` (секрети, лише на сервері), `app/` (JAR і Dockerfile),
-`infra/` (`production.compose.yaml`, `Caddyfile`). Compose-проєкт `novelka`: PostgreSQL,
-застосунок і Caddy (HTTPS, сертифікати сам).
+Сервер — VPS `62.72.33.247`. На ньому два сайти: робочий `https://novelka.in.ua` і тестовий
+`https://dev.novelka.in.ua` (див. «Тестовий сайт»). Compose-проєкти:
+
+- `novelka` — робочий: PostgreSQL, застосунок `app`, пошта `mail`, копії `backup` і Caddy (HTTPS,
+  сертифікати сам). PostgreSQL, Caddy й мережа `novelka_default` — спільні з тестовим.
+- `novelka-dev` — тестовий: застосунок `dev-app` і ловець листів `dev-mail`.
+
+У `/opt/novelka` на сервері:
+
+| Що | Для чого |
+|---|---|
+| `.env.production`, `.env.dev` | секрети робочого й тестового сайту, лише на сервері |
+| `builds/<коміт>/` | збірка: `app/` (JAR і Dockerfile) й `infra/` (Compose-файли й скрипти того самого коміту) |
+| `infra/`, `infra-dev/` | файли, з якими зараз працює робочий і тестовий сайт (копія з `builds/<коміт>/infra`) |
+| `prod.history`, `dev.history` | які коміти й коли викладено на кожен сайт (останній рядок — що працює зараз) |
+| `dev-access/` | хто може зайти на тестовий сайт |
+
+Образ `novelka:<коміт>` збирається з JAR один раз; сайти запускають його під мітками
+`novelka:prod` і `novelka:dev`. Сервер тримає 10 найновіших збірок і по 5 останніх, викладених на
+кожен сайт.
 
 ## Адреси
 
@@ -14,7 +30,7 @@ DNS (у реєстратора `novelka.in.ua`): A-записи `@`, `www`, `dev
 |---|---|
 | `novelka.in.ua` | сайт; Студія — `/studio` |
 | `www.novelka.in.ua`, `novelka.panrid.space` | 301 на `https://novelka.in.ua` з тим самим шляхом і параметрами |
-| `dev.novelka.in.ua` | заглушка 503 з `noindex`, доки немає тестового сайту |
+| `dev.novelka.in.ua` | тестовий сайт: лише команді (пароль), `noindex`; `/_mail/` — його листи; поки він не працює — 503 «Тестовий сайт Новелки зараз не працює» |
 
 Усі посилання, які будує застосунок (листи, `sitemap.xml`, `robots.txt`, canonical і превʼю,
 EPUB, Telegram, адреса повернення Google), беруться з `NOVELKA_PUBLIC_URL`; за замовчуванням у
@@ -32,7 +48,7 @@ screen» серед дозволених доменів — `novelka.in.ua`.
 
 ## Як іде деплой
 
-Push у `main` → `.github/workflows/deploy-production.yml`. Коміт лише з документами (`doc/**`,
+Push у `main` → `.github/workflows/deploy.yml`. Коміт лише з документами (`doc/**`,
 `*.md`) конвеєра не запускає.
 
 1. Паралельно тести бекенду (з PostgreSQL через Testcontainers), фронтенду (`npm run check`)
@@ -47,7 +63,11 @@ Push у `main` → `.github/workflows/deploy-production.yml`. Коміт лиш�
      деплой і коли порівняти не вдалося. Документи в рахунок не йдуть.
    - Збірка JAR перевіряє, що в зібраному `index.html` є `<title>Новелка</title>` і
      `<div id="root"></div>`, куди сервер вставляє заголовок і текст сторінки.
-2. Лише коли збірка й потрібні перевірки зелені (непотрібні — пропущені), цей JAR копіюється на сервер, і `infra/deploy.sh` міняє версії
+2. Лише коли збірка й потрібні перевірки зелені (непотрібні — пропущені), цей JAR разом із
+   `infra/` того самого коміту копіюється на сервер у `builds/<коміт>/`. Спершу збірка йде на
+   тестовий сайт (`deploy.sh dev`, перевірка `https://dev.novelka.in.ua/api/health`), потім той
+   самий образ — на робочий (`deploy.sh prod`). Доки тестовий сайт не налаштовано (змінна
+   `DEV_SITE` не `on`, див. «Тестовий сайт»), крок тестового пропускається. `infra/deploy.sh` міняє версії
    без перерви: нова запускається поруч зі старою, а стара зупиняється, лише коли нова відповідає на
    `/api/health`. Перед зупинкою стара дочікується відповіді моделі, яка вже йде (до 180 с),
    і автопереклад продовжує нова. Якщо нова так і не запрацювала, її прибирають, а сайт
@@ -69,6 +89,83 @@ Push у `main` → `.github/workflows/deploy-production.yml`. Коміт лиш�
 коміту. Міграції вниз немає: перед ризиковими міграціями зробіть копію бази.
 
 GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, за бажання `DEPLOY_KNOWN_HOSTS`.
+Змінна (Settings → Secrets and variables → Actions → Variables): `DEV_SITE` = `on` вмикає
+тестовий сайт.
+
+Перший деплой зі збірками в `builds/` (#185) сам переходить зі старого способу: образ більше не
+збирається з `/opt/novelka/app`, Caddy один раз перезапускається (з'являється каталог
+`dev-access`). Після нього старе можна прибрати: `rm -rf /opt/novelka/app` і
+`docker image rm novelka-app`.
+
+## Тестовий сайт
+
+`https://dev.novelka.in.ua` — те саме, що робочий, але для команди: тут нова версія працює першою
+(і першими проходять її міграції), тут пробуємо.
+
+- **Окремо від робочого.** Свій Compose-проєкт `novelka-dev` (`infra/dev.compose.yaml`), своя база
+  `novelka_dev` і свій користувач `novelka_dev` у тому самому PostgreSQL, свої картинки (том
+  `novelka-dev_media`), свої секрети (`/opt/novelka/.env.dev`). Caddy один на обидва сайти.
+- **Обмеження:** 1 ГБ пам'яті й пів ядра, щоб робочий сайт його не відчував.
+- **Лише для команди:** Caddy питає ім'я й пароль (крім `/api/health`, вебхука Telegram і
+  `robots.txt`); заголовок `X-Robots-Tag: noindex, nofollow` і `robots.txt` з `Disallow: /`.
+- **Листи нікуди не йдуть:** усі листи тестового сайту ловить Mailpit — їх читають на
+  `https://dev.novelka.in.ua/_mail/`.
+- **ШІ** — окремий ключ OpenRouter з малим лімітом; **Telegram** — окремий бот (бот робочого
+  сайту тут не можна: тестовий сайт перехопив би його вебхук).
+- **Дані** — спершу порожня база з власником із `NOVELKA_OWNER_*`; приклад чи знеособлена копія
+  робочої бази — окремою задачею (етап 22, пункт 7).
+
+Без `.env.dev` чи без файлу в `dev-access/` `deploy.sh dev` відмовляється викладати тестовий сайт —
+краще ніякого, ніж відкритого всім.
+
+### Як увімкнути (один раз)
+
+1. DNS: A-запис `dev` → `62.72.33.247` уже є; перевірити — `dig +short dev.novelka.in.ua`.
+2. Зачекати, поки цей перехід викладеться на робочий (перший деплой після злиття, див. вище).
+3. База й користувач на сервері (пароль — новий, не від робочої бази):
+
+   ```sh
+   ssh novelka@62.72.33.247
+   docker exec -i novelka-postgres-1 psql -U novelka -d novelka \
+       -c "CREATE ROLE novelka_dev LOGIN PASSWORD '<пароль тестової бази>'" \
+       -c "CREATE DATABASE novelka_dev OWNER novelka_dev" \
+       -c "REVOKE CONNECT ON DATABASE novelka FROM PUBLIC"
+   ```
+
+   Останній рядок не пускає `novelka_dev` (і будь-кого, крім власника бази) у робочу базу.
+4. `/opt/novelka/.env.dev` (`chmod 600`), назви — як у `.env.production`:
+
+   | Змінна | Що |
+   |---|---|
+   | `NOVELKA_DB_PASSWORD` | пароль `novelka_dev` з кроку 3 |
+   | `OPENROUTER_API_KEY` | окремий ключ OpenRouter з лімітом (OpenRouter → Keys → Credit limit, напр. $2) |
+   | `OPENROUTER_MANAGEMENT_KEY` | порожньо (або окремий) |
+   | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` | окремий бот з @BotFather (напр. «Новелка · тест») |
+   | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | за бажання; тоді в OAuth-клієнті Google додати origin `https://dev.novelka.in.ua` і redirect `https://dev.novelka.in.ua/login/oauth2/code/google` |
+   | `NOVELKA_OWNER_NICK`, `NOVELKA_OWNER_EMAIL`, `NOVELKA_OWNER_PASSWORD` | власник тестового сайту при першому запуску; після — прибрати |
+
+   Пошту тестового сайту задавати не треба: вона завжди йде в Mailpit.
+5. Хто заходить: хеш пароля —
+   `docker run --rm caddy:2.10-alpine caddy hash-password --plaintext '<пароль>'`; файл
+   `/opt/novelka/dev-access/team.caddy` (по рядку на людину):
+
+   ```
+   basic_auth @team {
+       olek $2a$14$...
+   }
+   ```
+
+   Потім `docker exec novelka-caddy-1 caddy reload --config /etc/caddy/Caddyfile`. Так само —
+   щоб додати чи прибрати когось.
+6. GitHub → Settings → Secrets and variables → Actions → Variables: `DEV_SITE` = `on`. Далі
+   Actions → Deploy → Run workflow (або наступний push).
+
+Вимкнути: `DEV_SITE` — будь-що, крім `on`, і на сервері
+`docker compose -p novelka-dev --env-file /opt/novelka/.env.dev -f /opt/novelka/infra-dev/dev.compose.yaml down`.
+Журнал: `docker logs novelka-dev-dev-app-1`.
+
+Зміни `Caddyfile` (і для тестового сайту теж) застосовуються, коли викладається робочий сайт:
+Caddy належить йому.
 
 ## Змінні в `.env.production`
 

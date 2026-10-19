@@ -1,4 +1,4 @@
-name: Deploy production
+name: Deploy
 
 on:
     push:
@@ -158,8 +158,10 @@ jobs:
                     && (needs.backend.result == 'success' || (needs.backend.result == 'skipped' && needs.find.outputs.backend == 'false'))
                     && (needs.frontend.result == 'success' || (needs.frontend.result == 'skipped' && needs.find.outputs.frontend == 'false')))) }}
         runs-on: ubuntu-latest
-        timeout-minutes: 15
-        environment: production
+        timeout-minutes: 20
+        environment:
+            name: production
+            url: https://novelka.in.ua
         permissions:
             contents: read
             actions: read
@@ -167,6 +169,10 @@ jobs:
         concurrency:
             group: production
             cancel-in-progress: false
+        env:
+            # The test site is deployed once the owner has set it up on the server and set the repository
+            # variable DEV_SITE to «on» (doc/deployment.md, «Тестовий сайт»); until then production only.
+            DEV_SITE: ${{ vars.DEV_SITE == 'on' }}
         steps:
             - uses: actions/checkout@v5
             - name: JAR built in this run
@@ -199,19 +205,33 @@ jobs:
                       echo '::warning::DEPLOY_KNOWN_HOSTS is not set; trusting the host key offered right now.'
                       ssh-keyscan -4 -T 15 -H "$DEPLOY_HOST" > ~/.ssh/known_hosts
                   fi
-            - name: Upload release
+            # Each build has its own folder on the server: its JAR (the image is built from it once) and the
+            # Compose files and scripts of the same commit.
+            - name: Upload the build
               env:
                   TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
               run: |
-                  ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p /opt/novelka/app /opt/novelka/infra'
-                  scp -i ~/.ssh/deploy release/novelka.jar backend/Dockerfile "$TARGET:/opt/novelka/app/"
-                  scp -i ~/.ssh/deploy infra/production.compose.yaml infra/Caddyfile infra/deploy.sh "$TARGET:/opt/novelka/infra/"
+                  build=/opt/novelka/builds/$GITHUB_SHA
+                  ssh -i ~/.ssh/deploy "$TARGET" "mkdir -p $build/app $build/infra"
+                  scp -i ~/.ssh/deploy release/novelka.jar backend/Dockerfile "$TARGET:$build/app/"
+                  scp -i ~/.ssh/deploy infra/production.compose.yaml infra/dev.compose.yaml infra/Caddyfile infra/deploy.sh \
+                      "$TARGET:$build/infra/"
+            - name: Deploy to the test site
+              if: env.DEV_SITE == 'true'
+              env:
+                  TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+              run: ssh -i ~/.ssh/deploy "$TARGET" "sh /opt/novelka/builds/$GITHUB_SHA/infra/deploy.sh dev $GITHUB_SHA"
+            - name: Check the test site and its database
+              if: env.DEV_SITE == 'true'
+              run: |
+                  curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors \
+                      https://dev.novelka.in.ua/api/health | tee /dev/stderr | grep -q '"status":"ok"'
             - name: Restart
               env:
                   TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
               run: |
                   # The new version starts beside the old one; the old stops once the new answers (infra/deploy.sh).
-                  ssh -i ~/.ssh/deploy "$TARGET" 'sh /opt/novelka/infra/deploy.sh'
+                  ssh -i ~/.ssh/deploy "$TARGET" "sh /opt/novelka/builds/$GITHUB_SHA/infra/deploy.sh prod $GITHUB_SHA"
             - name: Check the app and its database
               run: |
                   curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors \
