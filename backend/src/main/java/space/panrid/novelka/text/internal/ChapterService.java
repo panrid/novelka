@@ -5,6 +5,7 @@ import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.CONTRIBUTION;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITOR_DRAFT;
+import static space.panrid.novelka.jooq.Tables.JOB;
 import static space.panrid.novelka.jooq.Tables.REVISION;
 import static space.panrid.novelka.jooq.Tables.SUGGESTION;
 
@@ -446,28 +447,62 @@ class ChapterService implements Chapters {
     @Override
     public List<RevisionInfo> revisions(long editionId, int number) {
         ChapterRecord chapter = chapter(editionId, number);
-        return db.select(REVISION.ID, ACCOUNT.NICK, REVISION.ORIGIN, REVISION.CREATED_AT,
+        var rows = db.select(REVISION.ID, ACCOUNT.NICK, REVISION.ORIGIN, REVISION.CREATED_AT,
                         DSL.coalesce(DSL.sum(CONTRIBUTION.BLOCKS_CHANGED), DSL.zero()),
-                        DSL.coalesce(DSL.sum(CONTRIBUTION.CHARS_CHANGED), DSL.zero()))
+                        DSL.coalesce(DSL.sum(CONTRIBUTION.CHARS_CHANGED), DSL.zero()), REVISION.JOB_ID)
                 .from(REVISION)
                 .leftJoin(ACCOUNT).on(ACCOUNT.ID.eq(REVISION.AUTHOR_ID))
                 .leftJoin(CONTRIBUTION).on(CONTRIBUTION.REVISION_ID.eq(REVISION.ID))
                 .where(REVISION.CHAPTER_ID.eq(chapter.getId()))
-                .groupBy(REVISION.ID, ACCOUNT.NICK, REVISION.ORIGIN, REVISION.CREATED_AT)
+                .groupBy(REVISION.ID, ACCOUNT.NICK, REVISION.ORIGIN, REVISION.CREATED_AT, REVISION.JOB_ID)
                 .orderBy(REVISION.CREATED_AT.desc(), REVISION.ID.desc())
                 .limit(200)
-                .fetch(r -> {
-                    int blocks = r.value5().intValue();
-                    int chars = r.value6().intValue();
-                    if (r.value2() == null) {
-                        // Machine versions credit nobody, so their size comes from the text itself.
-                        ChangeStats stats = machineStats(r.value1());
-                        blocks = stats.blocksChanged();
-                        chars = stats.charsChanged();
-                    }
-                    return new RevisionInfo(r.value1(), r.value2(), r.value3(), r.value4(), blocks, chars,
-                            r.value1().equals(chapter.getPublishedRevisionId()));
-                });
+                .fetch();
+        List<Long> ids = rows.map(r -> r.value1());
+        // Readers' правки: who proposed them (credited per revision) and what they said.
+        java.util.Map<Long, List<String>> proposers = db.select(CONTRIBUTION.REVISION_ID, ACCOUNT.NICK).from(CONTRIBUTION)
+                .join(ACCOUNT).on(ACCOUNT.ID.eq(CONTRIBUTION.ACCOUNT_ID))
+                .where(CONTRIBUTION.REVISION_ID.in(ids))
+                .orderBy(ACCOUNT.NICK)
+                .fetchGroups(CONTRIBUTION.REVISION_ID, ACCOUNT.NICK);
+        java.util.Map<Long, List<String>> notes = db.selectDistinct(SUGGESTION.APPLIED_REVISION_ID, SUGGESTION.NOTE).from(SUGGESTION)
+                .where(SUGGESTION.APPLIED_REVISION_ID.in(ids), SUGGESTION.NOTE.isNotNull(), SUGGESTION.NOTE.ne(""))
+                .fetchGroups(SUGGESTION.APPLIED_REVISION_ID, SUGGESTION.NOTE);
+        // AI versions: the run that made them says the stage and the models it ran with.
+        var runs = db.select(JOB.ID, JOB.KIND, JOB.SETTINGS).from(JOB)
+                .where(JOB.ID.in(rows.map(r -> r.value7()).stream().filter(java.util.Objects::nonNull).toList()))
+                .fetchMap(JOB.ID);
+        return rows.map(r -> {
+            int blocks = r.value5().intValue();
+            int chars = r.value6().intValue();
+            if (r.value2() == null) {
+                // Machine versions credit nobody, so their size comes from the text itself.
+                ChangeStats stats = machineStats(r.value1());
+                blocks = stats.blocksChanged();
+                chars = stats.charsChanged();
+            }
+            var run = r.value7() == null ? null : runs.get(r.value7());
+            String stage = run == null ? null : "proofread".equals(run.get(JOB.KIND)) ? "proofread" : "translate";
+            return new RevisionInfo(r.value1(), r.value2(), r.value3(), r.value4(), blocks, chars,
+                    r.value1().equals(chapter.getPublishedRevisionId()), stage, run == null ? null : models(run.get(JOB.SETTINGS), stage),
+                    r.value7(), "suggestion".equals(r.value3()) ? proposers.getOrDefault(r.value1(), List.of()) : List.of(),
+                    notes.getOrDefault(r.value1(), List.of()));
+        });
+    }
+
+    /** The models a run's stage used, from the settings it was started with: «модель» or «модель · вичитка модель». */
+    private String models(JSONB settings, String stage) {
+        try {
+            var tree = json.readTree(settings.data());
+            String translate = tree.path("translate").path("model").asString("");
+            String proofread = tree.path("proofread").path("enabled").asBoolean(false) ? tree.path("proofread").path("model").asString("") : "";
+            if ("proofread".equals(stage)) {
+                return proofread.isEmpty() ? tree.path("proofread").path("model").asString(null) : proofread;
+            }
+            return proofread.isEmpty() ? translate : translate + " · вичитка " + proofread;
+        } catch (RuntimeException unreadable) {
+            return null;
+        }
     }
 
     private ChangeStats machineStats(long revisionId) {
