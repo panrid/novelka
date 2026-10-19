@@ -726,8 +726,9 @@ function useWakeLock(on: boolean) {
 
 /** How far the chapter scrolls: to its end, not into the next chapter shown after it (безшовне читання). */
 function scrollable() {
-    const end = document.querySelector('[data-chapter-end]');
-    const bottom = end ? end.getBoundingClientRect().top + window.scrollY : document.documentElement.scrollHeight;
+    const rect = document.querySelector('[data-chapter-end]')?.getBoundingClientRect();
+    // Without layout (a box with no size) the marker says nothing: the whole page counts, as before.
+    const bottom = rect && rect.width > 0 ? rect.top + window.scrollY : document.documentElement.scrollHeight;
     return Math.max(1, bottom - window.innerHeight);
 }
 
