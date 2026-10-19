@@ -150,7 +150,7 @@ describe('шаги without payments', () => {
         await waitFor(() => expect(run).toBeEnabled(), { timeout: 2000 });
         await userEvent.click(run);
         await waitFor(() => expect(calls.find((call) => call.path === '/api/studio/autotranslate/choice')?.body)
-            .toEqual({ preset: 9, steps: ['analyze', 'translate', 'proofread'], publish: true }));
+            .toEqual({ preset: 9, steps: ['analyze', 'translate', 'proofread'], publish: true, mySet: null }));
         expect(calls.find((call) => call.path === '/api/studio/editions/4/autotranslate/jobs')?.body).toMatchObject({ preset: 9 });
     });
 
