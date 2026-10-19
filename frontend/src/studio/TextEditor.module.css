@@ -197,3 +197,116 @@
         padding-bottom: 48px;
     }
 }
+
+/*
+ * The workspace grid (новий дизайн, Workspace.dc.html, рішення 9): «№ · оригінал · переклад» —
+ * the editor's paragraphs are the last column, the number and the original sit before each of them.
+ */
+.gridLead {
+    display: none;
+}
+
+.grid .gridLead {
+    display: contents;
+}
+
+.grid .chapter {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    align-items: start;
+    column-gap: 16px;
+    row-gap: 4px;
+    min-height: 40vh;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.gridWithOriginal .chapter {
+    grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.gridOriginal {
+    display: none;
+}
+
+.gridWithOriginal .gridOriginal {
+    display: block;
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: var(--muted);
+    font: 15px/1.6 var(--font-reading);
+    white-space: pre-wrap;
+}
+
+.gridWithOriginal .gridOriginalLit {
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
+    color: var(--text);
+}
+
+.grid .chapter > p,
+.grid .chapter > h2 {
+    margin: 0;
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+}
+
+.grid .chapter > hr {
+    margin: 14px 12px;
+}
+
+.grid .chapter > img {
+    max-width: calc(100% - 24px);
+    margin: 8px 12px;
+}
+
+.grid .chapter > .rowActive {
+    border-color: var(--accent);
+    background: var(--bg);
+}
+
+.grid .chapter :global(p.is-editor-empty::before) {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    color: var(--faint);
+    pointer-events: none;
+}
+
+.gridNumber {
+    height: 30px;
+    margin-top: 8px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font: 500 12px var(--font-ui);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+
+.gridNumber:hover {
+    background: var(--surface-2);
+}
+
+.gridNumberLit {
+    color: var(--accent);
+}
+
+.gridEmpty {
+    padding: 8px 12px;
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    background: none;
+    color: var(--muted);
+    font: italic 15px/1.6 var(--font-reading);
+    text-align: left;
+    cursor: pointer;
+}
+
+.gridEmpty:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}

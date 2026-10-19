@@ -203,43 +203,360 @@
     color: var(--muted);
 }
 
-/* ---- wide screens (етап 15) ---- */
+/*
+ * ---- the workspace on a computer (новий дизайн, Workspace.dc.html, рішення 9) ----
+ * The chapters on the left, «№ · оригінал · переклад» in the middle, the chapter's glossary on the
+ * right; each side column can be hidden and the text takes its room.
+ */
 .pageWide {
-    max-width: 1400px;
+    max-width: none;
+    padding: 0 20px;
 }
 
-.split {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 32px;
-    align-items: start;
+.pageWide .top {
+    gap: 12px;
+    margin: 0 -20px;
+    padding: 8px 20px;
+    background: var(--surface);
 }
 
-.originalColumn {
-    position: sticky;
-    top: 70px;
-    max-height: calc(100dvh - 90px);
-    overflow-y: auto;
-    padding: 14px 16px 40px 0;
-    border-right: 1px solid var(--line);
+.crumbs {
     color: var(--muted);
-    font: 15px/1.7 var(--font-reading);
+}
+
+.crumbs a {
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.crumbs a:hover {
+    color: var(--accent);
+}
+
+.pageWide .where {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+}
+
+.pageWide .where b {
+    display: inline;
+    color: var(--strong);
+}
+
+.pageWide .where .state {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.pageWide .where .stateDraft {
+    background: var(--warn-bg);
+    color: var(--warn);
+}
+
+.panels {
+    display: flex;
+    flex: none;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--surface-2);
+}
+
+.panel {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font: 500 13px var(--font-ui);
+    cursor: pointer;
+}
+
+.panelOn {
+    background: var(--surface);
+    color: var(--strong);
+}
+
+.panelMark {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.panelOn .panelMark {
+    background: currentColor;
+}
+
+.textButton {
+    display: flex;
+    flex: none;
+    align-items: center;
+    height: 40px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--text);
+    font: 500 14px var(--font-ui);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.textButton:hover {
+    background: var(--surface-2);
+}
+
+.desk {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px 0 32px;
+}
+
+.bodyWide {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 20px 16px 8px;
+    border-radius: 14px;
+    background: var(--surface);
+}
+
+/* The column names and the titles: the same grid as the paragraphs under them. */
+.gridHead {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    align-items: end;
+    column-gap: 16px;
+    row-gap: 8px;
+    padding-bottom: 4px;
+}
+
+.gridHeadWithOriginal {
+    grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.column {
+    padding: 0 13px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.gridHead .titleRow {
+    padding: 0 12px;
 }
 
 .originalTitle {
-    margin-bottom: 14px;
-    color: var(--text);
-    font-size: 17px;
+    padding: 8px 13px;
+    color: var(--muted);
+    font: 600 17px/1.4 var(--font-reading);
+}
+
+.sideList,
+.sidePanel {
+    position: sticky;
+    top: 74px;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 90px);
+    overflow-y: auto;
+}
+
+.sideList {
+    flex: 0 0 240px;
+    gap: 2px;
+    padding: 12px;
+    border-radius: 14px;
+    background: var(--surface);
+}
+
+.sidePanel {
+    flex: 0 0 300px;
+    gap: 16px;
+}
+
+.sideHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 6px 8px;
+}
+
+.sideHead b {
+    color: var(--strong);
     font-weight: 600;
 }
 
-.originalLine {
-    margin: 0 0 0.8em;
-    padding: 2px 6px;
-    border-radius: var(--radius-xs);
+.sideHead span {
+    color: var(--muted);
+    font-size: 12px;
 }
 
-.lit {
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
+.sideHead a {
+    color: var(--accent);
+    font-size: 13px;
+}
+
+.chapterLink {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 10px;
     color: var(--text);
+    text-decoration: none;
+}
+
+.chapterLink:hover {
+    background: var(--surface-2);
+}
+
+.chapterLinkOn,
+.chapterLinkOn:hover {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.chapterNumber {
+    flex: none;
+    width: 30px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.chapterText {
+    flex: 1;
+    min-width: 0;
+}
+
+.chapterTitle,
+.chapterState,
+.chapterStateDraft {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chapterState,
+.chapterStateDraft {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.chapterStateDraft {
+    color: var(--warn);
+}
+
+.sideMore {
+    padding: 8px;
+    color: var(--accent);
+    font-size: 13px;
+}
+
+.sideAction {
+    display: grid;
+    place-items: center;
+    height: 40px;
+    margin-top: 8px;
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--accent);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 14px;
+    background: var(--surface);
+}
+
+.card .sideHead {
+    padding: 0;
+}
+
+.cardTitle {
+    color: var(--strong);
+    font-weight: 600;
+}
+
+.words {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.word,
+.wordNew {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px;
+    border-radius: 10px;
+    background: var(--surface-2);
+}
+
+.wordNew {
+    background: none;
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.wordState,
+.wordStateNew {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.wordStateNew {
+    color: var(--warn);
+}
+
+.sideHint {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.count {
+    display: flex;
+    justify-content: space-between;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.count b {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* On a laptop the side columns narrow so the text keeps its room. */
+@media (max-width: 1279px) {
+    .sideList {
+        flex-basis: 200px;
+    }
+
+    .sidePanel {
+        flex-basis: 260px;
+    }
 }

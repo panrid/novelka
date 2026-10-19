@@ -65,7 +65,7 @@ describe('AI in the editor (етап 19, п. 5)', () => {
             'GET /api/studio/editions/7/chapters/3': { body: EDITOR },
             'POST /api/studio/editions/7/chapters/3/check': { body: { proposed: 2 } },
         });
-        await userEvent.click(await screen.findByRole('button', { name: 'Перевірити главу з ШІ' }));
+        await userEvent.click(await screen.findByRole('button', { name: 'Вичитати главу з ШІ' }));
         expect(await screen.findByText(/ШІ пропонує правок: 2/)).toBeInTheDocument();
         expect(calls.some((call) => call.method === 'POST' && call.path.endsWith('/check'))).toBe(true);
     });
@@ -78,6 +78,6 @@ describe('AI in the editor (етап 19, п. 5)', () => {
         await screen.findByText('Рьо стояв біля маяка.');
         expect(screen.queryByRole('button', { name: 'Інший варіант' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Вичитати абзац' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Перевірити главу з ШІ' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Вичитати главу з ШІ' })).not.toBeInTheDocument();
     });
 });

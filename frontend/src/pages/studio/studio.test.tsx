@@ -71,19 +71,76 @@ describe('chapter editor', () => {
         expect(screen.getByRole('button', { name: 'Оригінал' })).toHaveAttribute('aria-pressed', 'true');
     });
 
-    it('puts the whole original beside the text on a wide screen and lights the paragraph', async () => {
+    it('puts the original beside each paragraph on one grid on a wide screen, and a switch hides it', async () => {
         localStorage.removeItem('novelka:editor-original');
+        localStorage.removeItem('novelka:workspace-panels');
         vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('1024'), addEventListener: () => {}, removeEventListener: () => {} }));
         await renderAt('/studio/7/chapters/3', {
             'GET /api/me': { body: ME },
             'GET /api/studio/editions/7/chapters/3': { body: { ...EDITOR, hasOriginal: true } },
-            'GET /api/studio/editions/7/chapters/3/original': { body: { title: '第3話', blocks: [{ id: 'b1', type: 'paragraph', text: '灯りがともった。' }] } },
+            'GET /api/studio/editions/7/chapters/3/original': { body: { title: '第3話', blocks: [
+                { id: 'b1', type: 'paragraph', text: '灯りがともった。' },
+                { id: 'b2', type: 'paragraph', text: '市場が目を覚ました。' },
+            ] } },
+            'GET /api/studio/editions/7/chapters': { body: { items: [
+                { number: 2, title: 'Ліхтарник', published: true, hasMyDraft: false, updatedAt: '2026-10-01T10:00:00Z', label: null, pending: 0 },
+                { number: 3, title: 'Нічний ринок', published: true, hasMyDraft: false, updatedAt: '2026-10-02T10:00:00Z', label: null, pending: 2 },
+            ], total: 2, page: 1, hasMore: false } },
         });
-        await userEvent.click(await screen.findByRole('button', { name: 'Оригінал' }));
-        const column = await screen.findByRole('complementary', { name: 'Оригінал глави' });
-        expect(await within(column).findByText('灯りがともった。')).toBeInTheDocument();
-        expect(within(column).getByText('第3話')).toBeInTheDocument();
+        // On a computer the original is open from the start, paragraph by paragraph next to the translation.
+        const text = await screen.findByRole('textbox', { name: 'Текст глави' });
+        expect(await within(text).findByText('灯りがともった。')).toBeInTheDocument();
+        expect(screen.getByText('第3話')).toBeInTheDocument();
+        expect(within(text).getByRole('button', { name: 'Абзац 1' })).toBeInTheDocument();
+        // A paragraph of the original nobody translated yet has a row of its own.
+        expect(within(text).getByText('市場が目を覚ました。')).toBeInTheDocument();
+        expect(within(text).getByRole('button', { name: /Ще не перекладено/ })).toBeInTheDocument();
         expect(screen.queryByRole('complementary', { name: 'Оригінал абзацу' })).not.toBeInTheDocument();
+
+        const chapters = screen.getByRole('complementary', { name: 'Глави' });
+        expect(within(chapters).getByRole('link', { name: /Нічний ринок/ })).toHaveAttribute('aria-current', 'page');
+        expect(within(chapters).getByRole('link', { name: /Ліхтарник/ })).toHaveAttribute('href', '/studio/7/chapters/2');
+        const counts = screen.getByRole('complementary', { name: 'Словник глави' });
+        expect(within(counts).getByText('Неперекладені абзаци').nextSibling).toHaveTextContent('1');
+
+        const switches = screen.getByRole('group', { name: 'Що показувати' });
+        await userEvent.click(within(switches).getByRole('button', { name: 'Оригінал' }));
+        expect(within(switches).getByRole('button', { name: 'Оригінал' })).toHaveAttribute('aria-pressed', 'false');
+        expect(within(text).queryByText('市場が目を覚ました。')).not.toBeInTheDocument();
+        await userEvent.click(within(switches).getByRole('button', { name: 'Глави' }));
+        expect(screen.queryByRole('complementary', { name: 'Глави' })).not.toBeInTheDocument();
+        expect(localStorage.getItem('novelka:editor-original')).toBe('0');
+    });
+
+    it('shows the translation «як у книжці» with the state of each paragraph and marks one checked', async () => {
+        let checked: { blockId: string; text: string }[] = [];
+        const { calls } = await renderAt('/studio/7/chapters/3', {
+            'GET /api/me': { body: ME },
+            'GET /api/studio/editions/7/chapters/3': { body: { ...EDITOR, blocks: [
+                ...EDITOR.blocks,
+                { id: 'b2', type: 'paragraph', content: [{ text: 'Ринок прокинувся.', marks: [] }], imageId: null, imageUrl: null },
+            ] } },
+            'GET /api/studio/editions/7/chapters/3/paragraphs': () => ({ body: {
+                checked, machine: [{ blockId: 'b1', text: 'Ліхтарі спалахнули.' }], offers: ['b2'],
+            } }),
+            'PUT /api/studio/editions/7/chapters/3/paragraphs/b1/check': (body) => {
+                checked = [{ blockId: 'b1', text: (body as { text: string }).text }];
+                return { status: 204 };
+            },
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Як у книжці' }));
+        expect(await screen.findByRole('button', { name: 'Абзац 1: машинний' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Абзац 2: є пропозиція' })).toBeInTheDocument();
+        expect(screen.getByText('Перевірено 0 з 2 абзаців')).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Абзац 1: машинний' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Позначити перевіреним' }));
+        expect(await screen.findByRole('button', { name: 'Абзац 1: перевірено' })).toBeInTheDocument();
+        expect(screen.getByText('Перевірено 1 з 2 абзаців')).toBeInTheDocument();
+        expect(calls.find((call) => call.method === 'PUT' && call.path.endsWith('/paragraphs/b1/check'))?.body).toEqual({ text: 'Ліхтарі спалахнули.' });
+
+        await userEvent.click(screen.getByRole('button', { name: 'Назад до двох колонок' }));
+        expect(await screen.findByRole('textbox', { name: 'Текст глави' })).toHaveTextContent('Ринок прокинувся.');
     });
 
     it('has no original to show for a chapter written by hand', async () => {
@@ -372,52 +429,64 @@ describe('the original of a translation (етап 19)', () => {
             'GET /api/studio/editions/12/originals': () => ({ body: saved
                 ? { items: [{ number: 1, title: 'Chapter 1: Good Morning Brother', chars: 30, language: 'en', translated: false, updatedAt: '2026-10-16T10:00:00Z' }], total: 1, page: 1, nextNumber: 2, languages: { en: 1 } }
                 : EMPTY }),
-            'POST /api/studio/editions/12/originals/separate/preview': { body: { firstNumber: 1, nextNumber: 1, chapters: [
-                { number: 1, title: 'Chapter 1: Good Morning Brother', chars: 30, paragraphs: 2, pictures: 0, start: 'Zorian woke up.', replaces: false, translated: false },
+            'GET /api/studio/editions/12/originals/1': { body: { number: 1, title: 'Chapter 1: Good Morning Brother', language: 'en', blocks: [
+                { id: 'o1', type: 'paragraph', content: [{ text: 'Zorian woke up.', marks: [] }] },
+                { id: 'o2', type: 'paragraph', content: [{ text: '“Morning!” Kirielle shouted.', marks: [] }] },
             ] } },
             'POST /api/studio/editions/12/originals/separate': () => { saved = true; return { status: 201, body: { saved: 1, from: 1, to: 1 } }; },
         });
         expect(await screen.findByRole('link', { name: 'Оригінал' })).toHaveAttribute('aria-current', 'page');
+        expect(await screen.findByRole('heading', { name: 'Нова глава 1' })).toBeInTheDocument();
+        // Several chapters in one field and files are gone (новий дизайн, рішення 8).
+        expect(screen.queryByRole('radio', { name: 'Кілька глав' })).not.toBeInTheDocument();
         await userEvent.type(screen.getByRole('textbox', { name: 'Заголовок' }), 'Chapter 1: Good Morning Brother');
         await userEvent.click(screen.getByRole('textbox', { name: 'Текст глави' }));
         await userEvent.paste('Zorian woke up.\n“Morning!” Kirielle shouted.');
-        await userEvent.click(screen.getByRole('button', { name: 'Далі' }));
-        expect(await screen.findByText('Zorian woke up.')).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('button', { name: 'Зберегти главу' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Зберегти' }));
         expect(await screen.findByText(/Збережено главу 1\./)).toBeInTheDocument();
         expect(screen.getAllByRole('link', { name: 'Перекласти →' })[0]).toHaveAttribute('href', '/studio/12/translate');
         expect(calls.find((call) => call.method === 'POST' && call.path === '/api/studio/editions/12/originals/separate')!.body).toEqual({
             chapters: [{ title: 'Chapter 1: Good Morning Brother', text: 'Zorian woke up.\n“Morning!” Kirielle shouted.' }], first: 1, language: 'en',
         });
-        expect(await screen.findByText('англ.')).toBeInTheDocument();
+        // The saved chapter stays open in the form and is marked in the list beside it.
+        expect(await screen.findByRole('heading', { name: 'Оригінал глави 1' })).toBeInTheDocument();
+        const list = screen.getByRole('complementary', { name: 'Глави оригіналу' });
+        expect(await within(list).findByRole('button', { name: /Good Morning Brother/ })).toHaveAttribute('aria-current', 'true');
+        expect(within(list).getByText('є оригінал · англ.')).toBeInTheDocument();
     });
 
-    it('takes several chapters in one field, split by their headings, and says how', async () => {
+    it('opens another chapter from the list and goes on to the next one after saving', async () => {
+        const rows = [
+            { number: 1, title: 'Chapter 1', chars: 9, language: 'en', translated: true, updatedAt: '2026-10-16T10:00:00Z' },
+            { number: 2, title: 'Chapter 2', chars: 9, language: 'en', translated: false, updatedAt: '2026-10-16T10:00:00Z' },
+        ];
         const { calls } = await renderAt('/studio/12/originals', {
             'GET /api/me': { body: OWNER },
-            'GET /api/studio/editions/12': { body: EDITION },
-            'GET /api/studio/editions/12/originals': { body: EMPTY },
-            'POST /api/studio/editions/12/originals/preview': { body: { firstNumber: 1, nextNumber: 1, chapters: [
-                { number: 1, title: 'Chapter 1', chars: 9, paragraphs: 1, pictures: 0, start: 'One.', replaces: false, translated: false },
-                { number: 2, title: 'Chapter 2', chars: 9, paragraphs: 1, pictures: 0, start: 'Two.', replaces: false, translated: false },
+            'GET /api/studio/editions/12': { body: { ...EDITION, chapterCount: 5 } },
+            'GET /api/studio/editions/12/originals': { body: { items: rows, total: 2, page: 1, nextNumber: 3, languages: { en: 2 } } },
+            'GET /api/studio/editions/12/originals/1': { body: { number: 1, title: 'Chapter 1', language: 'en', blocks: [
+                { id: 'o1', type: 'paragraph', content: [{ text: 'One.', marks: [] }] },
+                { id: 'o2', type: 'separator', content: [] },
+                { id: 'o3', type: 'paragraph', content: [{ text: 'Still one.', marks: [] }] },
             ] } },
-            'POST /api/studio/editions/12/originals': { status: 201, body: { saved: 2, from: 1, to: 2 } },
+            'POST /api/studio/editions/12/originals/separate': { status: 201, body: { saved: 1, from: 1, to: 1 } },
         });
-        await userEvent.click(await screen.findByRole('radio', { name: 'Кілька глав' }));
-        expect(screen.getByRole('radio', { name: 'Кожна окремо' })).toBeChecked();
-        expect(screen.getAllByRole('textbox', { name: 'Текст глави' })).toHaveLength(2);
-        await userEvent.click(screen.getByRole('radio', { name: 'Усі в одне поле' }));
-        expect(screen.getByText('Як сайт ділить текст на глави')).toBeInTheDocument();
-        expect(screen.getByText(/Chapter 1: Good Morning Brother/)).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('textbox', { name: /Текст кількох глав/ }));
-        await userEvent.paste('Chapter 1\nOne.\nChapter 2\nTwo.');
-        await userEvent.click(screen.getByRole('button', { name: 'Поділити на глави' }));
-        expect(await screen.findByText('Two.')).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('button', { name: /^Зберегти 2 глав/ }));
-        expect(await screen.findByText(/Збережено глави 1–2\./)).toBeInTheDocument();
-        const sent = calls.find((call) => call.method === 'POST' && call.path === '/api/studio/editions/12/originals')!.body as FormData;
-        expect(sent.get('language')).toBe('en');
-        expect(sent.get('text')).toBe('Chapter 1\nOne.\nChapter 2\nTwo.');
+        const list = await screen.findByRole('complementary', { name: 'Глави оригіналу' });
+        expect(within(list).getByText('оригінал є в 2 з 5')).toBeInTheDocument();
+        expect(within(list).getByText('перекладено · англ.')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Нова глава 3' })).toBeInTheDocument();
+
+        await userEvent.click(within(list).getByRole('button', { name: /Chapter 1/ }));
+        expect(await screen.findByRole('heading', { name: 'Оригінал глави 1' })).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'Текст глави' })).toHaveValue('One.\n* * *\nStill one.');
+        expect(screen.getByRole('button', { name: 'Зберегти' })).toBeDisabled();
+        await userEvent.type(screen.getByRole('textbox', { name: 'Текст глави' }), '!');
+        await userEvent.click(screen.getByRole('button', { name: 'Зберегти й до наступної' }));
+        expect(await screen.findByRole('heading', { name: 'Нова глава 3' })).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'Текст глави' })).toHaveValue('');
+        expect(calls.find((call) => call.method === 'POST' && call.path === '/api/studio/editions/12/originals/separate')!.body).toEqual({
+            chapters: [{ title: 'Chapter 1', text: 'One.\n* * *\nStill one.!' }], first: 1, language: 'en',
+        });
     });
 
     it('is offered to everyone in the team who translates: pasting is not AI', async () => {
