@@ -186,6 +186,11 @@ class ApiTokenService implements BearerTokens {
     }
 
     @Override
+    public String scope(String method, String path) {
+        return TokenScopes.required(method, path).map(Scope::code).orElse(null);
+    }
+
+    @Override
     public String refusal(TokenGrant grant, String method, String path) {
         Optional<Scope> needed = TokenScopes.required(method, path);
         if (needed.isEmpty()) {

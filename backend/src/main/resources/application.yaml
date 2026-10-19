@@ -72,6 +72,19 @@ novelka:
     email: ${NOVELKA_OWNER_EMAIL:}
     password: ${NOVELKA_OWNER_PASSWORD:}
 
+# The API's description (етап 22.4, ApiDescription): only /api/v1, at /api/v1/openapi.json, keys in order
+# so the committed snapshot (doc/api/openapi-v1.json) compares line by line. The site's own errors
+# (ApiErrors) are not offered as every operation's answers: ApiDescription adds the API's own.
+springdoc:
+  api-docs:
+    path: /api/v1/openapi.json
+    version: openapi_3_1
+  paths-to-match: /api/v1/**
+  default-produces-media-type: application/json
+  override-with-generic-response: false
+  writer-with-order-by-keys: true
+  writer-with-default-pretty-printer: true
+
 server:
   address: ${NOVELKA_SERVER_ADDRESS:127.0.0.1}
   port: ${NOVELKA_SERVER_PORT:8080}

@@ -34,6 +34,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import space.panrid.novelka.access.AccessPolicy;
 import space.panrid.novelka.access.EditionAccess;
 import space.panrid.novelka.account.Viewer;
@@ -56,6 +58,7 @@ import space.panrid.novelka.text.EditorModels;
  */
 @RestController
 @RequestMapping("/api/v1/studio")
+@Tag(name = "Студія", description = "Переклади, де ви в команді: глави, чернетки, публікація, «Мої картинки». Право токена — `studio`.")
 class StudioApiController {
 
     private static final int PAGE = 20;
@@ -80,6 +83,7 @@ class StudioApiController {
 
     /** The translations of the teams the person is in, the newest first, 20 to a page (at most 100). */
     @GetMapping("/translations")
+    @Operation(summary = "Мої переклади", description = "Переклади команд, де ви є, — найновіші першими.")
     StudioApiV1.Page<StudioApiV1.Translation> translations(@RequestParam(required = false) String after,
             @RequestParam(defaultValue = "" + PAGE) int limit) {
         Viewer viewer = access.requireSignedIn();
@@ -98,6 +102,7 @@ class StudioApiController {
     }
 
     @GetMapping("/novels/{novel}/translations/{team}")
+    @Operation(summary = "Переклад", description = "Переклад і ваша роль у його команді.")
     StudioApiV1.Translation translation(@PathVariable String novel, @PathVariable String team) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
         return translation(who.editionId(), who.viewer().accountId()).orElseThrow();
@@ -120,6 +125,7 @@ class StudioApiController {
 
     /** Every chapter of the translation, published or not, by number; 20 to a page (at most 100). */
     @GetMapping("/novels/{novel}/translations/{team}/chapters")
+    @Operation(summary = "Усі глави", description = "Усі глави перекладу — опубліковані й ні — за номером.")
     StudioApiV1.Page<StudioApiV1.ChapterEntry> chapters(@PathVariable String novel, @PathVariable String team,
             @RequestParam(required = false) String after, @RequestParam(defaultValue = "" + PAGE) int limit) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
@@ -137,6 +143,7 @@ class StudioApiController {
     }
 
     @GetMapping("/novels/{novel}/translations/{team}/chapters/{number}")
+    @Operation(summary = "Глава з чернеткою", description = "Опублікований текст глави і ваша чернетка, якщо є.")
     StudioApiV1.Chapter chapter(@PathVariable String novel, @PathVariable String team, @PathVariable int number) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
         return chapter(who, number);
@@ -158,6 +165,7 @@ class StudioApiController {
 
     /** A new empty chapter at the end, unpublished until its first publication. */
     @PostMapping("/novels/{novel}/translations/{team}/chapters")
+    @Operation(summary = "Нова глава", description = "Порожня глава в кінці; неопублікована до першої публікації.")
     @ResponseStatus(HttpStatus.CREATED)
     StudioApiV1.Chapter newChapter(@PathVariable String novel, @PathVariable String team) {
         EditionAccess who = access.requireTranslator(access.editionAt(novel, team));
@@ -166,6 +174,7 @@ class StudioApiController {
 
     /** The person's draft of the chapter: kept for them alone until published or replaced. */
     @PutMapping("/novels/{novel}/translations/{team}/chapters/{number}/draft")
+    @Operation(summary = "Зберегти чернетку", description = "Ваша чернетка глави: її бачите лише ви, доки не опублікуєте.")
     StudioApiV1.Chapter saveDraft(@PathVariable String novel, @PathVariable String team, @PathVariable int number,
             @RequestBody StudioApiV1.Text body) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
@@ -180,6 +189,7 @@ class StudioApiController {
      * newer publication is never overwritten: 409, and the text stays the person's draft.
      */
     @PostMapping("/novels/{novel}/translations/{team}/chapters/{number}/publish")
+    @Operation(summary = "Опублікувати главу", description = "Надісланий текст або, без блоків, вашу чернетку. Новішу чужу публікацію не перезаписує: 409, а текст лишається чернеткою.")
     StudioApiV1.Published publish(@PathVariable String novel, @PathVariable String team, @PathVariable int number,
             @RequestBody(required = false) StudioApiV1.Text body) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
@@ -215,6 +225,7 @@ class StudioApiController {
 
     /** The person's pictures, the newest first, 20 to a page (at most 100). */
     @GetMapping("/pictures")
+    @Operation(summary = "Мої картинки", description = "Ваші картинки — найновіші першими.")
     StudioApiV1.Page<StudioApiV1.Picture> pictures(@RequestParam(required = false) String after,
             @RequestParam(defaultValue = "" + PAGE) int limit) {
         Viewer viewer = access.requireSignedIn();
@@ -229,6 +240,7 @@ class StudioApiController {
      * file's name is kept — «27-5.png» places it in chapter 27 after the fifth paragraph.
      */
     @PostMapping("/pictures")
+    @Operation(summary = "Завантажити картинку", description = "JPEG, PNG чи WebP до 5 МБ. Назва файла зберігається: «27-5.png» стане в главу 27 після п'ятого абзацу.")
     @ResponseStatus(HttpStatus.CREATED)
     StudioApiV1.Picture upload(@RequestParam("file") MultipartFile file) {
         Viewer viewer = access.requireSignedIn();
@@ -243,6 +255,7 @@ class StudioApiController {
 
     /** Where each picture would go; nothing is saved. Owners and translators of the team only. */
     @PostMapping("/novels/{novel}/translations/{team}/pictures/preview")
+    @Operation(summary = "Куди стануть картинки", description = "Лише показує, куди стала б кожна картинка; нічого не зберігає.")
     List<StudioApiV1.Place> previewPlacement(@PathVariable String novel, @PathVariable String team,
             @RequestBody StudioApiV1.Placement body) {
         EditionAccess who = access.requireTranslator(access.editionAt(novel, team));
@@ -254,6 +267,7 @@ class StudioApiController {
 
     /** Puts the pictures into their chapters: one new published revision per chapter. */
     @PostMapping("/novels/{novel}/translations/{team}/pictures")
+    @Operation(summary = "Розставити картинки", description = "Ставить картинки в глави: одна нова опублікована редакція на главу.")
     StudioApiV1.Placed place(@PathVariable String novel, @PathVariable String team, @RequestBody StudioApiV1.Placement body) {
         EditionAccess who = access.requireTranslator(access.editionAt(novel, team));
         Spots spots = spots(body);

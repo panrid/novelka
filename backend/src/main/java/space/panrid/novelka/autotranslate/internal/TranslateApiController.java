@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import space.panrid.novelka.access.AccessPolicy;
 import space.panrid.novelka.access.EditionAccess;
 import space.panrid.novelka.account.SiteRole;
@@ -43,6 +45,7 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @RestController
 @RequestMapping("/api/v1/studio/novels/{novel}/translations/{team}")
+@Tag(name = "Оригінал, автопереклад і словник", description = "Оригінал бачить лише команда; запуски автоперекладу — право токена `translate` і ваші шаги; решта — `studio`.")
 class TranslateApiController {
 
     private static final int PAGE = 20;
@@ -82,6 +85,7 @@ class TranslateApiController {
     }
 
     @GetMapping("/originals")
+    @Operation(summary = "Глави оригіналу", description = "Глави оригіналу, які вставила команда.")
     TranslateApiV1.Page<TranslateApiV1.OriginalEntry> originals(@PathVariable String novel, @PathVariable String team,
             @RequestParam(required = false) String after, @RequestParam(defaultValue = "" + PAGE) int limit) {
         EditionAccess who = originalKeeper(novel, team);
@@ -94,6 +98,7 @@ class TranslateApiController {
     }
 
     @GetMapping("/originals/{number}")
+    @Operation(summary = "Глава оригіналу", description = "Текст глави оригіналу.")
     TranslateApiV1.Original original(@PathVariable String novel, @PathVariable String team, @PathVariable int number) {
         EditionAccess who = originalKeeper(novel, team);
         Originals.Original found = originals.find(who.editionId(), number);
@@ -104,6 +109,7 @@ class TranslateApiController {
 
     /** Pastes chapters of the original; a chapter under a number the translation has an original of is replaced. */
     @PostMapping("/originals")
+    @Operation(summary = "Вставити оригінал", description = "Вставляє глави оригіналу; глава під наявним номером замінюється.")
     @ResponseStatus(HttpStatus.CREATED)
     TranslateApiV1.Pasted paste(@PathVariable String novel, @PathVariable String team, @RequestBody TranslateApiV1.Paste body) {
         EditionAccess who = originalKeeper(novel, team);
@@ -143,6 +149,7 @@ class TranslateApiController {
     }
 
     @GetMapping("/runs/options")
+    @Operation(summary = "Можливості запуску", description = "Етапи, моделі й набори, доступні вам для автоперекладу.")
     TranslateApiV1.Options options(@PathVariable String novel, @PathVariable String team) {
         EditionAccess who = translator(novel, team);
         boolean personal = personal(who.viewer());
@@ -157,6 +164,7 @@ class TranslateApiController {
 
     /** Кошторис: what the run would do and cost, and whether the person has the шаги for it. */
     @PostMapping("/runs/estimate")
+    @Operation(summary = "Кошторис", description = "Що зробить запуск і скільки шагів коштуватиме; чи вистачає їх.")
     TranslateApiV1.Estimate estimate(@PathVariable String novel, @PathVariable String team, @RequestBody TranslateApiV1.RunRequest body) {
         EditionAccess who = translator(novel, team);
         boolean personal = personal(who.viewer());
@@ -169,6 +177,7 @@ class TranslateApiController {
 
     /** Starts the run: a person's шаги for it are held now (400 when short), what is not spent comes back. */
     @PostMapping("/runs")
+    @Operation(summary = "Запустити автопереклад", description = "Шаги на запуск резервуються зараз (400, якщо бракує); невитрачене повертається.")
     @ResponseStatus(HttpStatus.CREATED)
     TranslateApiV1.Run start(@PathVariable String novel, @PathVariable String team, @RequestBody TranslateApiV1.RunRequest body) {
         EditionAccess who = translator(novel, team);
@@ -178,6 +187,7 @@ class TranslateApiController {
 
     /** The translation's runs, the newest first. */
     @GetMapping("/runs")
+    @Operation(summary = "Запуски", description = "Запуски автоперекладу цього перекладу — найновіші першими.")
     TranslateApiV1.Page<TranslateApiV1.Run> runs(@PathVariable String novel, @PathVariable String team,
             @RequestParam(required = false) String after, @RequestParam(defaultValue = "" + PAGE) int limit) {
         EditionAccess who = translator(novel, team);
@@ -190,6 +200,7 @@ class TranslateApiController {
     }
 
     @GetMapping("/runs/{runId}")
+    @Operation(summary = "Стан запуску", description = "Стан запуску автоперекладу.")
     TranslateApiV1.Run run(@PathVariable String novel, @PathVariable String team, @PathVariable long runId) {
         EditionAccess who = translator(novel, team);
         return run(job(who.editionId(), runId));
@@ -197,6 +208,7 @@ class TranslateApiController {
 
     /** The run's journal in the order it happened, 50 events to a page (at most 200). */
     @GetMapping("/runs/{runId}/log")
+    @Operation(summary = "Журнал запуску", description = "Події запуску в тому порядку, як вони стались.")
     TranslateApiV1.Page<TranslateApiV1.Event> log(@PathVariable String novel, @PathVariable String team, @PathVariable long runId,
             @RequestParam(required = false) String after, @RequestParam(defaultValue = "50") int limit) {
         EditionAccess who = translator(novel, team);
@@ -216,6 +228,7 @@ class TranslateApiController {
      * runs, whoever started one may cancel it even after leaving the team, the site owner any.
      */
     @PostMapping("/runs/{runId}/cancel")
+    @Operation(summary = "Скасувати запуск", description = "Зупиняє запуск; невитрачені шаги повертаються.")
     TranslateApiV1.Run cancel(@PathVariable String novel, @PathVariable String team, @PathVariable long runId) {
         Viewer viewer = access.requireSignedIn();
         long editionId = access.editionAt(novel, team);
@@ -229,6 +242,7 @@ class TranslateApiController {
 
     /** «Продовжити» after a failure (or a lost answer the site would not ask again by itself). */
     @PostMapping("/runs/{runId}/resume")
+    @Operation(summary = "Продовжити запуск", description = "«Продовжити» після збою чи загубленої відповіді.")
     TranslateApiV1.Run resume(@PathVariable String novel, @PathVariable String team, @PathVariable long runId) {
         EditionAccess who = translator(novel, team);
         jobs.resume(who.editionId(), runId);
@@ -263,6 +277,7 @@ class TranslateApiController {
 
     /** The novel's glossary in the order entries were added; {@code status}, {@code kind} and {@code q} narrow it. */
     @GetMapping("/glossary")
+    @Operation(summary = "Словник", description = "Словник новели в порядку додавання; `status`, `kind` і `q` звужують його.")
     TranslateApiV1.Page<TranslateApiV1.Entry> glossary(@PathVariable String novel, @PathVariable String team,
             @RequestParam(required = false) String status, @RequestParam(required = false) String kind,
             @RequestParam(required = false) String q, @RequestParam(required = false) String after,
@@ -281,6 +296,7 @@ class TranslateApiController {
     }
 
     @GetMapping("/glossary/{entryId}")
+    @Operation(summary = "Запис словника", description = "Один запис словника.")
     TranslateApiV1.Entry entry(@PathVariable String novel, @PathVariable String team, @PathVariable long entryId) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
         return entry(who.editionId(), entryId);
@@ -288,6 +304,7 @@ class TranslateApiController {
 
     /** The team's own entry: approved at once, as entries written by hand are. */
     @PostMapping("/glossary")
+    @Operation(summary = "Додати запис", description = "Запис команди: одразу затверджений, як написаний вручну.")
     @ResponseStatus(HttpStatus.CREATED)
     TranslateApiV1.Entry addEntry(@PathVariable String novel, @PathVariable String team, @RequestBody TranslateApiV1.NewEntry body) {
         EditionAccess who = access.requireTranslator(access.editionAt(novel, team));
@@ -301,6 +318,7 @@ class TranslateApiController {
 
     /** Corrects the entry; fields left out stay. A corrected entry becomes approved. */
     @PatchMapping("/glossary/{entryId}")
+    @Operation(summary = "Змінити запис", description = "Виправляє запис; пропущені поля лишаються. Виправлений запис стає затвердженим.")
     TranslateApiV1.Entry changeEntry(@PathVariable String novel, @PathVariable String team, @PathVariable long entryId,
             @RequestBody TranslateApiV1.EntryChange body) {
         EditionAccess who = access.requireTranslator(access.editionAt(novel, team));
@@ -314,6 +332,7 @@ class TranslateApiController {
 
     /** «Затвердити», «Відхилити» or «Повернути в нові» for the entries given. */
     @PostMapping("/glossary/status")
+    @Operation(summary = "Змінити стан записів", description = "«Затвердити», «Відхилити» чи «Повернути в нові» для вказаних записів.")
     TranslateApiV1.Changed status(@PathVariable String novel, @PathVariable String team, @RequestBody TranslateApiV1.StatusChange body) {
         EditionAccess who = access.requireTranslator(access.editionAt(novel, team));
         return new TranslateApiV1.Changed(glossary.setStatus(who.editionId(), body.ids(), body.status()));
@@ -321,18 +340,21 @@ class TranslateApiController {
 
     /** «Погодити нові»: every entry nobody checked yet becomes approved. */
     @PostMapping("/glossary/approve-new")
+    @Operation(summary = "Погодити нові", description = "Усі ще не перевірені записи стають затвердженими.")
     TranslateApiV1.Changed approveNew(@PathVariable String novel, @PathVariable String team) {
         EditionAccess who = access.requireTranslator(access.editionAt(novel, team));
         return new TranslateApiV1.Changed(glossary.approveNew(who.editionId()));
     }
 
     @GetMapping("/glossary/{entryId}/facts")
+    @Operation(summary = "Факти запису", description = "Що новела розповідає про цей запис і з якої глави.")
     List<TranslateApiV1.Fact> facts(@PathVariable String novel, @PathVariable String team, @PathVariable long entryId) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
         return glossary.facts(who.editionId(), entryId).stream().map(TranslateApiController::toFact).toList();
     }
 
     @PostMapping("/glossary/{entryId}/facts")
+    @Operation(summary = "Додати факт", description = "Новий факт про запис.")
     @ResponseStatus(HttpStatus.CREATED)
     TranslateApiV1.Fact addFact(@PathVariable String novel, @PathVariable String team, @PathVariable long entryId,
             @RequestBody TranslateApiV1.FactRequest body) {
@@ -341,6 +363,7 @@ class TranslateApiController {
     }
 
     @PutMapping("/glossary/{entryId}/facts/{factId}")
+    @Operation(summary = "Змінити факт", description = "Змінює факт.")
     TranslateApiV1.Fact changeFact(@PathVariable String novel, @PathVariable String team, @PathVariable long entryId,
             @PathVariable long factId, @RequestBody TranslateApiV1.FactRequest body) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
@@ -348,6 +371,7 @@ class TranslateApiController {
     }
 
     @DeleteMapping("/glossary/{entryId}/facts/{factId}")
+    @Operation(summary = "Видалити факт", description = "Видаляє факт.")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void deleteFact(@PathVariable String novel, @PathVariable String team, @PathVariable long entryId, @PathVariable long factId) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));

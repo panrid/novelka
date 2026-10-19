@@ -21,4 +21,12 @@ public interface BearerTokens {
 
     /** After the request: a change made with a token goes into the journal. Must not throw. */
     void completed(TokenGrant grant, String method, String path, String address, int status);
+
+    /**
+     * The right ({@code read}, {@code studio}…) a token needs for this request; null when no token
+     * may make it. The API's description (етап 22.4) names it on each operation.
+     */
+    default String scope(String method, String path) {
+        return null;
+    }
 }

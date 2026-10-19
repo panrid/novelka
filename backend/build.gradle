@@ -40,6 +40,8 @@ dependencies {
     implementation 'org.springframework.modulith:spring-modulith-starter-jdbc'
     runtimeOnly 'org.postgresql:postgresql'
     implementation 'org.jsoup:jsoup:1.23.2'
+    // The API's OpenAPI description from the controllers (етап 22.4); no Swagger UI, the site renders it.
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-api:3.1.1'
     // Reads WebP and unusual JPEGs (CMYK, broken metadata) that plain ImageIO rejects.
     runtimeOnly 'com.twelvemonkeys.imageio:imageio-webp:3.15.3'
     runtimeOnly 'com.twelvemonkeys.imageio:imageio-jpeg:3.15.3'
@@ -120,6 +122,11 @@ tasks.named('test') {
     useJUnitPlatform()
     jvmArgs '-Duser.timezone=UTC'
     maxParallelForks = testForks
+    // The API description's snapshot (ApiDescriptionTests); `-PupdateApiSnapshot` rewrites it from the code.
+    def apiSnapshot = rootProject.layout.projectDirectory.file('doc/api/openapi-v1.json')
+    inputs.files(apiSnapshot).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName('apiSnapshot')
+    systemProperty 'novelka.apiSnapshot', apiSnapshot.asFile.absolutePath
+    systemProperty 'novelka.updateApiSnapshot', providers.gradleProperty('updateApiSnapshot').isPresent()
     // A failed test shows its message in the build log, so CI tells why without the report.
     testLogging {
         events 'failed'

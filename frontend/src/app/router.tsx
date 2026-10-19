@@ -35,6 +35,7 @@ import { HistoryPage } from '../pages/studio/HistoryPage';
 import { ImportPage } from '../pages/studio/ImportPage';
 import { NewPublication } from '../pages/studio/NewPublication';
 import { RulesPage } from '../pages/RulesPage';
+import { DevelopersPage } from '../pages/developers/DevelopersPage';
 import { AutotranslatePage } from '../pages/studio/AutotranslatePage';
 import { JobLogPage } from '../pages/studio/JobLogPage';
 import { TranslateLivePage } from '../pages/studio/TranslateLivePage';
@@ -113,6 +114,7 @@ const routeTree = rootRoute.addChildren([
     createRoute({ getParentRoute: () => rootRoute, path: '/catalog', component: CatalogPage, validateSearch: validateCatalogSearch, head: title('Каталог') }),
     createRoute({ getParentRoute: () => rootRoute, path: '/proposals', component: ProposalsPage, head: title('Що перекласти') }),
     createRoute({ getParentRoute: () => rootRoute, path: '/rules', component: RulesPage, head: title('Правила сайту') }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/developers', component: DevelopersPage, head: title('Для розробників') }),
     createRoute({ getParentRoute: () => rootRoute, path: '/library', component: LibraryPage, validateSearch: listSearch, head: title('Бібліотека') }),
     createRoute({
         getParentRoute: () => rootRoute, path: '/n/$slug', component: NovelPage, validateSearch: teamSearch,

@@ -167,3 +167,27 @@ curl -H "$T" -H 'Content-Type: application/json' -X POST $B/runs -d '{"to":1,"pu
 curl -H "$T" $B/runs/42/log
 curl -H "$T" -X POST $B/chapters/1/publish -H 'Content-Type: application/json' -d '{}'   # моя чернетка
 ```
+
+### Опис API (OpenAPI)
+
+springdoc генерує OpenAPI 3.1 з контролерів `/api/v1` і віддає його на `/api/v1/openapi.json`. Внутрішній
+API сайту в опис не потрапляє. Налаштування — `springdoc.*` в `application.yaml`. Спільні для всіх операцій
+частини додає `platform/web/ApiDescription`: токен, відповіді з помилками, `ETag`. Описи операцій,
+параметрів і полів пишемо українською в `@Operation`, `@Parameter` і `@Schema`. Приклади мають бути
+незмінні: жодного «зараз», дати — сталі рядки.
+
+Знімок опису лежить у `doc/api/openapi-v1.json`, і `ApiDescriptionTests` порівнює його з тим, що генерує
+код. Кожен запуск пише свіжий опис у `backend/build/api/openapi-v1.json`, а якщо вони розходяться, тест
+друкує новий опис повністю. Змінили API — оновіть знімок і закомітьте разом зі зміною:
+
+```sh
+./gradlew :backend:test --tests '*ApiDescriptionTests' -PupdateApiSnapshot
+```
+
+Можна й скопіювати `backend/build/api/openapi-v1.json` чи JSON із тексту помилки. Те, що ламає програми,
+написані за знімком, тест не пропускає навіть з `-PupdateApiSnapshot`. Це зникла адреса чи операція,
+зникле поле відповіді чи змінений тип, поле, яке перестало бути завжди, новий обов'язковий параметр.
+У `/v1` API лише росте; ламке — тільки в новій версії. Нові адреси під `/api/v1` (наприклад,
+`/api/v1/studio`) потрапляють в опис самі, треба лише оновити знімок.
+
+Сторінка «Для розробників» (`/developers`) показує довідник за цим описом: `frontend/src/pages/developers`.

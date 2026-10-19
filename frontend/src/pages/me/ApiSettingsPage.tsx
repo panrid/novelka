@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { api } from '../../api/client';
 import { useMe } from '../../auth/me';
@@ -76,7 +77,8 @@ export function ApiSettingsPage() {
         <SettingsFrame title="API">
             <p className={styles.muted}>
                 Токен дає програмі чи агентові ШІ діяти від вашого імені — не більше, ніж можете ви самі, і лише з позначеними правами.
-                Запити — з заголовком <code>Authorization: Bearer …</code>; публічне читання — <code>/api/v1</code>.
+                Запити — з заголовком <code>Authorization: Bearer …</code>; публічне читання — <code>/api/v1</code>. Опис і приклади —{' '}
+                <Link to="/developers">для розробників</Link>.
             </p>
             <NewTokenSection />
             <MyTokens />

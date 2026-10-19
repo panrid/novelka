@@ -67,6 +67,12 @@ export function Shell() {
                         <Outlet />
                     </div>
                 </div>
+                {!reading && !side && (
+                    <footer className={styles.footer}>
+                        <Link to="/rules">Правила сайту</Link>
+                        <Link to="/developers">Для розробників</Link>
+                    </footer>
+                )}
             </main>
             {!reading && <Tabs className={styles.bottomTabs} />}
             <AskHost />
