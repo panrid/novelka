@@ -21,6 +21,9 @@ novelka:
   # Tests tell subscribers about new chapters themselves (ChapterNewsQueue.drain).
   notifications:
     chapter-news: false
+  # Tests send webhook deliveries themselves (WebhookOutbox.drain), to a local stub (LocalWebhooks).
+  webhooks:
+    outbox: false
   # Tests post updates to the webhook themselves; the fake bot needs a token to derive its secret.
   # They send the queued messages about new chapters themselves too (TelegramQueue.drain).
   telegram:

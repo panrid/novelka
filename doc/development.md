@@ -191,3 +191,63 @@ API сайту в опис не потрапляє. Налаштування —
 `/api/v1/studio`) потрапляють в опис самі, треба лише оновити знімок.
 
 Сторінка «Для розробників» (`/developers`) показує довідник за цим описом: `frontend/src/pages/developers`.
+
+### Вебхуки
+
+«Налаштування → API → Вебхуки»: https-адреса, події, переклади (усі доступні або вибрані). Секрет
+`whsec_…` показується один раз. Керувати вебхуками можна лише з сесії, не токеном.
+
+| Подія | Коли | Кому |
+|---|---|---|
+| `chapter.published` | читачі можуть відкрити нові глави | кожному, хто бачить переклад (приховане й 18+ — як на сайті) |
+| `run.finished` | запуск автоперекладу переклав усі глави | лише команді перекладу |
+| `run.stopped` | запуск зупинився: помилка (`failed`) або скасування (`cancelled`) | лише команді |
+| `suggestion.created` | читач надіслав правки команді | лише команді |
+| `source.chapters` | на сайті оригіналу зʼявилися глави для перекладу | лише команді |
+| `ping` | «Надіслати пробну подію» | власнику вебхука |
+
+Запит — `POST` із `Content-Type: application/json; charset=utf-8` і заголовками:
+
+- `X-Novelka-Event` — код події;
+- `X-Novelka-Delivery` — UUID доставки; той самий на кожній спробі й у «Повторити», тож повтор
+  легко відкинути (доставка «щонайменше раз»);
+- `X-Novelka-Timestamp` — секунди Unix у мить спроби;
+- `X-Novelka-Signature` — `sha256=` і hex HMAC-SHA256 секретом від `<timestamp>.<тіло>`.
+
+```json
+{
+  "id": "9f1c…", "event": "chapter.published", "createdAt": "2026-10-19T12:00:00Z",
+  "data": {
+    "translation": { "novel": "slug", "team": "handle", "title": "Назва", "url": "https://novelka.in.ua/n/slug?t=handle" },
+    "first": 12, "last": 12,
+    "chapters": [{ "number": 12, "label": null, "title": "Назва глави", "url": "https://novelka.in.ua/n/slug/12?t=handle" }]
+  }
+}
+```
+
+`data` інших подій: `run.*` — `translation`, `run` (номер запуску), `state` (`done`, `failed`, `cancelled`),
+`first`, `last`, `error`; `suggestion.created` — `translation`, `author` (нік), `count`;
+`source.chapters` — `translation`, `first`, `last`; `ping` — `message`. Внутрішніх id і тексту
+оригіналу в подіях немає; поля лише додаються.
+
+Перевірка на боці отримувача (Node.js):
+
+```ts
+const expected = 'sha256=' + createHmac('sha256', secret).update(`${timestamp}.${rawBody}`).digest('hex');
+const ok = timingSafeEqual(Buffer.from(expected), Buffer.from(signature)) && Math.abs(Date.now() / 1000 - Number(timestamp)) < 300;
+```
+
+Доставка: подію кладе в `webhook_delivery` та сама транзакція, що її спричинила; воркер (кожні 2 с)
+надсилає до 10 одночасно. Відповідь 2xx — доставлено; інше (і переадресації — їх не виконуємо) —
+нова спроба через 10 с, 1 хв, 5 хв, 15 хв, 1 год, 3 год, 6 год, 12 год, далі «не доставлено». На
+все — 10 с, разом зі зʼєднанням. Перед кожною спробою знову перевіряється, чи власник ще бачить
+переклад (чи ще в команді). Адресу, що відмовляє 20 разів поспіль понад добу, вимкнено, власник
+отримує сповіщення. Журнал (`/api/me/webhooks/{id}/deliveries`) — останні 50 доставок, місяць.
+
+SSRF: лише `https`, порт 443 або від 1024, без імені й пароля в адресі; кожна адреса, у яку
+розвʼязується назва, має бути публічною (не loopback, приватні мережі, link-local з
+169.254.169.254, CGNAT, multicast, зарезервовані, IPv6 ULA/link-local і IPv6-обгортки IPv4).
+Перевірка — при збереженні й перед кожною спробою, а зʼєднання йде саме на перевірені адреси
+(`PublicAddresses`, `WebhookTransport`). У тестах `LocalWebhooks` пропускає `http://127.0.0.1` лише
+для портів тестової заглушки; розклад вимкнено (`novelka.webhooks.outbox`), тести викликають
+`WebhookOutbox.drain()`.

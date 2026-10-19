@@ -35,6 +35,7 @@ import space.panrid.novelka.ledger.ShahsGranted;
 import space.panrid.novelka.media.Images;
 import space.panrid.novelka.suggestion.SuggestionsReviewed;
 import space.panrid.novelka.suggestion.SuggestionsSubmitted;
+import space.panrid.novelka.webhook.WebhookDisabled;
 
 /**
  * Who hears about what. A person gets one row per event even when several reasons meet
@@ -210,6 +211,12 @@ class NotificationListeners {
             payload.put("note", granted.note());
         }
         inbox.add(granted.accountId(), "shahs_granted", payload);
+    }
+
+    /** The site stopped sending to a webhook of the person's that kept failing (етап 22.5). */
+    @ApplicationModuleListener
+    void on(WebhookDisabled disabled) {
+        inbox.add(disabled.accountId(), "webhook_disabled", Map.of("title", disabled.url(), "count", disabled.failures()));
     }
 
     private void mentions(List<Long> accounts, List<Long> teams, Map<String, Object> base, Set<Long> told) {

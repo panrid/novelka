@@ -11,6 +11,7 @@ import { Segmented } from '../../ui/Segmented';
 import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
 import { SettingsFrame } from './SettingsFrame';
+import { WebhooksSection } from './Webhooks';
 import styles from '../pages.module.css';
 
 export type ApiToken = {
@@ -82,6 +83,7 @@ export function ApiSettingsPage() {
             </p>
             <NewTokenSection />
             <MyTokens />
+            <WebhooksSection />
             {me.role === 'owner' && <AllTokens />}
         </SettingsFrame>
     );
