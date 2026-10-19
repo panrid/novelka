@@ -1,9 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
 import { Link, useRouterState } from '@tanstack/react-router';
-import { Users } from '../ui/icons';
 import { useMe } from '../auth/me';
-import { messagingApi } from '../inbox/api';
-import { useInboxCounts } from '../inbox/live';
 import { useOpenReports } from '../admin/api';
 import { useMyShahs } from '../ledger/api';
 import { shahWord } from '../studio/autotranslate';
@@ -24,10 +20,8 @@ export function MeRail() {
     if (!me) return <nav className={styles.rail} aria-label="Особисте" />;
     const rank = RANK[me.role];
     const hasShahs = Boolean(shahs.data && (shahs.data.available > 0 || shahs.data.reserved > 0 || shahs.data.history.length > 0));
-    // «Вигляд» covers both the site's look and the reader's.
-    const at = path === '/me/settings/reader' ? '/me/settings/appearance' : path;
     const item = (to: string, label: string) => (
-        <Link to={to} className={`${styles.item} ${at === to ? styles.on : ''}`}>{label}</Link>
+        <Link to={to} className={`${styles.item} ${path === to ? styles.on : ''}`}>{label}</Link>
     );
     return (
         <nav className={styles.rail} aria-label="Особисте">
@@ -42,11 +36,7 @@ export function MeRail() {
             {item('/me/pictures', 'Мої картинки')}
             {me.role === 'owner' && item('/me/wallet', 'Шаги й автопереклад')}
             {me.role !== 'owner' && hasShahs && item('/me/shahs', `Шаги · ${shahs.data!.available} ${shahWord(shahs.data!.available)}`)}
-            <div className={styles.label}>Налаштування</div>
-            {item('/me/settings', 'Акаунт')}
-            {item('/me/settings/appearance', 'Вигляд')}
-            {item('/me/settings/notifications', 'Сповіщення')}
-            {item('/me/settings/privacy', 'Приватність')}
+            {item('/me/settings', 'Налаштування')}
             {rank >= RANK.moderator && (
                 <>
                     <div className={styles.label}>Модерація</div>
@@ -63,41 +53,6 @@ export function MeRail() {
                     {rank >= RANK.owner && item('/admin/audit', 'Журнал дій')}
                 </>
             )}
-        </nav>
-    );
-}
-
-/** The side menu of «Вхідні» on a wide screen: its sections and the conversations, one click to each. */
-export function InboxRail() {
-    const path = useRouterState({ select: (state) => state.location.pathname });
-    const counts = useInboxCounts().data;
-    const list = useQuery({ queryKey: ['conversations'], queryFn: messagingApi.list });
-    const section = (to: string, label: string, count = 0) => (
-        <Link to={to} className={`${styles.item} ${path === to ? styles.on : ''}`}>
-            <span className={styles.name}>{label}</span>
-            {count > 0 && <span className={styles.badge}>{count}</span>}
-        </Link>
-    );
-    return (
-        <nav className={styles.rail} aria-label="Вхідні">
-            {section('/inbox', 'Сповіщення', counts?.notifications)}
-            {section('/inbox/messages', 'Повідомлення', counts?.messages)}
-            {section('/inbox/chat', 'Чат')}
-            {section('/inbox/messages/new', '＋ Нова група')}
-            {(list.data?.items.length ?? 0) > 0 && <div className={styles.label}>Розмови</div>}
-            {list.data?.items.map((conversation) => {
-                const to = `/inbox/messages/${conversation.id}`;
-                return (
-                    <Link key={conversation.id} to="/inbox/messages/$id" params={{ id: String(conversation.id) }}
-                        className={`${styles.item} ${path.startsWith(to) ? styles.on : ''}`}>
-                        {conversation.kind === 'team'
-                            ? <Users size={20} aria-hidden />
-                            : <Avatar nick={conversation.title} url={conversation.avatarUrl} size={24} />}
-                        <span className={styles.name}>{conversation.kind === 'team' ? `$${conversation.teamHandle}` : conversation.title}</span>
-                        {conversation.unread > 0 && <span className={styles.badge}>{conversation.unread}</span>}
-                    </Link>
-                );
-            })}
         </nav>
     );
 }

@@ -74,10 +74,11 @@ export function MePage() {
                     <Link to="/me/shahs" className={styles.menuItem}>Шаги · {shahs.data!.available} {shahWord(shahs.data!.available)}</Link>
                 )}
                 <div className={styles.menuLabel}>Налаштування</div>
-                <MenuLink to="/me/settings" hint="профіль, нік, пошта, пароль, Google">Акаунт</MenuLink>
-                <MenuLink to="/me/settings/appearance" hint="сайт і читалка">Вигляд</MenuLink>
-                <MenuLink to="/me/settings/notifications" hint="Telegram">Сповіщення</MenuLink>
-                <MenuLink to="/me/settings/privacy" hint="хто може писати, 18+">Приватність</MenuLink>
+                <MenuLink to="/me/settings" hint="фото, нік, приватність">Профіль</MenuLink>
+                <MenuLink to="/me/settings/appearance" hint="тема, кольори, шрифти">Вигляд сайту</MenuLink>
+                <MenuLink to="/me/settings/reader" hint="читалка, 18+">Читання</MenuLink>
+                <MenuLink to="/me/settings/notifications" hint="на сайті й у Telegram">Сповіщення</MenuLink>
+                <MenuLink to="/me/settings/security" hint="пошта, пароль, Google">Вхід і безпека</MenuLink>
                 {me.role !== 'reader' && (
                     <>
                         <div className={styles.menuLabel}>Модерація</div>

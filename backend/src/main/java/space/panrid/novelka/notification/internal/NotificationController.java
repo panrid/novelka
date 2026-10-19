@@ -3,7 +3,9 @@ package space.panrid.novelka.notification.internal;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import space.panrid.novelka.account.CurrentUser;
+import space.panrid.novelka.notification.NotificationChoices;
 import space.panrid.novelka.platform.live.LiveEvents;
 import space.panrid.novelka.platform.web.UserFacingException;
 
@@ -21,16 +24,45 @@ class NotificationController {
     private final CurrentUser currentUser;
     private final Inbox inbox;
     private final LiveEvents live;
+    private final NotificationChoices choices;
 
-    NotificationController(CurrentUser currentUser, Inbox inbox, LiveEvents live) {
+    NotificationController(CurrentUser currentUser, Inbox inbox, LiveEvents live, NotificationChoices choices) {
         this.currentUser = currentUser;
         this.inbox = inbox;
         this.live = live;
+        this.choices = choices;
     }
 
     @GetMapping("/notifications")
-    Inbox.Page notifications(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "false") boolean archived) {
-        return inbox.page(currentUser.requireSignedIn().accountId(), page, archived);
+    Inbox.Page notifications(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "false") boolean archived,
+            @RequestParam(required = false) String group) {
+        long me = currentUser.requireSignedIn().accountId();
+        if (group != null && !Inbox.GROUPS.containsKey(group)) {
+            throw UserFacingException.badRequest("Такого виду сповіщень немає.");
+        }
+        return inbox.page(me, page, archived, group);
+    }
+
+    // ---- what goes where: «Сповіщення» in the settings ------------------------------------------
+
+    @GetMapping("/me/notification-choices")
+    List<NotificationChoices.Choice> choices() {
+        return choices.all(currentUser.requireSignedIn().accountId());
+    }
+
+    /** Absent keeps what was chosen; messages stay on the site whatever comes. */
+    record ChoiceChange(Boolean site, Boolean telegram) {
+    }
+
+    @PutMapping("/me/notification-choices/{topic}")
+    List<NotificationChoices.Choice> choose(@PathVariable String topic, @RequestBody ChoiceChange body) {
+        long me = currentUser.requireSignedIn().accountId();
+        NotificationChoices.Topic chosen = NotificationChoices.Topic.fromCode(topic);
+        if (chosen == null) {
+            throw UserFacingException.notFound("Такого виду сповіщень немає.");
+        }
+        choices.set(me, chosen, chosen == NotificationChoices.Topic.MESSAGES ? null : body.site(), body.telegram());
+        return choices.all(me);
     }
 
     record Unread(int unread) {

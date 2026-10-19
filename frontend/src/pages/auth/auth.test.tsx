@@ -39,7 +39,9 @@ describe('sign-in', () => {
     });
 
     it('returns to the page the guest came from', async () => {
-        const { router } = await renderAt('/me/settings', { 'POST /api/auth/login': { body: ME } });
+        const { router } = await renderAt('/me/settings', {
+            'POST /api/auth/login': { body: ME }, 'GET /api/me/blocks': { body: [] }, 'GET /api/me/presence': { body: { showOnline: true } },
+        });
 
         expect(router.state.location.pathname).toBe('/login');
         await userEvent.type(screen.getByLabelText('Нік або пошта'), 'mika');
@@ -47,7 +49,7 @@ describe('sign-in', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Увійти' }));
 
         await waitFor(() => expect(router.state.location.pathname).toBe('/me/settings'));
-        expect(await screen.findByRole('heading', { name: 'Акаунт' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Профіль' })).toBeInTheDocument();
     });
 });
 
@@ -147,7 +149,7 @@ describe('sign-in with Google', () => {
     });
 
     it('asks a Google-only account to set a password before untying Google', async () => {
-        const { calls } = await renderAt('/me/settings', {
+        const { calls } = await renderAt('/me/settings/security', {
             'GET /api/me': { body: { ...ME, google: true, hasPassword: false } },
             'GET /api/auth/providers': { body: { google: true } },
             'POST /api/auth/password-reset': { status: 202 },
@@ -161,7 +163,7 @@ describe('sign-in with Google', () => {
     });
 
     it('ties Google from the settings', async () => {
-        await renderAt('/me/settings?google=linked', {
+        await renderAt('/me/settings/security?google=linked', {
             'GET /api/me': { body: { ...ME, google: true, hasPassword: true } },
             'GET /api/auth/providers': { body: { google: true } },
         });
@@ -170,38 +172,69 @@ describe('sign-in with Google', () => {
     });
 
     it('offers to tie Google to an account without it', async () => {
-        await renderAt('/me/settings', {
+        await renderAt('/me/settings/security', {
             'GET /api/me': { body: { ...ME, google: false, hasPassword: true } },
             'GET /api/auth/providers': { body: { google: true } },
         });
-        expect(await screen.findByRole('link', { name: 'Прив’язати Google' })).toHaveAttribute('href', '/api/auth/google?next=%2Fme%2Fsettings&link=true');
+        expect(await screen.findByRole('link', { name: 'Прив’язати Google' }))
+            .toHaveAttribute('href', '/api/auth/google?next=%2Fme%2Fsettings%2Fsecurity&link=true');
+    });
+
+    it('keeps the eye on both password fields', async () => {
+        await renderAt('/me/settings/security', {
+            'GET /api/me': { body: { ...ME, google: false, hasPassword: true } },
+            'GET /api/auth/providers': { body: { google: false } },
+        });
+        expect(await screen.findByRole('heading', { name: 'Вхід і безпека' })).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: 'Показати пароль' }).length).toBeGreaterThanOrEqual(2);
+        expect(screen.getByText('Щонайменше 8 символів.')).toBeInTheDocument();
     });
 });
 
-describe('Telegram in «Сповіщення»', () => {
-    const STATUS = { available: true, linked: false, username: null, botUsername: 'novelka_bot', notifyInbox: true, notifyChapters: true, notifyMessages: true };
+describe('«Сповіщення»: what goes where', () => {
+    const STATUS = { available: true, linked: false, username: null, botUsername: 'novelka_bot' };
+    const CHOICES = [
+        { topic: 'chapters', site: true, telegram: true }, { topic: 'replies', site: true, telegram: true },
+        { topic: 'messages', site: true, telegram: true }, { topic: 'edits', site: true, telegram: true },
+        { topic: 'source', site: true, telegram: true }, { topic: 'other', site: true, telegram: true },
+    ];
 
     it('hands out the one-time link and waits for «Start»', async () => {
         const { calls } = await renderAt('/me/settings/notifications', {
             'GET /api/me': { body: { ...ME, google: false, hasPassword: true } },
             'GET /api/me/telegram': { body: STATUS },
+            'GET /api/me/notification-choices': { body: CHOICES },
             'POST /api/me/telegram/link': { body: { url: 'https://t.me/novelka_bot?start=abc' } },
         });
         await userEvent.click(await screen.findByRole('button', { name: 'Прив’язати Telegram' }));
         expect(await screen.findByRole('link', { name: 'Відкрити Telegram' })).toHaveAttribute('href', 'https://t.me/novelka_bot?start=abc');
         expect(calls.filter((call) => call.path === '/api/me/telegram/link')).toHaveLength(1);
+        expect(screen.queryByRole('columnheader', { name: 'Telegram' })).not.toBeInTheDocument();
     });
 
-    it('lets a tied chat choose what comes there', async () => {
+    it('chooses topic by topic: on the site and in a tied Telegram', async () => {
         const { calls } = await renderAt('/me/settings/notifications', {
             'GET /api/me': { body: { ...ME, google: false, hasPassword: true } },
             'GET /api/me/telegram': { body: { ...STATUS, linked: true, username: 'mika_tg' } },
-            'PATCH /api/me/telegram': { body: { ...STATUS, linked: true, username: 'mika_tg', notifyChapters: false } },
+            'GET /api/me/notification-choices': { body: CHOICES },
+            'PUT /api/me/notification-choices/chapters': (body) => ({
+                body: CHOICES.map((row) => (row.topic === 'chapters' ? { ...row, ...(body as object) } : row)),
+            }),
+            'PUT /api/me/notification-choices/replies': (body) => ({
+                body: CHOICES.map((row) => (row.topic === 'replies' ? { ...row, ...(body as object) } : row)),
+            }),
         });
         expect(await screen.findByText(/@mika_tg/)).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('switch', { name: 'Нові глави з підписок' }));
-        await waitFor(() => expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ notifyChapters: false }));
-        expect(screen.getByRole('switch', { name: 'Нові глави з підписок' })).not.toBeChecked();
+        expect(screen.getByRole('columnheader', { name: 'Telegram' })).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'Повідомлення: на сайті' })).toBeDisabled();
+
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Нова глава в моїй бібліотеці: Telegram' }));
+        await waitFor(() => expect(calls.find((call) => call.path === '/api/me/notification-choices/chapters')?.body).toEqual({ telegram: false }));
+        expect(screen.getByRole('checkbox', { name: 'Нова глава в моїй бібліотеці: Telegram' })).not.toBeChecked();
+
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Відповіді й згадки: на сайті' }));
+        await waitFor(() => expect(calls.find((call) => call.path === '/api/me/notification-choices/replies')?.body).toEqual({ site: false }));
+        expect(screen.getByRole('checkbox', { name: 'Відповіді й згадки: на сайті' })).not.toBeChecked();
     });
 
     it('stays hidden while the site has no bot', async () => {

@@ -10,7 +10,7 @@ import { useInboxCounts, useLiveEvents } from '../inbox/live';
 import { Avatar } from '../ui/Avatar';
 import styles from './Shell.module.css';
 import { AskHost } from '../ui/ask';
-import { InboxRail, MeRail } from './SideRails';
+import { MeRail } from './SideRails';
 import { StudioRail } from './StudioRail';
 import { StudioBar } from './StudioBar';
 import { ToastHost } from '../ui/toast';
@@ -42,7 +42,7 @@ export function Shell() {
         select: (state) => /^\/n\/[^/]+\/\d+(\/propose)?\/?$|^\/studio\/\d+\/chapters\/\d+\/?$/.test(state.location.pathname),
     });
     // A wide screen shows a section's side menu beside its pages: the Studio, «Я» with
-    // administration, and «Вхідні».
+    // administration. «Вхідні» and «Налаштування» draw their own (етап 20, крок 6).
     const rail = useRouterState({ select: (state) => railOf(state.location.pathname) });
     const side = reading ? null : rail;
     return (
@@ -62,7 +62,6 @@ export function Shell() {
                 <div className={side ? `${styles.withRail} ${side !== 'studio' ? styles.capped : ''}` : undefined}>
                     {side === 'studio' && <StudioRail />}
                     {side === 'me' && <MeRail />}
-                    {side === 'inbox' && <InboxRail />}
                     <div className={styles.slot}>
                         {side === 'studio' && <StudioBar />}
                         <Outlet />
@@ -99,11 +98,12 @@ function ThemeButton() {
     );
 }
 
-function railOf(path: string): 'studio' | 'me' | 'inbox' | null {
+function railOf(path: string): 'studio' | 'me' | null {
     if (/^\/studio(\/|$)/.test(path)) return 'studio';
+    // «Налаштування», «Вхідні», «Повідомлення» and the chat carry their own menus (етап 20, крок 6).
+    if (/^\/me\/settings(\/|$)/.test(path)) return null;
     // «Я» itself is already a desk with its menu; its pages and administration get the side menu.
     if (/^\/me\/.+/.test(path) || /^\/admin(\/|$)/.test(path)) return 'me';
-    if (/^\/inbox(\/|$)/.test(path)) return 'inbox';
     return null;
 }
 

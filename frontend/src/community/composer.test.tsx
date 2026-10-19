@@ -32,6 +32,6 @@ describe('composer', () => {
 
         await userEvent.click(screen.getByRole('button', { name: 'Надіслати' }));
         await vi.waitFor(() => expect(calls.find((call) => call.method === 'POST')?.body)
-            .toEqual({ body: 'Привіт, @lyra **важливо**', replyTo: null }));
+            .toEqual({ body: 'Привіт, @lyra **важливо**', replyTo: null, channel: 'general' }));
     });
 });

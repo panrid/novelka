@@ -91,23 +91,60 @@ class CommunityController {
 
     // ---- site chat ----------------------------------------------------------------------------
 
-    @GetMapping("/chat")
-    List<ChatService.Line> chat(@RequestParam(required = false) Long before) {
-        return chat.lines(before, currentUser.accountId().orElse(null));
+    /** The channels of the chat, with what the viewer has not read yet. */
+    @GetMapping("/chat/channels")
+    List<ChatService.Channel> channels() {
+        return chat.channels(currentUser.accountId().orElse(null));
     }
 
-    record NewLine(String body, Long replyTo) {
+    /** @param channel a channel's slug; «загальний» when absent */
+    @GetMapping("/chat")
+    List<ChatService.Line> chat(@RequestParam(required = false) String channel, @RequestParam(required = false) Long before) {
+        return chat.lines(channel, before, currentUser.accountId().orElse(null));
+    }
+
+    record NewLine(String body, Long replyTo, String channel) {
     }
 
     @PostMapping("/chat")
     @ResponseStatus(HttpStatus.CREATED)
     Created say(@RequestBody NewLine body) {
-        return new Created(chat.post(currentUser.requireSignedIn(), body.body(), body.replyTo()));
+        return new Created(chat.post(currentUser.requireSignedIn(), body.channel(), body.body(), body.replyTo()));
+    }
+
+    record Seen(long upTo) {
+    }
+
+    @PostMapping("/chat/channels/{slug}/read")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void read(@PathVariable String slug, @RequestBody Seen body) {
+        chat.markRead(currentUser.requireSignedIn().accountId(), slug, body.upTo());
     }
 
     @DeleteMapping("/chat/{id}")
     void unsay(@PathVariable long id) {
         chat.remove(currentUser.requireSignedIn(), id);
+    }
+
+    /** «Зараз на сайті»: open to guests too, like the chat itself. */
+    @GetMapping("/chat/online")
+    ChatService.Online online() {
+        return chat.online();
+    }
+
+    record Presence(boolean showOnline) {
+    }
+
+    @GetMapping("/me/presence")
+    Presence presence() {
+        return new Presence(chat.shownOnline(currentUser.requireSignedIn().accountId()));
+    }
+
+    @PutMapping("/me/presence")
+    Presence presence(@RequestBody Presence body) {
+        long me = currentUser.requireSignedIn().accountId();
+        chat.showOnline(me, body.showOnline());
+        return new Presence(chat.shownOnline(me));
     }
 
     // ---- rating of a translation -----------------------------------------------------------

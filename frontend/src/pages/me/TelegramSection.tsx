@@ -3,64 +3,51 @@ import { useState } from 'react';
 import { api } from '../../api/client';
 import { Button } from '../../ui/Button';
 import { Notice } from '../../ui/Notice';
-import { Toggle } from '../../ui/Toggle';
 import ui from '../../ui/ui.module.css';
 import styles from '../pages.module.css';
 
-type TelegramStatus = {
-    available: boolean; linked: boolean; username: string | null; botUsername: string | null;
-    notifyInbox: boolean; notifyChapters: boolean; notifyMessages: boolean;
-    /** New chapters of the original to translate, for those who rang the Studio's bell. */
-    notifySource: boolean;
-};
-type TelegramSettings = Partial<Pick<TelegramStatus, 'notifyInbox' | 'notifyChapters' | 'notifyMessages' | 'notifySource'>>;
+type TelegramStatus = { available: boolean; linked: boolean; username: string | null; botUsername: string | null };
 
 const telegramApi = {
     status: () => api<TelegramStatus>('/api/me/telegram'),
     link: () => api<{ url: string }>('/api/me/telegram/link', { method: 'POST', body: '{}' }),
-    update: (settings: TelegramSettings) => api<TelegramStatus>('/api/me/telegram', { method: 'PATCH', body: JSON.stringify(settings) }),
     unlink: () => api<TelegramStatus>('/api/me/telegram', { method: 'DELETE' }),
 };
 
+/** Whether the site has a bot and the person's chat is tied; while a tie is awaited, it looks again. */
+export function useTelegram(waiting = false) {
+    return useQuery({
+        queryKey: ['telegram'],
+        queryFn: telegramApi.status,
+        // While the person is in Telegram pressing «Start», the page waits for the tie.
+        refetchInterval: (query) => (waiting && !query.state.data?.linked ? 3_000 : false),
+    });
+}
+
 /**
- * Notifications in Telegram as well as on the site: tie the chat with a one-time link
- * (the bot gets it when «Start» is pressed) and choose what comes there.
+ * Notifications in Telegram as well as on the site: tie the chat with a one-time link (the bot
+ * gets it when «Start» is pressed). What comes there is chosen in the table above.
  */
 export function TelegramSection() {
     const client = useQueryClient();
     const [link, setLink] = useState<string | null>(null);
-    const status = useQuery({
-        queryKey: ['telegram'],
-        queryFn: telegramApi.status,
-        // While the person is in Telegram pressing «Start», the page waits for the tie.
-        refetchInterval: (query) => (link && !query.state.data?.linked ? 3_000 : false),
-    });
+    const status = useTelegram(Boolean(link));
     const set = (data: TelegramStatus) => client.setQueryData(['telegram'], data);
     const start = useMutation({ mutationFn: telegramApi.link, onSuccess: (data) => setLink(data.url) });
-    const update = useMutation({ mutationFn: telegramApi.update, onSuccess: set });
     const unlink = useMutation({ mutationFn: telegramApi.unlink, onSuccess: (data) => { set(data); setLink(null); } });
     const data = status.data;
     if (!data?.available) {
         return null;
     }
-    const error = start.error ?? update.error ?? unlink.error;
+    const error = start.error ?? unlink.error;
     return (
         <div className={styles.section}>
             <h2 className={styles.sectionTitle}>Telegram</h2>
             {data.linked ? (
                 <div className={styles.form}>
                     <p className={styles.muted}>
-                        Сповіщення приходять у Telegram{data.username ? ` (@${data.username})` : ''} від @{data.botUsername}. Що надсилати:
+                        Telegram підключено{data.username ? `: @${data.username}` : ''}. Сповіщення приходять від @{data.botUsername}; що саме — позначено в таблиці.
                     </p>
-                    <Toggle label="Особисті й групові повідомлення" isSelected={data.notifyMessages}
-                        onChange={(value) => update.mutate({ notifyMessages: value })} />
-                    <Toggle label="Нові глави з підписок" isSelected={data.notifyChapters}
-                        onChange={(value) => update.mutate({ notifyChapters: value })} />
-                    <Toggle label="Нові глави оригіналу для перекладу (з дзвіночка в Студії)" isSelected={data.notifySource}
-                        onChange={(value) => update.mutate({ notifySource: value })} />
-                    <Toggle label="Відповіді, згадки, правки й решта сповіщень" isSelected={data.notifyInbox}
-                        onChange={(value) => update.mutate({ notifyInbox: value })} />
-                    <p className={styles.muted}>Зміну ніка, пошти й пароля бот повідомляє завжди. Посилання для нового пароля теж приходить сюди.</p>
                     {error && <Notice tone="error">{error.message}</Notice>}
                     <Button variant="secondary" onPress={() => unlink.mutate()} pending={unlink.isPending} pendingLabel="Відв’язуємо…">
                         Відв’язати Telegram

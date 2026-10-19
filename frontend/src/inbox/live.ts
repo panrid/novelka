@@ -22,7 +22,7 @@ export function useLiveEvents() {
             if (id) void client.invalidateQueries({ queryKey: ['conversation', id] });
         });
         source.addEventListener('messages', () => refresh('conversations', 'inbox-counts'));
-        source.addEventListener('chat', () => refresh('chat'));
+        source.addEventListener('chat', () => refresh('chat', 'chat-channels'));
         // Autotranslation moved a step: its page refreshes without polling.
         source.addEventListener('job', () => refresh('autotranslate', 'studio-chapters'));
         return () => source.close();

@@ -3,35 +3,40 @@
     padding-top: 8px;
 }
 
+/* «Вхідні · 3 · Повідомлення · 2 · Загальний чат»: the three pages, one row (етап 20, крок 6). */
 .nav {
     display: flex;
-    gap: 6px;
+    flex: none;
+    gap: 4px;
     margin: 4px 0 12px;
-}
-
-/* A wide screen has these sections in the side menu. */
-@media (min-width: 1024px) {
-    .nav {
-        display: none;
-    }
+    overflow-x: auto;
+    scrollbar-width: none;
 }
 
 .navItem {
-    padding: 8px 14px;
-    border-radius: var(--radius-lg);
-    background: var(--surface-2);
+    display: flex;
+    flex: none;
+    align-items: center;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 10px;
     color: var(--muted);
     font-size: 14px;
     text-decoration: none;
+    white-space: nowrap;
+}
+
+.navItem:hover {
+    color: var(--text);
 }
 
 .navActive {
-    background: var(--accent);
-    color: var(--accent-ink);
+    background: var(--surface-2);
+    color: var(--strong);
+    font-weight: 600;
 }
 
 .count {
-    margin-left: 6px;
     font-weight: 600;
 }
 
@@ -344,4 +349,635 @@
 
 .strong {
     font-weight: 600;
+}
+
+/* ---- етап 20, крок 6: «Вхідні», «Повідомлення», «Загальний чат» as in doc/redesign/mockup ---- */
+
+.desk {
+    width: 100%;
+    padding-top: 8px;
+}
+
+/* «Вхідні»: the filters on the left, the list on the right; a phone puts the filters in a row above. */
+.split {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.filters {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.filter {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    height: 40px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text);
+    font: 500 14px var(--font-ui);
+    text-align: left;
+    cursor: pointer;
+}
+
+.filter:hover {
+    background: var(--surface-2);
+}
+
+.filterOn {
+    background: var(--surface-2);
+    color: var(--strong);
+}
+
+.filterCount {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.filtersLink {
+    display: none;
+    margin-top: 12px;
+    padding: 0 12px;
+    color: var(--accent);
+    font-size: 13px;
+}
+
+@media (min-width: 768px) {
+    .split {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .filters {
+        flex: 0 1 220px;
+        flex-direction: column;
+        min-width: 180px;
+        overflow: visible;
+    }
+
+    .filtersLink {
+        display: block;
+    }
+}
+
+.feed {
+    flex: 999 1 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.feedHead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.pageTitle {
+    margin: 0;
+    font: 600 26px/1.25 var(--font-reading);
+    color: var(--strong);
+}
+
+.headButtons {
+    display: flex;
+    gap: 8px;
+}
+
+.softButton,
+.lineButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--text);
+    font: 500 13px var(--font-ui);
+    cursor: pointer;
+}
+
+.lineButton {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.softButton:disabled {
+    color: var(--muted);
+    cursor: default;
+}
+
+.panel {
+    padding: 6px;
+    border-radius: 14px;
+    background: var(--surface);
+}
+
+.note {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 10px;
+}
+
+.noteUnread {
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.note .target {
+    display: grid;
+    grid-template-columns: 10px 40px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 10px;
+}
+
+.note .check {
+    margin-left: 10px;
+}
+
+.note .rowActions {
+    align-items: center;
+    padding-right: 4px;
+    opacity: 0.6;
+}
+
+.note:hover .rowActions,
+.note:focus-within .rowActions {
+    opacity: 1;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.dot[data-on] {
+    background: var(--accent);
+}
+
+.tileBox {
+    display: grid;
+    place-items: center;
+    width: 40px;
+}
+
+.tile {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    font: 600 15px var(--font-reading);
+}
+
+/* The kinds' colours, from the mockup; the same in both themes. */
+.toneChapters {
+    background: #1e3550;
+    color: #bbd6ff;
+}
+
+.toneEdits {
+    background: #203b2c;
+    color: #bdf0d0;
+}
+
+.toneReplies {
+    background: #2a2340;
+    color: #d9ccff;
+}
+
+.toneStudio {
+    background: #3d3018;
+    color: #ffe2a8;
+}
+
+.toneSystem {
+    background: #23272f;
+    color: #c4c9d4;
+}
+
+.noteText {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.noteTitle {
+    color: var(--strong);
+    font-weight: 500;
+}
+
+.noteUnread .noteTitle {
+    font-weight: 600;
+}
+
+.noteLine {
+    overflow: hidden;
+    color: var(--muted);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.when {
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+/* «Повідомлення» and «Загальний чат»: columns side by side, each scrolling on its own. */
+.talk {
+    display: flex;
+    flex: 1;
+    gap: 16px;
+    min-height: 0;
+}
+
+.conversations,
+.channels,
+.online {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 0;
+    padding: 12px;
+    border-radius: 14px;
+    background: var(--surface);
+}
+
+.conversations {
+    flex: 1 1 320px;
+}
+
+.thread {
+    display: flex;
+    flex: 999 1 560px;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    border-radius: 14px;
+    background: var(--surface);
+}
+
+/* A phone shows one column: the list, or the open conversation. */
+@media (max-width: 1023px) {
+    .talk[data-open] .conversations,
+    .talk:not([data-open]) .thread {
+        display: none;
+    }
+}
+
+@media (min-width: 1024px) {
+    .conversations {
+        flex: 0 1 320px;
+        min-width: 260px;
+    }
+
+    .back {
+        display: none;
+    }
+}
+
+.findRow {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.find {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 10px;
+    background: var(--surface-2);
+}
+
+.find input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    outline: none;
+}
+
+.plus {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font: 600 20px var(--font-ui);
+    text-decoration: none;
+}
+
+.conversation {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 12px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.conversation:hover {
+    background: var(--surface-2);
+}
+
+.conversationOpen,
+.conversationOpen:hover {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.conversation .noteTitle {
+    font-weight: 600;
+}
+
+.conversationSide {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.conversationSide .badge {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    font-size: 11px;
+    line-height: 18px;
+}
+
+.squareFace {
+    display: grid;
+    flex: none;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--surface-2);
+    color: var(--muted);
+    object-fit: cover;
+}
+
+.pick {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 24px;
+    text-align: center;
+}
+
+.threadHead {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+}
+
+.threadHead a {
+    color: var(--text);
+}
+
+.threadTitle {
+    margin: 0;
+    color: var(--strong);
+    font: 600 15px/1.3 var(--font-ui);
+}
+
+.threadLines {
+    gap: 10px;
+    padding: 18px;
+}
+
+.threadComposer {
+    padding: 14px 18px;
+    border-top: 1px solid var(--line);
+}
+
+/* One message: who and when above, the words in a bubble; mine on the right in the accent. */
+.said {
+    display: flex;
+    flex-direction: column;
+    align-self: flex-start;
+    gap: 4px;
+    max-width: 85%;
+}
+
+.saidMine {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+
+.saidWho {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.said .bubble {
+    max-width: 100%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    line-height: 1.5;
+}
+
+.said .mine {
+    background: var(--accent);
+    color: var(--accent-ink);
+}
+
+.said .mine a,
+.said .mine .actions button {
+    color: inherit;
+}
+
+@media (min-width: 768px) {
+    .said {
+        max-width: 70%;
+    }
+}
+
+/* «Загальний чат»: channels, the channel, «Зараз на сайті». */
+.channels {
+    flex: 0 1 240px;
+    min-width: 200px;
+    gap: 2px;
+}
+
+.channelsTitle {
+    padding: 4px 8px 8px;
+    color: var(--strong);
+    font-weight: 600;
+}
+
+.channel {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    height: 40px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text);
+    font: 500 14px var(--font-ui);
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.channel:hover {
+    background: var(--surface-2);
+}
+
+.channelOn,
+.channelOn:hover {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    color: var(--strong);
+}
+
+.channelLines {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px 18px;
+}
+
+.online {
+    flex: 0 1 240px;
+    min-width: 200px;
+    gap: 10px;
+    padding: 14px;
+}
+
+.onlinePerson {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.onlineFace {
+    position: relative;
+    display: inline-flex;
+}
+
+.onlineFace::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #5bc49a;
+    box-shadow: 0 0 0 2px var(--surface);
+}
+
+.rules {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+/* A phone: the channels in a row above the chat; «Зараз на сайті» only as a count in its header. */
+@media (max-width: 1023px) {
+    .talk:has(.channels) {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .channels {
+        flex: none;
+        flex-direction: row;
+        min-width: 0;
+        padding: 6px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .channels .channelsTitle {
+        display: none;
+    }
+
+    .online {
+        display: none;
+    }
+}
+
+@media (min-width: 1024px) {
+    .onlineShort {
+        display: none;
+    }
+}
+
+.chatLine {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 12px;
+}
+
+.chatWho {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.chatNick {
+    color: var(--strong);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.role {
+    padding: 0 8px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 18px;
+}
+
+.chatBody {
+    margin-top: 4px;
+    line-height: 1.55;
+}
+
+.mentionsMe {
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--warn) 12%, transparent);
 }

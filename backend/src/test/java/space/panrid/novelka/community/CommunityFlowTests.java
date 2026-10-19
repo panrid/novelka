@@ -265,6 +265,89 @@ class CommunityFlowTests {
                 .as("the library stays as it was").isEqualTo("reading");
     }
 
+    @Test
+    void theChatHasChannelsWithUnreadCountsRolesAndMentions() {
+        JsonNode channels = read(new Browser(port).get("/api/chat/channels"));
+        assertThat(channels.path(0).path("slug").asString()).as("«загальний» comes first").isEqualTo("general");
+        assertThat(channels.path(0).path("name").asString()).isEqualTo("загальний");
+        assertThat(channels).extracting(channel -> channel.path("slug").asString()).contains("translation", "what-to-read", "site");
+
+        read(translator.browser().post("/api/chat", json("body", "Як краще: «підземелля» чи «лабіринт»?", "channel", "translation")));
+        JsonNode said = read(new Browser(port).get("/api/chat?channel=translation"));
+        long seen = said.get(said.size() - 1).path("id").asLong();
+        assertThat(reader.browser().post("/api/chat/channels/translation/read", json("upTo", seen)).status()).isEqualTo(204);
+        assertThat(unread(reader, "translation")).isZero();
+        read(translator.browser().post("/api/chat", json("body", "@" + reader.nick() + " а ви як думаєте?", "channel", "translation")));
+        assertThat(unread(reader, "translation")).isEqualTo(1);
+        assertThat(unread(translator, "translation")).as("one's own lines count as read").isZero();
+
+        JsonNode lines = read(reader.browser().get("/api/chat?channel=translation"));
+        JsonNode mention = lines.get(lines.size() - 1);
+        assertThat(mention.path("mentionsMe").asBoolean()).isTrue();
+        assertThat(mention.path("authorRole").asString()).as("someone with a translation").isEqualTo("translator");
+        assertThat(read(reader.browser().get("/api/chat")).toString()).as("each channel keeps to itself").doesNotContain("лабіринт");
+        assertThat(inbox(reader, 1).path("items").path(0).path("payload").path("channel").asString()).isEqualTo("translation");
+
+        // A reply stays in the channel of the line it answers; unknown channels are not there.
+        assertThat(reader.browser().post("/api/chat", json("body", "Підземелля", "replyTo", mention.path("id").asLong())).status())
+                .isEqualTo(404);
+        assertThat(reader.browser().post("/api/chat", json("body", "Привіт", "channel", "nope")).status()).isEqualTo(404);
+        assertThat(new Browser(port).get("/api/chat?channel=nope").status()).isEqualTo(404);
+    }
+
+    @Test
+    void theChatListsWhoIsOnTheSiteUnlessTheyChoseNotToBeSeen() {
+        reader.browser().stream("/api/events");
+        eventually(() -> read(new Browser(port).get("/api/chat/online")),
+                online -> online.path("people").toString().contains("\"" + reader.nick() + "\""));
+        assertThat(read(reader.browser().put("/api/me/presence", json("showOnline", false))).path("showOnline").asBoolean()).isFalse();
+        assertThat(read(new Browser(port).get("/api/chat/online")).path("people").toString()).doesNotContain("\"" + reader.nick() + "\"");
+        assertThat(read(reader.browser().get("/api/me/presence")).path("showOnline").asBoolean()).isFalse();
+        assertThat(read(reader.browser().put("/api/me/presence", json("showOnline", true))).path("showOnline").asBoolean()).isTrue();
+    }
+
+    @Test
+    void theInboxFiltersByKindAndEachTopicCanStayOffTheSite() {
+        long question = read(reader.browser().post(comments(), json("chapter", 1, "body", "@" + translator.nick() + " питання"))).path("id")
+                .asLong();
+        read(reader.browser().post(comments(), json("chapter", 1, "body", "Ще одне", "replyTo", question)));
+        JsonNode all = inbox(translator, 1);
+        assertThat(all.path("groups").path("replies").path("total").asInt()).isEqualTo(1);
+        assertThat(all.path("groups").path("all").path("total").asInt()).isEqualTo(all.path("total").asInt());
+        assertThat(read(translator.browser().get("/api/notifications?group=replies")).path("items")).hasSize(1);
+        assertThat(read(translator.browser().get("/api/notifications?group=chapters")).path("items")).isEmpty();
+        assertThat(translator.browser().get("/api/notifications?group=nope").status()).isEqualTo(400);
+
+        JsonNode choices = read(reader.browser().put("/api/me/notification-choices/replies", json("site", false)));
+        assertThat(choices).filteredOn(choice -> choice.path("topic").asString().equals("replies")).singleElement()
+                .satisfies(choice -> {
+                    assertThat(choice.path("site").asBoolean()).isFalse();
+                    assertThat(choice.path("telegram").asBoolean()).as("untouched").isTrue();
+                });
+        assertThat(read(reader.browser().put("/api/me/notification-choices/messages", json("site", false))))
+                .filteredOn(choice -> choice.path("topic").asString().equals("messages")).singleElement()
+                .satisfies(choice -> assertThat(choice.path("site").asBoolean()).as("messages live on the site").isTrue());
+        assertThat(reader.browser().put("/api/me/notification-choices/nope", json("site", false)).status()).isEqualTo(404);
+        read(translator.browser().post(comments(), json("chapter", 1, "body", "Відповідь", "replyTo", question)));
+        read(translator.browser().post(comments(), json("chapter", 1, "body", "@" + reader.nick() + " гляньте")));
+        // New chapters are still on the site: once they arrive, the reply and the mention before them were skipped.
+        assertThat(reader.browser().put("/api/library/" + edition, json("list", "reading")).status()).isEqualTo(204);
+        assertThat(reader.browser().put("/api/library/" + edition + "/subscription", "{}").status()).isEqualTo(204);
+        publish(2);
+        JsonNode items = eventually(() -> inbox(reader), page -> page.path("items").size() >= 1).path("items");
+        assertThat(items).extracting(item -> item.path("kind").asString()).as("replies and mentions are off on the site")
+                .containsOnly("new_chapters");
+    }
+
+    private int unread(Person person, String channel) {
+        for (JsonNode found : read(person.browser().get("/api/chat/channels"))) {
+            if (found.path("slug").asString().equals(channel)) {
+                return found.path("unread").asInt();
+            }
+        }
+        throw new AssertionError("no channel " + channel);
+    }
+
     private static JsonNode read(Response response) {
         assertThat(response.status()).as(response.body()).isBetween(200, 299);
         return JSON.readTree(response.body());

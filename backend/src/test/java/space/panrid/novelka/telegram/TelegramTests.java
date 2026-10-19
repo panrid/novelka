@@ -99,7 +99,8 @@ class TelegramTests {
         assertThat(got).hasSize(3);
         assertThat(got.get(2)).contains(anna.nick() + " згадує вас у чаті").contains("/inbox/chat");
 
-        bohdan.browser().patch("/api/me/telegram", json("notifyInbox", false));
+        // «Сповіщення» in the settings: replies and mentions stay on the site only.
+        bohdan.browser().put("/api/me/notification-choices/replies", json("telegram", false));
         anna.browser().post("/api/chat", json("body", "Ще раз, @" + bohdan.nick()));
         // Reading the conversation starts a new streak; this message is the marker that the mention was skipped.
         JsonNode lines = read(bohdan.browser().get("/api/conversations/" + conversation)).path("lines");

@@ -10,6 +10,8 @@ export type NotificationKind = 'reply' | 'mention' | 'team_mention' | 'new_chapt
 export type NotificationPayload = {
     editionId?: number; slug?: string; novelTitle?: string; teamHandle?: string;
     chapterNumber?: number; chapterLabel?: string; actorNick?: string; excerpt?: string; where?: 'comment' | 'chat';
+    /** A chat mention: the channel's slug. */
+    channel?: string;
     commentId?: number; first?: number; last?: number; accepted?: number; rejected?: number; count?: number; shah?: number; note?: string;
     /** New chapters: the numbers readers see, a lone chapter's name and the cover. */
     firstLabel?: string; lastLabel?: string; chapterTitle?: string; coverUrl?: string;
@@ -23,12 +25,23 @@ export type NotificationPayload = {
 
 export type Notification = { id: number; kind: NotificationKind; payload: NotificationPayload; createdAt: string; read: boolean };
 
+/** The filters of «Вхідні» (етап 20): what each one holds. */
+export const NOTIFICATION_GROUPS = ['chapters', 'edits', 'replies', 'studio', 'system'] as const;
+export type NotificationGroup = (typeof NOTIFICATION_GROUPS)[number];
+export type GroupCount = { total: number; unread: number };
+
+/** Where each topic of notifications goes: «Сповіщення» in the settings. */
+export type NotificationTopic = 'chapters' | 'replies' | 'messages' | 'edits' | 'source' | 'other';
+export type NotificationChoice = { topic: NotificationTopic; site: boolean; telegram: boolean };
+
 export const notificationApi = {
     /** 20 to a page, newest first; newest is the newest of all, for marking them seen. */
     /** {@code archived}: the rows put away instead of the list; the page always says how many are there. */
-    page: (page = 1, archived = false) => api<{
+    /** {@code group}: one filter of «Вхідні»; the counts of every filter come either way. */
+    page: (page = 1, archived = false, group?: NotificationGroup) => api<{
         items: Notification[]; unread: number; hasMore: boolean; total: number; page: number; newest: number | null; archived: number;
-    }>(`/api/notifications?page=${page}${archived ? '&archived=true' : ''}`),
+        groups?: Partial<Record<NotificationGroup | 'all', GroupCount>>;
+    }>(`/api/notifications?page=${page}${archived ? '&archived=true' : ''}${group ? `&group=${group}` : ''}`),
     unread: () => api<{ unread: number }>('/api/notifications/unread'),
     read: (upTo?: number) => api<{ unread: number }>('/api/notifications/read', json('POST', { upTo: upTo ?? null })),
     /** The chosen rows, or (no ids) all of the list; put away they count as seen. */
@@ -38,6 +51,9 @@ export const notificationApi = {
     /** For good: the chosen rows, or all of the list or of the archive. */
     remove: (ids: number[] | undefined, archived: boolean) =>
         api<{ unread: number }>('/api/notifications/delete', json('POST', { ids: ids ?? null, archived })),
+    choices: () => api<NotificationChoice[]>('/api/me/notification-choices'),
+    choose: (topic: NotificationTopic, change: { site?: boolean; telegram?: boolean }) =>
+        api<NotificationChoice[]>(`/api/me/notification-choices/${topic}`, json('PUT', change)),
 };
 
 // ---- conversations ------------------------------------------------------------------------------
@@ -94,13 +110,33 @@ export const messagingApi = {
 
 // ---- site chat ----------------------------------------------------------------------------------
 
+export type ChatRole = 'owner' | 'admin' | 'moderator' | 'translator' | 'reader';
+
 export type ChatLine = {
     id: number; authorNick: string; authorAvatarUrl: string | null; body: string; createdAt: string;
     replyTo: number | null; replyExcerpt: string | null; mine: boolean;
+    /** Who the author is on the site. */
+    authorRole?: ChatRole;
+    /** The line names the viewer: it stands out. */
+    mentionsMe?: boolean;
 };
 
+/** A channel of the site chat; {@code unread}: lines by others not seen yet (up to 100). */
+export type ChatChannel = { slug: string; name: string; about: string; unread: number };
+
+export const GENERAL_CHANNEL = 'general';
+
+export type OnlinePeople = { count: number; people: { nick: string; avatarUrl: string | null }[] };
+
 export const chatApi = {
-    lines: (before?: number) => api<ChatLine[]>(`/api/chat${before ? `?before=${before}` : ''}`),
-    say: (body: string, replyTo: number | null) => api<{ id: number }>('/api/chat', json('POST', { body, replyTo })),
+    channels: () => api<ChatChannel[]>('/api/chat/channels'),
+    lines: (channel: string, before?: number) =>
+        api<ChatLine[]>(`/api/chat?channel=${encodeURIComponent(channel)}${before ? `&before=${before}` : ''}`),
+    say: (channel: string, body: string, replyTo: number | null) =>
+        api<{ id: number }>('/api/chat', json('POST', { body, replyTo, channel })),
+    read: (channel: string, upTo: number) => api<void>(`/api/chat/channels/${encodeURIComponent(channel)}/read`, json('POST', { upTo })),
     remove: (id: number) => api<void>(`/api/chat/${id}`, { method: 'DELETE' }),
+    online: () => api<OnlinePeople>('/api/chat/online'),
+    presence: () => api<{ showOnline: boolean }>('/api/me/presence'),
+    showOnline: (showOnline: boolean) => api<{ showOnline: boolean }>('/api/me/presence', json('PUT', { showOnline })),
 };
