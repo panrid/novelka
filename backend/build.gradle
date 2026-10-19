@@ -41,8 +41,8 @@ dependencies {
     runtimeOnly 'org.postgresql:postgresql'
     implementation 'org.jsoup:jsoup:1.23.2'
     // Reads WebP and unusual JPEGs (CMYK, broken metadata) that plain ImageIO rejects.
-    runtimeOnly 'com.twelvemonkeys.imageio:imageio-webp:3.15.2'
-    runtimeOnly 'com.twelvemonkeys.imageio:imageio-jpeg:3.15.2'
+    runtimeOnly 'com.twelvemonkeys.imageio:imageio-webp:3.15.3'
+    runtimeOnly 'com.twelvemonkeys.imageio:imageio-jpeg:3.15.3'
 
     developmentOnly platform("org.springframework.boot:spring-boot-dependencies:$bootVersion")
     developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
