@@ -345,6 +345,28 @@
     cursor: pointer;
 }
 
+/* Безшовне читання (етап 20, рішення 7): where this chapter ends and the next one begins. */
+.chapterDivider {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    max-width: var(--reading-width, 42rem);
+    margin: 48px auto 8px;
+    padding: 0 var(--gutter);
+    color: var(--muted);
+    font: 600 13px var(--font-ui);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.chapterDivider::before,
+.chapterDivider::after {
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+    content: '';
+}
+
 /* The pencil left of the paragraph under the mouse (етап 20, рішення 3). */
 .pencil {
     position: absolute;

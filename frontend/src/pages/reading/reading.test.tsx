@@ -166,6 +166,21 @@ describe('reader', () => {
     });
 });
 
+describe('seamless reading (етап 20)', () => {
+    it('shows the next chapter after this one under its divider', async () => {
+        const NEXT = { ...CHAPTER, number: 13, title: 'Ринок', previous: 12, next: null,
+            blocks: [{ id: 'n1', type: 'paragraph', content: [{ text: 'На ринку було людно.', marks: [] }], imageUrl: null }] };
+        await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { status: 204 },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'GET /api/novels/mah-vody/chapters/13': { body: NEXT },
+        });
+        expect(await screen.findByText('На ринку було людно.')).toBeInTheDocument();
+        expect(screen.getByRole('region', { name: /Далі: .*Ринок/ })).toBeInTheDocument();
+        expect(screen.getByText('Глава 13')).toBeInTheDocument();
+    });
+});
+
 describe('library', () => {
     it('asks guests to sign in', async () => {
         await renderAt('/library');

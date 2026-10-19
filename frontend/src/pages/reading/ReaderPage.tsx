@@ -94,14 +94,26 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     // already have scrolled the next page to the top, and 0 would overwrite the real place.
     const place = useRef(0);
     const search = team ? { t: team } : {};
+    const routerState = useRouterState();
 
     // The component is keyed by chapter, so what it was opened with stays fixed for its life;
     // later cache updates (saved place) must not re-run the restore or re-subscribe listeners.
     const [opened] = useState(chapter);
     const lookOnly = useRef(Boolean(find) || look);
 
+    // Came here reading on from the chapter before (безшовне читання): the same paragraph stays where it was.
+    const [arrived] = useState(() => routerState.location.state.seamless);
+
     // Start where the reader stopped: from the server (any device), else from this browser.
     useEffect(() => {
+        if (arrived) {
+            requestAnimationFrame(() => {
+                const anchor = arrived.anchor ? document.querySelector(`[data-block-id="${CSS.escape(arrived.anchor)}"]`) : null;
+                window.scrollTo(0, anchor ? anchor.getBoundingClientRect().top + window.scrollY - arrived.offset : 0);
+                place.current = currentPosition();
+            });
+            return;
+        }
         // Opened to show a word (from the glossary): go to where it first appears.
         const mark = find ? document.querySelector('mark[data-found]') : null;
         if (mark) {
@@ -116,7 +128,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
         } else {
             window.scrollTo(0, 0);
         }
-    }, [opened, find]);
+    }, [opened, find, arrived]);
 
     const save = useCallback((force: boolean) => {
         // Opened to show a word or to review suggestions: a look, not reading — the place stays.
@@ -276,7 +288,10 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
             if (hideBars.current) setBarsVisible(false);
         },
         onBeforeStart: () => { if (chapter.previous) void navigate(chapterLink(chapter.previous)); },
-        onAfterEnd: () => { if (chapter.next) void navigate(chapterLink(chapter.next)); },
+        // Безшовне читання: past the last page the next chapter opens at its first page.
+        onAfterEnd: () => {
+            if (chapter.next) void navigate({ ...chapterLink(chapter.next), ...(view.seamless ? { state: { seamless: { anchor: null, offset: 0 } } } : {}) });
+        },
     });
 
     useEffect(() => {
@@ -459,6 +474,17 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                 </nav>
                 {!chapter.teamRole && <ReportEdition editionId={chapter.edition.editionId} chapterLabel={chapter.label ?? String(chapter.number)} chapterNumber={chapter.number} />}
             </article>
+            )}
+            {!paged && view.seamless && chapter.next && !reviewing && !editMode && !find && !look && (
+                <NextChapter slug={chapter.novelSlug} team={team} number={chapter.next} style={{
+                    fontSize: view.size, fontFamily: FONT_STACKS[view.font], lineHeight: view.lineHeight, textAlign: view.align,
+                    hyphens: view.align === 'justify' ? 'auto' : 'manual', maxWidth: READER_WIDTHS[view.width], paddingInline: view.margin,
+                }} paragraphs={view.paragraphs} onReached={(anchor, offset) => {
+                    // The chapter is read to its end: that is saved (and marks it read) before the next one opens.
+                    place.current = 1;
+                    save(true);
+                    void navigate({ ...chapterLink(chapter.next!), state: { seamless: { anchor, offset } } });
+                }} />
             )}
 
             {!reviewing && (
@@ -698,8 +724,11 @@ function useWakeLock(on: boolean) {
     }, [on]);
 }
 
+/** How far the chapter scrolls: to its end, not into the next chapter shown after it (безшовне читання). */
 function scrollable() {
-    return Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    const end = document.querySelector('[data-chapter-end]');
+    const bottom = end ? end.getBoundingClientRect().top + window.scrollY : document.documentElement.scrollHeight;
+    return Math.max(1, bottom - window.innerHeight);
 }
 
 function currentPosition() {
@@ -768,5 +797,42 @@ function HoverPencil({ onEdit }: { onEdit: (blockId: string) => void }) {
             <PenLine size={18} aria-hidden />
         </button>,
         document.body,
+    );
+}
+
+/**
+ * Безшовне читання (етап 20, рішення 7): the next chapter, fetched ahead, follows this one under its
+ * divider. When the divider passes the top of the screen the reader moves on to it, keeping the paragraph
+ * in view where it is, so the chapter behind leaves the page and the address and header follow.
+ */
+function NextChapter({ slug, team, number, style, paragraphs, onReached }: {
+    slug: string; team: string | undefined; number: number; style: React.CSSProperties; paragraphs: string;
+    onReached: (anchor: string | null, offset: number) => void;
+}) {
+    const next = useQuery({ ...chapterQuery(slug, number, team), retry: false });
+    const divider = useRef<HTMLDivElement>(null);
+    const body = useRef<HTMLElement>(null);
+    const gone = useRef(false);
+    useEffect(() => {
+        if (!next.data) return;
+        const onScroll = () => {
+            const top = divider.current?.getBoundingClientRect().top;
+            if (gone.current || top === undefined || top > 0) return;
+            gone.current = true;
+            const first = Array.from(body.current?.querySelectorAll('[data-block-id]') ?? []).find((element) => element.getBoundingClientRect().bottom > 0);
+            onReached(first?.getAttribute('data-block-id') ?? null, first ? first.getBoundingClientRect().top : 0);
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, [next.data, onReached]);
+    if (!next.data) return <div data-chapter-end />;
+    return (
+        <section data-chapter-end aria-label={`Далі: ${chapterHeading(next.data)}`}>
+            <div ref={divider} className={styles.chapterDivider} role="separator">Глава {next.data.label ?? number}</div>
+            <article ref={body} className={styles.text} lang="uk" data-paragraphs={paragraphs} style={style}>
+                <h2 className={styles.chapterTitle}>{chapterHeading(next.data)}</h2>
+                <Blocks blocks={next.data.blocks} />
+            </article>
+        </section>
     );
 }

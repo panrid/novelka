@@ -99,6 +99,8 @@ export function ReaderLookForm() {
             </div>
 
             <Toggle label="Ховати панелі, поки читаю" isSelected={look.hideBars} onChange={(hideBars) => setReader({ hideBars })} />
+            <Toggle label="Безшовне читання: наступна глава одразу після цієї" isSelected={look.seamless}
+                onChange={(seamless) => setReader({ seamless })} />
             <Toggle label="Відсоток прочитаного" isSelected={look.percent} onChange={(percent) => setReader({ percent })} />
             <Toggle label="Годинник" isSelected={look.clock} onChange={(clock) => setReader({ clock })} />
             <Toggle label="Не гасити екран, поки читаю" isSelected={look.awake} onChange={(awake) => setReader({ awake })} />

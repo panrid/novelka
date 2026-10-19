@@ -69,6 +69,8 @@ export type ReaderLook = {
     /** Links and marks in the text; null keeps the palette's own. */
     accent: string | null;
     hideBars: boolean;
+    /** Безшовне читання (етап 20, рішення 7): the next chapter follows at the end of this one. */
+    seamless: boolean;
     clock: boolean;
     percent: boolean;
     awake: boolean;
@@ -249,7 +251,7 @@ export const READER_MARGIN = { min: 0, max: 48 } as const;
 
 const READER_DEFAULTS: ReaderLook = {
     preset: 'site', custom: false, mode: 'scroll', pageAnim: 'slide', font: 'literata', size: 18, lineHeight: 1.75, align: 'left', paragraphs: 'gap',
-    width: 'medium', margin: 16, colors: 'site', bg: '#f4ecd8', text: '#3b2f22', taps: 'sides', accent: null, hideBars: true, clock: false, percent: true, awake: false,
+    width: 'medium', margin: 16, colors: 'site', bg: '#f4ecd8', text: '#3b2f22', taps: 'sides', accent: null, hideBars: true, seamless: true, clock: false, percent: true, awake: false,
 };
 
 export const READER_PRESETS: { value: ReaderPreset; label: string; look: Partial<ReaderLook> }[] = [
@@ -333,7 +335,7 @@ const SITE_ONE_OF: { [K in keyof SiteLook]?: readonly unknown[] } = {
     scale: SITE_SCALES,
 };
 const SITE_RANGE: { [K in keyof SiteLook]?: [number, number] } = { bg: [0, 5], radius: [0, 24] };
-const FLAGS: (keyof ReaderLook)[] = ['custom', 'hideBars', 'clock', 'percent', 'awake'];
+const FLAGS: (keyof ReaderLook)[] = ['custom', 'hideBars', 'seamless', 'clock', 'percent', 'awake'];
 
 /** Only the keys and values this version knows: an older or damaged copy never breaks the page. */
 export function clean(raw: unknown): Appearance {

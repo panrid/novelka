@@ -61,6 +61,7 @@ final class Appearance {
             Map.entry("taps", oneOf("sides", "forward", "vertical", "none")),
             Map.entry("accent", Appearance::color),
             Map.entry("hideBars", JsonNode::isBoolean),
+            Map.entry("seamless", JsonNode::isBoolean),
             Map.entry("clock", JsonNode::isBoolean),
             Map.entry("percent", JsonNode::isBoolean),
             Map.entry("awake", JsonNode::isBoolean));
