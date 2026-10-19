@@ -272,6 +272,83 @@ class SuggestionService implements space.panrid.novelka.suggestion.Suggestions {
         return draftIds.size();
     }
 
+    /**
+     * A change in a batch sent at once (the API, етап 22.3): a paragraph as it should read
+     * ({@code blockId} and {@code content}) or a replacement within the chapter ({@code find} and {@code replacement}).
+     */
+    record Item(int chapter, String blockId, List<Span> content, String find, String replacement) {
+    }
+
+    /** At most this many changes in one batch: a day's drafts are 300. */
+    static final int BATCH_MAX = 100;
+
+    /**
+     * Sends the changes as one batch for the team to review, checked as drafts are (the chapter is
+     * one the author may read, the paragraph is there and changed, the fragment is found), and only
+     * them: drafts the author keeps on the site stay drafts. All or nothing.
+     *
+     * @return the suggestions sent, in the order given
+     */
+    @Transactional
+    List<Long> sendBatch(Viewer viewer, long editionId, List<Item> items, String note) {
+        if (items == null || items.isEmpty()) {
+            throw UserFacingException.badRequest("Немає правок, щоб надіслати.");
+        }
+        if (items.size() > BATCH_MAX) {
+            throw UserFacingException.badRequest("За раз — до %d правок.".formatted(BATCH_MAX));
+        }
+        List<Long> ids = new ArrayList<>();
+        for (Item item : items) {
+            boolean replace = item.find() != null;
+            if (replace == (item.blockId() != null)) {
+                throw UserFacingException.badRequest("Кожна правка — або абзац (block і content), або заміна (find і replacement).");
+            }
+            long id = replace ? draftReplace(viewer, editionId, item.chapter(), item.find(), item.replacement(), note)
+                    : draftBlock(viewer, editionId, item.chapter(), item.blockId(), item.content(), note);
+            if (!ids.contains(id)) {
+                ids.add(id);
+            }
+        }
+        long batch = db.insertInto(SUGGESTION_BATCH)
+                .set(SUGGESTION_BATCH.EDITION_ID, editionId)
+                .set(SUGGESTION_BATCH.AUTHOR_ID, viewer.accountId())
+                .returning(SUGGESTION_BATCH.ID)
+                .fetchOne(SUGGESTION_BATCH.ID);
+        db.update(SUGGESTION).set(SUGGESTION.STATE, "pending").set(SUGGESTION.BATCH_ID, batch).set(SUGGESTION.UPDATED_AT, now())
+                .where(SUGGESTION.ID.in(ids)).execute();
+        events.publishEvent(new SuggestionsSubmitted(editionId, viewer.accountId(), ids.size()));
+        return ids;
+    }
+
+    /** What a review across chapters did: each chapter's own result. */
+    record ChapterReview(int chapter, ReviewResult result) {
+    }
+
+    /**
+     * The reviewer's decisions on suggestions of any chapters of the edition (the API, етап 22.3):
+     * reviewed chapter by chapter as in the reader, one revision per chapter, all in one transaction.
+     */
+    @Transactional
+    List<ChapterReview> reviewAcross(Viewer reviewer, long editionId, List<Decision> decisions, String note) {
+        if (decisions == null || decisions.isEmpty()) {
+            throw UserFacingException.badRequest("Немає рішень щодо правок.");
+        }
+        Map<Long, Integer> chapterOf = db.select(SUGGESTION.ID, CHAPTER.NUMBER).from(SUGGESTION).join(CHAPTER).on(CHAPTER.ID.eq(SUGGESTION.CHAPTER_ID))
+                .where(CHAPTER.EDITION_ID.eq(editionId), SUGGESTION.ID.in(decisions.stream().map(Decision::id).toList()))
+                .fetchMap(SUGGESTION.ID, CHAPTER.NUMBER);
+        Map<Integer, List<Decision>> byChapter = new java.util.TreeMap<>();
+        for (Decision decision : decisions) {
+            Integer number = chapterOf.get(decision.id());
+            if (number == null) {
+                throw UserFacingException.notFound("Правки %d у цьому перекладі немає.".formatted(decision.id()));
+            }
+            byChapter.computeIfAbsent(number, key -> new ArrayList<>()).add(decision);
+        }
+        List<ChapterReview> out = new ArrayList<>();
+        byChapter.forEach((number, chosen) -> out.add(new ChapterReview(number, review(reviewer, editionId, number, chosen, note))));
+        return out;
+    }
+
     int occurrences(Viewer viewer, long editionId, int number, String find) {
         return find == null || find.isBlank() ? 0 : occurrences(readable(viewer, editionId, number).blocks(), find);
     }

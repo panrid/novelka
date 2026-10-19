@@ -2,7 +2,9 @@ package space.panrid.novelka.access;
 
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.EDITION;
+import static space.panrid.novelka.jooq.Tables.NOVEL;
 import static space.panrid.novelka.jooq.Tables.SHAH_BALANCE;
+import static space.panrid.novelka.jooq.Tables.TEAM;
 
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -52,6 +54,18 @@ public class AccessPolicy implements AiVisibility {
     /** The team owner: title, description, cover, status, access. */
     public EditionAccess requireEditionOwner(long editionId) {
         return requireRole(editionId, TeamRole::manages);
+    }
+
+    /**
+     * The translation an API address names (етап 22.3): the novel's slug and its team's handle, as
+     * the public API names it. Only the address is resolved here; the rights are asked of the
+     * {@code require…} checks after it, so a translation in the bin still says so.
+     */
+    public long editionAt(String novelSlug, String teamHandle) {
+        return db.select(EDITION.ID).from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
+                .where(NOVEL.SLUG.eq(novelSlug), TEAM.HANDLE_KEY.eq(space.panrid.novelka.platform.text.Handles.key(teamHandle)))
+                .orderBy(EDITION.DELETED_AT.asc().nullsFirst(), EDITION.ID.desc()).limit(1)
+                .fetchOptional(EDITION.ID).orElseThrow(() -> UserFacingException.notFound("Такого перекладу немає."));
     }
 
     /** The viewer's role in the edition's team, without failing. */
