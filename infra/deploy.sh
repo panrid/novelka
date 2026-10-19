@@ -59,3 +59,7 @@ for container in $old; do
 done
 
 $compose ps
+
+# Metrics, logs and alerts (infra/monitoring): a project of their own, started only once the owner made
+# .env.monitoring. The site is already up at this point, so a failure here only warns.
+sh infra/monitoring/up.sh || echo "Monitoring did not start; the site is not affected." >&2

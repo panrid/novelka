@@ -1,0 +1,357 @@
+# Alerts to Telegram (план, етап 23, пп. 4, 5, 8). Each rule: query A, then threshold C on it.
+# Thresholds are the numbers in C (and the spend per day in .env.monitoring, ALERT_AI_USD_PER_DAY).
+# Queries are read with environment variables substituted, so no «$» in them except ${…}.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: Сайт
+    folder: Тривоги Новелки
+    interval: 1m
+    rules:
+      - uid: novelka-5xx
+        title: Помилки 5xx
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 600, to: 0 }
+            model:
+              refId: A
+              instant: true
+              range: false
+              expr: sum(increase(http_server_requests_seconds_count{job="app", status=~"5.."}[5m]))
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [5] }
+        annotations:
+          summary: Сайт відповідає помилками 5xx
+          description: 'За 5 хв — {{ printf "%.0f" $values.A.Value }} відповідей 5xx (поріг — 5). Причина — у журналі, панель «Сайт».'
+
+      - uid: novelka-slow
+        title: Повільні відповіді
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 900, to: 0 }
+            model:
+              refId: A
+              instant: true
+              range: false
+              # 95 % of answers (without the live event stream, which stays open for hours), and only
+              # when there were at least 20 requests, so one slow upload does not raise an alarm.
+              expr: >-
+                histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job="app", uri!="/api/events"}[10m])))
+                and on() sum(increase(http_server_requests_seconds_count{job="app", uri!="/api/events"}[10m])) > 20
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [3] }
+        annotations:
+          summary: Сайт відповідає повільно
+          description: '95 % відповідей за останні 10 хв — довше ніж {{ printf "%.1f" $values.A.Value }} с (поріг — 3 с).'
+
+      - uid: novelka-metrics-missing
+        title: Немає метрик застосунку
+        condition: C
+        for: 5m
+        noDataState: Alerting
+        execErrState: Error
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 600, to: 0 }
+            model:
+              refId: A
+              instant: true
+              range: false
+              expr: sum(up{job="app"})
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+        annotations:
+          summary: Prometheus не бачить застосунок
+          description: 'Порт метрик (app:8081) не відповідає вже 5 хв. Якщо сайт працює — перевірте мережу в infra/monitoring/compose.yaml.'
+
+      - uid: novelka-server-errors
+        title: Помилки сервера в журналі
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            datasourceUid: loki
+            queryType: instant
+            relativeTimeRange: { from: 300, to: 0 }
+            model:
+              refId: A
+              queryType: instant
+              expr: sum(count_over_time({compose_project="novelka", compose_service="app", level="ERROR"}[5m]))
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        annotations:
+          summary: Помилки сервера в журналі
+          description: 'За 5 хв — {{ printf "%.0f" $values.A.Value }} записів ERROR. Текст і стек — панель «Сайт», «Помилки сервера».'
+
+      - uid: novelka-browser-errors
+        title: Сплеск помилок у браузерах
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            datasourceUid: loki
+            queryType: instant
+            relativeTimeRange: { from: 900, to: 0 }
+            model:
+              refId: A
+              queryType: instant
+              expr: sum(count_over_time({compose_project="novelka", compose_service="app"} |= "client-errors" [15m]))
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [30] }
+        annotations:
+          summary: Сплеск помилок у браузерах читачів
+          description: 'За 15 хв — {{ printf "%.0f" $values.A.Value }} помилок з браузерів (поріг — 30). Панель «Сайт», «Помилки в браузерах».'
+
+  - orgId: 1
+    name: Автопереклад і ШІ
+    folder: Тривоги Новелки
+    interval: 1m
+    rules:
+      - uid: novelka-autotranslate-stalled
+        title: Автопереклад стоїть
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 600, to: 0 }
+            model:
+              refId: A
+              instant: true
+              range: false
+              expr: max(novelka_autotranslate_idle_seconds) / 60
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [30] }
+        annotations:
+          summary: Автопереклад стоїть
+          description: 'Глави чекають у черзі, але нічого не рухається вже {{ printf "%.0f" $values.A.Value }} хв. Панель «Автопереклад» і журнал.'
+
+      - uid: novelka-ai-spend
+        title: Витрати на ШІ за день
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 600, to: 0 }
+            model:
+              refId: A
+              instant: true
+              range: false
+              expr: max(novelka_ai_spent_today_usd) > ${ALERT_AI_USD_PER_DAY}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        annotations:
+          summary: Витрати на ШІ за день понад поріг
+          description: 'Сьогодні (з півночі за Києвом) витрачено {{ printf "%.2f" $values.A.Value }} USD. Поріг — ALERT_AI_USD_PER_DAY у .env.monitoring.'
+
+  - orgId: 1
+    name: Сервер і копії
+    folder: Тривоги Новелки
+    interval: 5m
+    rules:
+      - uid: novelka-disk
+        title: Диск заповнений
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 600, to: 0 }
+            model:
+              refId: A
+              instant: true
+              range: false
+              expr: >-
+                max(100 * (1 - node_filesystem_avail_bytes{mountpoint="/", fstype!~"tmpfs|overlay"}
+                / node_filesystem_size_bytes{mountpoint="/", fstype!~"tmpfs|overlay"}))
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [80] }
+        annotations:
+          summary: Диск сервера заповнений понад 80 %
+          description: 'Зайнято {{ printf "%.0f" $values.A.Value }} %. Найбільше місця зазвичай беруть копії (том novelka_backups), журнали й образи Docker.'
+
+      # Backups: the status files of infra/backup.sh (план, етап 23, п. 8) in the volume novelka_backups,
+      # read by node-exporter. Before those files exist the rules see no data and stay quiet.
+      - uid: novelka-backup-failed
+        title: Резервна копія не вдалася
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 600, to: 0 }
+            model:
+              refId: A
+              instant: true
+              range: false
+              expr: min by (part) (novelka_backup_last_ok)
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+        annotations:
+          summary: Резервна копія не вдалася
+          description: 'Остання спроба копії {{ if eq $labels.part "media" }}картинок{{ else }}бази{{ end }} не вдалася. Причина — у журналі: docker logs novelka-backup-1 (рядок BACKUP FAILED).'
+
+      - uid: novelka-backup-late
+        title: Резервна копія не зробилась
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 600, to: 0 }
+            model:
+              refId: A
+              instant: true
+              range: false
+              expr: (time() - max by (part) (novelka_backup_last_success_timestamp_seconds)) / 3600
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [30] }
+        annotations:
+          summary: Резервна копія не зробилась
+          description: 'Остання добра копія {{ if eq $labels.part "media" }}картинок{{ else }}бази{{ end }} — {{ printf "%.0f" $values.A.Value }} год тому (робиться раз на добу). Журнал: docker logs novelka-backup-1.'
+
+      - uid: novelka-backup-offsite
+        title: Копії немає в iCloud
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 600, to: 0 }
+            model:
+              refId: A
+              instant: true
+              range: false
+              # Hours since the Mac's last copy; 100000 when it has never left its mark, but only once the
+              # server's own status file exists (not before the backup with status files is deployed).
+              expr: >-
+                ((time() - max(novelka_backup_offsite_last_success_timestamp_seconds{target="icloud"})) / 3600)
+                or (absent(novelka_backup_offsite_last_success_timestamp_seconds{target="icloud"}) * 100000
+                and on() (count(novelka_backup_last_ok) > 0))
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [48] }
+        annotations:
+          summary: Копії в iCloud немає понад 2 доби
+          description: '{{ if gt $values.A.Value 99999.0 }}Mac ще жодного разу не забрав копію.{{ else }}Mac востаннє забрав копію {{ printf "%.0f" $values.A.Value }} год тому.{{ end }} Перевірте, чи він вмикався й чи працює задача launchd.'
+
+      - uid: novelka-backup-failed-log
+        title: BACKUP FAILED у журналі
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            datasourceUid: loki
+            queryType: instant
+            relativeTimeRange: { from: 600, to: 0 }
+            model:
+              refId: A
+              queryType: instant
+              expr: sum(count_over_time({compose_project="novelka", compose_service="backup"} |= "BACKUP FAILED" [10m]))
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        annotations:
+          summary: Резервна копія повідомила про невдачу
+          description: 'У журналі контейнера backup — рядок BACKUP FAILED. Подробиці: docker logs novelka-backup-1.'

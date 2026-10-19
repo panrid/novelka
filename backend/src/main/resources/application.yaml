@@ -68,6 +68,29 @@ novelka:
     email: ${NOVELKA_OWNER_EMAIL:}
     password: ${NOVELKA_OWNER_PASSWORD:}
 
+# Metrics for Prometheus (план, етап 23, п. 5): a port of its own that Caddy never forwards, so
+# /actuator/prometheus is reachable only inside the Compose network (and on 127.0.0.1 locally).
+management:
+  server:
+    port: ${NOVELKA_MANAGEMENT_PORT:8081}
+    address: ${NOVELKA_MANAGEMENT_ADDRESS:${NOVELKA_SERVER_ADDRESS:127.0.0.1}}
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: never
+  metrics:
+    distribution:
+      # A few buckets instead of a full histogram: enough for «повільні відповіді» and cheap to keep.
+      slo:
+        "[http.server.requests]": 100ms,300ms,500ms,1s,2s,5s,10s
+  observations:
+    enable:
+      # The security filters' own timings add dozens of series and tell nothing http.server.requests does not.
+      "[spring.security]": false
+
 server:
   address: ${NOVELKA_SERVER_ADDRESS:127.0.0.1}
   port: ${NOVELKA_SERVER_PORT:8080}

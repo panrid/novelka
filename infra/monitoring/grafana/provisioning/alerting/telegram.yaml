@@ -1,0 +1,39 @@
+# Where alerts go: Telegram, the bot @novelka_watch_bot to the owner (the same bot and chat as the
+# uptime check, doc/deployment.md «Моніторинг»). Token and chat come from .env.monitoring.
+# One message when something starts, one when it is over; while it lasts, a reminder every 4 hours.
+apiVersion: 1
+
+templates:
+  - orgId: 1
+    name: novelka
+    template: |
+      {{ define "novelka.message" -}}
+      {{ range .Alerts.Firing }}🔴 {{ if .Annotations.summary }}{{ .Annotations.summary }}{{ else }}{{ .Labels.alertname }}{{ end }}
+      {{ with .Annotations.description }}{{ . }}
+      {{ end }}{{ with .Annotations.Error }}Перевірка не вдалася: {{ . }}
+      {{ end }}
+      {{ end }}{{ range .Alerts.Resolved }}🟢 Минуло: {{ if .Annotations.summary }}{{ .Annotations.summary }}{{ else }}{{ .Labels.alertname }}{{ end }}
+      {{ end }}Grafana: http://localhost:3000 (через SSH-тунель)
+      {{- end }}
+
+contactPoints:
+  - orgId: 1
+    name: Telegram
+    receivers:
+      - uid: novelka-telegram
+        type: telegram
+        disableResolveMessage: false
+        settings:
+          bottoken: ${WATCH_TELEGRAM_TOKEN}
+          chatid: "${WATCH_TELEGRAM_CHAT_ID}"
+          parse_mode: None
+          disable_web_page_preview: true
+          message: '{{ template "novelka.message" . }}'
+
+policies:
+  - orgId: 1
+    receiver: Telegram
+    group_by: [grafana_folder, alertname]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h

@@ -198,3 +198,92 @@ STATE=/tmp/uptime-state DRY_RUN=1 ADDRESS=https://127.0.0.1:9 bash .github/scrip
 
 GitHub може затримувати чи пропускати запуски за розкладом, коли перевантажений, — тоді тривога
 приходить на кілька хвилин пізніше.
+
+## Метрики, журнали й тривоги
+
+План, етап 23, п. 5. Усе на нашому сервері, окремим Compose-проєктом `novelka-monitoring`
+(`infra/monitoring/compose.yaml`): деплой сайту його не чіпає (`--remove-orphans` діє лише в
+межах проєкту `novelka`), а він не чіпає сайт.
+
+| Що | Для чого | Пам'ять (межа) |
+|---|---|---|
+| Prometheus | метрики, 15 днів (і не більше 3 ГБ) | 400 МБ |
+| Loki + Alloy | журнали всіх контейнерів, 15 днів | 400 + 200 МБ |
+| Grafana | панелі «Сайт», «Автопереклад», «Сервер» і тривоги в Telegram | 300 МБ |
+| node-exporter | процесор, пам'ять, диск, мережа; файли стану копій | 64 МБ |
+| postgres-exporter | PostgreSQL | 64 МБ |
+
+**Звідки метрики.** Застосунок віддає `/actuator/prometheus` на окремому порту **8081**
+(Spring Boot Actuator + Micrometer). Caddy пересилає лише 8080, тож ззовні метрик не видно;
+Prometheus читає `app:8081` через мережу `novelka_default` (обидві копії під час деплою). Свої
+метрики: `novelka_autotranslate_jobs{state}`, `novelka_autotranslate_steps{state="ready|waiting|running"}`,
+`novelka_autotranslate_chapters_done_last_hour`, `novelka_autotranslate_idle_seconds` (скільки нічого не
+рухається, коли є робота), `novelka_ai_spent_today_usd` (з півночі за Києвом; загублені відповіді — за
+оцінкою), `novelka_ai_calls_last_hour{state}`, `novelka_mail_sent_total{result}`. Вони читаються з бази
+в момент запиту Prometheus, тому однакові в обох копіях і не губляться при перезапуску. Копії бази —
+файли стану `status/*.prom` у томі `novelka_backups` (див. «Резервні копії»), node-exporter читає їх
+лише для читання; поки їх немає, тривоги копій мовчать.
+
+**Журнали.** Alloy читає журнали контейнерів через Docker (сокет лише для читання) і шле в Loki з
+мітками `compose_project`, `compose_service`, `container`; у рядків застосунку ще `level`, а стек
+помилки лишається з її рядком. Помилки з браузерів — рядки `client-errors`.
+
+**Grafana лише власнику.** Слухає тільки `127.0.0.1:3000` на сервері, назовні порту немає.
+Відкрити:
+
+```sh
+ssh -N -L 3000:127.0.0.1:3000 novelka@62.72.33.247
+```
+
+і http://localhost:3000, вхід `admin` з паролем з `.env.monitoring`. Панелі — у теці «Новелка»;
+змінювати їх треба в `infra/monitoring/grafana/dashboards/*.json` (зміни в самій Grafana наступний
+деплой скасує).
+
+**Тривоги** (`infra/monitoring/grafana/provisioning/alerting/rules.yaml`) — в Telegram тим самим
+ботом `@novelka_watch_bot`, що й перевірка доступності: «🔴 …» коли почалось, «🟢 Минуло: …» коли
+скінчилось, поки триває — нагадування раз на 4 год.
+
+| Тривога | Коли |
+|---|---|
+| Помилки 5xx | понад 5 відповідей 5xx за 5 хв |
+| Повільні відповіді | 95 % відповідей довші за 3 с протягом 10 хв (без `/api/events`, від 20 запитів) |
+| Немає метрик застосунку | Prometheus 5 хв не може прочитати `app:8081` |
+| Помилки сервера в журналі | хоч один рядок `ERROR` застосунку за 5 хв |
+| Сплеск помилок у браузерах | понад 30 рядків `client-errors` за 15 хв |
+| Автопереклад стоїть | глави чекають чи йдуть, а нічого не рухається понад 30 хв |
+| Витрати на ШІ за день | понад `ALERT_AI_USD_PER_DAY` (за замовчуванням 5 USD) з півночі за Києвом |
+| Диск заповнений | понад 80 % протягом 10 хв |
+| Резервна копія не вдалася | `novelka_backup_last_ok == 0` |
+| Резервна копія не зробилась | остання добра копія бази чи картинок старша за 30 год |
+| Копії немає в iCloud | остання копія на Mac старша за 2 доби, або її ще не було жодного разу |
+| BACKUP FAILED у журналі | такий рядок у журналі контейнера `backup` за 10 хв |
+
+Сам сервер не скаже, що впав, — це лишається за перевіркою доступності з GitHub Actions
+(«Моніторинг»).
+
+### Увімкнути (один раз, власник)
+
+Поки на сервері немає `/opt/novelka/.env.monitoring`, деплой пропускає цей крок (у журналі
+деплою «Monitoring: … skipped») і працює як раніше.
+
+1. На сервері створити `/opt/novelka/.env.monitoring` (права `600`, лише на сервері):
+
+   ```
+   GRAFANA_ADMIN_PASSWORD=<довгий випадковий пароль>
+   WATCH_TELEGRAM_TOKEN=<той самий токен, що UPTIME_TELEGRAM_TOKEN у секретах GitHub>
+   WATCH_TELEGRAM_CHAT_ID=<той самий id, що UPTIME_TELEGRAM_CHAT_ID>
+   ALERT_AI_USD_PER_DAY=5
+   ```
+
+2. Запустити деплой (Actions → Deploy production → Run workflow) або на сервері
+   `sh /opt/novelka/infra/monitoring/up.sh`. Перевірка: `docker compose -p novelka-monitoring ps` —
+   шість контейнерів `running`; у Grafana (тунель вище) в Connections → Data sources обидва
+   джерела «working», на панелі «Сайт» є запити.
+3. Перевірити Telegram: Alerting → Contact points → Telegram → Test — має прийти повідомлення.
+
+Команди на сервері — з `/opt/novelka`, з `m="docker compose --env-file .env.production --env-file
+.env.monitoring -f infra/monitoring/compose.yaml"`. Пароль `GRAFANA_ADMIN_PASSWORD` діє лише при
+першому запуску Grafana; змінити пізніше: `$m exec grafana grafana cli admin reset-admin-password <новий>`.
+Пороги тривог — числа в `rules.yaml` (крім витрат на ШІ — у `.env.monitoring`), після зміни —
+деплой. Вимкнути все: `$m down` і прибрати `.env.monitoring`
+(дані лишаються в томах `novelka-monitoring_*`).
