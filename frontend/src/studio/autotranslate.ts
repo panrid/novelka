@@ -199,6 +199,11 @@ export const autotranslateApi = {
     /** «Словник» in the editor (етап 19): the piece of the original a selected translation was made from. */
     sourceOf: (id: number, chapter: number, question: { blockId: string; translation: string; selection: string }) =>
         api<{ paragraph: string | null; original: string | null; language: string }>(`${base(id)}/chapters/${chapter}/glossary/source`, json('POST', question)),
+    /** «Інший варіант» (етап 19): other versions of a paragraph, from its original when there is one. */
+    variants: (id: number, chapter: number, blockId: string | null, text: string) =>
+        api<{ variants: string[] }>(`${base(id)}/chapters/${chapter}/variants`, json('POST', { blockId, text })),
+    /** «Перевірити главу»: AI's changes wait as suggestions; how many it made. */
+    check: (id: number, chapter: number) => api<{ proposed: number }>(`${base(id)}/chapters/${chapter}/check`, json('POST', {})),
     /** «Додати до словника»: the team's own entry, approved at once. */
     addEntry: (id: number, entry: { chapter: number; ukrainian: string; original: string; kind: GlossaryKind; gender: Gender }) =>
         api<{ id: number }>(`${base(id)}/glossary`, json('POST', entry)),

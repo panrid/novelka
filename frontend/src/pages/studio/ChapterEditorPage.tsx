@@ -4,6 +4,9 @@ import { ArrowLeft, History, Languages, Trash2 } from '../../ui/icons';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/client';
 import { GlossarySheet, type GlossaryPick } from './GlossarySheet';
+import { VariantsSheet } from './VariantsSheet';
+import { useEditionOverview } from './EditionShell';
+import { autotranslateApi } from '../../studio/autotranslate';
 import { IllustrateSheet } from './IllustrateSheet';
 import { studioApi, type EditorView, type StudioBlock } from '../../studio/api';
 import { TextEditor, type EditorHandle } from '../../studio/TextEditor';
@@ -48,6 +51,10 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
     // Drawing is for the site owner at launch (рішення 21).
     // «До словника» (етап 19): for translators who see AI, in chapters with an original.
     const [picked, setPicked] = useState<GlossaryPick | null>(null);
+    // «Інший варіант» and «Перевірити главу» (етап 19, п. 5): for the team, for those who see AI.
+    const [rewording, setRewording] = useState<{ blockId: string | null; paragraph: string } | null>(null);
+    const edition = useEditionOverview(editionId).data;
+    const check = useMutation({ mutationFn: () => autotranslateApi.check(editionId, view.number) });
     const canRun = useCanRun();
     const [drawing, setDrawing] = useState<{ fragment: string; insert: (picture: { id: number; url: string }) => void } | null>(null);
     const editor = useRef<EditorHandle>(null);
@@ -176,6 +183,27 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                     <input className={styles.titleInput} aria-label="Назва глави" placeholder="Назва глави" value={title}
                         onChange={(event) => changed(() => setTitle(event.target.value))} />
                 </div>
+                {rewording && (
+                    <VariantsSheet editionId={editionId} chapter={view.number} pick={rewording} onClose={() => setRewording(null)}
+                        onPick={(text) => {
+                            if (rewording.blockId) editor.current?.replaceBlock?.(rewording.blockId, text);
+                            setRewording(null);
+                        }} />
+                )}
+                {check.isError && <Notice tone="error">{check.error.message}</Notice>}
+                {check.data && (
+                    <Notice tone={check.data.proposed > 0 ? 'success' : 'info'}>
+                        {check.data.proposed > 0 ? <>ШІ пропонує правок: {check.data.proposed}. Приймайте чи відхиляйте їх по одній{' '}
+                            {edition && <Link to="/n/$slug/$number" params={{ slug: edition.novelSlug, number: String(view.number) }}
+                                search={{ t: edition.teamHandle, look: true }}>у читалці</Link>}.</>
+                            : 'ШІ не знайшов, що виправити в цій главі.'}
+                    </Notice>
+                )}
+                {live && canRun && view.hasOriginal && (
+                    <Button variant="secondary" onPress={() => check.mutate()} pending={check.isPending} pendingLabel="ШІ перевіряє главу…">
+                        Перевірити главу з ШІ
+                    </Button>
+                )}
                 {picked && <GlossarySheet editionId={editionId} chapter={view.number} pick={picked} onClose={() => setPicked(null)} />}
                 {drawing && (
                     <IllustrateSheet editionId={editionId} chapter={view.number} fragment={drawing.fragment}
@@ -185,6 +213,7 @@ function Editor({ editionId, view }: { editionId: number; view: EditorView }) {
                     onIllustrate={canDraw ? (fragment, insert) => setDrawing({ fragment, insert }) : undefined}
                     onCursorBlock={setCursor}
                     onGlossary={canRun && view.hasOriginal && view.mayAddPictures ? setPicked : undefined}
+                    onVariants={canRun ? setRewording : undefined}
                     mayAddPictures={view.mayAddPictures} label="Текст глави" placeholder="Почніть писати або вставте текст…" />
             </div>
             </div>

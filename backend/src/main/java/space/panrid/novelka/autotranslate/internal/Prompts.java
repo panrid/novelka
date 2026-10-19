@@ -311,6 +311,17 @@ final class Prompts {
                 piece, return an empty string.""".formatted(language);
     }
 
+    /** «Інший варіант» in the editor: other Ukrainian versions of one paragraph. */
+    static String variants(String language, boolean withOriginal) {
+        return """
+                You are a Ukrainian literary translator and editor of a %s web novel. The input is JSON with %s the
+                current Ukrainian translation of one paragraph, after a glossary of names and terms. Write three other
+                versions of the paragraph in natural, literary Ukrainian, each a little different in wording or rhythm,
+                %s. Keep every name and term exactly as the glossary gives it, keep dialogue dashes and quotation marks
+                as in the translation, and do not add or drop anything that is said.""".formatted(language,
+                withOriginal ? "the original paragraph and" : "", withOriginal ? "all faithful to the original" : "all with the same meaning");
+    }
+
     // ---- schemas ----------------------------------------------------------------------------
 
     private static Map<String, Object> object(Map<String, Object> properties) {
@@ -320,6 +331,10 @@ final class Prompts {
 
     private static Map<String, Object> string() {
         return Map.of("type", "string");
+    }
+
+    static Map<String, Object> variantsSchema() {
+        return object(Map.of("variants", Map.of("type", "array", "items", string())));
     }
 
     static Map<String, Object> sourceOfSchema() {

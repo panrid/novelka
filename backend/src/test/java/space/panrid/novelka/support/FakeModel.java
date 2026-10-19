@@ -162,6 +162,7 @@ public class FakeModel implements AiTransport {
                         // it was never shown.
                         "facts", facts(user));
             }
+            case "variants" -> Map.of("variants", List.of("Перший варіант.", "Другий варіант.", "Третій варіант."));
             case "source_of" -> {
                 // Knows the hero's name; for anything else it «translates back», which the site must not take.
                 JsonNode asked = JSON.readTree(user);
