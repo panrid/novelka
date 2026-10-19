@@ -81,8 +81,9 @@ class StudioController {
             int newWords, String jobState, Integer jobChapter) {
     }
 
+    /** {@code rightsConfirmed}: «Маю право перекладати цей текст» was ticked (етап 19); an own work needs none. */
     record CreateRequest(String kind, String title, String author, List<Block> description, List<String> tags,
-            Boolean adult, String team) {
+            Boolean adult, String team, Boolean rightsConfirmed) {
     }
 
     record Created(long editionId, String novelSlug) {
@@ -241,6 +242,9 @@ class StudioController {
                 body.description() == null ? List.of() : description(body.description()),
                 body.tags() == null ? List.of() : body.tags(), body.kind(), Boolean.TRUE.equals(body.adult()), teamId,
                 original ? viewer.accountId() : null));
+        if (!original && Boolean.TRUE.equals(body.rightsConfirmed())) {
+            db.update(EDITION).set(EDITION.RIGHTS_CONFIRMED_AT, DSL.currentOffsetDateTime()).where(EDITION.ID.eq(ref.editionId())).execute();
+        }
         return new Created(ref.editionId(), ref.novelSlug());
     }
 

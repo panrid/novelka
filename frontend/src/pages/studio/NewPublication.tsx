@@ -1,6 +1,6 @@
 import { TagPicker } from '../../studio/TagPicker';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useRef, useState, type FormEvent } from 'react';
 import { adminApi } from '../../admin/api';
 import { meQuery, useMe } from '../../auth/me';
@@ -32,6 +32,9 @@ export function NewPublication() {
     const [tags, setTags] = useState<string[]>([]);
     const [adult, setAdult] = useState(false);
     const [team, setTeam] = useState('');
+    // «Маю право перекладати цей текст» (етап 19): every translation; an own work needs none.
+    const [rights, setRights] = useState(false);
+    const needsRights = kind !== 'original';
     const publishing = (teams.data ?? []).filter((t) => t.role !== 'editor');
 
     const [link, setLink] = useState('');
@@ -45,7 +48,7 @@ export function NewPublication() {
         mutationFn: () => studioApi.create({
             kind: kind === 'original' ? 'original' : 'human', title: title.trim(), author: author.trim(),
             description: editor.current?.read() ?? description,
-            tags, adult, team: chosenTeam,
+            tags, adult, team: chosenTeam, rightsConfirmed: needsRights && rights,
         }),
         onSuccess: ({ editionId }) => void navigate(kind === 'pasted'
             ? { to: '/studio/$editionId/originals', params: { editionId: String(editionId) } }
@@ -123,14 +126,20 @@ export function NewPublication() {
                     </label>
                 )}
                 {kind !== 'syosetu' && <Toggle label="Для дорослих (18+)" isSelected={adult} onChange={setAdult} />}
+                {needsRights && (
+                    <div>
+                        <Toggle label="Маю право перекладати цей текст" isSelected={rights} onChange={setRights} />
+                        <p className={styles.muted}>Автор чи видавець дозволив, або твір вільний для перекладу. <Link to="/rules">Правила сайту</Link></p>
+                    </div>
+                )}
                 {create.isError && <Notice tone="error">{create.error.message}</Notice>}
                 {prepare.isError && <Notice tone="error">{prepare.error.message}</Notice>}
                 {kind === 'syosetu' ? (
-                    <Button type="submit" wide pending={prepare.isPending} pendingLabel="Готуємо: читаємо й перекладаємо опис…" isDisabled={!link.trim()}>
+                    <Button type="submit" wide pending={prepare.isPending} pendingLabel="Готуємо: читаємо й перекладаємо опис…" isDisabled={!link.trim() || !rights}>
                         Підготувати
                     </Button>
                 ) : (
-                    <Button type="submit" wide pending={create.isPending} pendingLabel="Створюємо…" isDisabled={!title.trim()}>
+                    <Button type="submit" wide pending={create.isPending} pendingLabel="Створюємо…" isDisabled={!title.trim() || needsRights && !rights}>
                         Створити
                     </Button>
                 )}

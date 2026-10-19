@@ -341,6 +341,7 @@ describe('autotranslate', () => {
         });
         await userEvent.click(await screen.findByRole('button', { name: /Автопереклад із сайту/ }));
         await userEvent.type(screen.getByLabelText('Посилання на новелу'), 'https://ncode.syosetu.com/n0022gd/');
+        await userEvent.click(screen.getByRole('switch', { name: 'Маю право перекладати цей текст' }));
         await userEvent.click(screen.getByRole('button', { name: 'Підготувати' }));
         expect(await screen.findByRole('link', { name: 'Автопереклад' })).toHaveAttribute('aria-current', 'page');
         expect(router.state.location.pathname).toBe('/studio/12/translate');
