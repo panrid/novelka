@@ -103,7 +103,7 @@ class OriginalFlowTests {
     }
 
     @Test
-    void onlyTheTeamSeesItAndOnlyTheSiteOwnerWhileTheStageIsMade() {
+    void onlyTheTeamSeesIt() {
         read(form(owner, "", Map.of("text", TEXT, "language", "ja")));
         Person stranger = Accounts.signedIn(port, mailbox);
         assertThat(stranger.browser().get(base()).status()).isEqualTo(403);

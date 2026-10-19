@@ -16,6 +16,8 @@ export type Person = { nick: string; role: 'reader' | 'moderator' | 'admin' | 'o
     shahs?: number | null;
     /** The owner let them autotranslate; only the site owner sees it. */
     autotranslate?: boolean | null };
+/** Someone asked for «Автопереклад із сайту» (етап 19) and waits for the owner's answer. */
+export type AccessRequest = { nick: string; requestedAt: string; shahs: number | null };
 /** hideAiWithoutShahs: AI is hidden from people without шаги (етап 19, п. 7). */
 export type SiteSettingsView = { relayInactiveMonths: number; registrationOpen: boolean; adultEnabled: boolean; hideAiWithoutShahs: boolean };
 export type AuditEntry = {
@@ -37,6 +39,10 @@ export const adminApi = {
     setRole: (nick: string, role: Person['role']) => api<void>(`/api/admin/users/${encodeURIComponent(nick)}/role`, json('PUT', { role })),
     setAutotranslate: (nick: string, allowed: boolean) =>
         api<void>(`/api/admin/users/${encodeURIComponent(nick)}/autotranslate`, json('PUT', { allowed })),
+    accessRequests: () => api<AccessRequest[]>('/api/admin/autotranslate-requests'),
+    refuseAccess: (nick: string) => api<void>(`/api/admin/users/${encodeURIComponent(nick)}/autotranslate/refuse`, json('POST', {})),
+    /** «Попросити доступ»: anyone signed in asks the site owner. */
+    requestAccess: () => api<void>('/api/autotranslate/request', json('POST', {})),
     settings: () => api<SiteSettingsView>('/api/admin/settings'),
     saveSettings: (settings: SiteSettingsView) => api<SiteSettingsView>('/api/admin/settings', json('PUT', settings)),
     audit: (page = 1) => api<{ items: AuditEntry[]; total: number; page: number; hasMore: boolean }>(`/api/admin/audit?page=${page}`),

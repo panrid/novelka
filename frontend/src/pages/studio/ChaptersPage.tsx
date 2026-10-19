@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { ArrowDownUp, Plus, Trash2 } from '../../ui/icons';
 import { useState } from 'react';
-import { useCanRun } from '../../ledger/api';
+import { useCanRun, useMaySite } from '../../ledger/api';
 import { relativeTime } from '../../lib/dates';
 import { PAGE_SIZE, usePage } from '../../lib/usePage';
 import { chapterHeading } from '../../reading/api';
@@ -33,6 +33,7 @@ function ChaptersTab() {
     const client = useQueryClient();
     const edition = useEditionOverview(id).data!;
     const canRun = useCanRun();
+    const maySite = useMaySite();
     const translator = edition.role !== 'editor';
     const [filter, setFilter] = useState<ChapterFilter>('');
     const [order, setOrder] = useState<'asc' | 'desc'>('desc');
@@ -65,7 +66,7 @@ function ChaptersTab() {
                     <LinkButton to="/studio/$editionId/structure" params={params} variant="secondary">Томи й нумерація</LinkButton>
                 </div>
             )}
-            {adding && <NewChapterSheet editionId={id} machine={editionTabs(edition, canRun, false).translate} onClose={() => setAdding(false)} />}
+            {adding && <NewChapterSheet editionId={id} machine={editionTabs(edition, canRun, false, maySite).translate} onClose={() => setAdding(false)} />}
             <div className={styles.filters} role="group" aria-label="Які глави" style={{ margin: '14px 0 8px' }}>
                 {FILTERS.map(([value, label]) => (
                     <button key={value} type="button" className={`${styles.chip} ${filter === value ? styles.chipOn : ''}`}

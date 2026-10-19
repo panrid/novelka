@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
-import { useCanRun, useMayPaste } from '../../ledger/api';
+import { useCanRun, useMayPaste, useMaySite } from '../../ledger/api';
 import { Cover } from '../../reading/Cover';
 import { ROLE_LABELS, studioApi, type Overview } from '../../studio/api';
 import { Notice } from '../../ui/Notice';
@@ -21,12 +21,13 @@ export function useEditionOverview(id: number) {
 /**
  * Who sees which tab: autotranslation and its glossary belong to machine translations and to
  * those who can run them (шаги or the site owner); the editor of a team does not start runs.
+ * Translating from the original's site is only for those let in to it ({@link useMaySite}).
  */
-export function editionTabs(edition: Overview, canRun: boolean, mayPaste: boolean) {
+export function editionTabs(edition: Overview, canRun: boolean, mayPaste: boolean, maySite: boolean) {
     // A translation by hand with pasted originals (етап 19) is translated from them, with a glossary.
     const machine = canRun && (edition.kind === 'machine' || edition.kind === 'mixed' || edition.kind !== 'original' && edition.originals > 0);
     return {
-        translate: machine && edition.role !== 'editor',
+        translate: machine && edition.role !== 'editor' && (edition.source === 'manual' || maySite),
         words: machine,
         // The text a translation is made from (етап 19): not for own works, not for a team's editor.
         originals: mayPaste && edition.kind !== 'original' && edition.role !== 'editor',
@@ -43,10 +44,11 @@ export function EditionShell({ tab, children }: { tab: EditionTab; children: Rea
     const overview = useEditionOverview(id);
     const canRun = useCanRun();
     const mayPaste = useMayPaste();
+    const maySite = useMaySite();
     if (overview.isError) return <section className={styles.page}><Notice tone="error">{overview.error.message}</Notice></section>;
     if (!overview.data) return <p className={styles.muted} style={{ paddingTop: 24 }}>Завантажуємо…</p>;
     const edition = overview.data;
-    const shown = editionTabs(edition, canRun, mayPaste);
+    const shown = editionTabs(edition, canRun, mayPaste, maySite);
     const params = { editionId: String(id) };
     const item = (name: EditionTab, label: ReactNode, to: string) => (
         <Link key={name} to={to} params={params} className={name === tab ? styles.tabOn : styles.tab} aria-current={name === tab ? 'page' : undefined}>

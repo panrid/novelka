@@ -216,7 +216,8 @@ describe('AI hidden from people without шаги (етап 19, п. 7)', () => {
             'GET /api/me': { body: LET_IN },
             'GET /api/me/teams': { body: [{ handle: 'mika', name: 'mika', role: 'owner' }] },
         });
-        expect(await screen.findByRole('button', { name: /Автопереклад із Syosetu/ })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: /Автопереклад із сайту/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Вставлю оригінал — перекладе ШІ/ })).toBeInTheDocument();
     });
 });
 
@@ -417,7 +418,7 @@ describe('the original of a translation (етап 19)', () => {
         expect(sent.get('text')).toBe('Chapter 1\nOne.\nChapter 2\nTwo.');
     });
 
-    it('is not offered to others while the stage is being made', async () => {
+    it('is offered to everyone in the team who translates: pasting is not AI', async () => {
         await renderAt('/studio/12', {
             'GET /api/me': { body: ME },
             'GET /api/me/shahs': { body: { available: 5, reserved: 0, usdPerShah: 0.07, hasMore: false, running: [], history: [] } },
@@ -425,8 +426,7 @@ describe('the original of a translation (етап 19)', () => {
             'GET /api/studio/editions/12/chapters': { body: NO_CHAPTERS },
             'GET /api/studio/editions/12/contributions': { body: [] },
         });
-        expect(await screen.findByRole('link', { name: 'Глави' })).toBeInTheDocument();
-        expect(screen.queryByRole('link', { name: 'Оригінал' })).not.toBeInTheDocument();
+        expect(await screen.findByRole('link', { name: 'Оригінал' })).toHaveAttribute('href', '/studio/12/originals');
     });
 });
 

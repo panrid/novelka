@@ -26,19 +26,25 @@ export function useMyShahs() {
 }
 
 /**
- * Autotranslate and the AI tools of translating: the site owner's and of those the owner let in
- * (they pay with their шаги) while етап 19 is being made; nobody's from whom AI is hidden.
+ * «Перекласти з ШІ» and the AI tools of translating (етап 19): everyone who sees AI, that is the
+ * site owner and people with шаги; nobody's from whom AI is hidden.
  */
 export function useCanRun(): boolean {
-    const me = useMe();
-    const mayPaste = useMayPaste();
-    return me?.ai === true && mayPaste;
+    return useMe()?.ai === true;
 }
 
-/** The original pasted by hand (етап 19): not AI, so it stays for those let in even with AI hidden. */
+/** The original pasted by hand (етап 19): not AI, so it is for everyone signed in. */
 export function useMayPaste(): boolean {
+    return useMe() !== null;
+}
+
+/**
+ * «Автопереклад із сайту» (етап 19): the site owner's and of those the owner let in; others see
+ * it locked with «Попросити доступ». Nobody's from whom AI is hidden.
+ */
+export function useMaySite(): boolean {
     const me = useMe();
-    return me?.role === 'owner' || me?.autotranslate === true;
+    return me?.ai === true && (me.role === 'owner' || me.autotranslate === true);
 }
 
 /** «Намалювати сцену»: for anyone with шаги, and the site owner; nobody's from whom AI is hidden. */

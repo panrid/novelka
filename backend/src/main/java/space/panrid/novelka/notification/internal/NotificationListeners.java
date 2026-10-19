@@ -23,6 +23,8 @@ import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 import space.panrid.novelka.achievement.AchievementEarned;
+import space.panrid.novelka.admin.AutotranslateAnswered;
+import space.panrid.novelka.admin.AutotranslateRequested;
 import space.panrid.novelka.admin.ReportFiled;
 import space.panrid.novelka.autotranslate.ProposalTaken;
 import space.panrid.novelka.autotranslate.SourceChaptersFound;
@@ -188,6 +190,19 @@ class NotificationListeners {
         for (long person : staff) {
             inbox.add(person, "report", payload);
         }
+    }
+
+    /** The site owner answers «Попросити доступ» in «Користувачі й ролі». */
+    @ApplicationModuleListener
+    void on(AutotranslateRequested requested) {
+        for (long owner : db.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.SITE_ROLE.eq("owner")).fetch(ACCOUNT.ID)) {
+            inbox.add(owner, "autotranslate_request", Map.of("actorNick", requested.requesterNick()));
+        }
+    }
+
+    @ApplicationModuleListener
+    void on(AutotranslateAnswered answered) {
+        inbox.add(answered.requesterId(), "autotranslate_answered", Map.of("granted", answered.granted()));
     }
 
     @ApplicationModuleListener

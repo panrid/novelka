@@ -9,6 +9,7 @@ import java.util.Map;
 
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.account.SiteRoles;
 import space.panrid.novelka.account.Viewer;
+import space.panrid.novelka.admin.AutotranslateAnswered;
+import space.panrid.novelka.admin.AutotranslateRequested;
 import space.panrid.novelka.platform.audit.AuditLog;
 import space.panrid.novelka.platform.web.UserFacingException;
 
@@ -29,11 +32,13 @@ class Staff {
     private final DSLContext db;
     private final SiteRoles roles;
     private final AuditLog audit;
+    private final ApplicationEventPublisher events;
 
-    Staff(DSLContext db, SiteRoles roles, AuditLog audit) {
+    Staff(DSLContext db, SiteRoles roles, AuditLog audit, ApplicationEventPublisher events) {
         this.db = db;
         this.roles = roles;
         this.audit = audit;
+        this.events = events;
     }
 
     /** @param email only for the owner: administrators do not need people's addresses */
@@ -99,11 +104,11 @@ class Staff {
 
     /**
      * The site owner lets a person autotranslate (етап 19), or takes it back; they pay with their
-     * шаги. Runs already started go on.
+     * шаги. Runs already started go on. Letting in answers their request, if they asked.
      */
     @Transactional
     void setAutotranslate(Viewer owner, String nick, boolean allowed) {
-        var target = db.select(ACCOUNT.ID, ACCOUNT.SITE_ROLE, ACCOUNT.AUTOTRANSLATE).from(ACCOUNT)
+        var target = db.select(ACCOUNT.ID, ACCOUNT.SITE_ROLE, ACCOUNT.AUTOTRANSLATE, ACCOUNT.AUTOTRANSLATE_REQUESTED_AT).from(ACCOUNT)
                 .where(ACCOUNT.NICK_KEY.eq(nick.strip().toLowerCase(java.util.Locale.ROOT))).fetchOptional()
                 .orElseThrow(() -> UserFacingException.notFound("Людини з ніком «%s» немає.".formatted(nick)));
         if (SiteRole.fromCode(target.value2()) == SiteRole.OWNER) {
@@ -112,8 +117,56 @@ class Staff {
         if (target.value3() == allowed) {
             return;
         }
-        db.update(ACCOUNT).set(ACCOUNT.AUTOTRANSLATE, allowed).where(ACCOUNT.ID.eq(target.value1())).execute();
+        db.update(ACCOUNT).set(ACCOUNT.AUTOTRANSLATE, allowed).setNull(ACCOUNT.AUTOTRANSLATE_REQUESTED_AT)
+                .where(ACCOUNT.ID.eq(target.value1())).execute();
         audit.record(owner.accountId(), allowed ? "autotranslate_granted" : "autotranslate_revoked", "account", target.value1(),
                 Map.of("nick", nick));
+        if (allowed && target.value4() != null) {
+            events.publishEvent(new AutotranslateAnswered(target.value1(), true));
+        }
+    }
+
+    /** Who asked for «Автопереклад із сайту» and waits for the owner's answer, the earliest first. */
+    record Request(String nick, OffsetDateTime requestedAt, Integer shahs) {
+    }
+
+    List<Request> requests() {
+        var shahs = DSL.coalesce(SHAH_BALANCE.AVAILABLE.plus(SHAH_BALANCE.RESERVED), DSL.zero());
+        return db.select(ACCOUNT.NICK, ACCOUNT.AUTOTRANSLATE_REQUESTED_AT, shahs).from(ACCOUNT)
+                .leftJoin(SHAH_BALANCE).on(SHAH_BALANCE.ACCOUNT_ID.eq(ACCOUNT.ID))
+                .where(ACCOUNT.AUTOTRANSLATE_REQUESTED_AT.isNotNull(), ACCOUNT.AUTOTRANSLATE.isFalse())
+                .orderBy(ACCOUNT.AUTOTRANSLATE_REQUESTED_AT, ACCOUNT.ID)
+                .fetch(r -> new Request(r.value1(), r.value2(), r.value3()));
+    }
+
+    /**
+     * «Попросити доступ» (етап 19): the person asks the site owner for «Автопереклад із сайту». Asking
+     * again while the owner has not answered changes nothing and tells nobody twice.
+     */
+    @Transactional
+    void requestAutotranslate(Viewer viewer) {
+        var me = db.select(ACCOUNT.NICK, ACCOUNT.AUTOTRANSLATE, ACCOUNT.AUTOTRANSLATE_REQUESTED_AT).from(ACCOUNT)
+                .where(ACCOUNT.ID.eq(viewer.accountId())).fetchSingle();
+        if (viewer.role() == SiteRole.OWNER || me.value2()) {
+            throw UserFacingException.badRequest("Автопереклад із сайту вам уже відкрито.");
+        }
+        if (me.value3() != null) {
+            return;
+        }
+        db.update(ACCOUNT).set(ACCOUNT.AUTOTRANSLATE_REQUESTED_AT, DSL.currentOffsetDateTime())
+                .where(ACCOUNT.ID.eq(viewer.accountId())).execute();
+        events.publishEvent(new AutotranslateRequested(viewer.accountId(), me.value1()));
+    }
+
+    /** The site owner refuses a request; the person hears about it and may ask again later. */
+    @Transactional
+    void refuseAutotranslate(Viewer owner, String nick) {
+        var target = db.select(ACCOUNT.ID).from(ACCOUNT)
+                .where(ACCOUNT.NICK_KEY.eq(nick.strip().toLowerCase(java.util.Locale.ROOT)), ACCOUNT.AUTOTRANSLATE_REQUESTED_AT.isNotNull())
+                .fetchOptional(ACCOUNT.ID)
+                .orElseThrow(() -> UserFacingException.notFound("«%s» доступу не просить.".formatted(nick)));
+        db.update(ACCOUNT).setNull(ACCOUNT.AUTOTRANSLATE_REQUESTED_AT).where(ACCOUNT.ID.eq(target)).execute();
+        audit.record(owner.accountId(), "autotranslate_refused", "account", target, Map.of("nick", nick));
+        events.publishEvent(new AutotranslateAnswered(target, false));
     }
 }

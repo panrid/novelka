@@ -76,23 +76,30 @@ describe('шаги without payments', () => {
         expect(screen.getByText(/заблокуємо 2 шаги, решту повернемо/)).toBeInTheDocument();
     });
 
-    it('shows autotranslation in «Нова публікація» only to people with шаги', async () => {
+    it('shows AI in «Нова публікація» only to people who see it', async () => {
         await renderAt('/studio/new', {
-            'GET /api/me': { body: person('reader') },
+            'GET /api/me': { body: { ...person('reader'), ai: false } },
             'GET /api/me/shahs': { body: { ...MINE, available: 0, reserved: 0 } },
             'GET /api/me/teams': { body: [] },
         });
         expect(await screen.findByText('Свій переклад')).toBeInTheDocument();
-        expect(screen.queryByText('Автопереклад із Syosetu')).not.toBeInTheDocument();
+        expect(screen.queryByText('Вставлю оригінал — перекладе ШІ')).not.toBeInTheDocument();
+        expect(screen.queryByText('Автопереклад із сайту')).not.toBeInTheDocument();
     });
 
-    it('offers the import from Syosetu to the site owner alone, not to people with шаги (етап 19)', async () => {
-        await renderAt('/studio/new', {
-            'GET /api/me': { body: person('reader') },
+    it('offers «Перекласти з ШІ» to people with шаги, and the original’s site only on request (етап 19)', async () => {
+        let asked = false;
+        const { calls } = await renderAt('/studio/new', {
+            'GET /api/me': () => ({ body: { ...person('reader'), ai: true, autotranslateRequested: asked } }),
             'GET /api/me/shahs': { body: { ...MINE, available: 5, reserved: 2 } },
             'GET /api/me/teams': { body: [] },
+            'POST /api/autotranslate/request': () => { asked = true; return { status: 204 }; },
         });
-        expect(await screen.findByText('Свій переклад')).toBeInTheDocument();
-        expect(screen.queryByText('Автопереклад із Syosetu')).not.toBeInTheDocument();
+        expect(await screen.findByText('Вставлю оригінал — перекладе ШІ')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: /Автопереклад із сайту/ }));
+        expect(screen.queryByLabelText('Посилання на новелу')).not.toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Попросити доступ' }));
+        expect(await screen.findByText(/Запит надіслано/)).toBeInTheDocument();
+        expect(calls.some((call) => call.method === 'POST' && call.path === '/api/autotranslate/request')).toBe(true);
     });
 });

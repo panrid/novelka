@@ -31,6 +31,8 @@ export type Me = {
      * in «Налаштування сайту». The server decides it and refuses the same anyway.
      */
     ai?: boolean;
+    /** Asked for «Автопереклад із сайту», and the site owner has not answered yet. */
+    autotranslateRequested?: boolean;
 };
 
 export const meQuery = queryOptions({

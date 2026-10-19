@@ -111,7 +111,7 @@ class PersonalRunsTests {
 
         Response notYet = reader.browser().post("/api/studio/autotranslate/prepare", json("url", novel(3)));
         assertThat(notYet.status()).as("шаги alone do not open autotranslate (етап 19)").isEqualTo(403);
-        assertThat(notYet.body()).contains("Доступ дає власник сайту");
+        assertThat(notYet.body()).contains("Попросіть доступ");
         assertThat(read(reader.browser().get("/api/me")).path("autotranslate").asBoolean()).isFalse();
         allow();
         assertThat(read(reader.browser().get("/api/me")).path("autotranslate").asBoolean()).isTrue();

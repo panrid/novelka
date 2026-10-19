@@ -100,6 +100,24 @@ describe('administration', () => {
         expect(await screen.findByText(/lysytsia: автопереклад відкрито.*нарахуйте/)).toBeInTheDocument();
     });
 
+    it('the owner answers those who ask for autotranslate from the original’s site (етап 19)', async () => {
+        const asked = new Date().toISOString();
+        const { calls } = await renderAt('/admin/users', {
+            'GET /api/me': { body: person('owner') },
+            'GET /api/admin/users': { body: { items: [], total: 0, page: 1, hasMore: false } },
+            'GET /api/admin/autotranslate-requests': { body: [{ nick: 'lysytsia', requestedAt: asked, shahs: 4 }, { nick: 'bohdan', requestedAt: asked, shahs: 0 }] },
+            'PUT /api/admin/users/lysytsia/autotranslate': { status: 200 },
+            'POST /api/admin/users/bohdan/autotranslate/refuse': { status: 200 },
+        });
+        const requests = await screen.findByRole('group', { name: 'Просять доступ до автоперекладу із сайту' });
+        const rows = within(requests).getAllByRole('link').map((link) => link.closest('div')!.parentElement!);
+        await userEvent.click(within(rows[0]!).getByRole('button', { name: 'Відкрити' }));
+        await vi.waitFor(() => expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ allowed: true }));
+        await userEvent.click(within(rows[1]!).getByRole('button', { name: 'Відмовити' }));
+        expect(await screen.findByText(/bohdan: у доступі відмовлено/)).toBeInTheDocument();
+        expect(calls.some((call) => call.method === 'POST' && call.path === '/api/admin/users/bohdan/autotranslate/refuse')).toBe(true);
+    });
+
     it('an administrator does not open autotranslate', async () => {
         await renderAt('/admin/users', {
             'GET /api/me': { body: person('admin') },
