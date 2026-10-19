@@ -16,9 +16,41 @@ www.novelka.in.ua, novelka.panrid.space {
     redir https://novelka.in.ua{uri} permanent
 }
 
-# The test site is yet to come; until then a short notice, kept out of search.
+# The test site (infra/dev.compose.yaml): the team only, kept out of search.
 dev.novelka.in.ua {
+    encode gzip
     header X-Robots-Tag "noindex, nofollow"
-    header Content-Type "text/plain; charset=utf-8"
-    respond "Тестовий сайт Новелки ще готується." 503
+
+    # Who may enter: «basic_auth @team { <name> <hash> … }» in /opt/novelka/dev-access/*.caddy, kept only
+    # on the server (doc/deployment.md, «Тестовий сайт»). Not asked of Telegram (its webhook carries its own
+    # secret), of the deploy's health check and of robots.txt. Without such a file the test site is not
+    # deployed at all (infra/deploy.sh).
+    @team not path /api/health /api/telegram/webhook /robots.txt
+    import /etc/caddy/dev-access/*.caddy
+
+    handle /robots.txt {
+        respond `User-agent: *
+Disallow: /
+` 200
+    }
+
+    # Every letter the test site sends lands here instead of a real mailbox.
+    handle /_mail/* {
+        reverse_proxy dev-mail:8025
+    }
+
+    handle {
+        reverse_proxy dev-app:8080 {
+            flush_interval -1
+            lb_try_duration 15s
+            lb_try_interval 250ms
+        }
+    }
+
+    # The test site is not running (not deployed yet or being repaired).
+    handle_errors 502 503 504 {
+        header X-Robots-Tag "noindex, nofollow"
+        header Content-Type "text/plain; charset=utf-8"
+        respond "Тестовий сайт Новелки зараз не працює." 503
+    }
 }

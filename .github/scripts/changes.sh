@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Which checks the code at HEAD needs (deploy-production.yml, pull-request.yml).
+# Which checks the code at HEAD needs (deploy.yml, pull-request.yml).
 # HEAD is compared with the commit last deployed (the newest green deploy run on main), not with the
 # previous push: a change whose tests failed never reached the server and is checked again.
 # Writes backend=true|false and frontend=true|false to $GITHUB_OUTPUT; anything unclear checks both.
@@ -18,7 +18,7 @@ case "$GITHUB_EVENT_NAME" in
     push | pull_request) ;;
     *) full "запуск вручну ($GITHUB_EVENT_NAME)" ;;
 esac
-base=$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/deploy-production.yml/runs" \
+base=$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/deploy.yml/runs" \
     -f branch=main -f status=success -F per_page=1 --jq '.workflow_runs[0].head_sha // empty') \
     || full "не вдалося дізнатися останній деплой"
 [ -n "$base" ] || full "успішного деплою ще не було"

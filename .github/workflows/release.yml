@@ -1,0 +1,87 @@
+name: Випустити
+
+# The production site gets the very image the test site already runs, so its migrations
+# have already passed on the test site's database (doc/deployment.md, «Випуск і відкат»).
+# Actions → Випустити → Run workflow; a tag v… does the same for its commit. A version production ran
+# before is accepted too: that is a rollback by the button (the command: infra/deploy.sh rollback).
+on:
+    workflow_dispatch:
+        inputs:
+            version:
+                description: 'Версія: коміт чи тег. Порожньо — те, що зараз на тестовому сайті. Попередня версія робочого — це відкат.'
+                required: false
+                default: ''
+    push:
+        tags: ['v*']
+
+permissions:
+    contents: read
+
+# Shared with the deploy of production by a push (deploy.yml while there is no test site).
+concurrency:
+    group: production
+    cancel-in-progress: false
+
+jobs:
+    release:
+        name: Release to production
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        environment:
+            name: production
+            url: https://novelka.in.ua
+        steps:
+            - name: Configure SSH
+              env:
+                  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+                  DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+                  DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+              run: |
+                  test -n "$DEPLOY_HOST" || { echo 'DEPLOY_HOST is empty' >&2; exit 1; }
+                  install -m 700 -d ~/.ssh
+                  printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy
+                  chmod 600 ~/.ssh/deploy
+                  if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
+                      printf '%s\n' "$DEPLOY_KNOWN_HOSTS" | tr -d '\r' > ~/.ssh/known_hosts
+                  else
+                      echo '::warning::DEPLOY_KNOWN_HOSTS is not set; trusting the host key offered right now.'
+                      ssh-keyscan -4 -T 15 -H "$DEPLOY_HOST" > ~/.ssh/known_hosts
+                  fi
+            - name: Which version
+              id: version
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+                  INPUT: ${{ inputs.version }}
+              run: |
+                  if [ "$GITHUB_EVENT_NAME" = push ]; then
+                      sha=$GITHUB_SHA
+                  elif [ -n "$INPUT" ]; then
+                      if ! [[ "$INPUT" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+                          echo "::error::Версія «$INPUT» — не коміт і не тег"
+                          exit 1
+                      fi
+                      sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$INPUT" --jq .sha) \
+                          || { echo "::error::Немає коміту чи тегу «$INPUT»"; exit 1; }
+                  else
+                      sha=$(ssh -i ~/.ssh/deploy "$TARGET" 'tail -n 1 /opt/novelka/dev.history 2>/dev/null | cut -d " " -f 1')
+                      [ -n "$sha" ] || { echo "::error::На тестовому сайті ще нічого немає (doc/deployment.md, «Тестовий сайт»)"; exit 1; }
+                  fi
+                  [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Дивна версія «$sha»"; exit 1; }
+                  echo "sha=$sha" >> "$GITHUB_OUTPUT"
+                  echo "Випускаю $sha: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$sha" | tee -a "$GITHUB_STEP_SUMMARY"
+            # The image is not built again: the one the push to main built for the test site (infra/deploy.sh release).
+            - name: Release
+              env:
+                  TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+                  SHA: ${{ steps.version.outputs.sha }}
+              run: |
+                  ssh -i ~/.ssh/deploy "$TARGET" "test -f /opt/novelka/builds/$SHA/infra/deploy.sh" \
+                      || { echo "::error::Збірки $SHA на сервері немає: її приносить push у main (deploy.yml)"; exit 1; }
+                  ssh -i ~/.ssh/deploy "$TARGET" "sh /opt/novelka/builds/$SHA/infra/deploy.sh release $SHA"
+            - name: Check the app and its database
+              run: |
+                  curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors \
+                      https://novelka.in.ua/api/health | tee /dev/stderr | grep -q '"status":"ok"'
+            - name: Check the public site
+              run: curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null https://novelka.in.ua/

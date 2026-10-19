@@ -1,4 +1,4 @@
-name: Deploy production
+name: Deploy
 
 on:
     push:
@@ -147,7 +147,10 @@ jobs:
                   retention-days: 14
 
     deploy:
-        name: Deploy to VPS
+        # The test site, once the owner has set it up on the server and set the repository variable DEV_SITE
+        # to «on» (doc/deployment.md, «Тестовий сайт»); production then gets the same image by the button
+        # in release.yml. Until then, production as before.
+        name: ${{ vars.DEV_SITE == 'on' && 'Deploy to the test site' || 'Deploy to production' }}
         needs: [find, backend, frontend, package]
         # Either the JAR checked in a pull request, or the build of this run with each check green
         # or skipped on purpose (nothing of its part changed); red, cancelled or skipped otherwise stops it.
@@ -158,15 +161,20 @@ jobs:
                     && (needs.backend.result == 'success' || (needs.backend.result == 'skipped' && needs.find.outputs.backend == 'false'))
                     && (needs.frontend.result == 'success' || (needs.frontend.result == 'skipped' && needs.find.outputs.frontend == 'false')))) }}
         runs-on: ubuntu-latest
-        timeout-minutes: 15
-        environment: production
+        timeout-minutes: 20
+        environment:
+            name: ${{ vars.DEV_SITE == 'on' && 'dev' || 'production' }}
+            url: ${{ vars.DEV_SITE == 'on' && 'https://dev.novelka.in.ua' || 'https://novelka.in.ua' }}
         permissions:
             contents: read
             actions: read
         # A newer push waits for the running deploy instead of interrupting Docker Compose midway.
         concurrency:
-            group: production
+            group: ${{ vars.DEV_SITE == 'on' && 'dev' || 'production' }}
             cancel-in-progress: false
+        env:
+            DEV_SITE: ${{ vars.DEV_SITE == 'on' }}
+            ENVIRONMENT: ${{ vars.DEV_SITE == 'on' && 'dev' || 'production' }}
         steps:
             - uses: actions/checkout@v5
             - name: JAR built in this run
@@ -189,7 +197,8 @@ jobs:
                   DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
                   DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
               run: |
-                  test -n "$DEPLOY_HOST" || { echo 'DEPLOY_HOST is empty' >&2; exit 1; }
+                  # Secrets of the environment «production» only are not seen in «dev» (doc/deployment.md).
+                  test -n "$DEPLOY_HOST" || { echo "DEPLOY_HOST is empty (environment $ENVIRONMENT)" >&2; exit 1; }
                   install -m 700 -d ~/.ssh
                   printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy
                   chmod 600 ~/.ssh/deploy
@@ -199,22 +208,47 @@ jobs:
                       echo '::warning::DEPLOY_KNOWN_HOSTS is not set; trusting the host key offered right now.'
                       ssh-keyscan -4 -T 15 -H "$DEPLOY_HOST" > ~/.ssh/known_hosts
                   fi
-            - name: Upload release
+            # Each build has its own folder on the server: its JAR (the image is built from it once) and the
+            # Compose files and scripts of the same commit.
+            - name: Upload the build
               env:
                   TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
               run: |
-                  ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p /opt/novelka/app /opt/novelka/infra'
-                  scp -i ~/.ssh/deploy release/novelka.jar backend/Dockerfile "$TARGET:/opt/novelka/app/"
-                  scp -i ~/.ssh/deploy infra/production.compose.yaml infra/Caddyfile infra/deploy.sh "$TARGET:/opt/novelka/infra/"
+                  build=/opt/novelka/builds/$GITHUB_SHA
+                  ssh -i ~/.ssh/deploy "$TARGET" "mkdir -p $build/app $build/infra"
+                  scp -i ~/.ssh/deploy release/novelka.jar backend/Dockerfile "$TARGET:$build/app/"
+                  scp -i ~/.ssh/deploy infra/production.compose.yaml infra/dev.compose.yaml infra/Caddyfile infra/deploy.sh \
+                      "$TARGET:$build/infra/"
+            - name: Deploy to the test site
+              if: env.DEV_SITE == 'true'
+              env:
+                  TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+              run: ssh -i ~/.ssh/deploy "$TARGET" "sh /opt/novelka/builds/$GITHUB_SHA/infra/deploy.sh dev $GITHUB_SHA"
+            - name: Check the test site and its database
+              if: env.DEV_SITE == 'true'
+              run: |
+                  curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors \
+                      https://dev.novelka.in.ua/api/health | tee /dev/stderr | grep -q '"status":"ok"'
+            - name: Report
+              if: env.DEV_SITE == 'true'
+              run: |
+                  {
+                      echo "На тестовому сайті ${GITHUB_SHA:0:7}: https://dev.novelka.in.ua"
+                      echo ""
+                      echo "На робочий — той самий образ: Actions → Випустити → Run workflow."
+                  } >> "$GITHUB_STEP_SUMMARY"
             - name: Restart
+              if: env.DEV_SITE != 'true'
               env:
                   TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
               run: |
                   # The new version starts beside the old one; the old stops once the new answers (infra/deploy.sh).
-                  ssh -i ~/.ssh/deploy "$TARGET" 'sh /opt/novelka/infra/deploy.sh'
+                  ssh -i ~/.ssh/deploy "$TARGET" "sh /opt/novelka/builds/$GITHUB_SHA/infra/deploy.sh prod $GITHUB_SHA"
             - name: Check the app and its database
+              if: env.DEV_SITE != 'true'
               run: |
                   curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors \
                       https://novelka.in.ua/api/health | tee /dev/stderr | grep -q '"status":"ok"'
             - name: Check the public site
+              if: env.DEV_SITE != 'true'
               run: curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null https://novelka.in.ua/
