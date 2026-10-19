@@ -70,7 +70,15 @@ final class Views {
     }
 
     /** What the search box offers while a person types. */
-    record Hints(List<Card> novels, List<TagCount> tags) {
+    record Hints(List<Card> novels, List<TagCount> tags, List<ChapterHint> chapters) {
+    }
+
+    /**
+     * A published chapter whose title holds the words searched for.
+     *
+     * @param label the number readers see (see ChapterLabels); null shows the position
+     */
+    record ChapterHint(String novelSlug, String teamHandle, String novelTitle, int number, String label, String title) {
     }
 
     /**

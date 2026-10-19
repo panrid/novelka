@@ -1,15 +1,15 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Search } from '../ui/icons';
+import { BookOpen, Search } from '../ui/icons';
 import { useEffect, useId, useState } from 'react';
-import { readingApi, type Card, type TagCount } from './api';
+import { chapterHeading, readingApi, type Card, type ChapterHint, type TagCount } from './api';
 import { Cover } from './Cover';
 import styles from './SearchBox.module.css';
 
-type Option = { kind: 'novel'; card: Card } | { kind: 'tag'; tag: TagCount } | { kind: 'all' };
+type Option = { kind: 'novel'; card: Card } | { kind: 'tag'; tag: TagCount } | { kind: 'chapter'; chapter: ChapterHint } | { kind: 'all' };
 
 /**
- * A search field that hints at novels and tags while a person types (a combobox: arrows move
+ * A search field that hints at novels, tags and chapters while a person types (a combobox: arrows move
  * through the hints, Enter opens one, Escape hides them). Enter with no hint chosen searches the
  * catalog for the words.
  */
@@ -36,10 +36,12 @@ export function SearchBox({ value, onChange, onSubmit, label, placeholder, compa
         placeholderData: keepPreviousData,
     });
 
+    const chapters = hints.data?.chapters ?? [];
     const options: Option[] = words.length === 0 || !hints.data ? [] : [
         ...hints.data.tags.map((tag): Option => ({ kind: 'tag', tag })),
         ...hints.data.novels.map((card): Option => ({ kind: 'novel', card })),
-        ...(hints.data.novels.length > 0 || hints.data.tags.length > 0 ? [{ kind: 'all' } as Option] : []),
+        ...chapters.map((chapter): Option => ({ kind: 'chapter', chapter })),
+        ...(hints.data.novels.length > 0 || hints.data.tags.length > 0 || chapters.length > 0 ? [{ kind: 'all' } as Option] : []),
     ];
     const shown = open && value.trim().length > 0 && options.length > 0;
 
@@ -52,6 +54,13 @@ export function SearchBox({ value, onChange, onSubmit, label, placeholder, compa
         } else if (option.kind === 'tag') {
             onChange('');
             void navigate({ to: '/catalog', search: { tags: [option.tag.slug] } });
+        } else if (option.kind === 'chapter') {
+            onChange('');
+            void navigate({
+                to: '/n/$slug/$number',
+                params: { slug: option.chapter.novelSlug, number: String(option.chapter.number) },
+                search: { t: option.chapter.teamHandle },
+            });
         } else {
             onSubmit(value.trim());
         }
@@ -126,6 +135,15 @@ export function SearchBox({ value, onChange, onSubmit, label, placeholder, compa
                                     </span>
                                 </>
                             )}
+                            {option.kind === 'chapter' && (
+                                <>
+                                    <span className={styles.tag}><BookOpen size={15} aria-hidden /></span>
+                                    <span className={styles.grow}>
+                                        <span className={styles.title}>{chapterHeading(option.chapter)}</span>
+                                        <span className={styles.muted}>Глава · {option.chapter.novelTitle}</span>
+                                    </span>
+                                </>
+                            )}
                             {option.kind === 'all' && <span className={styles.all}>Усі результати за «{value.trim()}» ›</span>}
                         </li>
                     ))}
@@ -136,7 +154,10 @@ export function SearchBox({ value, onChange, onSubmit, label, placeholder, compa
 }
 
 function key(option: Option) {
-    return option.kind === 'novel' ? `n${option.card.editionId}` : option.kind === 'tag' ? `t${option.tag.slug}` : 'all';
+    if (option.kind === 'novel') return `n${option.card.editionId}`;
+    if (option.kind === 'tag') return `t${option.tag.slug}`;
+    if (option.kind === 'chapter') return `c${option.chapter.novelSlug}/${option.chapter.teamHandle}/${option.chapter.number}`;
+    return 'all';
 }
 
 function useDebounced<T>(value: T, ms: number): T {

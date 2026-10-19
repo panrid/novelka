@@ -115,16 +115,16 @@ class ReadingController {
         return queries.tagGroups(adult(currentUser.viewer()));
     }
 
-    /** Hints for the search box: novels whose titles begin with the words come first, and tags. */
+    /** Hints for the search box: novels whose titles begin with the words come first, tags, and chapters by title. */
     @GetMapping("/search/hints")
     Views.Hints hints(@RequestParam String q) {
         String words = q.strip();
         if (words.isEmpty() || words.length() > 100) {
-            return new Views.Hints(List.of(), List.of());
+            return new Views.Hints(List.of(), List.of(), List.of());
         }
         boolean adult = adult(currentUser.viewer());
         return new Views.Hints(queries.search(Views.CatalogFilter.words(words), "relevance", adult, null, 1, 6).items(),
-                queries.tagsLike(words, adult, 5));
+                queries.tagsLike(words, adult, 5), queries.chaptersLike(words, adult, 4));
     }
 
     @GetMapping("/novels/{slug}")
