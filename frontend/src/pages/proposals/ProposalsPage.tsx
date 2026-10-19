@@ -3,7 +3,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { ChevronUp } from '../../ui/icons';
 import { useState, type FormEvent } from 'react';
 import { useMe } from '../../auth/me';
-import { useCanRun } from '../../ledger/api';
+import { useMaySite } from '../../ledger/api';
 import { plural } from '../../lib/plural';
 import { proposalApi, type NewProposal, type Proposal, type ProposalSort } from '../../proposals/api';
 import { teamApi } from '../../studio/api';
@@ -52,7 +52,8 @@ export function ProposalsPage() {
     // Syosetu fills in the name by itself; any other link (or none) needs it.
     const readable = /syosetu\.com/i.test(draft.url);
     const [taking, setTaking] = useState<Proposal | null>(null);
-    const canRun = useCanRun();
+    // Taking a proposal with autotranslate reads the original's site (етап 19).
+    const canRun = useMaySite();
     const [editing, setEditing] = useState<Proposal | null>(null);
 
     return (

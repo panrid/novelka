@@ -1,8 +1,9 @@
 import { TagPicker } from '../../studio/TagPicker';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useRef, useState, type FormEvent } from 'react';
-import { useMe } from '../../auth/me';
+import { adminApi } from '../../admin/api';
+import { meQuery, useMe } from '../../auth/me';
 import { studioApi, teamApi, type StudioBlock } from '../../studio/api';
 import { autotranslateApi } from '../../studio/autotranslate';
 import { TextEditor, type EditorHandle } from '../../studio/TextEditor';
@@ -11,14 +12,17 @@ import { Notice } from '../../ui/Notice';
 import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
 import styles from './studio.module.css';
-import { useCanRun } from '../../ledger/api';
-import { ArrowRightLeft, PenLine, RefreshCw, Sparkles } from '../../ui/icons';
+import { useCanRun, useMaySite } from '../../ledger/api';
+import { ArrowRightLeft, Languages, PenLine, RefreshCw, Sparkles } from '../../ui/icons';
 
-type Kind = 'human' | 'original' | 'syosetu';
+/** {@code pasted}: a translation by hand whose originals the team pastes for «Перекласти з ШІ» (етап 19). */
+type Kind = 'human' | 'pasted' | 'original' | 'syosetu';
 
 export function NewPublication() {
     const canRun = useCanRun();
+    const maySite = useMaySite();
     const me = useMe();
+    const client = useQueryClient();
     const navigate = useNavigate();
     const teams = useQuery({ queryKey: ['my-teams'], queryFn: teamApi.mine });
     const [kind, setKind] = useState<Kind>('human');
@@ -43,8 +47,15 @@ export function NewPublication() {
             description: editor.current?.read() ?? description,
             tags, adult, team: chosenTeam,
         }),
-        onSuccess: ({ editionId }) => void navigate({ to: '/studio/$editionId', params: { editionId: String(editionId) } }),
+        onSuccess: ({ editionId }) => void navigate(kind === 'pasted'
+            ? { to: '/studio/$editionId/originals', params: { editionId: String(editionId) } }
+            : { to: '/studio/$editionId', params: { editionId: String(editionId) } }),
     });
+    const ask = useMutation({
+        mutationFn: adminApi.requestAccess,
+        onSuccess: () => void client.invalidateQueries({ queryKey: meQuery.queryKey }),
+    });
+    const locked = kind === 'syosetu' && !maySite;
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -61,20 +72,40 @@ export function NewPublication() {
                 <Choice on={kind === 'original'} onPick={() => setKind('original')} icon={<Sparkles size={22} />} title="Свій твір"
                     text="Ваша власна історія українською. Ви — автор." />
                 {canRun && (
+                    <Choice on={kind === 'pasted'} onPick={() => setKind('pasted')} icon={<Languages size={22} />}
+                        title="Вставлю оригінал — перекладе ШІ"
+                        text="Ви вставляєте глави оригіналу, ШІ перекладає їх зі словником за ваші шаги." />
+                )}
+                {canRun && (
                     <Choice on={kind === 'syosetu'} onPick={() => setKind('syosetu')} icon={<RefreshCw size={22} />}
-                        title="Автопереклад із Syosetu"
-                        text="Вставте посилання — назву й опис перекладемо одразу, далі глави «до N»." />
+                        title="Автопереклад із сайту"
+                        text={maySite ? 'Вставте посилання на Syosetu — назву й опис перекладемо одразу, далі глави «до N».'
+                            : 'Глави беруться самі з сайту оригіналу. З дозволу власника сайту.'} />
                 )}
                 <Choice on={false} disabled icon={<ArrowRightLeft size={22} />} title="Продовжити покинутий"
                     text="Відкрийте новелу — якщо переклад вільний, там буде кнопка «Продовжити переклад»." />
             </div>
+            {locked ? (
+                <div className={styles.form}>
+                    <Notice tone="info">
+                        Автопереклад із сайту відкриває власник сайту окремим людям. Без нього можна вставляти оригінал
+                        самому — «Вставлю оригінал — перекладе ШІ».
+                    </Notice>
+                    {ask.isError && <Notice tone="error">{ask.error.message}</Notice>}
+                    {me?.autotranslateRequested ? (
+                        <Notice tone="success">Запит надіслано. Відповідь власника сайту прийде у «Вхідні».</Notice>
+                    ) : (
+                        <Button wide pending={ask.isPending} pendingLabel="Надсилаємо…" onPress={() => ask.mutate()}>Попросити доступ</Button>
+                    )}
+                </div>
+            ) : (
             <form className={styles.form} onSubmit={submit}>
                 {kind === 'syosetu' ? (
                     <TextInput label="Посилання на новелу" value={link} onChange={setLink} isRequired inputMode="url"
                         placeholder="https://ncode.syosetu.com/…" hint="Сторінка новели на Syosetu." />
                 ) : <>
                 <TextInput label="Назва" value={title} onChange={setTitle} isRequired />
-                {kind === 'human'
+                {kind !== 'original'
                     ? <TextInput label="Автор оригіналу" value={author} onChange={setAuthor} hint="Українською, як читачі шукатимуть." />
                     : <p className={styles.muted}>Автор: {me?.nick}</p>}
                 <div>
@@ -104,6 +135,7 @@ export function NewPublication() {
                     </Button>
                 )}
             </form>
+            )}
         </section>
     );
 }

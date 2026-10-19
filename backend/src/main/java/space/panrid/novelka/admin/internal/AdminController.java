@@ -69,6 +69,13 @@ class AdminController {
         return Map.of("received", true);
     }
 
+    /** «Попросити доступ» to «Автопереклад із сайту» (етап 19): the site owner hears about it. */
+    @PostMapping("/autotranslate/request")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void requestAutotranslate() {
+        staff.requestAutotranslate(currentUser.requireSignedIn());
+    }
+
     // ---- moderators ------------------------------------------------------------------------------
 
     record Overview(int openReports, int activeJobs, int failedJobs, String role) {
@@ -144,6 +151,19 @@ class AdminController {
     @PutMapping("/admin/users/{nick}/autotranslate")
     void autotranslate(@PathVariable String nick, @RequestBody Autotranslate body) {
         staff.setAutotranslate(access.requireSiteRole(SiteRole.OWNER), nick, body.allowed());
+    }
+
+    /** Who asked for «Автопереклад із сайту» and waits for an answer. */
+    @GetMapping("/admin/autotranslate-requests")
+    List<Staff.Request> autotranslateRequests() {
+        access.requireSiteRole(SiteRole.OWNER);
+        return staff.requests();
+    }
+
+    /** «Відмовити»: letting in is {@code PUT …/autotranslate} with {@code allowed}. */
+    @PostMapping("/admin/users/{nick}/autotranslate/refuse")
+    void refuseAutotranslate(@PathVariable String nick) {
+        staff.refuseAutotranslate(access.requireSiteRole(SiteRole.OWNER), nick);
     }
 
     /** {@code hideAiWithoutShahs}: AI is hidden from people without шаги (етап 19, п. 7); left out — unchanged. */

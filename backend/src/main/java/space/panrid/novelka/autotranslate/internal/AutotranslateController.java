@@ -31,9 +31,9 @@ import space.panrid.novelka.source.Sources;
 import space.panrid.novelka.team.Teams;
 
 /**
- * The site owner runs autotranslation at the site's cost; those the owner let in run it in
- * translations they translate, paying from their шаги at the site's models (рішення 29, етап 19).
- * Models, prices and the wallet stay the owner's.
+ * The site owner runs autotranslation at the site's cost; everyone else who sees AI runs it from the
+ * originals they pasted, and those the owner let in — from the original's site too, paying from
+ * their шаги at the site's models (рішення 29, етап 19). Models, prices and the wallet stay the owner's.
  */
 @RestController
 @RequestMapping("/api/studio")
@@ -84,11 +84,13 @@ class AutotranslateController {
     }
 
     /**
-     * A translator of the edition who may autotranslate. Translating from the original's site is the
+     * A translator of the edition who may run its translation. «Перекласти з ШІ» from the originals
+     * the team pasted is for everyone who sees AI; translating from the original's site is the
      * owner's and of those the owner let in (етап 19): the site fetches nobody else's texts.
      */
     private Viewer ownerTranslating(long editionId) {
-        Viewer viewer = access.requireAutotranslate();
+        access.requireSignedIn();
+        Viewer viewer = jobs.novel(editionId).pasted() ? access.requireAi() : access.requireAutotranslate();
         access.requireTranslator(editionId);
         return viewer;
     }

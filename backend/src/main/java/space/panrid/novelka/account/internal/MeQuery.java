@@ -42,7 +42,8 @@ class MeQuery {
                 r.getGoogleSub() != null, r.getPasswordSet(),
                 json.readTree(r.getAppearance().data()),
                 SiteRole.fromCode(r.getSiteRole()) == SiteRole.OWNER || r.getAutotranslate(),
-                ai.seesAi(r.getId(), SiteRole.fromCode(r.getSiteRole()))));
+                ai.seesAi(r.getId(), SiteRole.fromCode(r.getSiteRole())),
+                r.getAutotranslateRequestedAt() != null && !r.getAutotranslate()));
     }
 
     Optional<PublicProfile> publicProfile(long id) {

@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { Plus } from '../../ui/icons';
 import { useState } from 'react';
-import { useCanRun, useMayPaste } from '../../ledger/api';
+import { useCanRun, useMayPaste, useMaySite } from '../../ledger/api';
 import { autotranslateApi } from '../../studio/autotranslate';
 import { Button } from '../../ui/Button';
 import { LinkButton } from '../../ui/LinkButton';
@@ -31,7 +31,7 @@ function OverviewTab() {
     const client = useQueryClient();
     const edition = useEditionOverview(id).data!;
     const canRun = useCanRun();
-    const tabs = editionTabs(edition, canRun, useMayPaste());
+    const tabs = editionTabs(edition, canRun, useMayPaste(), useMaySite());
     const [adding, setAdding] = useState(false);
     const translator = edition.role !== 'editor';
     const run = useQuery({

@@ -212,6 +212,15 @@ function Row({ item }: { item: Notification }) {
             title = p.granted ? `Вам дозволили продовжити «${p.title ?? ''}»` : `Власник поки не віддає «${p.title ?? ''}»`;
             excerpt = p.granted ? 'На сторінці новели тепер є кнопка «Продовжити переклад».' : undefined;
             break;
+        case 'autotranslate_request':
+            title = `${p.actorNick ?? ''} просить доступ до автоперекладу із сайту`;
+            excerpt = undefined;
+            chapters = 'Відкрити чи відмовити — у «Користувачах і ролях».';
+            break;
+        case 'autotranslate_answered':
+            title = p.granted ? 'Вам відкрито автопереклад із сайту' : 'Власник сайту поки не відкриває вам автопереклад із сайту';
+            chapters = p.granted ? 'Тепер у «Новому перекладі» можна вставити посилання на новелу.' : undefined;
+            break;
         case 'achievement':
             title = `Нове досягнення: «${p.title ?? ''}»`;
             chapters = p.description || undefined;
@@ -256,6 +265,12 @@ function Row({ item }: { item: Notification }) {
                 {body}
             </Link>
         );
+    }
+    if (item.kind === 'autotranslate_request') {
+        return <Link to="/admin/users" className={className}>{body}</Link>;
+    }
+    if (item.kind === 'autotranslate_answered' && p.granted) {
+        return <Link to="/studio/new" className={className}>{body}</Link>;
     }
     if (item.kind === 'report') {
         return <Link to="/admin/moderation" className={className}>{body}</Link>;

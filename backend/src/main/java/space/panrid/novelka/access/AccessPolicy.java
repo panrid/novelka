@@ -124,34 +124,34 @@ public class AccessPolicy implements AiVisibility {
     }
 
     /**
-     * Autotranslate and the AI tools of translating (етап 19): the site owner, and those the owner
-     * let in; they pay with their шаги. Nobody who does not see AI.
+     * «Автопереклад із сайту» (етап 19): the site owner, and those the owner let in; they pay with
+     * their шаги. Nobody who does not see AI.
      */
     public boolean mayAutotranslate(Viewer viewer) {
         return mayHaveAutotranslate(viewer) && seesAi(viewer.accountId(), viewer.role());
     }
 
-    /** Let in to autotranslate, whether or not AI is hidden from them now: pasting originals is not AI. */
+    /** Let in to translate from the original's site, whether or not AI is hidden from them now. */
     public boolean mayHaveAutotranslate(Viewer viewer) {
         return viewer.role() == SiteRole.OWNER
                 || db.fetchExists(ACCOUNT, ACCOUNT.ID.eq(viewer.accountId()).and(ACCOUNT.AUTOTRANSLATE));
     }
 
-    /** The signed-in person who may autotranslate, or 403. */
+    /** The signed-in person who may translate from the original's site, or 403. */
     public Viewer requireAutotranslate() {
         Viewer viewer = requireSignedIn();
         if (!mayHaveAutotranslate(viewer)) {
-            throw new UserFacingException(HttpStatus.FORBIDDEN, "Автопереклад вам поки недоступний. Доступ дає власник сайту.");
+            throw new UserFacingException(HttpStatus.FORBIDDEN,
+                    "Автопереклад із сайту вам поки недоступний. Попросіть доступ у «Новому перекладі».");
         }
         return requireAi();
     }
 
-    /** The signed-in person who may paste originals (етап 19), with AI hidden from them or not, or 403. */
+    /**
+     * Pasting the original (етап 19) is for everyone signed in: it is not AI. «Перекласти з ШІ» from
+     * it is for those who see AI ({@link #requireAi()}).
+     */
     public Viewer requireOriginals() {
-        Viewer viewer = requireSignedIn();
-        if (!mayHaveAutotranslate(viewer)) {
-            throw new UserFacingException(HttpStatus.FORBIDDEN, "Автопереклад вам поки недоступний. Доступ дає власник сайту.");
-        }
-        return viewer;
+        return requireSignedIn();
     }
 }

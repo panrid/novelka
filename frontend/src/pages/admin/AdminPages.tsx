@@ -168,6 +168,15 @@ export function UsersPage() {
                 : (person.shahs ?? 0) > 0 ? `${person.nick}: автопереклад відкрито. Запуски — за шаги людини.`
                     : `${person.nick}: автопереклад відкрито. Запуски — за шаги людини, а їх поки немає: нарахуйте.`);
             void client.invalidateQueries({ queryKey: ['admin-users'] });
+            void client.invalidateQueries({ queryKey: ['access-requests'] });
+        },
+    });
+    const requests = useQuery({ queryKey: ['access-requests'], queryFn: adminApi.accessRequests, enabled: rank >= RANK.owner });
+    const refuse = useMutation({
+        mutationFn: (nick: string) => adminApi.refuseAccess(nick),
+        onSuccess: (_, nick) => {
+            setGranted(`${nick}: у доступі відмовлено. Людина побачить це у «Вхідних».`);
+            void client.invalidateQueries({ queryKey: ['access-requests'] });
         },
     });
     // An administrator gives up to moderator; the owner gives up to administrator.
@@ -181,7 +190,30 @@ export function UsersPage() {
             <TextInput label="Пошук" value={q} onChange={(value) => { setQ(value); setPage(1); }} placeholder={rank >= RANK.owner ? 'нік або пошта' : 'нік'} />
             {setRole.isError && <Notice tone="error">{setRole.error.message}</Notice>}
             {setAutotranslate.isError && <Notice tone="error">{setAutotranslate.error.message}</Notice>}
+            {refuse.isError && <Notice tone="error">{refuse.error.message}</Notice>}
             {granted && <Notice tone="success">{granted}</Notice>}
+            {(requests.data?.length ?? 0) > 0 && (
+                <div role="group" aria-label="Просять доступ до автоперекладу із сайту">
+                    <h2 className={styles.subtitle}>Просять доступ до автоперекладу із сайту</h2>
+                    {requests.data!.map((request) => (
+                        <div key={request.nick} className={styles.row}>
+                            <div className={styles.grow}>
+                                <Link to="/u/$nick" params={{ nick: request.nick }}>{request.nick}</Link>
+                                <div className={styles.muted}>
+                                    просить {relativeTime(new Date(request.requestedAt))} · {request.shahs ?? 0} {shahWord(request.shahs ?? 0)}
+                                </div>
+                            </div>
+                            <Button variant="secondary" isDisabled={refuse.isPending || setAutotranslate.isPending}
+                                onPress={() => { setGranted(null); refuse.mutate(request.nick); }}>Відмовити</Button>
+                            <Button isDisabled={refuse.isPending || setAutotranslate.isPending}
+                                onPress={() => {
+                                    setGranted(null);
+                                    setAutotranslate.mutate({ person: { nick: request.nick, shahs: request.shahs } as Person, allowed: true });
+                                }}>Відкрити</Button>
+                        </div>
+                    ))}
+                </div>
+            )}
             {granting && (
                 <GrantSheet nick={granting} onClose={() => setGranting(null)}
                     onDone={(message) => { setGranting(null); setGranted(message); void client.invalidateQueries({ queryKey: ['admin-users'] }); }} />
@@ -318,6 +350,9 @@ function describe(entry: AuditEntry): string {
     if (entry.action === 'autotranslate_granted' || entry.action === 'autotranslate_revoked') {
         const nick = (entry.details as { nick?: string }).nick ?? '';
         return `${entry.action === 'autotranslate_granted' ? 'відкриває' : 'закриває'} автопереклад ${nick}`;
+    }
+    if (entry.action === 'autotranslate_refused') {
+        return `відмовляє ${(entry.details as { nick?: string }).nick ?? ''} в автоперекладі із сайту`;
     }
     if (entry.action === 'settings') {
         const { before, after } = entry.details as { before?: Partial<SiteSettingsView>; after?: Partial<SiteSettingsView> };

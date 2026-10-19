@@ -83,6 +83,16 @@ class Texts {
             case "takeover_answered" -> title = Boolean.TRUE.equals(p.get("granted"))
                     ? "Вам дозволили продовжити «" + text(p, "title") + "»"
                     : "Власник поки не віддає «" + text(p, "title") + "»";
+            case "autotranslate_request" -> {
+                title = actor + " просить доступ до автоперекладу із сайту";
+                path = "/admin/users";
+            }
+            case "autotranslate_answered" -> {
+                title = Boolean.TRUE.equals(p.get("granted"))
+                        ? "Вам відкрито автопереклад із сайту"
+                        : "Власник сайту поки не відкриває вам автопереклад із сайту";
+                path = "/studio/new";
+            }
             case "achievement" -> {
                 String about = text(p, "description");
                 return message("🏅 <b>Нове досягнення: «" + escape(text(p, "title")) + "»</b>" + (about.isEmpty() ? "" : "\n" + escape(about)),
