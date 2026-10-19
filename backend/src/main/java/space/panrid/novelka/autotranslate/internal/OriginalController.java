@@ -124,7 +124,7 @@ class OriginalController {
         originals.delete(editionId, null);
     }
 
-    private static OriginalFiles.Parsed separate(Separate body) {
+    static OriginalFiles.Parsed separate(Separate body) {
         List<Given> given = body.chapters() == null ? List.of() : body.chapters();
         if (given.size() > OriginalFiles.MAX_CHAPTERS) {
             throw UserFacingException.badRequest("Забагато глав за раз: до %d.".formatted(OriginalFiles.MAX_CHAPTERS));
@@ -143,7 +143,7 @@ class OriginalController {
         return new OriginalFiles.Parsed(chapters, Map.of());
     }
 
-    private static OriginalFiles.Parsed parse(MultipartFile file, String text) {
+    static OriginalFiles.Parsed parse(MultipartFile file, String text) {
         if (file != null && !file.isEmpty()) {
             try {
                 return OriginalFiles.parse(file.getOriginalFilename() == null ? "file.txt" : file.getOriginalFilename(), file.getBytes());

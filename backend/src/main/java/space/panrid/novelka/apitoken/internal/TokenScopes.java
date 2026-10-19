@@ -35,6 +35,12 @@ final class TokenScopes {
                 "/api/me/nick", "/api/me/google", "/api/me/telegram/**", "/api/studio/editions/*/delete-code",
                 "/api/studio/editions/*/delete", "/api/admin/users/*/role");
 
+        // The Studio's API (етап 22.3), before the public reading API it sits under: runs spend шаги,
+        // a batch of правки is a reader's sending, the rest is the team's work.
+        rule(Scope.TRANSLATE, ANY, "/api/v1/studio/novels/*/translations/*/runs/**");
+        rule(Scope.SUGGEST, Set.of("POST"), "/api/v1/studio/novels/*/translations/*/suggestions");
+        rule(Scope.STUDIO, ANY, "/api/v1/studio/**");
+
         rule(Scope.READ, READING, "/api/v1/**", "/api/me", "/api/home", "/api/catalog/**", "/api/tags/**", "/api/search/hints",
                 "/api/novels/**", "/api/users/**", "/api/teams/*", "/api/editions/*/comments");
 

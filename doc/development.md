@@ -151,3 +151,19 @@ CSRF для таких запитів не потрібен. Токен діє �
 |---|---|
 | `novelka.api.token-requests-per-minute` | 600 — на один токен, будь-які адреси |
 | `novelka.api.address-requests-per-minute` | 120 — на одну адресу, `/api/v1` без токена |
+
+### API Студії й перекладу
+
+`/api/v1/studio` — з токеном (`studio`, для запусків — `translate`, щоб надіслати правки — `suggest`)
+або із сесією. Переклад — `novels/{slug}/translations/{team}`, як у публічному API. Права — ті самі,
+що в Студії: чужий переклад — 403, оригінал бачать лише перекладачі команди, ШІ — лише з шагами.
+
+```sh
+T="Authorization: Bearer nvk_…"; B=http://127.0.0.1:8080/api/v1/studio/novels/mother-of-learning/translations/zorian
+curl -H "$T" -H 'Content-Type: application/json' -X POST $B/originals \
+  -d '{"language":"en","chapters":[{"title":"Chapter 1","text":"Zorian woke up…"}]}'
+curl -H "$T" -H 'Content-Type: application/json' -X POST $B/runs/estimate -d '{"to":1}'
+curl -H "$T" -H 'Content-Type: application/json' -X POST $B/runs -d '{"to":1,"publish":false}'
+curl -H "$T" $B/runs/42/log
+curl -H "$T" -X POST $B/chapters/1/publish -H 'Content-Type: application/json' -d '{}'   # моя чернетка
+```

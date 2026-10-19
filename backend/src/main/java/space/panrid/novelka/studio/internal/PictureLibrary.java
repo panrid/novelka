@@ -112,6 +112,28 @@ class PictureLibrary {
         return new Page(items, total, at);
     }
 
+    /** The newest pictures first, read by key (the API, етап 22.3): those older than {@code afterId}, or the newest. */
+    List<Picture> after(long accountId, Long afterId, int limit) {
+        var rows = db.select(IMAGE.ID, IMAGE.WIDTH, IMAGE.HEIGHT, IMAGE.FILE_NAME, IMAGE.AI_CALL_ID, IMAGE.PROMPT, IMAGE.FRAGMENT,
+                        IMAGE.SOURCE_URL, IMAGE.CREATED_AT)
+                .from(IMAGE).where(mine(accountId), afterId == null ? DSL.noCondition() : IMAGE.ID.lt(afterId))
+                .orderBy(IMAGE.ID.desc())
+                .limit(limit)
+                .fetch();
+        List<Long> ids = rows.map(r -> r.value1());
+        Map<Long, StoredImage> stored = images.findAll(ids);
+        Map<Long, List<Use>> uses = uses(ids);
+        List<Picture> items = new ArrayList<>();
+        for (var r : rows) {
+            StoredImage image = stored.get(r.value1());
+            if (image != null) {
+                items.add(new Picture(r.value1(), image.url(640), image.url(Integer.MAX_VALUE), r.value2(), r.value3(), r.value4(),
+                        r.value5() != null, r.value6(), r.value7(), r.value8(), r.value9(), uses.getOrDefault(r.value1(), List.of())));
+            }
+        }
+        return items;
+    }
+
     /** Takes a picture out of the library; chapters that show it keep showing it. */
     void remove(long accountId, long imageId) {
         int changed = db.update(IMAGE).set(IMAGE.REMOVED_AT, OffsetDateTime.now(clock))
@@ -123,6 +145,15 @@ class PictureLibrary {
 
     /** Where each picture would go in the edition, in chapter and paragraph order; nothing is saved. */
     List<Place> plan(long accountId, long editionId, Collection<Long> imageIds) {
+        return plan(accountId, editionId, imageIds, Map.of());
+    }
+
+    /**
+     * The same, where some pictures are told their place outright (the API, етап 22.3): {@code spots}
+     * gives a picture its chapter and the paragraph it goes after (0 — the very start); the others
+     * go where their file's name says.
+     */
+    List<Place> plan(long accountId, long editionId, Collection<Long> imageIds, Map<Long, int[]> spots) {
         if (imageIds == null || imageIds.isEmpty()) {
             throw UserFacingException.badRequest("Виберіть картинки.");
         }
@@ -138,7 +169,7 @@ class PictureLibrary {
             long id = r.value1();
             String name = r.value2();
             String url = stored.containsKey(id) ? stored.get(id).url(640) : null;
-            int[] spot = spot(name);
+            int[] spot = spots.containsKey(id) ? spots.get(id) : spot(name);
             if (spot == null) {
                 places.add(new Place(id, name, url, null, null, null,
                         "З назви файлу не видно, куди її ставити: назвіть файл «27-5.png» — глава 27, після 5-го абзацу."));
@@ -175,7 +206,12 @@ class PictureLibrary {
      * inserted them in the editor and pressed «Опублікувати».
      */
     Placed place(long accountId, long editionId, Collection<Long> imageIds) {
-        List<Place> places = plan(accountId, editionId, imageIds);
+        return place(accountId, editionId, imageIds, Map.of());
+    }
+
+    /** The same, with places told outright for some pictures (see {@link #plan(long, long, Collection, Map)}). */
+    Placed place(long accountId, long editionId, Collection<Long> imageIds, Map<Long, int[]> spots) {
+        List<Place> places = plan(accountId, editionId, imageIds, spots);
         List<String> skipped = new ArrayList<>();
         Map<Integer, List<Place>> byChapter = new LinkedHashMap<>();
         for (Place place : places) {

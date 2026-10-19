@@ -195,6 +195,18 @@ class Originals {
         return new Listing(rows, total, shown, nextNumber(editionId), languages);
     }
 
+    /** The pasted chapters by number, read by key (the API, етап 22.3): those after {@code afterNumber}. */
+    List<Row> after(long editionId, Integer afterNumber, int limit) {
+        var published = DSL.exists(DSL.selectOne().from(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.NUMBER.eq(EDITION_ORIGINAL.NUMBER)));
+        return db.select(EDITION_ORIGINAL.NUMBER, EDITION_ORIGINAL.TITLE, EDITION_ORIGINAL.CHARS, EDITION_ORIGINAL.LANGUAGE,
+                        DSL.field(published), EDITION_ORIGINAL.UPDATED_AT)
+                .from(EDITION_ORIGINAL)
+                .where(EDITION_ORIGINAL.EDITION_ID.eq(editionId), afterNumber == null ? DSL.noCondition() : EDITION_ORIGINAL.NUMBER.gt(afterNumber))
+                .orderBy(EDITION_ORIGINAL.NUMBER).limit(limit)
+                .fetch(r -> new Row(r.value1(), r.value2(), r.value3(), r.value4(), r.value5(), r.value6()));
+    }
+
     Original find(long editionId, int number) {
         var row = db.select(EDITION_ORIGINAL.TITLE, EDITION_ORIGINAL.LANGUAGE, EDITION_ORIGINAL.BLOCKS).from(EDITION_ORIGINAL)
                 .where(EDITION_ORIGINAL.EDITION_ID.eq(editionId), EDITION_ORIGINAL.NUMBER.eq(number)).fetchOne();

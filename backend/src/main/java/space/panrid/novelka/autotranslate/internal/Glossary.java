@@ -142,6 +142,26 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
                 List.of(GLOSSARY_ENTRY.KIND, GLOSSARY_ENTRY.UKRAINIAN), Integer.MAX_VALUE, 0);
     }
 
+    /**
+     * Entries read by key, in the order they were added (the API, етап 22.3): those after
+     * {@code afterId}; {@code status}, {@code kind} and {@code query} narrow them as on the glossary page.
+     */
+    List<Entry> after(long editionId, String status, String kind, String query, Long afterId, int limit) {
+        String words = query == null ? "" : query.strip();
+        Condition where = (status == null ? DSL.noCondition() : GLOSSARY_ENTRY.STATUS.eq(status))
+                .and(kind == null ? DSL.noCondition() : GLOSSARY_ENTRY.KIND.eq(kind))
+                .and(afterId == null ? DSL.noCondition() : GLOSSARY_ENTRY.ID.gt(afterId))
+                .and(words.isEmpty() ? DSL.noCondition() : GLOSSARY_ENTRY.UKRAINIAN.containsIgnoreCase(words)
+                        .or(DSL.exists(DSL.selectOne().from(GLOSSARY_FORM)
+                                .where(GLOSSARY_FORM.ENTRY_ID.eq(GLOSSARY_ENTRY.ID), GLOSSARY_FORM.ORIGINAL.containsIgnoreCase(words)))));
+        return entries(scope(editionId), where, List.of(GLOSSARY_ENTRY.ID.asc()), limit, 0);
+    }
+
+    /** One entry of the translation's novel. */
+    java.util.Optional<Entry> find(long editionId, long entryId) {
+        return entries(scope(editionId), GLOSSARY_ENTRY.ID.eq(entryId), List.of(GLOSSARY_ENTRY.ID.asc()), 1, 0).stream().findFirst();
+    }
+
     static final int PAGE = 20;
     static final Set<String> STATUSES = Set.of("new", "approved", "rejected");
 

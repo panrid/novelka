@@ -50,10 +50,11 @@ final class BearerFilter extends OncePerRequestFilter {
                 && header.substring(0, BEARER.length()).toLowerCase(Locale.ROOT).equals(BEARER);
     }
 
-    /** The public reading API, open without a token. */
+    /** The public reading API, open without a token; the Studio's API under it (етап 22.3) is for those signed in. */
     static boolean publicApi(HttpServletRequest request) {
         String path = path(request);
-        return path.equals("/api/v1") || path.startsWith("/api/v1/");
+        return (path.equals("/api/v1") || path.startsWith("/api/v1/")) && !path.equals("/api/v1/studio")
+                && !path.startsWith("/api/v1/studio/");
     }
 
     @Override
