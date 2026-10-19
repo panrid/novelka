@@ -14,6 +14,7 @@ import { PicturesPage } from '../pages/me/PicturesPage';
 import { NotificationSettingsPage } from '../pages/me/NotificationSettingsPage';
 import { ReaderAppearancePage, SiteAppearancePage } from '../pages/me/AppearancePages';
 import { ProfileSettingsPage, SecuritySettingsPage, ShahsSettingsPage } from '../pages/me/SettingsPage';
+import { ApiSettingsPage } from '../pages/me/ApiSettingsPage';
 import { WelcomePage } from '../pages/me/WelcomePage';
 import { UserPage } from '../pages/people/UserPage';
 import { CatalogPage, validateCatalogSearch } from '../pages/reading/CatalogPage';
@@ -207,6 +208,10 @@ const routeTree = rootRoute.addChildren([
     createRoute({
         getParentRoute: () => rootRoute, path: '/me/settings/shahs', component: ShahsSettingsPage,
         beforeLoad: requireSignedIn, head: title('Шаги'),
+    }),
+    createRoute({
+        getParentRoute: () => rootRoute, path: '/me/settings/api', component: ApiSettingsPage,
+        beforeLoad: requireSignedIn, head: title('API'),
     }),
     // The look of the site and of the reader: guests choose too, kept in their browser.
     createRoute({ getParentRoute: () => rootRoute, path: '/me/settings/appearance', component: SiteAppearancePage, head: title('Вигляд сайту') }),
