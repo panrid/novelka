@@ -36,8 +36,8 @@ class SecurityConfiguration {
                 .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
                 // The SPA reads XSRF-TOKEN from the cookie and sends it back in X-XSRF-TOKEN.
                 .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()).spa()
-                        // Telegram's webhook carries its own secret header instead.
-                        .ignoringRequestMatchers("/api/telegram/webhook"))
+                        // Telegram's webhook carries its own secret header instead; browser errors carry no authority.
+                        .ignoringRequestMatchers("/api/telegram/webhook", "/api/client-errors"))
                 .securityContext(context -> context.securityContextRepository(contexts))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)

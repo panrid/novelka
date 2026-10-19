@@ -5,10 +5,12 @@ import { createRoot } from 'react-dom/client';
 import { ApiError } from './api/client';
 import { createAppRouter } from './app/router';
 import { mutationCache, queryCache } from './app/mutationErrors';
+import { watchClientErrors } from './app/clientErrors';
 import { apply as applyAppearance } from './appearance/store';
 import './styles/global.css';
 
 applyAppearance();
+watchClientErrors();
 
 const queryClient = new QueryClient({
     mutationCache: mutationCache(),

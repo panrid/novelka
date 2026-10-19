@@ -1,4 +1,6 @@
-import { Link, useRouter } from '@tanstack/react-router';
+import { Link, useRouter, type ErrorComponentProps } from '@tanstack/react-router';
+import { useEffect } from 'react';
+import { reportError } from '../app/clientErrors';
 import styles from './Placeholder.module.css';
 
 export function NotFoundPage() {
@@ -13,8 +15,10 @@ export function NotFoundPage() {
     );
 }
 
-export function ErrorPage() {
+export function ErrorPage({ error }: Partial<ErrorComponentProps>) {
     const router = useRouter();
+    // The page fell: the server's log hears of it (план, етап 23, п. 4).
+    useEffect(() => { if (error) reportError('render', error); }, [error]);
     return (
         <section className={styles.page} role="alert">
             <h1 className={styles.title}>Щось пішло не так</h1>
