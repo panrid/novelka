@@ -202,7 +202,10 @@ function Heading({ at }: { at: 'site' | 'reader' }) {
     );
 }
 
-/** «Студія» among the main tabs, for people who translate every day; kept with the account. */
+/**
+ * «Студія» among the phone's bottom tabs, for people who translate every day; kept with the account.
+ * On a computer it is always in the menu.
+ */
 function StudioInMenu() {
     const me = useMe();
     const setMe = useSetMe();
@@ -210,8 +213,8 @@ function StudioInMenu() {
     if (!me) return null;
     return (
         <div>
-            <Toggle label="Студія в головному меню" isSelected={Boolean(me.studioInMenu)} onChange={(value) => save.mutate(value)} />
-            <p className={form.note}>Вкладка «Студія» поруч із «Бібліотекою», а не лише в «Я».</p>
+            <Toggle label="Студія в нижньому меню на телефоні" isSelected={Boolean(me.studioInMenu)} onChange={(value) => save.mutate(value)} />
+            <p className={form.note}>Вкладка «Студія» поруч із «Бібліотекою», а не лише в «Я». На комп'ютері вона в меню завжди.</p>
             {save.isError && <Notice tone="error">{save.error.message}</Notice>}
         </div>
     );

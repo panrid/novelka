@@ -86,14 +86,18 @@ class ReadingQueries {
 
     /** Readers in the last 30 days count twice as much as library entries. */
     Field<Integer> popularity() {
-        OffsetDateTime monthAgo = now().minusDays(30);
-        Field<Integer> readers = DSL.select(DSL.countDistinct(READING_PROGRESS.ACCOUNT_ID)).from(READING_PROGRESS)
-                .where(READING_PROGRESS.EDITION_ID.eq(EDITION.ID).and(READING_PROGRESS.UPDATED_AT.gt(monthAgo)))
-                .asField();
+        Field<Integer> readers = readersSince(now().minusDays(30));
         Field<Integer> shelved = DSL.select(DSL.count()).from(LIBRARY_ENTRY)
                 .where(LIBRARY_ENTRY.EDITION_ID.eq(EDITION.ID).and(LIBRARY_ENTRY.LIST.in("reading", "planned", "done")))
                 .asField();
         return readers.mul(2).plus(shelved);
+    }
+
+    /** People who read the edition since {@code since}. */
+    private Field<Integer> readersSince(OffsetDateTime since) {
+        return DSL.select(DSL.countDistinct(READING_PROGRESS.ACCOUNT_ID)).from(READING_PROGRESS)
+                .where(READING_PROGRESS.EDITION_ID.eq(EDITION.ID).and(READING_PROGRESS.UPDATED_AT.gt(since)))
+                .asField();
     }
 
     // ---- lists of cards -------------------------------------------------------------------
@@ -165,9 +169,10 @@ class ReadingQueries {
         return result;
     }
 
+    /** «Читають цього тижня» on the home page: readers of the last 7 days first, then the usual popularity. */
     List<Card> popular(boolean adult, int limit) {
         return toCards(cards().where(visible(adult).and(EDITION.CHAPTER_COUNT.gt(0)))
-                .orderBy(popularity().desc(), EDITION.LAST_PUBLISHED_AT.desc().nullsLast(), EDITION.ID)
+                .orderBy(readersSince(now().minusDays(7)).desc(), popularity().desc(), EDITION.LAST_PUBLISHED_AT.desc().nullsLast(), EDITION.ID)
                 .limit(limit).fetch());
     }
 

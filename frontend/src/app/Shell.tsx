@@ -52,7 +52,7 @@ export function Shell() {
                     <Link to="/" className={styles.logo} aria-label="Новелка, головна">
                         новелка<span className={styles.dot}>.</span>
                     </Link>
-                    <Tabs className={styles.topTabs} />
+                    <Tabs className={styles.topTabs} wide />
                     <HeaderSearch />
                     <ThemeButton />
                 </header>
@@ -127,13 +127,18 @@ function HeaderSearch() {
 
 const STUDIO: Tab = { to: '/studio', label: 'Студія', icon: PenLine };
 
-function Tabs({ className }: { className: string | undefined }) {
+/**
+ * «Студія» (етап 20, рішення 11): on a computer it is always in the menu of a signed-in person, after
+ * «Бібліотека»; the phone keeps its five tabs and adds it only for those who asked in «Вигляд».
+ */
+function Tabs({ className, wide = false }: { className: string | undefined; wide?: boolean }) {
     const me = useMe();
-    const tabs = me?.studioInMenu ? [...TABS.slice(0, 3), STUDIO, ...TABS.slice(3)] : TABS;
+    const withStudio = Boolean(me) && (wide || Boolean(me?.studioInMenu));
+    const tabs = withStudio ? [...TABS.slice(0, 3), STUDIO, ...TABS.slice(3)] : TABS;
     const counts = useInboxCounts().data;
     const unread = (counts?.notifications ?? 0) + (counts?.messages ?? 0);
     // Suggestions waiting in the person's translations, on the Studio tab when it is in the menu.
-    const studio = useQuery({ queryKey: ['studio'], queryFn: studioApi.mine, enabled: Boolean(me?.studioInMenu) });
+    const studio = useQuery({ queryKey: ['studio'], queryFn: studioApi.mine, enabled: withStudio });
     const pending = studio.data?.reduce((sum, item) => sum + (item.pendingSuggestions ?? 0), 0) ?? 0;
     const badge = (to: string) => (to === '/inbox' ? unread : to === '/studio' ? pending : 0);
     return (

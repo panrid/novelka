@@ -618,9 +618,23 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
 
     @Override
     public int characterCount(long editionId) {
-        return db.fetchCount(GLOSSARY_ENTRY, GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId()),
-                GLOSSARY_ENTRY.STATUS.ne("rejected"), GLOSSARY_ENTRY.KIND.eq("character"), GLOSSARY_ENTRY.SAME_AS.isNull(),
-                GLOSSARY_ENTRY.IN_STORY.isDistinctFrom(false));
+        // Only characters the glossary tells something about (a note or a fact, under any of their names):
+        // a translation made by hand without descriptions has no «Персонажі» (етап 20, рішення 10).
+        List<Long> mains = db.select(GLOSSARY_ENTRY.ID).from(GLOSSARY_ENTRY)
+                .where(GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId()), GLOSSARY_ENTRY.STATUS.ne("rejected"),
+                        GLOSSARY_ENTRY.KIND.eq("character"), GLOSSARY_ENTRY.SAME_AS.isNull(), GLOSSARY_ENTRY.IN_STORY.isDistinctFrom(false))
+                .fetch(GLOSSARY_ENTRY.ID);
+        if (mains.isEmpty()) {
+            return 0;
+        }
+        Map<Long, List<GlossaryEntryRecord>> groups = groups(mains);
+        List<Long> everyone = groups.values().stream().flatMap(List::stream).map(GlossaryEntryRecord::getId).toList();
+        Set<Long> withFacts = everyone.isEmpty() ? Set.of()
+                : db.selectDistinct(GLOSSARY_FACT.ENTRY_ID).from(GLOSSARY_FACT).where(GLOSSARY_FACT.ENTRY_ID.in(everyone)).fetchSet(GLOSSARY_FACT.ENTRY_ID);
+        return (int) mains.stream()
+                .filter(main -> groups.getOrDefault(main, List.of()).stream()
+                        .anyMatch(entry -> withFacts.contains(entry.getId()) || forReaders(entry.getNote()) != null))
+                .count();
     }
 
     @Override

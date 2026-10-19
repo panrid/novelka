@@ -43,10 +43,14 @@ describe('home', () => {
             } },
         });
 
-        expect(await screen.findByText('Продовжити')).toBeInTheDocument();
-        expect(screen.getByText('Глава 11')).toBeInTheDocument();
-        expect(screen.getByRole('heading', { name: /Популярне/ })).toBeInTheDocument();
-        expect(screen.getByText(/Глави 41–44 · 5 годин тому/)).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Продовжити читання' })).toBeInTheDocument();
+        expect(screen.getByText('Глава 11 · 60%')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Маг води.*Глава 11/ })).toHaveAttribute('href', '/n/mah-vody/12?t=panrid');
+        expect(screen.getByRole('heading', { name: /Читають цього тижня/ })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Нові глави/ })).toBeInTheDocument();
+        expect(screen.getByText('Глави 41–44')).toBeInTheDocument();
+        expect(screen.getByText('5 годин тому')).toBeInTheDocument();
+        expect(screen.getByText('$panrid')).toBeInTheDocument();
     });
 });
 
@@ -60,8 +64,10 @@ describe('novel page', () => {
 
         const button = await screen.findByRole('link', { name: 'Продовжити · гл. 12' });
         expect(button).toHaveAttribute('href', '/n/mah-vody/12');
-        expect(screen.getByText('44 глави · в роботі')).toBeInTheDocument();
-        expect(await screen.findByText('тут зупинились')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'Маг води' }).parentElement).toHaveTextContent('44 глави');
+        expect(screen.getByText('в роботі')).toBeInTheDocument();
+        // The chapter this browser stopped at says how far into it.
+        expect(await screen.findByRole('link', { name: /Спокійне життя.*тут зупинились\s*·\s*30%/ })).toHaveAttribute('href', '/n/mah-vody/12');
     });
 
     it('does not hand a new account the place someone else left in this browser', async () => {
@@ -74,6 +80,27 @@ describe('novel page', () => {
             'GET /api/editions/7/comments/count': { body: { count: 0 } },
         });
         expect(await screen.findByRole('link', { name: 'Почати читати' })).toHaveAttribute('href', '/n/mah-vody/1');
+    });
+
+    it('shows the description above the tabs, folds a long one, and leads the team to the Studio (етап 20)', async () => {
+        const long = 'Рьо прокинувся в іншому світі й вирішив жити спокійно. '.repeat(12);
+        await renderAt('/n/mah-vody', {
+            'GET /api/me': { body: ME },
+            'GET /api/novels/mah-vody': { body: { ...NOVEL,
+                description: [{ id: 'd1', type: 'paragraph', content: [{ text: long, marks: [] }], imageUrl: null }],
+                viewer: { list: 'reading', chapterNumber: null, position: null, teamRole: 'translator', myRating: null, chapterLabel: null,
+                    relayAsked: false, subscribed: false } } },
+            'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
+            'GET /api/editions/7/comments/count': { body: { count: 0 } },
+        });
+        const unfold = await screen.findByRole('button', { name: 'Читати опис повністю' });
+        expect(unfold).toHaveAttribute('aria-expanded', 'false');
+        await userEvent.click(unfold);
+        expect(screen.getByRole('button', { name: 'Згорнути' })).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByRole('link', { name: 'Фентезі' })).toHaveAttribute('href', expect.stringContaining('/catalog'));
+        expect(screen.getByRole('link', { name: 'Керувати перекладом' })).toHaveAttribute('href', '/studio/7');
+        // No descriptions of characters in the glossary — no «Персонажі».
+        expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Глави · 44', 'Обговорення']);
     });
 
     it('explains an 18+ novel instead of pretending it is missing', async () => {
@@ -232,7 +259,7 @@ describe('chapters 20 to a page', () => {
             'GET /api/editions/7/comments/count': { body: { count: 0 } },
         });
         expect(await screen.findByRole('button', { name: /^Сторінка 2/, current: 'page' })).toBeInTheDocument();
-        expect(await screen.findByText('тут зупинились')).toBeInTheDocument();
+        expect(await screen.findByText(/тут зупинились/)).toBeInTheDocument();
         await userEvent.click(screen.getByRole('button', { name: 'Наступна сторінка' }));
         expect(await screen.findByRole('button', { name: /^Сторінка 3/, current: 'page' })).toBeInTheDocument();
         expect(calls.filter((call) => call.path.endsWith('/chapters')).map((call) => new URLSearchParams(call.query).get('page')))
@@ -291,7 +318,7 @@ describe('chapters by volumes', () => {
         expect(open).toHaveAttribute('aria-expanded', 'true');
         expect(open).toHaveTextContent('з глави 21 · 24 глави · прочитано 4');
         expect(screen.getByRole('button', { name: /Вичитано/ })).toHaveAttribute('aria-expanded', 'false');
-        expect(await screen.findByText('тут зупинились')).toBeInTheDocument();
+        expect(await screen.findByText(/тут зупинились/)).toBeInTheDocument();
         const query = () => calls.filter((call) => call.path.endsWith('/chapters')).map((call) => new URLSearchParams(call.query));
         expect(query().map((q) => `${q.get('from')}-${q.get('to')}`)).toEqual(['21-null']);
 
@@ -493,12 +520,15 @@ describe('the novel’s other names and the original', () => {
             } },
             'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
         });
-        expect(await screen.findByText(/44 глави · призупинено до 1 березня 2031/)).toBeInTheDocument();
-        expect(screen.getByText('Перекладено 44 з 822 · оригінал виходить')).toBeInTheDocument();
-        expect(screen.getByRole('progressbar', { name: 'Перекладено' })).toHaveAttribute('aria-valuenow', '44');
-        // The other names and the original are on «Про новелу».
-        await userEvent.click(screen.getByRole('tab', { name: 'Про новелу' }));
-        expect(await screen.findByText('Water Magician · 水属性の魔法使い · Mizu Zokusei')).toBeInTheDocument();
+        expect(await screen.findByText(/^призупинено до 1 березня 2031/)).toBeInTheDocument();
+        // As on the mockup: «44 глави з 822 · оригінал виходить», the English name and the author under the title.
+        const head = screen.getByRole('heading', { level: 1, name: 'Маг води' }).parentElement!;
+        expect(head).toHaveTextContent('44 глави з 822');
+        expect(within(head).getByText('оригінал виходить')).toBeInTheDocument();
+        expect(within(head).getByText('Water Magician · Тадаші Хісахо')).toBeInTheDocument();
+        // The other names and the original are above the tabs, no «Про новелу» to open.
+        expect(screen.queryByRole('tab', { name: 'Про новелу' })).not.toBeInTheDocument();
+        expect(screen.getByText('Water Magician · 水属性の魔法使い · Mizu Zokusei')).toBeInTheDocument();
         expect(screen.getByText('виходить · 822 глави')).toBeInTheDocument();
         // Google reads the title the app sets: the English name and «безкоштовно» live only there, not on the page.
         await waitFor(() => expect(document.title).toBe('Маг води (Water Magician) — читати українською безкоштовно | Новелка'));
@@ -510,7 +540,8 @@ describe('the novel’s other names and the original', () => {
             'GET /api/novels/mah-vody': { body: NOVEL },
             'GET /api/novels/mah-vody/chapters': { body: { items: [], page: 1, hasMore: false } },
         });
-        expect(await screen.findByText('44 глави · в роботі')).toBeInTheDocument();
+        expect(await screen.findByText('в роботі')).toBeInTheDocument();
+        expect(screen.getByText('Тадаші Хісахо')).toBeInTheDocument();
         expect(screen.queryByText(/оригінал/)).not.toBeInTheDocument();
     });
 });
@@ -564,7 +595,7 @@ describe('read marks', () => {
             'GET /api/novels/mah-vody': { body: NOVEL },
             'GET /api/novels/mah-vody/chapters': { body: { items: ROWS.map((row) => ({ ...row, read: null })), page: 1, hasMore: false } },
         });
-        expect(await screen.findByText('1. Глава 1')).toBeInTheDocument();
+        expect(await screen.findByRole('link', { name: /^1\.\s*Глава 1/ })).toHaveAttribute('href', '/n/mah-vody/1');
         expect(screen.queryByRole('button', { name: /прочитано/ })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Скинути прогрес читання' })).not.toBeInTheDocument();
     });
@@ -583,8 +614,11 @@ describe('«Персонажі» on the novel page', () => {
             'GET /api/novels/mah-vody/characters': () => ({ body: ++served > 1 ? [ryo, { ...ryo, id: 4, ukrainian: 'Абель' }] : [ryo] }),
         });
         await userEvent.click(await screen.findByRole('tab', { name: 'Персонажі' }));
-        await userEvent.click(await screen.findByRole('button', { name: /Рьо/ }));
-        expect(await screen.findByText('Головний герой.')).toBeInTheDocument();
+        // A card tells what the novel said first, as on the mockup; a tap tells everything.
+        expect(await screen.findByRole('button', { name: /Рьо.*Головний герой\./ })).toBeInTheDocument();
+        expect(screen.getByText('Лише ті, кого ви вже зустріли, — до глави 7.')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: /Рьо/ }));
+        expect(within(await screen.findByRole('dialog', { name: 'Рьо' })).getByText('Головний герой.')).toBeInTheDocument();
         expect(new URLSearchParams(calls.find((call) => call.path.endsWith('/characters'))!.query).get('chapter')).toBe('7');
         await userEvent.keyboard('{Escape}');
         expect(screen.queryByRole('button', { name: /Абель/ })).not.toBeInTheDocument();

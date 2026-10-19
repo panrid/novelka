@@ -1,0 +1,287 @@
+/*
+ * Головна (етап 20): `doc/redesign/mockup/PhoneHome.dc.html` on a phone, `Home.dc.html` on a computer.
+ * Phone first; from 768 px the computer's layout.
+ */
+.page {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 8px 0 16px;
+}
+
+.title {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin: 0 0 10px;
+    color: var(--strong);
+    font: 600 16px/1.3 var(--font-ui);
+}
+
+.titleLink {
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 400;
+    text-decoration: none;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.small {
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.note {
+    margin: 0 0 10px;
+}
+
+.wideOnly {
+    display: none;
+}
+
+/* «Продовжити читання»: on a phone one big card; the rest are in «Бібліотека». */
+.continues {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+}
+
+.continue {
+    display: flex;
+    gap: 14px;
+    min-width: 0;
+    padding: 14px;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    color: inherit;
+    text-decoration: none;
+}
+
+.continue:nth-child(n + 2) {
+    display: none;
+}
+
+.continueCover {
+    flex: none;
+}
+
+.continueText {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.kicker {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.novelTitle {
+    overflow: hidden;
+    color: var(--strong);
+    font: 600 18px/1.25 var(--font-reading);
+    text-overflow: ellipsis;
+}
+
+.bar {
+    display: block;
+    height: 4px;
+    margin-top: auto;
+    border-radius: 4px;
+    background: var(--line);
+}
+
+.bar > span {
+    display: block;
+    height: 4px;
+    border-radius: 4px;
+    background: var(--accent);
+}
+
+.columns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 22px 24px;
+    align-items: flex-start;
+}
+
+.fresh {
+    flex: 999 1 560px;
+    min-width: 0;
+}
+
+.side {
+    flex: 1 1 340px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+/* «Нові глави»: rows without a card around them on a phone, in a panel on a computer. */
+.panel {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.freshRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    padding: 10px 4px;
+    border-radius: 12px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.freshRow:hover {
+    background: var(--surface-2);
+}
+
+.freshText {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+}
+
+.freshTitle {
+    overflow: hidden;
+    color: var(--strong);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.when {
+    color: var(--faint);
+}
+
+/* «Читають цього тижня»: three covers in a row. */
+.popular {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.popularItem {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.popularItem:nth-child(n + 4) {
+    display: none;
+}
+
+.fluidCover > * {
+    width: 100% !important;
+    border-radius: 10px;
+}
+
+.popularTitle {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.3;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+@media (min-width: 768px) {
+    .page {
+        gap: 32px;
+        padding: 24px 0 48px;
+    }
+
+    .title {
+        margin-bottom: 12px;
+        font-size: 18px;
+    }
+
+    .wideOnly {
+        display: revert;
+    }
+
+    .phoneOnly {
+        display: none;
+    }
+
+    .continues {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    }
+
+    .continue {
+        border-radius: 14px;
+    }
+
+    .continue:nth-child(n + 2) {
+        display: flex;
+    }
+
+    .continueCover > * {
+        width: 64px !important;
+    }
+
+    .novelTitle {
+        font-size: 17px;
+    }
+
+    .bar {
+        background: var(--surface-2);
+    }
+
+    .panel {
+        padding: 6px;
+        border-radius: 14px;
+        background: var(--surface);
+    }
+
+    .freshRow {
+        gap: 14px;
+        padding: 10px;
+        border-radius: 10px;
+    }
+
+    .freshTitle {
+        font-weight: 600;
+    }
+
+    .freshText {
+        font-size: 14px;
+    }
+
+    .when {
+        width: 80px;
+        color: var(--muted);
+        text-align: right;
+    }
+
+    .popular {
+        gap: 12px;
+    }
+
+    .popularItem:nth-child(n + 4) {
+        display: flex;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .freshRow {
+        transition: background-color 0.15s;
+    }
+}
