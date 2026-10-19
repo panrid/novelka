@@ -11,7 +11,7 @@ import { Notice } from '../../ui/Notice';
 import { Segmented } from '../../ui/Segmented';
 import { Sheet } from '../../ui/Sheet';
 import { shahApi } from '../../ledger/api';
-import { dollars, shahWord } from '../../studio/autotranslate';
+import { QUALITIES, QUALITY_LABELS, autotranslateApi, dollars, shahWord, type PresetQuality, type Quality } from '../../studio/autotranslate';
 import { TextInput } from '../../ui/TextInput';
 import { Toggle } from '../../ui/Toggle';
 import { Pager } from '../../ui/Pager';
@@ -297,6 +297,7 @@ export function SiteSettingsPage() {
             <Link to="/admin" className={styles.muted}>‹ Адміністрування</Link>
             <h1 className={styles.title}>Налаштування сайту</h1>
             <SettingsForm initial={settings.data} />
+            <PeopleQualities />
             <p className={styles.muted} style={{ marginTop: 16 }}>
                 Моделі, ціни й собівартість шагу — на сторінці <Link to="/me/wallet">«Шаги»</Link>.
             </p>
@@ -332,6 +333,48 @@ function SettingsForm({ initial }: { initial: SiteSettingsView }) {
     );
 }
 
+/**
+ * «Якість для людей» (етап 19): which ready set of models people get as «Найкраща», «Висока» and
+ * «Швидка чернетка» when they translate with their шаги.
+ */
+function PeopleQualities() {
+    const sets = useQuery({ queryKey: ['autotranslate-qualities'], queryFn: autotranslateApi.qualities });
+    if (sets.isError) return <Notice tone="error">{sets.error.message}</Notice>;
+    if (!sets.data) return null;
+    return <QualitiesForm sets={sets.data} />;
+}
+
+function QualitiesForm({ sets }: { sets: PresetQuality[] }) {
+    const client = useQueryClient();
+    const [chosen, setChosen] = useState<Record<Quality, number | null>>(
+        () => Object.fromEntries(QUALITIES.map((quality) => [quality, sets.find((set) => set.quality === quality)?.id ?? null])) as Record<Quality, number | null>);
+    const save = useMutation({
+        mutationFn: () => autotranslateApi.saveQualities(chosen),
+        onSuccess: (saved) => client.setQueryData(['autotranslate-qualities'], saved),
+    });
+    return (
+        <form className={styles.form} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
+            <h2 className={styles.subtitle}>Якість для людей</h2>
+            <p className={styles.muted}>
+                Хто перекладає за свої шаги, вибирає якість, а не моделі. Тут — який набір моделей стоїть за кожною; без набору якості в списку немає.
+            </p>
+            {QUALITIES.map((quality) => (
+                <label key={quality}>
+                    <div className={styles.muted}>{QUALITY_LABELS[quality]}</div>
+                    <select className={styles.select} aria-label={QUALITY_LABELS[quality]} value={chosen[quality] ?? ''}
+                        onChange={(event) => setChosen({ ...chosen, [quality]: event.target.value ? Number(event.target.value) : null })}>
+                        <option value="">— не пропонувати —</option>
+                        {sets.map((set) => <option key={set.id} value={set.id}>{set.name}</option>)}
+                    </select>
+                </label>
+            ))}
+            {save.isError && <Notice tone="error">{save.error.message}</Notice>}
+            {save.isSuccess && <Notice tone="success">Збережено.</Notice>}
+            <Button type="submit" pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти якість</Button>
+        </form>
+    );
+}
+
 // ---- /admin/audit --------------------------------------------------------------------------------
 
 const ACTIONS: Record<string, string> = {
@@ -350,6 +393,9 @@ function describe(entry: AuditEntry): string {
     if (entry.action === 'autotranslate_granted' || entry.action === 'autotranslate_revoked') {
         const nick = (entry.details as { nick?: string }).nick ?? '';
         return `${entry.action === 'autotranslate_granted' ? 'відкриває' : 'закриває'} автопереклад ${nick}`;
+    }
+    if (entry.action === 'autotranslate_qualities') {
+        return 'змінює якість автоперекладу для людей';
     }
     if (entry.action === 'autotranslate_refused') {
         return `відмовляє ${(entry.details as { nick?: string }).nick ?? ''} в автоперекладі із сайту`;

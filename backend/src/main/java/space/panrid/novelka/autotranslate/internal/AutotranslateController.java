@@ -56,10 +56,15 @@ class AutotranslateController {
     private final ModelCosts costs;
     private final SourceWatch watch;
     private final StoryRoles storyRoles;
+    private final Choices choices;
+    private final space.panrid.novelka.platform.audit.AuditLog audit;
 
     AutotranslateController(AccessPolicy access, Preparation preparation, Jobs jobs, Glossary glossary, Ai ai, DSLContext db,
             Teams teams, Analyses analyses, Ledger ledger, Sources sources, space.panrid.novelka.suggestion.Suggestions suggestions,
-            Agreement agreement, JobLog journal, Presets presets, ModelCosts costs, SourceWatch watch, StoryRoles storyRoles) {
+            Agreement agreement, JobLog journal, Presets presets, ModelCosts costs, SourceWatch watch, StoryRoles storyRoles,
+            Choices choices, space.panrid.novelka.platform.audit.AuditLog audit) {
+        this.audit = audit;
+        this.choices = choices;
         this.storyRoles = storyRoles;
         this.watch = watch;
         this.costs = costs;
@@ -132,29 +137,32 @@ class AutotranslateController {
     /**
      * @param personal runs are paid from the viewer's шаги: {@code balance} is theirs and
      *                 {@code reserved} is what their runs hold; otherwise the balance is OpenRouter's
-     * @param presets  ready sets of models; only the site owner picks models, so others get none
+     * @param presets  ready sets of models: all of them for the site owner, the qualities people pick from for others (етап 19)
      * @param pasted   translated from the originals the team pasted: {@code sourceChapters} is the last one pasted
+     * @param remembered what the person picked with «Запам'ятати для наступних»; null — nothing yet
      */
     record Overview(boolean configured, boolean showShah, int sourceChapters, int nextNumber, int publishedChapters,
             int lastAnalyzed, int nextToAnalyze, int averageChars, Jobs.Balance balance, BigDecimal usdPerShah, Settings settings,
-            List<Jobs.JobView> jobs, boolean personal, int reserved, List<PresetView> presets, boolean pasted) {
+            List<Jobs.JobView> jobs, boolean personal, int reserved, List<PresetView> presets, boolean pasted,
+            Choices.Choice remembered) {
     }
 
     /**
      * A preset as the menu shows it: {@code analysisUsd} is its analysis of an average chapter of
      * this novel, {@code chapterUsd} the whole chapter (analysis, translation and proofreading).
+     * {@code quality}: what people get it as («best», «high», «draft»), null — the owner's alone.
      */
     record PresetView(long id, String name, String summary, BigDecimal rating, String analyze, String translate, String proofread,
-            BigDecimal analysisUsd, BigDecimal chapterUsd) {
+            BigDecimal analysisUsd, BigDecimal chapterUsd, String quality) {
     }
 
-    private List<PresetView> presets(int averageChars) {
+    private List<PresetView> presets(List<Presets.Preset> shown, int averageChars) {
         double thousands = averageChars / 1000.0;
-        return presets.list().stream().map(preset -> new PresetView(preset.id(), preset.name(), preset.summary(), preset.rating(),
+        return shown.stream().map(preset -> new PresetView(preset.id(), preset.name(), preset.summary(), preset.rating(),
                 preset.analyze(), preset.translate(), preset.proofread(),
                 Settings.usdOfMicro(Math.round(thousands * preset.analyzeMicroUsdPerThousand())),
                 Settings.usdOfMicro(Math.round(thousands * (preset.analyzeMicroUsdPerThousand() + preset.translateMicroUsdPerThousand()
-                        + preset.proofreadMicroUsdPerThousand()))))).toList();
+                        + preset.proofreadMicroUsdPerThousand()))), preset.quality())).toList();
     }
 
     @GetMapping("/editions/{editionId}/autotranslate")
@@ -165,16 +173,18 @@ class AutotranslateController {
         if (personal(viewer)) {
             Ledger.Balance mine = ledger.balance(viewer.accountId());
             long price = ledger.microUsdPerShah();
+            int averageChars = jobs.averageChars(editionId);
             return new Overview(ai.configured(), true, novel.sourceChapters(), novel.nextNumber(), novel.publishedChapters(),
-                    novel.lastAnalyzed(), novel.nextToAnalyze(), jobs.averageChars(editionId),
+                    novel.lastAnalyzed(), novel.nextToAnalyze(), averageChars,
                     new Jobs.Balance(mine.available(), Settings.usdOfMicro(mine.available() * price)), Settings.usdOfMicro(price),
-                    settings.paidBy(price), jobs.jobs(editionId), true, mine.reserved(), List.of(), novel.pasted());
+                    settings.paidBy(price), jobs.jobs(editionId), true, mine.reserved(), presets(presets.forPeople(), averageChars),
+                    novel.pasted(), choices.of(viewer.accountId()).orElse(null));
         }
         int averageChars = jobs.averageChars(editionId);
         return new Overview(ai.configured(), showShah(viewer), novel.sourceChapters(), novel.nextNumber(), novel.publishedChapters(),
                 novel.lastAnalyzed(), novel.nextToAnalyze(), averageChars,
                 jobs.balance().orElse(null), Settings.usdOfMicro(settings.microUsdPerShah()), settings, jobs.jobs(editionId), false, 0,
-                presets(averageChars), novel.pasted());
+                presets(presets.list(), averageChars), novel.pasted(), choices.of(viewer.accountId()).orElse(null));
     }
 
     /** The Studio's bell for the original: whether this person hears of its new chapters, and when it was last looked at. */
@@ -262,6 +272,43 @@ class AutotranslateController {
     void resume(@PathVariable long editionId, @PathVariable long jobId) {
         ownerTranslating(editionId);
         jobs.resume(editionId, jobId);
+    }
+
+    /**
+     * «Запам'ятати для наступних» (етап 19): the person's set of models, steps and «Одразу
+     * опублікувати», offered first in their next runs. People keep only a set the site gives them.
+     */
+    @PutMapping("/autotranslate/choice")
+    void remember(@RequestBody Choices.Choice body) {
+        Viewer viewer = access.requireAi();
+        if (body.preset() != null) {
+            Presets.Preset preset = presets.find(body.preset()).orElseThrow(() -> UserFacingException.notFound("Такого набору моделей немає."));
+            if (personal(viewer) && preset.quality() == null) {
+                throw UserFacingException.badRequest("Цей набір моделей сайт людям не пропонує.");
+            }
+        }
+        choices.remember(viewer.accountId(), body);
+    }
+
+    /** A ready set of models and the quality people get it as (етап 19); null — the owner's alone. */
+    record PresetQuality(long id, String name, String summary, String translate, String quality) {
+    }
+
+    /** «Якість для людей» in «Налаштування сайту»: every set and which quality it is. */
+    @GetMapping("/autotranslate/qualities")
+    List<PresetQuality> qualities() {
+        owner();
+        return presets.list().stream()
+                .map(preset -> new PresetQuality(preset.id(), preset.name(), preset.summary(), preset.translate(), preset.quality())).toList();
+    }
+
+    /** The site owner gives each quality («best», «high», «draft») its set; null leaves it out. */
+    @PutMapping("/autotranslate/qualities")
+    List<PresetQuality> changeQualities(@RequestBody Map<String, Long> body) {
+        Viewer viewer = owner();
+        presets.setQualities(body);
+        audit.record(viewer.accountId(), "autotranslate_qualities", "site", null, Map.of("qualities", body));
+        return qualities();
     }
 
     /** Every run the viewer started, unfinished ones first; by state and kind, by words of the title. */

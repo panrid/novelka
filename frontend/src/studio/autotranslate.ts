@@ -23,7 +23,17 @@ export type Plan = {
 export type Preset = {
     id: number; name: string; summary: string; rating: number; analyze: string; translate: string; proofread: string | null;
     analysisUsd: number; chapterUsd: number;
+    /** What people get it as (етап 19); null — the site owner's alone. */
+    quality?: Quality | null;
 };
+/** The qualities people pick from, best first (етап 19); the site owner gives each a set of models. */
+export type Quality = 'best' | 'high' | 'draft';
+export const QUALITIES: Quality[] = ['best', 'high', 'draft'];
+export const QUALITY_LABELS: Record<Quality, string> = { best: 'Найкраща', high: 'Висока', draft: 'Швидка чернетка' };
+/** «Запам'ятати для наступних»: what the person picked for their runs. */
+export type Choice = { preset: number | null; steps: Step[]; publish: boolean };
+/** A set of models and its quality for people, as «Налаштування сайту» shows it. */
+export type PresetQuality = { id: number; name: string; summary: string; translate: string; quality: Quality | null };
 export type Quote = {
     kind: JobKind; from: number; to: number; chapters: number; skipped: number; shah: number; usd: number; expectedUsd: number;
     estimated: boolean; unanalyzed: number; analyzeModel: Stage; translateModel: Stage; proofreadModel: Stage;
@@ -48,10 +58,12 @@ export type AutotranslateOverview = {
     settings: Settings; jobs: Job[];
     /** Runs are paid from the viewer's шаги: balance is theirs, reserved is what their runs hold. */
     personal: boolean; reserved: number;
-    /** Ready sets of models: only the site owner picks models, so others get none. */
+    /** Ready sets of models: all of them for the site owner, the qualities people pick from for others (етап 19). */
     presets: Preset[];
     /** Translated from the originals the team pasted (етап 19): sourceChapters is the last one pasted. */
     pasted: boolean;
+    /** What the person picked with «Запам'ятати для наступних». */
+    remembered?: Choice | null;
 };
 /** One step of a run as the journal tells it; the payload depends on the kind. */
 export type JobEvent = { id: number; chapter: number; kind: string; payload: Record<string, unknown>; at: string };
@@ -205,6 +217,9 @@ export const autotranslateApi = {
         api<void>(`${base(id)}/glossary/${entryId}/facts/${factId}`, { method: 'DELETE' }),
     wallet: (days = 30) => api<Wallet>(`/api/studio/autotranslate/wallet?days=${days}`),
     saveSettings: (settings: Settings) => api<void>('/api/studio/autotranslate/settings', json('PUT', settings)),
+    remember: (choice: Choice) => api<void>('/api/studio/autotranslate/choice', json('PUT', choice)),
+    qualities: () => api<PresetQuality[]>('/api/studio/autotranslate/qualities'),
+    saveQualities: (chosen: Record<Quality, number | null>) => api<PresetQuality[]>('/api/studio/autotranslate/qualities', json('PUT', chosen)),
     saveParallel: (chapters: number) => api<void>('/api/studio/autotranslate/parallel', json('PUT', { chapters })),
 };
 
