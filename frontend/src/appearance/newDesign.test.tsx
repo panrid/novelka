@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderAt } from '../test/render';
@@ -15,7 +15,9 @@ afterEach(() => {
 describe('the new design (етап 20, крок 1)', () => {
     it('is dark by default, and the sun in the header turns it light and back', async () => {
         act(() => setSitePreset('default'));
-        await renderAt('/', { 'GET /api/home': { body: { continue: [], fresh: [], popular: [] } } });
+        const { queryClient } = await renderAt('/rules');
+        // The account's look arrives with /api/me and is applied first; the button works on top of it.
+        await waitFor(() => expect(queryClient.getQueryState(['me'])?.status).toBe('success'));
         expect(document.documentElement.style.getPropertyValue('--bg')).toBe('#0f1115');
         expect(document.documentElement.style.getPropertyValue('--accent')).toBe(NOVELKA_ACCENT.dark);
         await userEvent.click(await screen.findByRole('button', { name: 'Світла тема' }));

@@ -182,7 +182,7 @@ describe('autotranslate', () => {
             'POST /api/studio/editions/4/autotranslate/quote': { body: quote({ kind: 'proofread', from: 1, to: 3, steps: ['proofread'] }) },
             'POST /api/studio/editions/4/autotranslate/jobs': { status: 201, body: {} },
         });
-        await userEvent.click(await screen.findByRole('button', { name: /^Словник/ }));
+        await userEvent.click(await screen.findByRole('button', { name: /^Словник(?!:)/ }));
         await userEvent.click(screen.getByRole('button', { name: /^Переклад\s*з оригіналу/ }));
         expect(screen.getByRole('button', { name: /^Вичитка\s*редагує/ })).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByText(/Вичитка вже перекладених глав/)).toBeInTheDocument();
