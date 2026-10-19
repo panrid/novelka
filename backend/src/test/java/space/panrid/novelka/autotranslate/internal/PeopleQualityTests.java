@@ -62,10 +62,33 @@ class PeopleQualityTests {
 
     @Test
     void peoplePickAQualityAndRememberIt() {
+        // «Висока» for this test is a set of models the fake OpenRouter has.
+        Long siteHigh = db.select(AUTOTRANSLATE_PRESET.ID).from(AUTOTRANSLATE_PRESET).where(AUTOTRANSLATE_PRESET.QUALITY.eq("high"))
+                .fetchOne(AUTOTRANSLATE_PRESET.ID);
+        db.update(AUTOTRANSLATE_PRESET).setNull(AUTOTRANSLATE_PRESET.QUALITY).where(AUTOTRANSLATE_PRESET.QUALITY.eq("high")).execute();
+        long fake = db.insertInto(AUTOTRANSLATE_PRESET).set(AUTOTRANSLATE_PRESET.POSITION, 0)
+                .set(AUTOTRANSLATE_PRESET.NAME, "Тестова висока " + System.nanoTime()).set(AUTOTRANSLATE_PRESET.SUMMARY, "Fake Better.")
+                .set(AUTOTRANSLATE_PRESET.RATING, new java.math.BigDecimal("4.0"))
+                .set(AUTOTRANSLATE_PRESET.ANALYZE_MODEL, "openai/gpt-4.1-mini").set(AUTOTRANSLATE_PRESET.TRANSLATE_MODEL, "fake/better")
+                .set(AUTOTRANSLATE_PRESET.ANALYZE_MUSD_PER_KCHAR, 1_000L).set(AUTOTRANSLATE_PRESET.TRANSLATE_MUSD_PER_KCHAR, 50_000L)
+                .set(AUTOTRANSLATE_PRESET.QUALITY, "high")
+                .returning(AUTOTRANSLATE_PRESET.ID).fetchOne(AUTOTRANSLATE_PRESET.ID);
+        try {
+            picksAndRemembers(fake);
+        } finally {
+            db.deleteFrom(AUTOTRANSLATE_PRESET).where(AUTOTRANSLATE_PRESET.ID.eq(fake)).execute();
+            if (siteHigh != null) {
+                db.update(AUTOTRANSLATE_PRESET).set(AUTOTRANSLATE_PRESET.QUALITY, "high").where(AUTOTRANSLATE_PRESET.ID.eq(siteHigh)).execute();
+            }
+        }
+    }
+
+    private void picksAndRemembers(long fake) {
         String base = "/api/studio/editions/" + edition + "/autotranslate";
         JsonNode presets = read(reader.browser().get(base)).path("presets");
         assertThat(presets.valueStream().map(preset -> preset.path("quality").asString()).toList()).containsExactly("best", "high", "draft");
         long high = presets.path(1).path("id").asLong();
+        assertThat(high).isEqualTo(fake);
         long ownersOnly = db.select(AUTOTRANSLATE_PRESET.ID).from(AUTOTRANSLATE_PRESET).where(AUTOTRANSLATE_PRESET.QUALITY.isNull())
                 .limit(1).fetchSingle().value1();
 
