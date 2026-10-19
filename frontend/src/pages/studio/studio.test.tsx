@@ -135,7 +135,7 @@ describe('new publication', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Затишне' }));
         expect(screen.getByRole('button', { name: 'Затишне' })).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByRole('button', { name: 'Створити' })).toBeDisabled();
-        await userEvent.click(screen.getByRole('switch', { name: 'Маю право перекладати цей текст' }));
+        await userEvent.click(screen.getByRole('switch', { name: /^Я маю право перекладати цей текст і викладати переклад/ }));
         await userEvent.click(screen.getByRole('button', { name: 'Створити' }));
 
         await waitFor(() => expect(router.state.location.pathname).toBe('/studio/12'));
