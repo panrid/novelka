@@ -69,7 +69,9 @@ class TranslateWithAiTests {
         String originals = "/api/studio/editions/" + edition + "/originals";
         String base = "/api/studio/editions/" + edition + "/autotranslate";
         read(reader.browser().post(originals + "/separate", JSON.writeValueAsString(Map.of("language", "en",
-                "chapters", List.of(Map.of("title", "Chapter 1", "text", "Zorian woke up."))))));
+                "chapters", List.of(Map.of("title", "Chapter 1",
+                        // Its own text: answers saved for another test's chapter would be reused for free.
+                        "text", "Zorian woke up at dawn " + System.nanoTime() + "."))))));
 
         Response hidden = reader.browser().get(base);
         assertThat(hidden.status()).as("pasting is for everyone, AI is not for those without шаги").isEqualTo(403);
