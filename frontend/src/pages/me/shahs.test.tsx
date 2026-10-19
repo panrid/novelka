@@ -76,6 +76,46 @@ describe('шаги without payments', () => {
         expect(screen.getByText(/заблокуємо 2 шаги, решту повернемо/)).toBeInTheDocument();
     });
 
+    it('a person picks a quality priced in шаги and remembers it for the next runs (етап 19)', async () => {
+        const preset = (id: number, quality: string, translate: string, chapterUsd: number) => ({
+            id, name: `набір ${id}`, summary: `Опис ${id}.`, rating: 4, analyze: translate, translate, proofread: null,
+            analysisUsd: 0.01, chapterUsd, quality,
+        });
+        const { calls } = await renderAt('/studio/4/translate', {
+            'GET /api/studio/editions/4': { body: EDITION4 },
+            'GET /api/me': { body: { ...person('reader'), ai: true } },
+            'GET /api/me/shahs': { body: MINE },
+            'GET /api/studio/editions/4/autotranslate': { body: {
+                configured: true, showShah: true, sourceChapters: 50, nextNumber: 1, publishedChapters: 0, lastAnalyzed: 0, nextToAnalyze: 1,
+                averageChars: 6000, balance: { shah: 9, usd: 0.63 }, usdPerShah: 0.07, settings: SETTINGS, jobs: [], personal: true, reserved: 2,
+                presets: [preset(9, 'best', 'anthropic/claude-opus-5.5', 0.5), preset(8, 'high', 'anthropic/claude-sonnet-5.5', 0.2),
+                    preset(4, 'draft', 'x-ai/grok-4.3', 0.05)],
+                remembered: null,
+            } },
+            'POST /api/studio/editions/4/autotranslate/quote': { body: {
+                kind: 'translate', from: 1, to: 3, chapters: 3, skipped: 0, shah: 9, usd: 0.63, expectedUsd: 0.6, estimated: true, unanalyzed: 3,
+                analyzeModel: SETTINGS.analyze, translateModel: SETTINGS.translate, proofreadModel: SETTINGS.proofread, reserveShah: 9,
+                steps: ['analyze', 'translate', 'proofread'],
+            } },
+            'POST /api/studio/editions/4/autotranslate/jobs': { status: 201, body: { id: 1 } },
+            'PUT /api/studio/autotranslate/choice': { status: 204 },
+        });
+        const qualities = await screen.findByRole('group', { name: 'Якість' });
+        expect(within(qualities).getByRole('button', { name: /Висока/ })).toHaveAttribute('aria-pressed', 'true');
+        expect(within(qualities).getByRole('button', { name: /Найкраща · ≈ 8 шагів за главу/ })).toHaveTextContent('Claude Opus 5.5');
+        expect(within(qualities).getByRole('button', { name: /Швидка чернетка · ≈ 1 шаг за главу/ })).toBeInTheDocument();
+        await userEvent.click(within(qualities).getByRole('button', { name: /Найкраща/ }));
+        await userEvent.click(screen.getByRole('switch', { name: "Запам'ятати для наступних" }));
+        await userEvent.type(screen.getByLabelText('По главу'), '3');
+        // The price comes once typing stops; until then the button waits.
+        const run = screen.getByRole('button', { name: /^Запустити/ });
+        await waitFor(() => expect(run).toBeEnabled(), { timeout: 2000 });
+        await userEvent.click(run);
+        await waitFor(() => expect(calls.find((call) => call.path === '/api/studio/autotranslate/choice')?.body)
+            .toEqual({ preset: 9, steps: ['analyze', 'translate', 'proofread'], publish: true }));
+        expect(calls.find((call) => call.path === '/api/studio/editions/4/autotranslate/jobs')?.body).toMatchObject({ preset: 9 });
+    });
+
     it('shows AI in «Нова публікація» only to people who see it', async () => {
         await renderAt('/studio/new', {
             'GET /api/me': { body: { ...person('reader'), ai: false } },

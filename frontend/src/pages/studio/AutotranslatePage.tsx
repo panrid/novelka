@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { chaptersWord } from '../../reading/api';
-import { JOB_LABELS, JOB_NAMES, STAGE_LABELS, STEP_NAMES, autotranslateApi, dollars, money, shahWord, type Job, type JobKind, type ModelShow, type Plan, type Step } from '../../studio/autotranslate';
+import { JOB_LABELS, JOB_NAMES, QUALITY_LABELS, STAGE_LABELS, STEP_NAMES, autotranslateApi, dollars, money, shahWord, type Job, type AutotranslateOverview, type JobKind, type ModelShow, type Plan, type Preset, type Step } from '../../studio/autotranslate';
 import { ModelPicker } from '../../studio/ModelPicker';
 import { useDebounced } from '../../lib/useDebounced';
 import { relativeTime } from '../../lib/dates';
@@ -39,14 +39,20 @@ function AutotranslateTab() {
         // Live events refresh it at once; the slow poll only covers a lost connection.
         refetchInterval: (query) => (active(query.state.data?.jobs[0]) ? 5_000 : false),
     });
-    const [steps, setSteps] = useState<Step[]>(['analyze', 'translate', 'proofread']);
+    // Until the person picks, what they remembered with «Запам'ятати для наступних» (етап 19).
+    const remembered = overview.data?.remembered;
+    const [pickedSteps, setSteps] = useState<Step[] | null>(null);
+    const steps = pickedSteps ?? remembered?.steps ?? ['analyze', 'translate', 'proofread'];
     const [to, setTo] = useState('');
     const [from, setFrom] = useState('');
     const [redo, setRedo] = useState(false);
-    const [publish, setPublish] = useState(true);
+    const [pickedPublish, setPublish] = useState<boolean | null>(null);
+    const publish = pickedPublish ?? remembered?.publish ?? true;
     const [models, setModels] = useState<NonNullable<Plan['models']>>({});
-    const [preset, setPreset] = useState<number | null>(null);
+    const [pickedPreset, setPreset] = useState<number | null | undefined>(undefined);
+    const preset = pickedPreset !== undefined ? pickedPreset : startingPreset(overview.data);
     const [withWeak, setWithWeak] = useState(false);
+    const [remember, setRemember] = useState(false);
     const modelShow: ModelShow = withWeak ? 'weak' : 'usual';
     const has = (step: Step) => steps.includes(step);
     const kind: JobKind = has('translate') ? 'translate' : has('proofread') ? 'proofread' : 'analyze';
@@ -94,7 +100,14 @@ function AutotranslateTab() {
         void client.invalidateQueries({ queryKey: ['autotranslate', id] });
         void client.invalidateQueries({ queryKey: ['studio-chapters', id] });
     };
-    const startJob = useMutation({ mutationFn: () => autotranslateApi.start(id, plan!), onSuccess: () => { setTo(''); refresh(); } });
+    const startJob = useMutation({
+        mutationFn: async () => {
+            const job = await autotranslateApi.start(id, plan!);
+            if (remember) await autotranslateApi.remember({ preset, steps, publish });
+            return job;
+        },
+        onSuccess: () => { setTo(''); refresh(); },
+    });
     const cancel = useMutation({ mutationFn: (jobId: number) => autotranslateApi.cancel(id, jobId), onSuccess: refresh });
     const resume = useMutation({ mutationFn: (jobId: number) => autotranslateApi.resume(id, jobId), onSuccess: refresh });
 
@@ -168,6 +181,19 @@ function AutotranslateTab() {
                         </p>
                     )}
 
+                    {data.personal && data.presets.length > 0 && (<>
+                        <h3 className={styles.subTitle}>Якість</h3>
+                        <div className={styles.presets} role="group" aria-label="Якість">
+                            {data.presets.map((item) => (
+                                <button key={item.id} type="button" aria-pressed={preset === item.id} onClick={() => setPreset(item.id)}>
+                                    {item.quality ? QUALITY_LABELS[item.quality] : item.name}
+                                    {' · '}≈ {perChapter(item, data.usdPerShah)} {shahWord(perChapter(item, data.usdPerShah))} за главу
+                                    <small style={{ display: 'block' }}>{modelName(item.translate)}</small>
+                                </button>
+                            ))}
+                        </div>
+                        {chosen && <p className={styles.muted}>{chosen.summary}</p>}
+                    </>)}
                     {!data.personal && (<>
                         <h3 className={styles.subTitle}>Моделі</h3>
                         {data.presets.length > 0 && (
@@ -223,6 +249,7 @@ function AutotranslateTab() {
                             )}
                         </div>
                     )}
+                    <Toggle label="Запам'ятати для наступних" isSelected={remember} onChange={setRemember} />
                     {startJob.isError && <Notice tone="error">{startJob.error.message}</Notice>}
                     <Button type="submit" wide pending={startJob.isPending} pendingLabel="Запускаємо…" isDisabled={!ready || !data.configured}>
                         Запустити: {steps.map((step) => STEP_NAMES[step].toLowerCase()).join(', ')}
@@ -461,4 +488,22 @@ export function JobCard({ job, editionId, showShah, usdPerShah, onCancel, onResu
             )}
         </div>
     );
+}
+
+/** The remembered set while the site still offers it; people without one start at «Висока». */
+function startingPreset(data: AutotranslateOverview | undefined): number | null {
+    if (!data) return null;
+    const mine = data.remembered?.preset;
+    if (mine != null && data.presets.some((item) => item.id === mine)) return mine;
+    return data.personal ? (data.presets.find((item) => item.quality === 'high') ?? data.presets[0])?.id ?? null : null;
+}
+
+/** A chapter of this novel at the set, in whole шаги at the people's price (етап 19). */
+function perChapter(preset: Preset, usdPerShah: number) {
+    return Math.max(1, Math.ceil(preset.chapterUsd / usdPerShah));
+}
+
+/** «anthropic/claude-opus-5.5» → «Claude Opus 5.5»: the model people see under the quality. */
+export function modelName(id: string) {
+    return id.slice(id.indexOf('/') + 1).split('-').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 }

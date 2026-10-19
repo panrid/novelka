@@ -249,12 +249,16 @@ class Jobs {
     }
 
     private Prepared prepare(long editionId, Plan plan, boolean personal) {
-        if (personal && (plan.preset() != null || plan.models() != null && (plan.models().analyze() != null
-                || plan.models().translate() != null || plan.models().proofread() != null || plan.models().proofreadEnabled() != null))) {
+        if (personal && plan.models() != null && (plan.models().analyze() != null || plan.models().translate() != null
+                || plan.models().proofread() != null || plan.models().proofreadEnabled() != null)) {
             throw UserFacingException.badRequest("Моделі для автоперекладу обирає сайт.");
         }
         Presets.Preset preset = plan.preset() == null ? null
                 : presets.find(plan.preset()).orElseThrow(() -> UserFacingException.notFound("Такого набору моделей немає."));
+        // People pick a quality (етап 19): only the sets the site owner gave one.
+        if (personal && preset != null && preset.quality() == null) {
+            throw UserFacingException.badRequest("Цей набір моделей сайт людям не пропонує.");
+        }
         Novel novel = novel(editionId);
         Set<String> steps = plan.chosen();
         String kind = plan.job();
