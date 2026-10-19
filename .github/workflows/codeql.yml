@@ -1,0 +1,32 @@
+name: CodeQL
+
+# Plan, stage 23, item 7: GitHub's security analysis of the Java and TypeScript code, once a week and
+# on demand, never in the way of a deploy. Findings appear under Security → Code scanning.
+on:
+    schedule:
+        - cron: '0 4 * * 1'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    security-events: write
+
+jobs:
+    analyze:
+        name: Analyze ${{ matrix.language }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        strategy:
+            fail-fast: false
+            matrix:
+                language: [java-kotlin, javascript-typescript]
+        steps:
+            - uses: actions/checkout@v5
+            - uses: github/codeql-action/init@v4
+              with:
+                  languages: ${{ matrix.language }}
+                  # Java is compiled without the jOOQ generator (it needs Docker): CodeQL reads the sources as they are.
+                  build-mode: none
+            - uses: github/codeql-action/analyze@v4
+              with:
+                  category: /language:${{ matrix.language }}

@@ -1,6 +1,9 @@
+import net.ltgt.gradle.errorprone.CheckSeverity
+
 plugins {
     id 'java'
     id 'org.springframework.boot' version '4.1.1'
+    id 'net.ltgt.errorprone' version '5.1.1'
 }
 
 java {
@@ -62,11 +65,29 @@ dependencies {
     codegenImplementation 'org.jooq:jooq-codegen'
     codegenRuntimeOnly 'org.postgresql:postgresql'
     codegenRuntimeOnly 'org.slf4j:slf4j-simple'
+
+    // Code checks while compiling (план, етап 23, п. 7): seconds, not a separate step.
+    errorprone 'com.google.errorprone:error_prone_core:2.50.0'
+    errorprone 'com.uber.nullaway:nullaway:0.14.2'
+    compileOnly 'org.jspecify:jspecify:1.0.1'
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.compilerArgs.addAll(['-parameters', '-Xlint:all,-processing,-serial'])
+    // Error Prone's own errors stop the build; its warnings only show. jOOQ's generated classes are not ours.
+    // NullAway checks the packages marked @NullMarked (package-info.java); more of them join one by one.
+    options.errorprone {
+        disableWarningsInGeneratedCode = true
+        excludedPaths = '.*/generated-sources/.*'
+        check('NullAway', name == 'compileJava' ? CheckSeverity.ERROR : CheckSeverity.OFF)
+        option('NullAway:OnlyNullMarked', 'true')
+    }
+}
+
+// The jOOQ generator runs before the code it generates exists: no checks there.
+tasks.named('compileCodegenJava') {
+    options.errorprone.enabled = false
 }
 
 def migrations = layout.projectDirectory.dir('src/main/resources/db/migration')

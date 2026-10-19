@@ -3,6 +3,7 @@ package space.panrid.novelka.platform.web;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
@@ -30,7 +31,7 @@ class WebAppConfiguration implements WebMvcConfigurer {
                 .resourceChain(true)
                 .addResolver(new PathResourceResolver() {
                     @Override
-                    protected Resource getResource(String path, Resource location) throws IOException {
+                    protected @Nullable Resource getResource(String path, Resource location) throws IOException {
                         Resource file = location.createRelative(path);
                         if (file.exists() && file.isReadable()) {
                             return file;

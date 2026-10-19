@@ -265,7 +265,7 @@ class Proposals {
                 row.get(PROPOSAL.CHAPTER_COUNT), row.get(PROPOSAL.ADULT), siteName(source, row.get(PROPOSAL.SOURCE_URL)),
                 row.get(ACCOUNT.NICK), row.get(PROPOSAL.CREATED_AT), row.get(PROPOSAL.STATE), row.get("votes", Integer.class),
                 Boolean.TRUE.equals(row.get("voted", Boolean.class)),
-                viewerId != null && viewerId == row.get(PROPOSAL.PROPOSED_BY),
+                viewerId != null && viewerId.equals(row.get(PROPOSAL.PROPOSED_BY)),
                 slug == null ? null : new Taken(slug, row.get(TEAM.HANDLE)), row.get(PROPOSAL.SOURCE_URL), row.get(PROPOSAL.COMMENT),
                 readable(source));
     }

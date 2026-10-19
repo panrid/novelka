@@ -1,0 +1,30 @@
+# Plan, stage 23, item 7: dependency updates once a week, apart from deploys. Each update is a pull
+# request with the same checks as any other; nothing merges by itself.
+version: 2
+updates:
+    - package-ecosystem: gradle
+      directory: /
+      schedule:
+          interval: weekly
+          day: monday
+          timezone: Europe/Kyiv
+      open-pull-requests-limit: 5
+      groups:
+          spring:
+              patterns: ['org.springframework*']
+    - package-ecosystem: npm
+      directory: /frontend
+      schedule:
+          interval: weekly
+          day: monday
+          timezone: Europe/Kyiv
+      open-pull-requests-limit: 5
+      groups:
+          minor-and-patch:
+              update-types: [minor, patch]
+    - package-ecosystem: github-actions
+      directory: /
+      schedule:
+          interval: weekly
+          day: monday
+          timezone: Europe/Kyiv

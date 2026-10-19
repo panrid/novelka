@@ -165,7 +165,9 @@ class TeamController {
     private TeamInfo requireOwner(String handle) {
         Viewer viewer = currentUser.requireSignedIn();
         TeamInfo team = teams.findByHandle(handle).orElseThrow(TeamController::noTeam);
-        teams.roleOf(team.id(), viewer.accountId()).filter(TeamRole::manages).orElseThrow(TeamController::forbidden);
+        if (teams.roleOf(team.id(), viewer.accountId()).filter(TeamRole::manages).isEmpty()) {
+            throw forbidden();
+        }
         return team;
     }
 

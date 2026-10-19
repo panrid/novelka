@@ -1,5 +1,6 @@
 package space.panrid.novelka.platform.web;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 
 /**
@@ -12,13 +13,13 @@ import org.springframework.http.HttpStatus;
 public class UserFacingException extends RuntimeException {
 
     private final HttpStatus status;
-    private final String reason;
+    private final @Nullable String reason;
 
     public UserFacingException(HttpStatus status, String message) {
         this(status, message, null);
     }
 
-    public UserFacingException(HttpStatus status, String message, String reason) {
+    public UserFacingException(HttpStatus status, String message, @Nullable String reason) {
         super(message);
         this.status = status;
         this.reason = reason;
@@ -28,7 +29,7 @@ public class UserFacingException extends RuntimeException {
         return status;
     }
 
-    public String reason() {
+    public @Nullable String reason() {
         return reason;
     }
 
