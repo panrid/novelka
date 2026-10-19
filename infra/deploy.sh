@@ -1,12 +1,20 @@
 #!/bin/sh
-# Puts one build onto one site of the server (doc/deployment.md):
+# Puts one build onto one site of the server and takes production back (doc/deployment.md):
 #
-#   sh /opt/novelka/builds/<commit>/infra/deploy.sh dev  <commit>   the test site, dev.novelka.in.ua
-#   sh /opt/novelka/builds/<commit>/infra/deploy.sh prod <commit>   the production site, novelka.in.ua
+#   sh /opt/novelka/builds/<commit>/infra/deploy.sh dev <commit>       the test site, dev.novelka.in.ua (push to main)
+#   sh /opt/novelka/builds/<commit>/infra/deploy.sh release <commit>   the production site, novelka.in.ua: only a version
+#                                                                      that has run on the test site (its migrations
+#                                                                      passed there first) or on production before
+#   sh /opt/novelka/builds/<commit>/infra/deploy.sh prod <commit>      production without that check (a push to main
+#                                                                      while there is no test site; a rollback)
+#   sh /opt/novelka/infra/deploy.sh rollback [<commit>]                production back to the version before the
+#                                                                      current one (or to <commit>)
+#   sh /opt/novelka/infra/deploy.sh versions                           what runs where, what a rollback can return to
 #
 # The deploy workflow uploads the JAR CI tested and this folder to /opt/novelka/builds/<commit>/ and
 # runs it. The image «novelka:<commit>» is built from that JAR once; each site runs it under its own
-# tag («novelka:dev», «novelka:prod»), so both sites run the very same image.
+# tag («novelka:dev», «novelka:prod»), so production gets the very image the test site ran. Each build
+# is deployed with its own Compose files and scripts, a rollback too.
 #
 # A deploy without a pause for readers: the new version starts beside the old one, and the old
 # one stops only once the new one answers. Caddy sends every new connection to whichever copy
@@ -21,15 +29,63 @@ root=/opt/novelka
 mode=${1:-}
 sha=${2:-}
 
+usage="Usage: deploy.sh dev|release|prod <full commit hash> | rollback [<full commit hash>] | versions"
+
 fail() {
     echo "$*" >&2
     exit 1
 }
 
-case $sha in
-    *[!0-9a-f]* | "") fail "Usage: deploy.sh dev|prod <full commit hash>" ;;
+# The commit a site runs now: the last line of its history.
+running() {
+    if [ -f "$root/$1.history" ]; then
+        tail -n 1 "$root/$1.history" | cut -d ' ' -f 1
+    fi
+}
+
+check_sha() {
+    case $1 in
+        *[!0-9a-f]* | "") fail "$usage" ;;
+    esac
+    [ ${#1} -eq 40 ] || fail "A full commit hash (40 characters) is needed, not «$1»."
+}
+
+case $mode in
+    versions)
+        echo "Test site:  $(running dev)"
+        echo "Production: $(running prod)"
+        if [ -f "$root/prod.history" ]; then
+            echo "Production lately (newest last):"
+            tail -n 10 "$root/prod.history"
+        fi
+        echo "Builds on the server (newest first):"
+        ls -1t "$root/builds"
+        exit 0
+        ;;
+    rollback)
+        now=$(running prod)
+        [ -n "$now" ] || fail "Production has no history yet ($root/prod.history)."
+        if [ -z "$sha" ]; then
+            # The newest version production ran other than the current one.
+            sha=$(cut -d ' ' -f 1 "$root/prod.history" | grep -v -x -F "$now" | tail -n 1)
+            [ -n "$sha" ] || fail "Production has run no other version to return to."
+        fi
+        check_sha "$sha"
+        [ -f "$root/builds/$sha/infra/deploy.sh" ] \
+            || fail "Build $sha is no longer on the server; what is: deploy.sh versions."
+        echo "Production: $now → $sha"
+        exec sh "$root/builds/$sha/infra/deploy.sh" prod "$sha"
+        ;;
+    release)
+        check_sha "$sha"
+        if ! grep -q "^$sha " "$root/dev.history" "$root/prod.history" 2>/dev/null; then
+            fail "$sha has not run on the test site yet: its migrations go there first."
+        fi
+        mode=prod
+        ;;
+    dev | prod) check_sha "$sha" ;;
+    *) fail "$usage" ;;
 esac
-[ ${#sha} -eq 40 ] || fail "A full commit hash (40 characters) is needed, not «$sha»."
 
 case $mode in
     dev)
@@ -50,7 +106,6 @@ case $mode in
         file=production.compose.yaml
         grace=180
         ;;
-    *) fail "Usage: deploy.sh dev|prod <full commit hash>" ;;
 esac
 
 build=$root/builds/$sha
