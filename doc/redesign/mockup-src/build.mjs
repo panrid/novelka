@@ -6,11 +6,14 @@ import { fileURLToPath } from 'node:url';
 import { dcFile, previewHtml, KARKASY } from './lib.mjs';
 import * as reader from './reader.mjs';
 import * as novel from './novel.mjs';
+import * as site from './site.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, '..', 'mockup');
 const prev = process.argv[2];
-export const SCREENS = [reader.ReaderT, reader.ReaderPanelsT, reader.ReaderP, reader.ReaderK, reader.ReaderPanelsK, novel.NovelT, novel.NovelP, novel.NovelK];
+export const SCREENS = [reader.ReaderT, reader.ReaderPanelsT, reader.ReaderP, reader.ReaderK, reader.ReaderPanelsK, novel.NovelT, novel.NovelP, novel.NovelK,
+  site.HomeT, site.HomeK, site.CatalogT, site.CatalogK, site.LibraryT, site.LibraryK, site.ProposalsT, site.ProposalsK,
+  site.ProfileT, site.ProfileK, site.AuthT, site.AuthK, site.ErrorsT, site.ErrorsK, site.InfoK];
 
 for (const s of SCREENS) {
   writeFileSync(join(out, s.file), dcFile(s));

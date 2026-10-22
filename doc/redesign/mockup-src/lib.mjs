@@ -153,6 +153,13 @@ body{margin:0;background:#101114}
 .k-pal .cover{border-radius:2px;box-shadow:inset 0 0 0 1px var(--acc)}
 .k-pal .cover b{font-weight:600;font-size:15px}
 .k-obl .cover{border-radius:14px}
+.cover.c1{background:#1D3B44;color:#F4EBD8}.cover.c1::before{background:#E9B65C;opacity:.35}
+.cover.c2{background:#5A2A1E;color:#FBE7D3}.cover.c2::before{background:#F08A4B;opacity:.4}
+.cover.c3{background:#1E2A5A;color:#E5ECFF}.cover.c3::before{background:#5FB6E8;opacity:.4}
+.cover.c4{background:#3B3F22;color:#F1EED7}.cover.c4::before{background:#C9C26A;opacity:.35}
+.cover.c5{background:#2B1830;color:#F6E7F1}.cover.c5::before{background:#C7C9D8;opacity:.3}
+.cover.c6{background:#18363A;color:#E3F4F1}.cover.c6::before{background:#E47CA0;opacity:.35}
+.cover.c1::after,.cover.c2::after,.cover.c3::after,.cover.c4::after,.cover.c5::after,.cover.c6::after{background:currentColor}
 `;
 
 export const CSS = THEMES + KARKAS_VARS + BASE;

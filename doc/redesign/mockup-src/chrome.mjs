@@ -80,6 +80,7 @@ export const CHROME_CSS = `
 .s-side .cont{margin-top:14px;padding:12px;border-radius:20px;background:var(--s2);display:grid;grid-template-columns:48px 1fr;gap:4px 12px;align-items:center}
 .s-side .cont .cover{width:48px;height:68px;grid-row:1/3;padding:4px;font-size:0;border-radius:10px}
 .s-side .cont b{font-size:13.5px;color:var(--strong)}
+.s-side .cont .cover b{display:none}
 .s-side .cont span{font-size:12px;color:var(--dim)}
 .s-side .sp{flex:1}
 .s-side .me{display:flex;align-items:center;gap:6px;padding-top:8px}
