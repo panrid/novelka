@@ -100,7 +100,7 @@ const msgs = (n = 2) => `<a href="MessagesK.dc.html" class="ib" aria-label="По
 // Телефон: { active: 0..4 | -1, title, back: 'File.dc.html', actions: '<…>' }
 export function phoneFrame({ active = 0, title = '', back = '', actions = '', main }) {
   const left = (cls, size = 20) => back ? `<a href="${back}" class="ib" aria-label="Назад">${ic('back', size)}</a>` : '';
-  const navItems = (cls) => NAV.map(([i, l, f], n) => `<a href="${f}.dc.html" class="${n === active ? 'on' : ''}"${n === active ? ' aria-current="page"' : ''}>${ic(i, 21)}${cls === 'o' && n !== active ? '' : `<span>${l}</span>`}${n === 3 ? '<span class="dot">2</span>' : ''}</a>`).join('');
+  const navItems = (cls) => NAV.map(([i, l, f], n) => `<a href="${f}.dc.html" class="${n === active ? 'on' : ''}"${n === active ? ' aria-current="page"' : ''}${cls === 'o' ? ` aria-label="${l}"` : ''}>${ic(i, 21)}${cls === 'o' ? '' : `<span>${l}</span>`}${n === 3 ? '<span class="dot">2</span>' : ''}</a>`).join('');
   return `<div class="site">
 ${kk({
   pult: `<header class="s-top-p">${back ? left() : '<span class="lg">н</span>'}<span class="t">${title || '<b>новелка</b>'}</span>${actions}<a href="CatalogT.dc.html" class="ib" aria-label="Пошук">${ic('search', 20)}</a>${bell()}</header>`,
