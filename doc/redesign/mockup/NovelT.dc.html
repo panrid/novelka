@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Новела — телефон</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&amp;family=Golos+Text:wght@400;500;600;700&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;0,7..72,700;1,7..72,400&amp;family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&amp;family=Spectral:ital,wght@0,400;0,500;0,600;1,400&amp;family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&amp;family=Unbounded:wght@500;600;700;800&amp;family=Manrope:wght@400;500;600;700;800&amp;family=Lora:ital,wght@0,400;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+.th-slanets{--bg:#1C1F25;--s0:#17191E;--s1:#22262D;--s2:#2A303A;--line:#333842;--tx:#D6DAE1;--strong:#EEF0F4;--read:#D9DCE2;--dim:#8D95A4;--faint:#636A77;--acc:#F2B35B;--onacc:#1D1404;--acc2:#5CCFBF;--onacc2:#0A1F1C;--term:rgba(92,207,191,.16);--selw:rgba(242,179,91,.30);--del:#F39479;--delbg:rgba(243,148,121,.13);--ins:#F5C27A;--insbg:rgba(242,179,91,.16);--skel:#2B3038;--scrim:rgba(8,9,12,.62);--warn:#F2B35B}
+.th-slanets.lt{--bg:#F3F4F6;--s0:#E8EAEE;--s1:#FFFFFF;--s2:#EEF1F5;--line:#D5D9E0;--tx:#1B1F27;--strong:#0B0E14;--read:#1E222A;--dim:#596070;--faint:#8C93A0;--acc:#A86200;--onacc:#FFFFFF;--acc2:#0B786B;--onacc2:#FFFFFF;--term:#D7F1EC;--selw:#F7D9A6;--del:#B23A17;--delbg:#FBE4DC;--ins:#7A4600;--insbg:#FCEBCF;--skel:#E3E6EB;--scrim:rgba(20,24,32,.35);--warn:#8A5200}
+.th-graphite{--bg:#0F1115;--s0:#0B0D10;--s1:#171A20;--s2:#1F232B;--line:#2A2F39;--tx:#E8EAEE;--strong:#F1F2F5;--read:#DADDE3;--dim:#A3A9B6;--faint:#6F7584;--acc:#8EA6FF;--onacc:#0B0D12;--acc2:#F2C46B;--onacc2:#1A1405;--term:rgba(255,196,64,.20);--selw:rgba(142,166,255,.28);--del:#FFB48A;--delbg:rgba(255,140,80,.18);--ins:#D3DCFF;--insbg:rgba(142,166,255,.22);--skel:#23272F;--scrim:rgba(5,6,9,.62);--warn:#F2C46B}
+.th-graphite.lt{--bg:#F3F4F6;--s0:#E9EBEF;--s1:#FFFFFF;--s2:#F1F2F5;--line:#E3E5EA;--tx:#15171C;--strong:#0B0D12;--read:#1B1D22;--dim:#5B6170;--faint:#8A909C;--acc:#2A4BD7;--onacc:#FFFFFF;--acc2:#7A4B00;--onacc2:#FFFFFF;--term:#FFF1C2;--selw:#DCE6FF;--del:#7A3410;--delbg:#FDE6D3;--ins:#102A8C;--insbg:#DCE6FF;--skel:#E6E8EC;--scrim:rgba(15,17,21,.35);--warn:#7A4B00}
+.th-sukno{--bg:#0E1613;--s0:#0A110E;--s1:#131E1A;--s2:#1A2722;--line:#2A3A33;--tx:#E9E2CC;--strong:#F4EEDC;--read:#DCD5BE;--dim:#A9A58F;--faint:#767B6C;--acc:#D2A84E;--onacc:#17120A;--acc2:#9CC7A4;--onacc2:#0E1613;--term:rgba(210,168,78,.17);--selw:rgba(210,168,78,.34);--del:#E59072;--delbg:rgba(229,144,114,.14);--ins:#EBCB7C;--insbg:rgba(210,168,78,.14);--skel:#22302A;--scrim:rgba(4,8,6,.62);--warn:#D2A84E}
+.th-sukno.lt{--bg:#E6E9E1;--s0:#DCE1D6;--s1:#F7F8F2;--s2:#EDEFE6;--line:#C9D0C2;--tx:#18221D;--strong:#0C130F;--read:#1E2621;--dim:#535E4F;--faint:#7F877A;--acc:#85601A;--onacc:#FFFFFF;--acc2:#2F6B45;--onacc2:#FFFFFF;--term:#F1E2B7;--selw:#E6CB82;--del:#A4431E;--delbg:#F6DDD2;--ins:#6A4A0C;--insbg:#F1E2B7;--skel:#DDE2D6;--scrim:rgba(14,22,19,.35);--warn:#85601A}
+.th-slyva{--bg:#191120;--s0:#140D1A;--s1:#241830;--s2:#2F2140;--line:#3F2E50;--tx:#F7ECF4;--strong:#FFF6FB;--read:#EEE1EA;--dim:#BCA7BE;--faint:#8E7A94;--acc:#FF7EA4;--onacc:#2B0716;--acc2:#F4E27C;--onacc2:#2A2306;--term:rgba(255,126,164,.2);--selw:rgba(255,126,164,.36);--del:#FFB08F;--delbg:rgba(255,140,100,.16);--ins:#F4E27C;--insbg:rgba(244,226,124,.15);--skel:#2E2240;--scrim:rgba(10,4,14,.62);--warn:#F4E27C}
+.th-slyva.lt{--bg:#FFF4F7;--s0:#FBE9EF;--s1:#FFFFFF;--s2:#FCE7EF;--line:#F1D2DE;--tx:#2A1430;--strong:#1A0A1F;--read:#2A1430;--dim:#6D5370;--faint:#9F89A1;--acc:#CF2E66;--onacc:#FFFFFF;--acc2:#7C6300;--onacc2:#FFFFFF;--term:#FFD9E5;--selw:#FFC2D5;--del:#A93A12;--delbg:#FFE3D6;--ins:#6B5400;--insbg:#FFF1B8;--skel:#F6DCE6;--scrim:rgba(42,20,48,.35);--warn:#7C6300}
+
+.k-pult{--f-ui:'IBM Plex Sans','Segoe UI',sans-serif;--f-rd:'IBM Plex Serif',Georgia,serif;--f-h:'IBM Plex Sans','Segoe UI',sans-serif;--f-num:'IBM Plex Mono',ui-monospace,monospace;--fs:14px;--wh:600;
+  --hb:34px;--hbs:28px;--pb:12px;--rb:0px;--wb:500;--fsb:13.5px;--hc:26px;--pc:8px;--rc:0px;--fsc:12.5px;--rcard:0px;--rsheet:0px;--rsk:0px;--rin:0px;--hp:2px;--rp:0px;--gap:12px}
+.k-zv{--f-ui:'Golos Text',-apple-system,'Segoe UI',sans-serif;--f-rd:'Literata',Georgia,serif;--f-h:'Literata',Georgia,serif;--f-num:'Golos Text',sans-serif;--fs:15px;--wh:700;
+  --hb:40px;--hbs:32px;--pb:16px;--rb:10px;--wb:600;--fsb:14.5px;--hc:30px;--pc:12px;--rc:999px;--fsc:13px;--rcard:14px;--rsheet:20px;--rsk:6px;--rin:10px;--hp:4px;--rp:2px;--gap:14px}
+.k-pal{--f-ui:'Alegreya Sans','Segoe UI',sans-serif;--f-rd:'Spectral',Georgia,serif;--f-h:'Cormorant Garamond',Georgia,serif;--f-num:'Cormorant Garamond',Georgia,serif;--fs:16px;--wh:600;
+  --hb:40px;--hbs:32px;--pb:16px;--rb:2px;--wb:700;--fsb:15px;--hc:28px;--pc:10px;--rc:2px;--fsc:14px;--rcard:0px;--rsheet:0px;--rsk:2px;--rin:2px;--hp:2px;--rp:0px;--gap:16px}
+.k-obl{--f-ui:'Manrope','Segoe UI',sans-serif;--f-rd:'Lora',Georgia,serif;--f-h:'Unbounded','Arial Black',sans-serif;--f-num:'Unbounded','Arial Black',sans-serif;--fs:15px;--wh:700;
+  --hb:44px;--hbs:34px;--pb:18px;--rb:999px;--wb:700;--fsb:14px;--hc:32px;--pc:14px;--rc:999px;--fsc:13px;--rcard:22px;--rsheet:28px;--rsk:10px;--rin:16px;--hp:8px;--rp:4px;--gap:12px}
+.ph.k-pult{--hb:44px;--hbs:36px} .ph.k-zv{--hb:46px;--hbs:38px} .ph.k-pal{--hb:44px;--hbs:38px} .ph.k-obl{--hb:50px;--hbs:40px}
+
+body{margin:0;background:#101114}
+.nv{position:relative;overflow:hidden;box-sizing:border-box;background:var(--bg);color:var(--tx);font:var(--fs)/1.45 var(--f-ui);-webkit-font-smoothing:antialiased}
+.nv *,.nv *::before,.nv *::after{box-sizing:border-box}
+.nv :where(button){font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+.nv :where(a){color:inherit;text-decoration:none}
+.nv :where(p,h1,h2,h3,h4,ul,ol,figure){margin:0;padding:0}
+.nv :where(ul,ol){list-style:none}
+.nv :where(input,textarea,select){font:inherit;color:inherit}
+.nv :where(button,a,input,textarea,select):focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.nv svg.i{display:block;flex:none}
+.sk{display:block;background:var(--skel);border-radius:var(--rsk);animation:nvP 1.6s ease-in-out infinite}
+@keyframes nvP{50%{opacity:.45}}
+@keyframes nvB{50%{opacity:0}}
+@keyframes nvS{to{transform:rotate(360deg)}}
+.spin{animation:nvS .9s linear infinite}
+.caret{display:inline-block;width:2px;height:1.1em;vertical-align:-.18em;background:currentColor;margin-left:1px;animation:nvB 1s steps(1) infinite}
+@media (prefers-reduced-motion:reduce){.sk,.caret,.spin{animation:none}}
+.term{background:var(--term);border-radius:3px}
+.k-pal .term{box-shadow:0 1px 0 var(--acc);border-radius:2px}
+.k-obl .term{border-radius:6px;padding:0 2px}
+.selw{background:var(--selw);border-radius:3px}
+.mono{font-family:var(--f-num)}
+.dim{color:var(--dim)} .faint{color:var(--faint)} .strong{color:var(--strong)} .acc{color:var(--acc)} .acc2{color:var(--acc2)}
+.grow{flex:1;min-width:0}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.col{display:flex;flex-direction:column;min-width:0}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.num{font-variant-numeric:tabular-nums}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:var(--hb);padding:0 var(--pb);border-radius:var(--rb);background:var(--s2);color:var(--tx);font-weight:var(--wb);font-size:var(--fsb);white-space:nowrap;flex:none}
+.btn.pri{background:var(--acc);color:var(--onacc)}
+.btn.sec{background:var(--acc2);color:var(--onacc2)}
+.btn.out{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
+.btn.sm{height:var(--hbs);padding:0 calc(var(--pb) * .75);font-size:calc(var(--fsb) - 1px)}
+.btn.wide{width:100%}
+.btn.dis{opacity:.45;cursor:default}
+.k-pal .btn{background:transparent;box-shadow:inset 0 0 0 1px var(--line);font-variant:all-small-caps;letter-spacing:.06em;font-size:calc(var(--fsb) + 2px)}
+.k-pal .btn.pri{background:var(--acc);box-shadow:none}
+.k-pal .btn.sec{background:transparent;box-shadow:inset 0 0 0 1px var(--acc2);color:var(--acc2)}
+.k-pult .btn.out,.k-pult .btn{box-shadow:inset 0 0 0 1px var(--line)}
+.k-pult .btn.pri,.k-pult .btn.sec{box-shadow:none}
+.ib{width:var(--hb);height:var(--hb);display:grid;place-items:center;border-radius:var(--rb);color:var(--dim);flex:none;position:relative}
+.ib.on{color:var(--acc)}
+.k-zv .ib.on{background:var(--s2)}
+.k-obl .ib.on{background:var(--acc);color:var(--onacc)}
+.ib .dot{position:absolute;top:4px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--acc);color:var(--onacc);font:700 10px/16px var(--f-ui);text-align:center}
+.k-pult .ib .dot{border-radius:0;font-family:var(--f-num);font-weight:500}
+.chip{display:inline-flex;align-items:center;gap:6px;height:var(--hc);padding:0 var(--pc);border-radius:var(--rc);background:var(--s2);color:var(--dim);font-size:var(--fsc);white-space:nowrap;flex:none}
+.chip.on{background:var(--acc);color:var(--onacc)}
+.k-pult .chip{background:transparent;box-shadow:inset 0 0 0 1px var(--line);font-family:var(--f-num);font-size:12px}
+.k-pult .chip.on{background:var(--acc);box-shadow:none}
+.k-pal .chip{background:transparent;padding:0 2px;height:auto;color:var(--dim);border-bottom:1px dotted var(--dim);border-radius:0}
+.k-pal .chip.on{color:var(--acc);border-bottom:1px solid var(--acc);background:transparent}
+.lab{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-weight:600}
+.k-pult .lab{font:500 11px/1.3 var(--f-num);letter-spacing:.08em}
+.k-pal .lab{text-transform:none;font-variant:all-small-caps;letter-spacing:.1em;font-size:15px;font-weight:500;color:var(--acc)}
+.k-obl .lab{font:700 11px/1.3 var(--f-h);letter-spacing:.04em}
+.h1{font:var(--wh) 26px/1.2 var(--f-h);color:var(--strong);text-wrap:balance}
+.h2{font:var(--wh) 20px/1.25 var(--f-h);color:var(--strong);text-wrap:balance}
+.h3{font:600 16px/1.3 var(--f-ui);color:var(--strong)}
+.k-pal .h1{font-size:32px;font-weight:600}
+.k-pal .h2{font-size:25px}
+.k-obl .h1{font-size:24px;font-weight:700;letter-spacing:-.01em}
+.k-obl .h2{font-size:18px;letter-spacing:-.01em}
+.k-pult .h1{font-size:22px}
+.k-pult .h2{font-size:17px}
+.card{background:var(--s1);border-radius:var(--rcard)}
+.k-pult .card{box-shadow:inset 0 0 0 1px var(--line)}
+.k-zv .card{box-shadow:inset 0 0 0 1px var(--line)}
+.k-pal .card{background:transparent;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.prog{height:var(--hp);background:var(--s2);border-radius:var(--rp);overflow:hidden;flex:none}
+.prog>i{display:block;height:100%;background:var(--acc);border-radius:var(--rp)}
+.field{display:flex;align-items:center;gap:8px;height:var(--hb);padding:0 12px;border-radius:var(--rin);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);color:var(--faint);width:100%}
+.k-pal .field{background:transparent;box-shadow:none;border-bottom:1px solid var(--dim);border-radius:0;padding:0 2px}
+.sw{width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);flex:none}
+.tog{width:40px;height:24px;border-radius:12px;background:var(--s2);box-shadow:inset 0 0 0 1px var(--line);position:relative;flex:none}
+.tog::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--dim)}
+.tog.on{background:var(--acc);box-shadow:none}
+.tog.on::after{left:19px;background:var(--onacc)}
+.k-pult .tog,.k-pult .tog::after{border-radius:0}
+.k-pal .tog,.k-pal .tog::after{border-radius:2px}
+.seg{display:flex;padding:3px;gap:2px;border-radius:calc(var(--rb) + 3px);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line)}
+.seg>*{flex:1;height:calc(var(--hb) - 8px);display:grid;place-items:center;border-radius:var(--rb);color:var(--dim);font-size:var(--fsc);padding:0 8px;white-space:nowrap}
+.seg>.on{background:var(--s2);color:var(--strong);font-weight:600}
+.k-pult .seg{padding:0;gap:0;border-radius:0}
+.k-pult .seg>*{height:var(--hbs);border-radius:0;box-shadow:inset -1px 0 0 var(--line)}
+.k-pult .seg>.on{background:var(--acc);color:var(--onacc)}
+.k-pal .seg{background:transparent;box-shadow:none;padding:0;gap:14px}
+.k-pal .seg>*{flex:none;height:auto;padding:2px 0;border-radius:0;font-variant:all-small-caps;letter-spacing:.08em;font-size:16px}
+.k-pal .seg>.on{background:transparent;color:var(--acc);border-bottom:1.5px solid var(--acc)}
+.k-obl .seg>.on{background:var(--acc);color:var(--onacc)}
+.av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--s2);color:var(--strong);font-weight:700;font-size:14px;flex:none}
+.k-pult .av{border-radius:0;font-family:var(--f-num);font-weight:500}
+.k-obl .av{background:var(--acc);color:var(--onacc);font-family:var(--f-h)}
+.k-pal .av{font-family:var(--f-h);font-size:18px;background:transparent;box-shadow:inset 0 0 0 1px var(--acc);color:var(--acc)}
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:20}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:21;background:var(--s1);border-radius:var(--rsheet) var(--rsheet) 0 0;display:flex;flex-direction:column;max-height:86%;box-shadow:0 -10px 40px rgba(0,0,0,.35)}
+.k-pult .sheet{border-top:1px solid var(--line)}
+.k-pal .sheet{background:var(--bg);border-top:1px solid var(--acc)}
+.k-obl .sheet{left:8px;right:8px;bottom:8px;border-radius:var(--rsheet)}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:8px auto 2px;flex:none}
+.k-pult .sheet .grab,.k-pal .sheet .grab{display:none}
+.sheet .sh-h{display:flex;align-items:center;gap:8px;padding:10px 16px 10px 20px;flex:none}
+.sheet .sh-b{overflow:auto;padding:4px 20px 22px;display:flex;flex-direction:column;gap:18px}
+.k-pult .sheet .sh-h{border-bottom:1px solid var(--line);padding:8px 8px 8px 16px}
+.pop{position:absolute;z-index:21;background:var(--s1);border-radius:calc(var(--rcard) * .8);box-shadow:0 14px 40px rgba(0,0,0,.4),inset 0 0 0 1px var(--line)}
+.k-pal .pop{background:var(--bg);box-shadow:0 14px 40px rgba(0,0,0,.4),inset 0 0 0 1px var(--acc)}
+.hr{height:1px;background:var(--line);flex:none}
+.k-pal .hr{background:none;border-top:1px dotted var(--line)}
+.state{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--dim);white-space:nowrap}
+.state i{width:8px;height:8px;border-radius:50%;background:var(--dim);flex:none}
+.state.pub i{background:var(--acc2)} .state.dr i{background:var(--acc)} .state.q i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--dim)}
+.k-pult .state{font-family:var(--f-num);font-size:11.5px}
+.cover{position:relative;overflow:hidden;background:var(--s2);border-radius:calc(var(--rcard) * .5);display:flex;flex-direction:column;justify-content:flex-end;padding:10px;color:var(--strong);font:700 13px/1.15 var(--f-h);flex:none}
+.cover::before{content:"";position:absolute;left:-20%;right:-20%;top:18%;height:46%;border-radius:50%;background:var(--acc);opacity:.22}
+.cover::after{content:"";position:absolute;left:46%;top:10%;width:6%;height:52%;background:var(--strong);opacity:.5;border-radius:2px 2px 0 0}
+.cover b{position:relative;z-index:1}
+.k-pult .cover{border-radius:0}
+.k-pal .cover{border-radius:2px;box-shadow:inset 0 0 0 1px var(--acc)}
+.k-pal .cover b{font-weight:600;font-size:15px}
+.k-obl .cover{border-radius:14px}
+
+/* ── текст глави ── */
+.rs{flex:1;min-height:0;overflow:auto;scrollbar-width:none;position:relative}
+.rs::-webkit-scrollbar{display:none}
+.rt{display:flex;flex-direction:column;gap:14px}
+.rt p{font:17px/1.7 var(--f-rd);color:var(--read);hyphens:auto;position:relative}
+.k-zv .rt p{font-size:17.5px;text-align:justify}
+.k-pal .rt{gap:0}
+.k-pal .rt p{font-size:17.5px;line-height:1.72;text-align:justify;text-indent:1.5em}
+.k-pal .rt p.first{text-indent:0}
+.k-pal .rt p.first::first-letter{font:600 3.1em/.8 var(--f-h);float:left;padding:6px 6px 0 0;color:var(--acc)}
+.k-obl .rt{gap:16px}
+.k-obl .rt p{font-size:18px;line-height:1.72}
+.ph .rs{padding:24px 20px 32px}
+.k-pal.ph .rs{padding:0 24px 40px}
+.k-obl.ph .rs{padding:92px 22px 120px}
+.mine{display:block;font:500 12px/1.3 var(--f-ui);color:var(--acc);margin-bottom:2px;text-indent:0}
+.mine-p{box-shadow:-10px 0 0 var(--bg),-12px 0 0 var(--acc)}
+.k-pal .mine{font-variant:all-small-caps;letter-spacing:.08em;font-size:14px}
+.k-pult .mine{font:500 11px/1.3 var(--f-num)}
+/* заголовок глави */
+.chh{display:flex;flex-direction:column;gap:6px;padding-bottom:20px}
+.chh-n,.chh-m{display:none}
+.chh-k{font-size:13px;color:var(--dim)}
+.chh-t{font:var(--wh) 25px/1.22 var(--f-h);color:var(--strong);text-wrap:balance}
+.k-pult .chh-k{font:500 12px/1 var(--f-num);color:var(--acc2);letter-spacing:.06em;text-transform:uppercase}
+.k-pult .chh-t{font:600 23px/1.25 var(--f-rd)}
+.k-pal .chh{align-items:center;text-align:center;padding:38px 0 22px}
+.k-pal .chh-k{font-variant:all-small-caps;letter-spacing:.1em;color:var(--acc);font-size:15px}
+.k-pal .chh-t{font-size:31px;line-height:1.12}
+.k-pal .chh::after{content:"· · ·";color:var(--faint);letter-spacing:.5em;padding-left:.5em;font:20px/1 var(--f-h);margin-top:4px}
+.k-obl .chh-n{display:block;font:800 80px/.9 var(--f-num);color:var(--acc);letter-spacing:-.03em}
+.k-obl .chh-t{font:700 27px/1.2 var(--f-rd)}
+.chh-meta{display:flex;gap:6px;flex-wrap:wrap}
+.k-pal .chh-meta{order:-1}
+.k-obl .chh-k,.k-obl .chh-m{display:inline-flex;height:28px;padding:0 12px;border-radius:14px;background:var(--s2);align-items:center;font-size:13px;color:var(--dim)}
+/* правка на місці */
+.ed{display:flex;flex-direction:column;gap:12px;padding:14px;background:var(--s1);border-radius:var(--rcard);box-shadow:inset 0 0 0 1px var(--acc);margin:0 -8px}
+.ed-l{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:600;color:var(--acc)}
+.ed-l span:last-child{font-weight:400;color:var(--faint)}
+.ed-f{font:17px/1.65 var(--f-rd);color:var(--strong)}
+.ed-t{display:flex;gap:8px;flex-wrap:wrap}
+.ed-t button{display:inline-flex;align-items:center;gap:6px;height:var(--hbs);padding:0 12px;border-radius:var(--rb);background:var(--s2);font-size:14px}
+.ed-a{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ed-a .btn{width:100%}
+.rt .ed-n,.ed-n{font:12.5px/1.4 var(--f-ui);color:var(--faint);text-indent:0;text-align:left}
+.ed-k{display:none;font:12px/1 var(--f-num);color:var(--faint)}
+.k-pult .ed{padding:0;gap:0;margin:0;box-shadow:inset 0 0 0 1px var(--acc2)}
+.k-pult .ed-l{padding:8px 10px;font:500 12px/1 var(--f-num);color:var(--acc2);border-bottom:1px solid var(--line)}
+.k-pult .ed-f{padding:10px}
+.k-pult .ed-t{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--line)}
+.k-pult .ed-t button{height:44px;justify-content:center;border-radius:0;background:none}
+.k-pult .ed-t button+button,.k-pult .ed-a .btn+.btn{box-shadow:inset 1px 0 0 var(--line)}
+.k-pult .ed-a{gap:0;border-top:1px solid var(--line)}
+.k-pult .ed-a .btn{box-shadow:none;height:44px}
+.k-pult .rt .ed-n,.k-pult .ed-n{padding:8px 10px;border-top:1px solid var(--line);font:11.5px/1.3 var(--f-num)}
+.k-pal .ed{margin:12px -10px;padding:12px 10px;border-radius:0;background:var(--s2);box-shadow:none;border-top:1px solid var(--acc);border-bottom:1px solid var(--line)}
+.k-pal .ed-l{font-variant:all-small-caps;letter-spacing:.08em;font-size:15px;font-weight:500}
+.k-pal .ed-f{font-size:17.5px;text-indent:0}
+.k-pal .ed-t button{background:none;padding:0;height:auto;border-radius:0;border-bottom:1px dotted var(--dim);color:var(--dim);font-size:15px}
+.k-pal .ed-t button svg{display:none}
+.k-pal .ed-a{display:flex;justify-content:flex-end}
+.k-pal .ed-a .btn{width:auto}
+.k-obl .ed{border-radius:24px;padding:16px;box-shadow:0 0 0 2px var(--acc);gap:14px}
+.k-obl .ed-l{font:700 11.5px/1 var(--f-h);letter-spacing:.03em;text-transform:uppercase}
+.k-obl .ed-f{font-size:18px}
+.k-obl .ed-t button{height:38px;border-radius:19px;font-weight:600}
+.k-obl .ed-a{grid-template-columns:1fr 1.4fr}
+.k-obl .ed-a .btn{height:50px}
+/* панель виділення */
+.selbar{display:flex;gap:2px;padding:4px;background:var(--s1);border-radius:var(--rcard);box-shadow:0 10px 30px rgba(0,0,0,.35),inset 0 0 0 1px var(--line);align-self:flex-start;margin:-6px 0 2px;z-index:3;text-indent:0}
+.selbar button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 9px;border-radius:var(--rb);font-size:12px;color:var(--tx);min-width:62px}
+.selbar button:first-child{color:var(--acc)}
+.k-pult .selbar{padding:0;gap:0}
+.k-pult .selbar button{border-radius:0;box-shadow:inset -1px 0 0 var(--line)}
+.k-pal .selbar{background:var(--bg);box-shadow:0 10px 30px rgba(0,0,0,.35),inset 0 0 0 1px var(--acc);margin:6px 0 8px}
+.k-pal .selbar button{font-variant:all-small-caps;letter-spacing:.06em;font-size:14px}
+.k-obl .selbar{border-radius:22px;padding:6px;background:var(--s2)}
+.k-obl .selbar button{border-radius:16px;font-weight:600}
+.k-obl .selbar button:first-child{background:var(--acc);color:var(--onacc)}
+/* роздільник глав (безшовно) */
+.chd-p{display:flex;align-items:center;gap:10px;padding:22px 0 8px;font:500 12px/1 var(--f-num);color:var(--acc2)}
+.chd-p::before,.chd-p::after{content:"";flex:1;height:1px;background:var(--line)}
+.chd-z{display:flex;flex-direction:column;align-items:center;gap:6px;padding:30px 0 12px}
+.chd-z span{height:26px;padding:0 12px;border-radius:13px;background:var(--s2);font-size:13px;color:var(--dim);display:flex;align-items:center}
+.chd-z h2{font:700 21px/1.25 var(--f-h);color:var(--strong)}
+.chd-a{display:flex;flex-direction:column;align-items:center;gap:4px;padding:40px 0 18px;text-align:center}
+.chd-a .fl{color:var(--acc);font:30px/1 var(--f-h)}
+.chd-a .k{font-variant:all-small-caps;letter-spacing:.1em;color:var(--dim);font-size:15px}
+.chd-a h2{font:600 25px/1.2 var(--f-h);color:var(--strong)}
+.chd-o{margin:30px -8px 14px;border-radius:28px;background:var(--s1);padding:20px;display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:center}
+.chd-o .n{grid-row:1/3;font:800 54px/1 var(--f-num);color:var(--acc2)}
+.chd-o b{font:700 20px/1.2 var(--f-rd);color:var(--strong)}
+.chd-o span:last-child{font-size:13px;color:var(--dim)}
+/* кінець глави, естафета */
+.end{display:flex;flex-direction:column;gap:14px;padding-top:26px}
+.end-mark{text-align:center;font-size:13px;color:var(--faint)}
+.k-pal .end-mark{font-variant:all-small-caps;letter-spacing:.1em;font-size:15px}
+.k-pult .end-mark{font:500 12px/1 var(--f-num)}
+.end-box{padding:14px;display:flex;flex-direction:column;gap:10px}
+.k-pal .end-box{padding:14px 0}
+.end-box .row .btn{flex:1}
+.end-next{display:flex;align-items:center;gap:12px;padding:14px}
+.k-pal .end-next{padding:14px 0}
+.end-next b{display:block;font:600 17px/1.25 var(--f-h);color:var(--strong)}
+.k-obl .end-next b{font-family:var(--f-rd)}
+.cm{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px}
+.cm .av{width:32px;height:32px;font-size:13px}
+.cm-h{display:flex;gap:8px;align-items:baseline;font-size:13.5px}
+.cm-h b{color:var(--strong)}
+.cm-t{font-size:14.5px;line-height:1.5}
+.cm-q{font-size:13.5px;color:var(--dim);padding-left:10px;box-shadow:inset 2px 0 0 var(--line);margin-bottom:2px}
+.cm-sp{background:var(--s2);color:transparent;border-radius:4px;text-shadow:0 0 8px var(--dim)}
+.cm-f{display:flex;gap:14px;font-size:12.5px;color:var(--faint)}
+.cm-f span{display:inline-flex;align-items:center;gap:4px}
+/* стани: повідомлення */
+.msg{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:110px 18px 0}
+.msg .i{color:var(--dim)}
+.msg b{font:var(--wh) 21px/1.3 var(--f-h);color:var(--strong)}
+.msg p{font-size:14.5px;line-height:1.5;color:var(--dim);max-width:300px}
+.offl{display:flex;align-items:center;gap:8px;padding:8px 12px;margin:-8px -4px 16px;border-radius:var(--rin);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);font-size:13px;color:var(--dim)}
+.offl .i{color:var(--warn)}
+.ld{display:flex;flex-direction:column;gap:11px}
+/* сторінки */
+.pg-edge{position:absolute;right:0;top:0;bottom:0;width:18px;background:linear-gradient(90deg,transparent,rgba(0,0,0,.18))}
+
+/* ── хром телефона ── */
+.r-top-p{height:40px;flex:none;display:flex;align-items:center;gap:6px;padding:0 10px 0 2px;font:12px/1 var(--f-num);color:var(--dim)}
+.r-top-p b{color:var(--tx);font-weight:500}
+.r-top-p .ib{width:36px;height:36px}
+.r-cmd{height:58px;flex:none;display:grid;grid-template-columns:52px 1fr 52px 52px 52px 52px;border-top:1px solid var(--line);background:var(--s0)}
+.r-cmd>*{display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:inset -1px 0 0 var(--line);color:var(--dim)}
+.r-cmd>:last-child{box-shadow:none}
+.r-cmd .mid{font:13px/1 var(--f-num);color:var(--tx)}
+.r-cmd .on{color:var(--acc)}
+.r-cmd .aa{font:600 16px/1 var(--f-ui);color:var(--tx)}
+.r-top-z{height:58px;flex:none;display:flex;align-items:center;gap:2px;padding:0 6px;border-bottom:1px solid var(--line)}
+.r-top-z b{font-size:15px;font-weight:600;color:var(--strong)}
+.r-top-z .dim{font-size:12.5px}
+.aa{font:600 17px/1 var(--f-rd);color:var(--tx)}
+.r-bot-z{flex:none;border-top:1px solid var(--line);background:var(--bg)}
+.r-bot-z .prog{height:3px;border-radius:0}
+.r-bot-z .r3{height:54px;display:grid;grid-template-columns:54px 1fr 54px 54px;align-items:center}
+.r-bot-z .r3>button{height:54px;display:grid;place-items:center;color:var(--dim)}
+.r-bot-z .mid{text-align:center;font-size:13px;color:var(--dim)}
+.r-bot-z .mid b{color:var(--strong)}
+.r-top-a{height:50px;flex:none;display:flex;align-items:center;gap:4px;padding:0 10px 0 4px;border-bottom:1px solid var(--line);color:var(--dim)}
+.r-top-a .t{flex:1;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r-top-a em{font-style:normal;color:var(--strong)}
+.r-top-a .aa{font:600 20px/1 var(--f-h)}
+.r-bot-a{height:40px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 20px;font-size:13px;color:var(--faint);border-top:1px solid var(--line)}
+.r-bot-a .bar{flex:1;height:1px;background:var(--line);margin:0 14px;position:relative}
+.r-bot-a .bar i{position:absolute;left:0;top:-1px;height:3px;width:34%;background:var(--acc)}
+.r-top-o{position:absolute;left:12px;right:12px;top:12px;z-index:5;height:56px;border-radius:28px;background:color-mix(in srgb,var(--s2) 90%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;gap:4px;padding:0 6px}
+.r-top-o .ib{width:44px;height:44px}
+.r-top-o b{font-size:14px;color:var(--strong)}
+.r-top-o .dim{font-size:12px}
+.r-top-o .aa{font:700 15px/1 var(--f-h)}
+.r-dock{position:absolute;left:16px;right:16px;bottom:16px;z-index:5;height:64px;border-radius:32px;background:var(--s2);display:grid;grid-template-columns:52px 1fr 52px;align-items:center;padding:0 6px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.r-dock>button{width:52px;height:52px;border-radius:26px;display:grid;place-items:center}
+.r-dock .nx{background:var(--acc);color:var(--onacc)}
+.r-dock .mid{display:flex;flex-direction:column;gap:6px;padding:0 10px}
+.r-dock .mid span{display:flex;justify-content:space-between;font-size:12px;color:var(--dim)}
+.r-dock .mid b{color:var(--strong)}
+
+/* ── комп'ютер і планшет ── */
+.dr-body{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,700px) minmax(0,1fr);column-gap:48px;align-items:start;scrollbar-width:thin}
+.dr-col{grid-column:2;padding:40px 0 80px;position:relative}
+.dr-mar{grid-column:3;padding-top:180px;max-width:300px}
+.tb .dr-mar{display:none}
+.tb .dr-body{grid-template-columns:minmax(0,1fr) minmax(0,640px) minmax(0,1fr);column-gap:0}
+.dk .rt p{font-size:19px;line-height:1.72}
+.k-pal.dk .dr-col{padding-top:20px}
+.k-obl .dr-col{padding-top:110px;padding-bottom:140px}
+.pen{position:absolute;left:-44px;top:2px;width:32px;height:32px;display:grid;place-items:center;color:var(--dim);border-radius:var(--rb);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);text-indent:0}
+.dk .ed-k,.tb .ed-k{display:block}
+.who-m{display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--s1);border-radius:var(--rcard);box-shadow:inset 0 0 0 1px var(--line)}
+.who-m .av{width:44px;height:44px;font-size:18px}
+.who-m li{font-size:13.5px;line-height:1.45;display:grid;grid-template-columns:42px 1fr;gap:6px}
+.who-m li span{color:var(--faint);font-size:12px;padding-top:2px}
+.k-pal .who-m{background:transparent;box-shadow:none;padding:0 0 0 16px;border-left:1px solid var(--line)}
+.k-pult .who-m{box-shadow:inset 0 0 0 1px var(--line),inset 0 2px 0 var(--acc2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:64px;height:100%}
+.two .rt{overflow:hidden}
+.two-f{display:flex;justify-content:space-between;font-size:13px;color:var(--faint);padding-top:14px}
+.d-top-p{height:44px;flex:none;display:flex;align-items:center;gap:6px;padding:0 10px 0 6px;border-bottom:1px solid var(--line);background:var(--s0);font:12.5px/1 var(--f-num);color:var(--dim)}
+.d-top-p b{color:var(--tx);font-weight:500}
+.d-top-p .ib{width:34px;height:34px}
+.d-st-p{height:30px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-top:1px solid var(--line);background:var(--s0);font:12px/1 var(--f-num);color:var(--dim)}
+.d-st-p .acc{color:var(--acc)}
+.d-top-z{height:60px;flex:none;display:flex;align-items:center;gap:6px;padding:0 16px;border-bottom:1px solid var(--line)}
+.d-top-z .t{flex:1;text-align:center}
+.d-top-z .t b{display:block;font-size:15px;color:var(--strong)}
+.d-top-z .t span{font-size:13px;color:var(--dim)}
+.d-bot-z{flex:none;border-top:1px solid var(--line)}
+.d-bot-z .prog{height:3px;border-radius:0}
+.d-bot-z .r{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:14px;color:var(--dim)}
+.d-bot-z .r b{color:var(--strong)}
+.d-top-a{height:56px;flex:none;display:flex;align-items:center;gap:6px;padding:0 20px 0 10px;border-bottom:1px solid var(--line);color:var(--dim)}
+.d-top-a .w{font:italic 600 24px/1 var(--f-h);color:var(--strong);margin-right:16px}
+.d-top-a .t{flex:1;text-align:center;font:italic 500 19px/1 var(--f-h);color:var(--strong)}
+.d-top-a .aa{font:600 20px/1 var(--f-h)}
+.d-top-o{position:absolute;top:16px;left:50%;transform:translateX(-50%);width:820px;z-index:5;height:60px;border-radius:30px;background:color-mix(in srgb,var(--s2) 92%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;padding:0 8px}
+.tb .d-top-o{width:760px}
+.d-top-o .w{font:800 18px/1 var(--f-h);color:var(--strong);padding:0 10px}
+.d-top-o .w i{color:var(--acc);font-style:normal}
+.d-top-o .t{flex:1;min-width:0;display:flex;flex-direction:column}
+.d-top-o .t b{font-size:14px;color:var(--strong)}
+.d-top-o .t span{font-size:12px;color:var(--dim)}
+.d-top-o .aa{font:700 15px/1 var(--f-h)}
+.d-dock{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);width:560px;z-index:5;height:64px;border-radius:32px;background:var(--s2);display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:0 8px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.d-dock .btn{height:48px}
+.d-dock .mid{display:flex;flex-direction:column;gap:6px}
+.d-dock .mid span{display:flex;justify-content:space-between;font-size:12.5px;color:var(--dim)}
+.aa-pop{top:52px;right:24px;width:360px;padding:18px}
+.k-obl .aa-pop{top:84px;right:calc(50% - 400px)}
+.tb.k-obl .aa-pop{right:48px}
+/* «Aa» */
+.aa-b{display:flex;flex-direction:column;gap:16px}
+.aa-sw{display:flex;gap:10px}
+.aa-sw>span{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--dim);flex:1}
+.aa-sw .sw{width:44px;height:44px;border-radius:var(--rin);display:grid;place-items:center;font:600 15px/1 var(--f-rd)}
+.k-obl .aa-sw .sw{border-radius:50%}
+.aa-sw .on .sw{box-shadow:0 0 0 2px var(--acc)}
+.aa-sw .on{color:var(--strong)}
+.aa-r{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14.5px}
+.aa-r small{display:block;font-size:12px;color:var(--faint)}
+.aa-r .seg{min-width:190px}
+.aa-more{font-size:14px;color:var(--acc);display:flex;align-items:center;gap:6px}
+/* «Хто це», зміст, коментарі, скарга */
+.who-h{display:flex;gap:14px;align-items:center}
+.who-h .av{width:64px;height:64px;font-size:26px}
+.who-f{display:flex;flex-direction:column;gap:10px}
+.who-f li{display:grid;grid-template-columns:52px 1fr;gap:8px;font-size:14.5px;line-height:1.45}
+.who-f li span{font-size:12.5px;color:var(--faint);padding-top:2px}
+.k-pult .who-f li span{font-family:var(--f-num)}
+.k-pal .who-f li span{font:600 16px/1.2 var(--f-h);color:var(--acc)}
+.note{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--dim);padding:10px 12px;border-radius:var(--rin);background:var(--s2)}
+.k-pal .note{background:transparent;padding:0;font-style:italic}
+.toc-v{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0}
+.toc-r{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line);font-size:14.5px}
+.toc-r .n{color:var(--faint);font-variant-numeric:tabular-nums}
+.toc-r.cur{color:var(--acc);font-weight:600}
+.toc-r.cur .n{color:var(--acc)}
+.toc-r .ok{color:var(--acc2)}
+.k-pult .toc-r .n{font-family:var(--f-num);font-size:12.5px}
+.k-pal .toc-r{border-bottom:1px dotted var(--line)}
+.k-pal .toc-r .n{font:600 18px/1 var(--f-h)}
+.k-obl .toc-r{border:0;border-radius:16px;padding:10px 12px}
+.k-obl .toc-r.cur{background:var(--acc);color:var(--onacc)}
+.k-obl .toc-r.cur .n{color:var(--onacc)}
+.rep li{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.rad{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--dim);flex:none;margin-top:1px}
+.rad.on{box-shadow:inset 0 0 0 6px var(--acc)}
+.k-pult .rad{border-radius:0}
+.ta{min-height:88px;padding:10px 12px;border-radius:var(--rin);background:var(--bg);box-shadow:inset 0 0 0 1px var(--line);font-size:14px;color:var(--faint)}
+.drawer{position:absolute;top:0;bottom:0;right:0;width:440px;z-index:21;background:var(--s1);display:flex;flex-direction:column;box-shadow:-20px 0 40px rgba(0,0,0,.3)}
+.drawer.left{left:0;right:auto;box-shadow:20px 0 40px rgba(0,0,0,.3)}
+.k-pal .drawer{background:var(--bg);border-left:1px solid var(--acc)}
+.k-obl .drawer{top:12px;bottom:12px;right:12px;border-radius:28px}
+.k-obl .drawer.left{left:12px}
+.modal{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:520px;z-index:21;background:var(--s1);border-radius:var(--rsheet);box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.k-pal .modal{background:var(--bg);box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 0 0 1px var(--acc)}
+
+.site{height:100%;min-height:0}
+.s-main{min-height:0;overflow:auto;scrollbar-width:none;position:relative}
+.s-main::-webkit-scrollbar{display:none}
+.ph .site{display:flex;flex-direction:column}
+.ph .s-main{flex:1}
+.dk .site,.tb .site{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+.k-pult.dk .site,.k-pult.tb .site{grid-template-columns:60px minmax(0,1fr);grid-template-rows:44px minmax(0,1fr)}
+.k-pult .s-rail{grid-row:1/3}
+.k-obl.dk .site{grid-template-columns:264px minmax(0,1fr);grid-template-rows:minmax(0,1fr);padding:14px 14px 0 14px;gap:14px}
+.k-obl.tb .site{grid-template-columns:84px minmax(0,1fr);grid-template-rows:minmax(0,1fr);padding:12px 12px 0 12px;gap:12px}
+/* Пульт */
+.s-top-p{height:48px;flex:none;display:flex;align-items:center;gap:6px;padding:0 6px 0 12px;border-bottom:1px solid var(--line);background:var(--s0)}
+.s-top-p .lg,.s-rail .lg{width:28px;height:28px;display:grid;place-items:center;background:var(--acc);color:var(--onacc);font:600 16px/1 var(--f-num);flex:none}
+.s-top-p .t{flex:1;min-width:0;font:12.5px/1 var(--f-num);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-top-p .t b{color:var(--tx);font-weight:500}
+.s-nav-p{height:60px;flex:none;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:var(--s0)}
+.s-nav-p a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font:500 10px/1 var(--f-num);letter-spacing:.04em;color:var(--dim);box-shadow:inset -1px 0 0 var(--line);position:relative}
+.s-nav-p a:last-child{box-shadow:none}
+.s-nav-p a.on{color:var(--acc);box-shadow:inset 0 2px 0 var(--acc),inset -1px 0 0 var(--line)}
+.s-nav-p .dot,.s-nav-z .dot,.s-dock .dot{position:absolute;top:8px;left:calc(50% + 6px);min-width:15px;height:15px;padding:0 3px;background:var(--acc);color:var(--onacc);font:600 9.5px/15px var(--f-ui);text-align:center;border-radius:8px}
+.s-nav-p .dot{border-radius:0;font-family:var(--f-num)}
+.s-rail{background:var(--s0);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 10px}
+.s-rail .lg{margin:0 0 12px}
+.s-rail a,.s-rail button{width:44px;height:44px;display:grid;place-items:center;color:var(--dim);position:relative}
+.s-rail a.on{color:var(--strong);background:var(--s2);box-shadow:inset 2px 0 0 var(--acc)}
+.s-rail .dot{position:absolute;right:5px;top:6px;min-width:15px;height:15px;padding:0 3px;background:var(--acc);color:var(--onacc);font:500 10px/15px var(--f-num);text-align:center}
+.s-rail .sp{flex:1}
+.s-rail .av{width:32px;height:32px;font-size:12px}
+.s-path{display:flex;align-items:center;gap:10px;padding:0 12px 0 16px;border-bottom:1px solid var(--line);background:var(--s0);font:12.5px/1 var(--f-num);color:var(--dim)}
+.s-path b{color:var(--tx);font-weight:500}
+.s-path .k{margin-left:auto;height:28px;width:280px;display:flex;align-items:center;gap:8px;padding:0 8px;box-shadow:inset 0 0 0 1px var(--line);color:var(--faint);font-family:var(--f-ui);font-size:13px}
+.s-path kbd{margin-left:auto;font:11px/1 var(--f-num);color:var(--dim);box-shadow:inset 0 0 0 1px var(--line);padding:3px 4px}
+/* Звичний */
+.s-top-z{height:56px;flex:none;display:flex;align-items:center;gap:2px;padding:0 6px 0 16px;border-bottom:1px solid var(--line)}
+.lg-z{font:700 22px/1 var(--f-h);color:var(--strong);letter-spacing:-.01em}
+.lg-z i{color:var(--acc);font-style:normal}
+.s-top-z .t{flex:1;min-width:0;font-weight:600;font-size:15px;color:var(--strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:4px}
+.s-nav-z{height:62px;flex:none;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:var(--bg)}
+.s-nav-z a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;color:var(--dim);position:relative}
+.s-nav-z a.on{color:var(--strong)}
+.s-nav-z a.on .i{color:var(--acc)}
+.s-head-z{height:64px;display:flex;align-items:center;gap:6px;padding:0 20px;border-bottom:1px solid var(--line)}
+.s-head-z nav{display:flex;gap:4px;margin-left:24px}
+.s-head-z nav a{height:38px;padding:0 12px;border-radius:10px;display:flex;align-items:center;font-size:14.5px;color:var(--dim)}
+.s-head-z nav a.on{background:var(--s2);color:var(--strong);font-weight:600}
+.s-head-z .field{width:300px;margin-left:auto;margin-right:8px;height:38px}
+.tb .s-head-z .field{width:200px}
+.s-head-z .av{width:34px;height:34px;margin-left:6px}
+/* Палітурка */
+.s-top-a{height:56px;flex:none;display:grid;grid-template-columns:auto 1fr auto;align-items:center;padding:0 6px;border-bottom:1px solid var(--line)}
+.lg-a{font:italic 600 26px/1 var(--f-h);color:var(--strong);text-align:center}
+.s-top-a .t{text-align:center;font-variant:all-small-caps;letter-spacing:.1em;color:var(--acc);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-mast{display:flex;flex-direction:column;align-items:center;padding:14px 28px 0;border-bottom:1px solid var(--line)}
+.s-mast .r1{width:100%;display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
+.s-mast .r1 .l{display:flex;gap:16px;color:var(--dim);font-size:15px;align-items:center}
+.s-mast .r1 .r{display:flex;gap:2px;justify-content:flex-end;align-items:center}
+.s-mast .lg-a{font-size:38px}
+.s-mast nav{display:flex;gap:26px;padding:10px 0 12px}
+.s-mast nav a{font-variant:all-small-caps;letter-spacing:.12em;font-size:17px;color:var(--dim)}
+.s-mast nav a.on{color:var(--acc);border-bottom:1px solid var(--acc)}
+/* Обкладинка */
+.s-top-o{height:64px;flex:none;display:flex;align-items:center;gap:6px;padding:0 12px 0 20px}
+.lg-o{font:800 20px/1 var(--f-h);color:var(--strong);letter-spacing:-.02em}
+.lg-o i{color:var(--acc);font-style:normal}
+.s-top-o .t{flex:1;min-width:0;font:700 14px/1.2 var(--f-h);color:var(--strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-dock{position:absolute;left:16px;right:16px;bottom:16px;z-index:6;height:66px;border-radius:33px;background:var(--s2);display:grid;grid-template-columns:repeat(5,1fr);align-items:center;padding:0 7px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.s-dock a{height:52px;border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--dim);font-size:10.5px;font-weight:700;position:relative}
+.s-dock a.on{background:var(--acc);color:var(--onacc)}
+.k-obl.ph .s-main{padding-bottom:96px}
+.s-side{background:var(--s1);border-radius:28px 28px 0 0;padding:22px 14px;display:flex;flex-direction:column;gap:6px;min-height:0;overflow:hidden}
+.s-side .lg-o{padding:0 8px 16px}
+.s-side a.nv-i{height:44px;border-radius:22px;padding:0 14px;display:flex;align-items:center;gap:12px;font-weight:700;font-size:14.5px;color:var(--dim);position:relative}
+.s-side a.nv-i.on{background:var(--acc);color:var(--onacc)}
+.s-side .n{margin-left:auto;min-width:22px;height:22px;border-radius:11px;background:var(--acc);color:var(--onacc);font:700 11px/22px var(--f-ui);text-align:center}
+.s-side .cont{margin-top:14px;padding:12px;border-radius:20px;background:var(--s2);display:grid;grid-template-columns:48px 1fr;gap:4px 12px;align-items:center}
+.s-side .cont .cover{width:48px;height:68px;grid-row:1/3;padding:4px;font-size:0;border-radius:10px}
+.s-side .cont b{font-size:13.5px;color:var(--strong)}
+.s-side .cont span{font-size:12px;color:var(--dim)}
+.s-side .sp{flex:1}
+.s-side .me{display:flex;align-items:center;gap:6px;padding-top:8px}
+.tb .s-side{padding:18px 10px;align-items:center}
+.tb .s-side a.nv-i{width:56px;height:56px;padding:0;justify-content:center;border-radius:28px}
+.tb .s-side a.nv-i span,.tb .s-side .cont,.tb .s-side .me .grow{display:none}
+.tb .s-side .lg-o{font-size:0;padding:0 0 18px}
+.tb .s-side .lg-o i{font-size:30px}
+.tb .s-side .me{flex-direction:column}
+
+.nov{display:flex;flex-direction:column;gap:18px;padding:20px 16px 28px}
+.nov-side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.nov-hero{display:grid;grid-template-columns:112px minmax(0,1fr);gap:16px;align-items:start}
+.nov-cov{width:112px;height:162px;font-size:12px}
+.nov-id{display:flex;flex-direction:column;gap:6px;min-width:0}
+.nov-t{font:var(--wh) 24px/1.15 var(--f-h);color:var(--strong);text-wrap:balance}
+.nov-o{font-size:13.5px;color:var(--dim);line-height:1.35}
+.nov-m{font-size:13px;color:var(--dim);line-height:1.4}
+.nov-m a{color:var(--acc)}
+.nov-st{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--dim)}
+.nov-st b{color:var(--strong);font-weight:600}
+.nov-pr{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--dim)}
+.nov-act{display:flex;gap:8px;align-items:center}
+.nov-act .btn.pri{flex:1}
+.nov-act .ib{box-shadow:inset 0 0 0 1px var(--line);border-radius:var(--rb)}
+.k-pal .nov-act .ib{box-shadow:none}
+.nov-tr{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--rin);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);font-size:13.5px}
+.k-pal .nov-tr{background:transparent;box-shadow:none;border-top:1px dotted var(--line);border-bottom:1px dotted var(--line);border-radius:0;padding:10px 0}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tab{height:44px;padding:0 12px;display:flex;align-items:center;gap:6px;font-size:14.5px;color:var(--dim);white-space:nowrap;box-shadow:inset 0 -2px 0 transparent}
+.tab span{font-size:12px;color:var(--faint)}
+.tab.on{color:var(--strong);font-weight:600;box-shadow:inset 0 -2px 0 var(--acc)}
+.ph .tabs{overflow:visible}
+.ph .tab{flex:1;justify-content:center;padding:0 2px;font-size:13.5px}
+.ph .tab span{display:none}
+.nov-tr .acc{white-space:nowrap;display:flex;align-items:center;gap:2px}
+.k-pult .tabs{gap:0}
+.k-pult .tab{font:500 11.5px/1 var(--f-num);letter-spacing:.04em;text-transform:uppercase;height:40px;box-shadow:inset -1px 0 0 var(--line)}
+.k-pult .tab.on{box-shadow:inset 0 -2px 0 var(--acc),inset -1px 0 0 var(--line);background:var(--s1)}
+.k-pal .tabs{justify-content:center;gap:18px;border-bottom:0;border-top:1px solid var(--line);padding-top:4px}
+.k-pal .tab{padding:0;font-variant:all-small-caps;letter-spacing:.1em;font-size:16px}
+.k-pal .tab.on{box-shadow:none;color:var(--acc);font-weight:500}
+.k-obl .tabs{border:0;gap:6px;background:var(--s1);border-radius:24px;padding:4px}
+.k-obl .tab{height:40px;border-radius:20px;font-weight:700;font-size:13.5px;padding:0 14px}
+.k-obl .tab.on{background:var(--acc);color:var(--onacc);box-shadow:none}
+.k-obl .tab.on span{color:var(--onacc)}
+.pane{display:flex;flex-direction:column;gap:12px}
+.chs-bar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.skip{display:flex;flex-direction:column;gap:8px;padding:12px;font-size:13.5px}
+.k-pal .skip{padding:12px 0}
+.skip .row a{color:var(--acc);font-weight:600;font-size:13.5px}
+.vol-h{display:flex;align-items:center;gap:8px;padding:10px 0 6px;font-weight:600;color:var(--strong)}
+.vol-h span{margin-left:auto;font-weight:400;font-size:12.5px;color:var(--faint)}
+.k-pal .vol-h{font:600 19px/1.2 var(--f-h)}
+.k-pal .vol-h span{font:13px var(--f-ui)}
+.k-obl .vol-h{font:700 14px/1.2 var(--f-h)}
+.k-pult .vol-h{font:500 12px/1 var(--f-num);text-transform:uppercase;letter-spacing:.06em;color:var(--acc2)}
+.chr{display:grid;grid-template-columns:34px minmax(0,1fr) auto 20px;gap:8px;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line);font-size:14.5px}
+.chr .n{color:var(--faint);font-variant-numeric:tabular-nums;font-size:13px}
+.chr .d{font-size:12px;color:var(--faint)}
+.chr.read .t{color:var(--dim)}
+.chr .ok{color:var(--acc2)}
+.chr.cur{color:var(--strong);font-weight:600}
+.chr.cur .n{color:var(--acc)}
+.chr .here{display:block;font-size:12px;font-weight:500;color:var(--acc)}
+.k-pult .chr{padding:9px 6px;font-size:14px}
+.k-pult .chr .n{font-family:var(--f-num);font-size:12px}
+.k-pult .chr .d{font-family:var(--f-num);font-size:11.5px}
+.k-pult .chr.cur{background:var(--s1);box-shadow:inset 2px 0 0 var(--acc)}
+.k-pal .chr{border-bottom:1px dotted var(--line);grid-template-columns:34px auto minmax(20px,1fr) auto 20px}
+.k-pal .chr .n{font:600 18px/1 var(--f-h)}
+.k-pal .chr::after{content:"";order:2;align-self:end;margin-bottom:6px;border-bottom:1px dotted var(--faint);grid-column:3;grid-row:1}
+.k-pal .chr .t{grid-column:2}
+.k-pal .chr .d{grid-column:4}
+.k-pal .chr .ok{grid-column:5}
+.k-obl .chr{border:0;border-radius:18px;padding:12px 14px;background:var(--s1);margin-bottom:6px}
+.k-obl .chr .n{font:700 13px/1 var(--f-num)}
+.k-obl .chr.cur{background:var(--acc);color:var(--onacc)}
+.k-obl .chr.cur .n,.k-obl .chr.cur .here,.k-obl .chr.cur .d{color:var(--onacc)}
+.vol-c{display:flex;align-items:center;gap:8px;padding:12px 0;border-top:1px solid var(--line);color:var(--dim);font-size:14px}
+.vol-c span{margin-left:auto;font-size:12.5px;color:var(--faint)}
+.pager{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--dim);padding-top:4px}
+.pager .row a{width:34px;height:34px;display:grid;place-items:center;border-radius:var(--rb);box-shadow:inset 0 0 0 1px var(--line);font-size:13px}
+.pager .row a.on{background:var(--acc);color:var(--onacc);box-shadow:none}
+.about p{font:16px/1.65 var(--f-rd);color:var(--read)}
+.kv{margin:0;display:grid;grid-template-columns:120px minmax(0,1fr);gap:10px 12px;font-size:14px}
+.kv dt{color:var(--faint)} .kv dd{margin:0;color:var(--tx)}
+.k-pult .kv dt{font:500 11.5px/1.6 var(--f-num);text-transform:uppercase;letter-spacing:.05em}
+.k-pal .kv dt{font-variant:all-small-caps;letter-spacing:.08em;font-size:15px}
+.stars{display:flex;gap:4px;color:var(--acc)}
+.stars .off{color:var(--line)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.chars{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.chc{display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--rcard);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line)}
+.chc .av{width:44px;height:44px;font-size:18px}
+.chc b{display:block;font-size:14.5px;color:var(--strong)}
+.chc span{font-size:12.5px;color:var(--faint)}
+.k-pal .chc{background:transparent;box-shadow:none;border-bottom:1px dotted var(--line);border-radius:0;padding:10px 0}
+.k-obl .chc{box-shadow:none}
+.menu{display:flex;flex-direction:column}
+.menu a,.menu button{display:flex;align-items:center;gap:12px;padding:13px 4px;font-size:15px;border-bottom:1px solid var(--line);width:100%}
+.menu small{display:block;font-size:12.5px;color:var(--faint)}
+.menu .dis{color:var(--faint)}
+.menu .i{color:var(--dim)}
+.menu .grp{font-size:12px;color:var(--faint);padding:14px 4px 4px;border:0}
+.k-obl .menu a,.k-obl .menu button{border:0;border-radius:16px;padding:12px}
+.k-pal .menu a,.k-pal .menu button{border-bottom:1px dotted var(--line)}
+/* комп'ютер і планшет */
+.dk .nov,.tb .nov{display:grid;grid-template-columns:300px minmax(0,1fr);gap:40px;padding:36px 48px 60px;align-items:start;max-width:1280px}
+.tb .nov{grid-template-columns:240px minmax(0,1fr);gap:28px;padding:28px 28px 40px}
+.dk .nov-hero,.tb .nov-hero{grid-template-columns:minmax(0,1fr)}
+.dk .nov-cov{width:300px;height:430px;font-size:22px;padding:20px}
+.tb .nov-cov{width:240px;height:344px;font-size:18px;padding:16px}
+.dk .nov-t{font-size:30px}
+.k-pult.dk .nov,.k-pult.tb .nov{grid-template-columns:340px minmax(0,1fr);gap:0;padding:0;max-width:none;height:100%}
+.k-pult.tb .nov{grid-template-columns:280px minmax(0,1fr)}
+.k-pult.dk .nov-side,.k-pult.tb .nov-side{padding:20px;border-right:1px solid var(--line);height:100%;overflow:auto;background:var(--s1)}
+.k-pult.dk .nov-main,.k-pult.tb .nov-main{padding:0 24px 40px;overflow:auto;height:100%}
+.k-pult.dk .nov-cov{width:120px;height:172px;font-size:12px;padding:10px}
+.k-pult.tb .nov-cov{width:110px;height:158px;font-size:11px;padding:8px}
+.k-pult.dk .nov-hero,.k-pult.tb .nov-hero{grid-template-columns:auto minmax(0,1fr)}
+.k-pult .nov-t{font-size:22px}
+.k-pal.dk .nov,.k-pal.tb .nov{grid-template-columns:minmax(0,1fr);max-width:920px;margin:0 auto;gap:24px}
+.k-pal.dk .nov-hero,.k-pal.tb .nov-hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px}
+.k-pal.dk .nov-cov,.k-pal.tb .nov-cov{width:150px;height:216px;font-size:15px;padding:14px}
+.k-pal.dk .nov-id,.k-pal.tb .nov-id{align-items:center}
+.k-pal .nov-t{font-size:30px;font-weight:600}
+.k-pal.dk .nov-t{font-size:52px}
+.k-pal.dk .nov-st,.k-pal.tb .nov-st{justify-content:center}
+.k-pal.dk .nov-pr,.k-pal.tb .nov-pr{width:420px}
+.k-pal.dk .nov-act,.k-pal.tb .nov-act{justify-content:center}
+.k-pal.dk .nov-act .btn.pri,.k-pal.tb .nov-act .btn.pri{flex:none;padding:0 32px}
+.k-pal.dk .nov-tr,.k-pal.tb .nov-tr{justify-content:center}
+.k-obl.dk .nov{grid-template-columns:minmax(0,1fr);gap:20px;padding:6px 10px 40px 0}
+.k-obl.dk .nov-side{display:grid;grid-template-columns:260px minmax(0,1fr);gap:28px;padding:26px;border-radius:28px;background:var(--s1)}
+.k-obl.dk .nov-hero{display:contents}
+.k-obl.dk .nov-cov{width:260px;height:372px;grid-row:1/4;border-radius:22px}
+.k-obl .nov-t{font-size:26px;letter-spacing:-.02em}
+.k-obl.dk .nov-t{font-size:44px}
+.k-obl.dk .nov-act{grid-column:2}
+.k-obl.dk .nov-act .btn.pri{flex:none;padding:0 30px}
+.k-obl.dk .nov-tr{grid-column:2;background:var(--s2);box-shadow:none}
+.k-obl .nov-act .ib{box-shadow:none;background:var(--s2)}
+.k-obl.tb .nov{grid-template-columns:minmax(0,1fr);padding:4px 4px 40px 0}
+.k-obl.tb .nov-side{padding:20px;border-radius:26px;background:var(--s1)}
+.k-obl.tb .nov-hero{grid-template-columns:180px minmax(0,1fr)}
+.k-obl.tb .nov-cov{width:180px;height:258px}
+.k-zv.tb .nov,.k-pal.tb .nov{padding:24px}
+.dk .chars{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dk .chr{grid-template-columns:44px minmax(0,1fr) 120px 110px 20px}
+.dk .chr .s{display:block}
+.chr .s{display:none;font-size:12.5px;color:var(--faint)}
+.k-pal.dk .chr{grid-template-columns:44px auto minmax(20px,1fr) 110px 20px}
+.k-pal.dk .chr .s{display:none}
+.mpop{top:300px;right:140px;width:340px;padding:8px 14px}
+.dk .about-g{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:32px}
+</style>
+</helmet>
+<div class="{{ cls }}" style="width:390px;height:844px">
+<div class="site">
+<sc-if value="{{ k.pult }}" hint-placeholder-val="{{ true }}"><header class="s-top-p"><a href="CatalogT.dc.html" class="ib" aria-label="Назад"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a><span class="t">Доглядач маяка</span><button type="button" class="ib" aria-label="Поділитися"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6"/></svg></button><a href="CatalogT.dc.html" class="ib" aria-label="Пошук"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></a><a href="NotificationsT.dc.html" class="ib" aria-label="Сповіщення, нових 3"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></svg><span class="dot">3</span></a></header></sc-if>
+<sc-if value="{{ k.zv }}" hint-placeholder-val="{{ false }}"><header class="s-top-z"><a href="CatalogT.dc.html" class="ib" aria-label="Назад"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a><span class="t">Доглядач маяка</span><button type="button" class="ib" aria-label="Поділитися"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6"/></svg></button><a href="CatalogT.dc.html" class="ib" aria-label="Пошук"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></a><a href="NotificationsT.dc.html" class="ib" aria-label="Сповіщення, нових 3"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></svg><span class="dot">3</span></a></header></sc-if>
+<sc-if value="{{ k.pal }}" hint-placeholder-val="{{ false }}"><header class="s-top-a"><a href="CatalogT.dc.html" class="ib" aria-label="Назад"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a><span class="t">Доглядач маяка</span><span class="row" style="gap:0"><button type="button" class="ib" aria-label="Поділитися"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6"/></svg></button><a href="NotificationsT.dc.html" class="ib" aria-label="Сповіщення, нових 3"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></svg><span class="dot">3</span></a></span></header></sc-if>
+<sc-if value="{{ k.obl }}" hint-placeholder-val="{{ false }}"><header class="s-top-o"><a href="CatalogT.dc.html" class="ib" aria-label="Назад"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a><span class="t">Доглядач маяка</span><button type="button" class="ib" aria-label="Поділитися"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6"/></svg></button><a href="NotificationsT.dc.html" class="ib" aria-label="Сповіщення, нових 3"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></svg><span class="dot">3</span></a></header></sc-if>
+<main class="s-main"><div class="nov">
+<sc-if value="{{ ready }}" hint-placeholder-val="{{ true }}"><div class="nov-side"><section class="nov-hero">
+<div class="cover nov-cov"><b>Доглядач маяка</b></div>
+<div class="nov-id">
+<h1 class="nov-t">Доглядач маяка</h1>
+<p class="nov-o">The Lighthouse Keeper’s Apprentice · Ейвері Голт</p>
+<p class="nov-m">переклад з англійської · <a href="TeamK.dc.html">$solona-voda</a> · ШІ з правками</p>
+<div class="nov-st"><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg></span><span><b>4,6</b> · 128 оцінок</span><span><b>1,2 тис.</b> читають</span></div>
+<div class="nov-pr"><div class="prog"><i style="width:64%"></i></div><span>Перекладено 40 з 62 · оригінал виходить</span></div>
+</div></section>
+<div class="nov-act"><a href="ReaderT.dc.html" class="btn pri">Продовжити · гл. 12</a><button type="button" class="ib" aria-label="У бібліотеці: Читаю"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg></button><button type="button" class="ib on" aria-label="Повідомляти про нові глави" aria-pressed="true"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></svg></button><button type="button" class="ib" onClick="{{ go.menu }}" aria-label="Ще"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></button></div>
+<div class="nov-tr"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg><span class="grow">Переклад «Солона вода»<span class="faint"> · основний</span></span><span class="acc">ще 1 <svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></div>
+</div></sc-if><sc-if value="{{ is.load }}" hint-placeholder-val="{{ false }}"><div class="nov-side"><section class="nov-hero"><span class="sk nov-cov" style="border-radius:var(--rcard)"></span><div class="nov-id" style="gap:10px"><span class="sk" style="height:26px;width:85%"></span><span class="sk" style="height:14px;width:60%"></span><span class="sk" style="height:14px;width:70%"></span><span class="sk" style="height:14px;width:40%"></span></div></section><span class="sk" style="height:var(--hb)"></span></div></sc-if>
+<div class="nov-main col" style="gap:16px">
+<sc-if value="{{ chlike }}" hint-placeholder-val="{{ true }}"><nav class="tabs" role="tablist"><button type="button" role="tab" class="tab on" aria-selected="true" onClick="{{ go.ch }}">Глави <span>40</span></button><button type="button" role="tab" class="tab" onClick="{{ go.about }}">Про новелу</button><button type="button" role="tab" class="tab" onClick="{{ go.chars }}">Персонажі <span>6</span></button><button type="button" role="tab" class="tab" onClick="{{ go.disc }}">Обговорення <span>86</span></button></nav><div class="pane">
+<div class="chs-bar"><div class="seg" style="flex:none"><span class="on">По томах</span><span>Усі глави</span></div><button type="button" class="btn sm out"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg> Від першої</button></div>
+<div class="card skip"><span><b class="strong">Пропущено 2 глави</b> <span class="dim">— 7 і 8</span></span><div class="row" style="gap:16px"><a href="ReaderT.dc.html">Читати з першої непрочитаної</a><a href="#">Позначити прочитаними</a></div></div>
+<div class="vol-h"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg> Том 1 · Сіль і світло<span>1–24 · прочитано 11</span></div>
+<div><a href="ReaderT.dc.html" class="chr read"><span class="n">9</span><span class="t ell">Острів без годинників</span><span class="d">3 тижні тому</span><span class="ok"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></a><a href="ReaderT.dc.html" class="chr read"><span class="n">10</span><span class="t ell">Сім сходинок</span><span class="d">3 тижні тому</span><span class="ok"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></a><a href="ReaderT.dc.html" class="chr read"><span class="n">11</span><span class="t ell">Пором о сьомій</span><span class="d">2 тижні тому</span><span class="ok"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></a><a href="ReaderT.dc.html" class="chr cur"><span class="n">12</span><span class="t ell">Лінза, що пам’ятає світло<span class="here">тут ви зупинились</span></span><span class="d">12 днів тому</span><span></span></a><a href="ReaderT.dc.html" class="chr "><span class="n">13</span><span class="t ell">Журнал доглядача</span><span class="d">10 днів тому</span><span></span></a><a href="ReaderT.dc.html" class="chr "><span class="n">14</span><span class="t ell">Сигнал із півночі</span><span class="d">9 днів тому</span><span></span></a><a href="ReaderT.dc.html" class="chr "><span class="n">15</span><span class="t ell">Люди з туману</span><span class="d">7 днів тому</span><span></span></a><a href="ReaderT.dc.html" class="chr "><span class="n">16</span><span class="t ell">Друга лампа</span><span class="d">5 днів тому</span><span></span></a></div>
+<div class="pager"><span>сторінка 1 з 2 · глави 1–20</span><span class="row" style="gap:4px"><a href="#" class="on">1</a><a href="#">2</a><a href="#" aria-label="Наступна сторінка"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a></span></div>
+<div class="vol-c"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg> Том 2 · Журнал доглядача<span>25–40 · нових 16</span></div>
+</div></sc-if>
+<sc-if value="{{ is.about }}" hint-placeholder-val="{{ false }}"><nav class="tabs" role="tablist"><button type="button" role="tab" class="tab" onClick="{{ go.ch }}">Глави <span>40</span></button><button type="button" role="tab" class="tab on" aria-selected="true" onClick="{{ go.about }}">Про новелу</button><button type="button" role="tab" class="tab" onClick="{{ go.chars }}">Персонажі <span>6</span></button><button type="button" role="tab" class="tab" onClick="{{ go.disc }}">Обговорення <span>86</span></button></nav><div class="pane about-g"><div class="col" style="gap:14px"><div class="about col" style="gap:10px"><p>Після смерті батька шістнадцятирічна Ліна приїжджає на острів Сірий Ріг учитися в старого доглядача маяка. Острів не відпускає тих, хто чує, як співає лінза.</p><p>Тиха історія про ремесло, туман і людей, які чекають світла з моря.</p></div>
+<div class="tags"><a href="CatalogT.dc.html" class="chip">Фентезі</a><a href="CatalogT.dc.html" class="chip">Повільне життя</a><a href="CatalogT.dc.html" class="chip">Острів</a><a href="CatalogT.dc.html" class="chip">Наставник</a><a href="CatalogT.dc.html" class="chip">Таємниця</a></div></div>
+<dl class="kv">
+<dt>Ваша оцінка</dt><dd><span class="stars"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg><span class="off"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg></span></span></dd>
+<dt>Інші назви</dt><dd>The Lighthouse Keeper’s Apprentice</dd>
+<dt>Автор</dt><dd>Ейвері Голт (Avery Holt)</dd>
+<dt>Оригінал</dt><dd>англійська · виходить · 62 глави · <a href="#" class="acc">відкрити ↗</a></dd>
+<dt>Переклад</dt><dd>ШІ з правками людей · в роботі</dd>
+<dt>Команда</dt><dd><a href="TeamK.dc.html" class="acc">«Солона вода»</a> · 3 людини</dd>
+<dt>Книжкою</dt><dd><a href="#" class="row acc" style="display:inline-flex"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg> EPUB — уся новела чи том</a></dd>
+</dl></div></sc-if>
+<sc-if value="{{ is.chars }}" hint-placeholder-val="{{ false }}"><nav class="tabs" role="tablist"><button type="button" role="tab" class="tab" onClick="{{ go.ch }}">Глави <span>40</span></button><button type="button" role="tab" class="tab" onClick="{{ go.about }}">Про новелу</button><button type="button" role="tab" class="tab on" aria-selected="true" onClick="{{ go.chars }}">Персонажі <span>6</span></button><button type="button" role="tab" class="tab" onClick="{{ go.disc }}">Обговорення <span>86</span></button></nav><div class="pane"><div class="chs-bar"><div class="seg" style="flex:none"><span class="on">Частіше згадані</span><span>За іменем</span><span>За появою</span></div></div>
+<div class="chars"><a href="ReaderPanelsT.dc.html" class="chc"><span class="av">Л</span><span class="col"><b>Ліна</b><span>48 згадок · до глави 12</span></span></a><a href="ReaderPanelsT.dc.html" class="chc"><span class="av">О</span><span class="col"><b>майстер Орест</b><span>41 згадок · до глави 12</span></span></a><a href="ReaderPanelsT.dc.html" class="chc"><span class="av">Я</span><span class="col"><b>Сірий Ян</b><span>12 згадок · до глави 12</span></span></a><a href="ReaderPanelsT.dc.html" class="chc"><span class="av">Т</span><span class="col"><b>Тереза Вальд</b><span>7 згадок · до глави 12</span></span></a></div>
+<label class="row" style="gap:10px;font-size:14px;color:var(--dim)"><span class="tog" role="switch" aria-checked="false"></span>Показати всіх — можливі спойлери</label></div></sc-if>
+<sc-if value="{{ is.disc }}" hint-placeholder-val="{{ false }}"><nav class="tabs" role="tablist"><button type="button" role="tab" class="tab" onClick="{{ go.ch }}">Глави <span>40</span></button><button type="button" role="tab" class="tab" onClick="{{ go.about }}">Про новелу</button><button type="button" role="tab" class="tab" onClick="{{ go.chars }}">Персонажі <span>6</span></button><button type="button" role="tab" class="tab on" aria-selected="true" onClick="{{ go.disc }}">Обговорення <span>86</span></button></nav><div class="pane"><div class="field" style="height:auto;min-height:var(--hb);padding:10px 12px">Що думаєте про переклад? Можна згадати @нік чи $команду</div><div class="chs-bar"><div class="seg" style="flex:none"><span class="on">Найкращі</span><span>Нові</span></div><span class="faint" style="font-size:13px">86 коментарів</span></div><div class="cm"><span class="av">М</span><div class="col" style="gap:4px"><div class="cm-h"><b>marta_k</b><span class="faint">2 год тому · до глави 12</span></div><p class="cm-t">Обожнюю, як Орест жартує про запізнення. І лінза, яка «спить», — це ж явно про щось більше.</p><div class="cm-f"><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg> 18</span><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg> Відповісти · 2</span><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></span></div></div></div><div class="hr"></div><div class="cm"><span class="av">О</span><div class="col" style="gap:4px"><div class="cm-h"><b>oleh.reads</b><span class="faint">вчора · до глави 12</span></div><p class="cm-t"><span class="cm-sp">Здається, дзвін у тумані — той самий, що в главі 3.</span> Хто ще помітив?</p><div class="cm-f"><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg> 7</span><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg> Відповісти</span><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></span></div></div></div><div class="hr"></div><div class="cm"><span class="av">Н</span><div class="col" style="gap:4px"><div class="cm-h"><b>nika</b><span class="faint">вчора · до глави 12</span></div><div class="cm-q">«Вона завжди так світиться?»</div><p class="cm-t">Ця репліка — найкраща в главі.</p><div class="cm-f"><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg> 4</span><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg> Відповісти · 1</span><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></span></div></div></div></div></sc-if>
+<sc-if value="{{ is.load }}" hint-placeholder-val="{{ false }}"><div class="pane" aria-busy="true"><span class="sk" style="height:34px;width:60%"></span><div class="row" style="gap:12px;padding:8px 0"><span class="sk" style="width:24px;height:14px"></span><span class="sk" style="height:14px;flex:1"></span><span class="sk" style="width:60px;height:12px"></span></div><div class="row" style="gap:12px;padding:8px 0"><span class="sk" style="width:24px;height:14px"></span><span class="sk" style="height:14px;flex:1"></span><span class="sk" style="width:60px;height:12px"></span></div><div class="row" style="gap:12px;padding:8px 0"><span class="sk" style="width:24px;height:14px"></span><span class="sk" style="height:14px;flex:1"></span><span class="sk" style="width:60px;height:12px"></span></div><div class="row" style="gap:12px;padding:8px 0"><span class="sk" style="width:24px;height:14px"></span><span class="sk" style="height:14px;flex:1"></span><span class="sk" style="width:60px;height:12px"></span></div><div class="row" style="gap:12px;padding:8px 0"><span class="sk" style="width:24px;height:14px"></span><span class="sk" style="height:14px;flex:1"></span><span class="sk" style="width:60px;height:12px"></span></div><div class="row" style="gap:12px;padding:8px 0"><span class="sk" style="width:24px;height:14px"></span><span class="sk" style="height:14px;flex:1"></span><span class="sk" style="width:60px;height:12px"></span></div></div></sc-if>
+</div></div></main>
+<sc-if value="{{ k.pult }}" hint-placeholder-val="{{ true }}"><nav class="s-nav-p" aria-label="Меню"><a href="HomeT.dc.html" class=""><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/></svg><span>Головна</span></a><a href="CatalogT.dc.html" class="on" aria-current="page"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg><span>Каталог</span></a><a href="LibraryT.dc.html" class=""><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4v16H5zM10 4h4v16h-4z"/><path d="M15 5l4-1 2 15-4 1z"/></svg><span>Бібліотека</span></a><a href="MessagesT.dc.html" class=""><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z"/></svg><span>Повідомлення</span><span class="dot">2</span></a><a href="MeT.dc.html" class=""><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Я</span></a></nav></sc-if>
+<sc-if value="{{ k.zv }}" hint-placeholder-val="{{ false }}"><nav class="s-nav-z" aria-label="Меню"><a href="HomeT.dc.html" class=""><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/></svg><span>Головна</span></a><a href="CatalogT.dc.html" class="on" aria-current="page"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg><span>Каталог</span></a><a href="LibraryT.dc.html" class=""><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4v16H5zM10 4h4v16h-4z"/><path d="M15 5l4-1 2 15-4 1z"/></svg><span>Бібліотека</span></a><a href="MessagesT.dc.html" class=""><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z"/></svg><span>Повідомлення</span><span class="dot">2</span></a><a href="MeT.dc.html" class=""><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Я</span></a></nav></sc-if>
+<sc-if value="{{ k.pal }}" hint-placeholder-val="{{ false }}"></sc-if>
+<sc-if value="{{ k.obl }}" hint-placeholder-val="{{ false }}"><nav class="s-dock" aria-label="Меню"><a href="HomeT.dc.html" class=""><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/></svg></a><a href="CatalogT.dc.html" class="on" aria-current="page"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg><span>Каталог</span></a><a href="LibraryT.dc.html" class=""><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4v16H5zM10 4h4v16h-4z"/><path d="M15 5l4-1 2 15-4 1z"/></svg></a><a href="MessagesT.dc.html" class=""><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z"/></svg><span class="dot">2</span></a><a href="MeT.dc.html" class=""><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></a></nav></sc-if>
+</div>
+<sc-if value="{{ is.menu }}" hint-placeholder-val="{{ false }}"><div class="scrim"></div><div class="sheet" role="dialog" aria-label="Ще"><div class="grab"></div><div class="sh-h"><b class="h2 grow">Доглядач маяка</b><button type="button" class="ib" onClick="{{ go.ch }}" aria-label="Закрити"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="sh-b" style="gap:0"><div class="menu">
+<a href="#"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg><span class="grow">Інші переклади<small>«Світанок» · з глави 41</small></span><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a>
+<a href="StudioNewK.dc.html"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg><span class="grow">Перекласти самому<small>свій переклад з глави 1 чи з 41</small></span></a>
+<span class="dis row" style="padding:13px 4px;border-bottom:1px solid var(--line);gap:12px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h12M12 6l6 6-6 6"/><path d="M20 5v14"/></svg><span class="grow">Продовжити переклад<small>переклад активний — естафета ще недоступна</small></span></span>
+<button type="button"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span class="grow">Скинути прогрес читання</span></button>
+<a href="#"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span class="grow">Завантажити EPUB<small>уся новела, том 1 чи том 2</small></span></a>
+<a href="ReaderPanelsT.dc.html"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg><span class="grow">Поскаржитися</span></a>
+<span class="grp">Ви в команді «Солона вода»</span>
+<a href="StudioK.dc.html"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span class="grow">Керувати в Студії</span></a>
+</div></div></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"karkas":{"editor":"enum","options":["Пульт","Звичний","Палітурка","Обкладинка"],"default":"Пульт"},"tema":{"editor":"enum","options":["Сланець","Графіт","Сукно","Слива"],"default":"Сланець"},"stan":{"editor":"enum","options":["Глави","Про новелу","Персонажі","Обговорення","меню ⋯","заготовка"],"default":"Глави"},"$preview":{"width":390,"height":844}}'>
+function baseVals(props, state, ui, opt) {
+  const K = { 'Пульт': 'pult', 'Звичний': 'zv', 'Палітурка': 'pal', 'Обкладинка': 'obl' };
+  const T = { 'Сланець': 'slanets', 'Графіт': 'graphite', 'Сукно': 'sukno', 'Слива': 'slyva' };
+  const kid = K[props.karkas] || 'pult';
+  const tid = T[props.tema] || 'slanets';
+  const light = state.light !== undefined ? state.light : !!props.svitla;
+  const stan = state.stan || props.stan || opt.stany[0];
+  const is = {}, not = {};
+  opt.stany.forEach((s, i) => { is[opt.ids[i]] = s === stan; not[opt.ids[i]] = s !== stan; });
+  const k = { pult: kid === 'pult', zv: kid === 'zv', pal: kid === 'pal', obl: kid === 'obl' };
+  const alias = {};
+  Object.entries(opt.alias || {}).forEach(([a, ids]) => { alias[a] = ids.some(id => is[id]); });
+  return {
+    ...alias,
+    cls: 'nv ' + opt.dev + ' k-' + kid + ' th-' + tid + (light && opt.dev !== 'ph' ? ' lt' : ''),
+    k, is, not, light, dark: !light,
+    toggleLight: () => ui.setState({ light: !light }),
+    go: Object.fromEntries(opt.ids.map((id, i) => [id, () => ui.setState({ stan: opt.stany[i] })]))
+  };
+}
+class Component extends DCLogic {
+  renderVals() {
+    return baseVals(this.props, this.state || {}, this, {"dev":"ph","stany":["Глави","Про новелу","Персонажі","Обговорення","меню ⋯","заготовка"],"ids":["ch","about","chars","disc","menu","load"],"alias":{"chlike":["ch","menu"],"ready":["ch","about","chars","disc","menu"]}});
+  }
+}
+</script>
+</body>
+</html>

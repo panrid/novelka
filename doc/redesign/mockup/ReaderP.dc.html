@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Читалка — планшет</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&amp;family=Golos+Text:wght@400;500;600;700&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;0,7..72,700;1,7..72,400&amp;family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&amp;family=Spectral:ital,wght@0,400;0,500;0,600;1,400&amp;family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&amp;family=Unbounded:wght@500;600;700;800&amp;family=Manrope:wght@400;500;600;700;800&amp;family=Lora:ital,wght@0,400;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+.th-slanets{--bg:#1C1F25;--s0:#17191E;--s1:#22262D;--s2:#2A303A;--line:#333842;--tx:#D6DAE1;--strong:#EEF0F4;--read:#D9DCE2;--dim:#8D95A4;--faint:#636A77;--acc:#F2B35B;--onacc:#1D1404;--acc2:#5CCFBF;--onacc2:#0A1F1C;--term:rgba(92,207,191,.16);--selw:rgba(242,179,91,.30);--del:#F39479;--delbg:rgba(243,148,121,.13);--ins:#F5C27A;--insbg:rgba(242,179,91,.16);--skel:#2B3038;--scrim:rgba(8,9,12,.62);--warn:#F2B35B}
+.th-slanets.lt{--bg:#F3F4F6;--s0:#E8EAEE;--s1:#FFFFFF;--s2:#EEF1F5;--line:#D5D9E0;--tx:#1B1F27;--strong:#0B0E14;--read:#1E222A;--dim:#596070;--faint:#8C93A0;--acc:#A86200;--onacc:#FFFFFF;--acc2:#0B786B;--onacc2:#FFFFFF;--term:#D7F1EC;--selw:#F7D9A6;--del:#B23A17;--delbg:#FBE4DC;--ins:#7A4600;--insbg:#FCEBCF;--skel:#E3E6EB;--scrim:rgba(20,24,32,.35);--warn:#8A5200}
+.th-graphite{--bg:#0F1115;--s0:#0B0D10;--s1:#171A20;--s2:#1F232B;--line:#2A2F39;--tx:#E8EAEE;--strong:#F1F2F5;--read:#DADDE3;--dim:#A3A9B6;--faint:#6F7584;--acc:#8EA6FF;--onacc:#0B0D12;--acc2:#F2C46B;--onacc2:#1A1405;--term:rgba(255,196,64,.20);--selw:rgba(142,166,255,.28);--del:#FFB48A;--delbg:rgba(255,140,80,.18);--ins:#D3DCFF;--insbg:rgba(142,166,255,.22);--skel:#23272F;--scrim:rgba(5,6,9,.62);--warn:#F2C46B}
+.th-graphite.lt{--bg:#F3F4F6;--s0:#E9EBEF;--s1:#FFFFFF;--s2:#F1F2F5;--line:#E3E5EA;--tx:#15171C;--strong:#0B0D12;--read:#1B1D22;--dim:#5B6170;--faint:#8A909C;--acc:#2A4BD7;--onacc:#FFFFFF;--acc2:#7A4B00;--onacc2:#FFFFFF;--term:#FFF1C2;--selw:#DCE6FF;--del:#7A3410;--delbg:#FDE6D3;--ins:#102A8C;--insbg:#DCE6FF;--skel:#E6E8EC;--scrim:rgba(15,17,21,.35);--warn:#7A4B00}
+.th-sukno{--bg:#0E1613;--s0:#0A110E;--s1:#131E1A;--s2:#1A2722;--line:#2A3A33;--tx:#E9E2CC;--strong:#F4EEDC;--read:#DCD5BE;--dim:#A9A58F;--faint:#767B6C;--acc:#D2A84E;--onacc:#17120A;--acc2:#9CC7A4;--onacc2:#0E1613;--term:rgba(210,168,78,.17);--selw:rgba(210,168,78,.34);--del:#E59072;--delbg:rgba(229,144,114,.14);--ins:#EBCB7C;--insbg:rgba(210,168,78,.14);--skel:#22302A;--scrim:rgba(4,8,6,.62);--warn:#D2A84E}
+.th-sukno.lt{--bg:#E6E9E1;--s0:#DCE1D6;--s1:#F7F8F2;--s2:#EDEFE6;--line:#C9D0C2;--tx:#18221D;--strong:#0C130F;--read:#1E2621;--dim:#535E4F;--faint:#7F877A;--acc:#85601A;--onacc:#FFFFFF;--acc2:#2F6B45;--onacc2:#FFFFFF;--term:#F1E2B7;--selw:#E6CB82;--del:#A4431E;--delbg:#F6DDD2;--ins:#6A4A0C;--insbg:#F1E2B7;--skel:#DDE2D6;--scrim:rgba(14,22,19,.35);--warn:#85601A}
+.th-slyva{--bg:#191120;--s0:#140D1A;--s1:#241830;--s2:#2F2140;--line:#3F2E50;--tx:#F7ECF4;--strong:#FFF6FB;--read:#EEE1EA;--dim:#BCA7BE;--faint:#8E7A94;--acc:#FF7EA4;--onacc:#2B0716;--acc2:#F4E27C;--onacc2:#2A2306;--term:rgba(255,126,164,.2);--selw:rgba(255,126,164,.36);--del:#FFB08F;--delbg:rgba(255,140,100,.16);--ins:#F4E27C;--insbg:rgba(244,226,124,.15);--skel:#2E2240;--scrim:rgba(10,4,14,.62);--warn:#F4E27C}
+.th-slyva.lt{--bg:#FFF4F7;--s0:#FBE9EF;--s1:#FFFFFF;--s2:#FCE7EF;--line:#F1D2DE;--tx:#2A1430;--strong:#1A0A1F;--read:#2A1430;--dim:#6D5370;--faint:#9F89A1;--acc:#CF2E66;--onacc:#FFFFFF;--acc2:#7C6300;--onacc2:#FFFFFF;--term:#FFD9E5;--selw:#FFC2D5;--del:#A93A12;--delbg:#FFE3D6;--ins:#6B5400;--insbg:#FFF1B8;--skel:#F6DCE6;--scrim:rgba(42,20,48,.35);--warn:#7C6300}
+
+.k-pult{--f-ui:'IBM Plex Sans','Segoe UI',sans-serif;--f-rd:'IBM Plex Serif',Georgia,serif;--f-h:'IBM Plex Sans','Segoe UI',sans-serif;--f-num:'IBM Plex Mono',ui-monospace,monospace;--fs:14px;--wh:600;
+  --hb:34px;--hbs:28px;--pb:12px;--rb:0px;--wb:500;--fsb:13.5px;--hc:26px;--pc:8px;--rc:0px;--fsc:12.5px;--rcard:0px;--rsheet:0px;--rsk:0px;--rin:0px;--hp:2px;--rp:0px;--gap:12px}
+.k-zv{--f-ui:'Golos Text',-apple-system,'Segoe UI',sans-serif;--f-rd:'Literata',Georgia,serif;--f-h:'Literata',Georgia,serif;--f-num:'Golos Text',sans-serif;--fs:15px;--wh:700;
+  --hb:40px;--hbs:32px;--pb:16px;--rb:10px;--wb:600;--fsb:14.5px;--hc:30px;--pc:12px;--rc:999px;--fsc:13px;--rcard:14px;--rsheet:20px;--rsk:6px;--rin:10px;--hp:4px;--rp:2px;--gap:14px}
+.k-pal{--f-ui:'Alegreya Sans','Segoe UI',sans-serif;--f-rd:'Spectral',Georgia,serif;--f-h:'Cormorant Garamond',Georgia,serif;--f-num:'Cormorant Garamond',Georgia,serif;--fs:16px;--wh:600;
+  --hb:40px;--hbs:32px;--pb:16px;--rb:2px;--wb:700;--fsb:15px;--hc:28px;--pc:10px;--rc:2px;--fsc:14px;--rcard:0px;--rsheet:0px;--rsk:2px;--rin:2px;--hp:2px;--rp:0px;--gap:16px}
+.k-obl{--f-ui:'Manrope','Segoe UI',sans-serif;--f-rd:'Lora',Georgia,serif;--f-h:'Unbounded','Arial Black',sans-serif;--f-num:'Unbounded','Arial Black',sans-serif;--fs:15px;--wh:700;
+  --hb:44px;--hbs:34px;--pb:18px;--rb:999px;--wb:700;--fsb:14px;--hc:32px;--pc:14px;--rc:999px;--fsc:13px;--rcard:22px;--rsheet:28px;--rsk:10px;--rin:16px;--hp:8px;--rp:4px;--gap:12px}
+.ph.k-pult{--hb:44px;--hbs:36px} .ph.k-zv{--hb:46px;--hbs:38px} .ph.k-pal{--hb:44px;--hbs:38px} .ph.k-obl{--hb:50px;--hbs:40px}
+
+body{margin:0;background:#101114}
+.nv{position:relative;overflow:hidden;box-sizing:border-box;background:var(--bg);color:var(--tx);font:var(--fs)/1.45 var(--f-ui);-webkit-font-smoothing:antialiased}
+.nv *,.nv *::before,.nv *::after{box-sizing:border-box}
+.nv :where(button){font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+.nv :where(a){color:inherit;text-decoration:none}
+.nv :where(p,h1,h2,h3,h4,ul,ol,figure){margin:0;padding:0}
+.nv :where(ul,ol){list-style:none}
+.nv :where(input,textarea,select){font:inherit;color:inherit}
+.nv :where(button,a,input,textarea,select):focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.nv svg.i{display:block;flex:none}
+.sk{display:block;background:var(--skel);border-radius:var(--rsk);animation:nvP 1.6s ease-in-out infinite}
+@keyframes nvP{50%{opacity:.45}}
+@keyframes nvB{50%{opacity:0}}
+@keyframes nvS{to{transform:rotate(360deg)}}
+.spin{animation:nvS .9s linear infinite}
+.caret{display:inline-block;width:2px;height:1.1em;vertical-align:-.18em;background:currentColor;margin-left:1px;animation:nvB 1s steps(1) infinite}
+@media (prefers-reduced-motion:reduce){.sk,.caret,.spin{animation:none}}
+.term{background:var(--term);border-radius:3px}
+.k-pal .term{box-shadow:0 1px 0 var(--acc);border-radius:2px}
+.k-obl .term{border-radius:6px;padding:0 2px}
+.selw{background:var(--selw);border-radius:3px}
+.mono{font-family:var(--f-num)}
+.dim{color:var(--dim)} .faint{color:var(--faint)} .strong{color:var(--strong)} .acc{color:var(--acc)} .acc2{color:var(--acc2)}
+.grow{flex:1;min-width:0}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.col{display:flex;flex-direction:column;min-width:0}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.num{font-variant-numeric:tabular-nums}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:var(--hb);padding:0 var(--pb);border-radius:var(--rb);background:var(--s2);color:var(--tx);font-weight:var(--wb);font-size:var(--fsb);white-space:nowrap;flex:none}
+.btn.pri{background:var(--acc);color:var(--onacc)}
+.btn.sec{background:var(--acc2);color:var(--onacc2)}
+.btn.out{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
+.btn.sm{height:var(--hbs);padding:0 calc(var(--pb) * .75);font-size:calc(var(--fsb) - 1px)}
+.btn.wide{width:100%}
+.btn.dis{opacity:.45;cursor:default}
+.k-pal .btn{background:transparent;box-shadow:inset 0 0 0 1px var(--line);font-variant:all-small-caps;letter-spacing:.06em;font-size:calc(var(--fsb) + 2px)}
+.k-pal .btn.pri{background:var(--acc);box-shadow:none}
+.k-pal .btn.sec{background:transparent;box-shadow:inset 0 0 0 1px var(--acc2);color:var(--acc2)}
+.k-pult .btn.out,.k-pult .btn{box-shadow:inset 0 0 0 1px var(--line)}
+.k-pult .btn.pri,.k-pult .btn.sec{box-shadow:none}
+.ib{width:var(--hb);height:var(--hb);display:grid;place-items:center;border-radius:var(--rb);color:var(--dim);flex:none;position:relative}
+.ib.on{color:var(--acc)}
+.k-zv .ib.on{background:var(--s2)}
+.k-obl .ib.on{background:var(--acc);color:var(--onacc)}
+.ib .dot{position:absolute;top:4px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--acc);color:var(--onacc);font:700 10px/16px var(--f-ui);text-align:center}
+.k-pult .ib .dot{border-radius:0;font-family:var(--f-num);font-weight:500}
+.chip{display:inline-flex;align-items:center;gap:6px;height:var(--hc);padding:0 var(--pc);border-radius:var(--rc);background:var(--s2);color:var(--dim);font-size:var(--fsc);white-space:nowrap;flex:none}
+.chip.on{background:var(--acc);color:var(--onacc)}
+.k-pult .chip{background:transparent;box-shadow:inset 0 0 0 1px var(--line);font-family:var(--f-num);font-size:12px}
+.k-pult .chip.on{background:var(--acc);box-shadow:none}
+.k-pal .chip{background:transparent;padding:0 2px;height:auto;color:var(--dim);border-bottom:1px dotted var(--dim);border-radius:0}
+.k-pal .chip.on{color:var(--acc);border-bottom:1px solid var(--acc);background:transparent}
+.lab{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-weight:600}
+.k-pult .lab{font:500 11px/1.3 var(--f-num);letter-spacing:.08em}
+.k-pal .lab{text-transform:none;font-variant:all-small-caps;letter-spacing:.1em;font-size:15px;font-weight:500;color:var(--acc)}
+.k-obl .lab{font:700 11px/1.3 var(--f-h);letter-spacing:.04em}
+.h1{font:var(--wh) 26px/1.2 var(--f-h);color:var(--strong);text-wrap:balance}
+.h2{font:var(--wh) 20px/1.25 var(--f-h);color:var(--strong);text-wrap:balance}
+.h3{font:600 16px/1.3 var(--f-ui);color:var(--strong)}
+.k-pal .h1{font-size:32px;font-weight:600}
+.k-pal .h2{font-size:25px}
+.k-obl .h1{font-size:24px;font-weight:700;letter-spacing:-.01em}
+.k-obl .h2{font-size:18px;letter-spacing:-.01em}
+.k-pult .h1{font-size:22px}
+.k-pult .h2{font-size:17px}
+.card{background:var(--s1);border-radius:var(--rcard)}
+.k-pult .card{box-shadow:inset 0 0 0 1px var(--line)}
+.k-zv .card{box-shadow:inset 0 0 0 1px var(--line)}
+.k-pal .card{background:transparent;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.prog{height:var(--hp);background:var(--s2);border-radius:var(--rp);overflow:hidden;flex:none}
+.prog>i{display:block;height:100%;background:var(--acc);border-radius:var(--rp)}
+.field{display:flex;align-items:center;gap:8px;height:var(--hb);padding:0 12px;border-radius:var(--rin);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);color:var(--faint);width:100%}
+.k-pal .field{background:transparent;box-shadow:none;border-bottom:1px solid var(--dim);border-radius:0;padding:0 2px}
+.sw{width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);flex:none}
+.tog{width:40px;height:24px;border-radius:12px;background:var(--s2);box-shadow:inset 0 0 0 1px var(--line);position:relative;flex:none}
+.tog::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--dim)}
+.tog.on{background:var(--acc);box-shadow:none}
+.tog.on::after{left:19px;background:var(--onacc)}
+.k-pult .tog,.k-pult .tog::after{border-radius:0}
+.k-pal .tog,.k-pal .tog::after{border-radius:2px}
+.seg{display:flex;padding:3px;gap:2px;border-radius:calc(var(--rb) + 3px);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line)}
+.seg>*{flex:1;height:calc(var(--hb) - 8px);display:grid;place-items:center;border-radius:var(--rb);color:var(--dim);font-size:var(--fsc);padding:0 8px;white-space:nowrap}
+.seg>.on{background:var(--s2);color:var(--strong);font-weight:600}
+.k-pult .seg{padding:0;gap:0;border-radius:0}
+.k-pult .seg>*{height:var(--hbs);border-radius:0;box-shadow:inset -1px 0 0 var(--line)}
+.k-pult .seg>.on{background:var(--acc);color:var(--onacc)}
+.k-pal .seg{background:transparent;box-shadow:none;padding:0;gap:14px}
+.k-pal .seg>*{flex:none;height:auto;padding:2px 0;border-radius:0;font-variant:all-small-caps;letter-spacing:.08em;font-size:16px}
+.k-pal .seg>.on{background:transparent;color:var(--acc);border-bottom:1.5px solid var(--acc)}
+.k-obl .seg>.on{background:var(--acc);color:var(--onacc)}
+.av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--s2);color:var(--strong);font-weight:700;font-size:14px;flex:none}
+.k-pult .av{border-radius:0;font-family:var(--f-num);font-weight:500}
+.k-obl .av{background:var(--acc);color:var(--onacc);font-family:var(--f-h)}
+.k-pal .av{font-family:var(--f-h);font-size:18px;background:transparent;box-shadow:inset 0 0 0 1px var(--acc);color:var(--acc)}
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:20}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:21;background:var(--s1);border-radius:var(--rsheet) var(--rsheet) 0 0;display:flex;flex-direction:column;max-height:86%;box-shadow:0 -10px 40px rgba(0,0,0,.35)}
+.k-pult .sheet{border-top:1px solid var(--line)}
+.k-pal .sheet{background:var(--bg);border-top:1px solid var(--acc)}
+.k-obl .sheet{left:8px;right:8px;bottom:8px;border-radius:var(--rsheet)}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:8px auto 2px;flex:none}
+.k-pult .sheet .grab,.k-pal .sheet .grab{display:none}
+.sheet .sh-h{display:flex;align-items:center;gap:8px;padding:10px 16px 10px 20px;flex:none}
+.sheet .sh-b{overflow:auto;padding:4px 20px 22px;display:flex;flex-direction:column;gap:18px}
+.k-pult .sheet .sh-h{border-bottom:1px solid var(--line);padding:8px 8px 8px 16px}
+.pop{position:absolute;z-index:21;background:var(--s1);border-radius:calc(var(--rcard) * .8);box-shadow:0 14px 40px rgba(0,0,0,.4),inset 0 0 0 1px var(--line)}
+.k-pal .pop{background:var(--bg);box-shadow:0 14px 40px rgba(0,0,0,.4),inset 0 0 0 1px var(--acc)}
+.hr{height:1px;background:var(--line);flex:none}
+.k-pal .hr{background:none;border-top:1px dotted var(--line)}
+.state{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--dim);white-space:nowrap}
+.state i{width:8px;height:8px;border-radius:50%;background:var(--dim);flex:none}
+.state.pub i{background:var(--acc2)} .state.dr i{background:var(--acc)} .state.q i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--dim)}
+.k-pult .state{font-family:var(--f-num);font-size:11.5px}
+.cover{position:relative;overflow:hidden;background:var(--s2);border-radius:calc(var(--rcard) * .5);display:flex;flex-direction:column;justify-content:flex-end;padding:10px;color:var(--strong);font:700 13px/1.15 var(--f-h);flex:none}
+.cover::before{content:"";position:absolute;left:-20%;right:-20%;top:18%;height:46%;border-radius:50%;background:var(--acc);opacity:.22}
+.cover::after{content:"";position:absolute;left:46%;top:10%;width:6%;height:52%;background:var(--strong);opacity:.5;border-radius:2px 2px 0 0}
+.cover b{position:relative;z-index:1}
+.k-pult .cover{border-radius:0}
+.k-pal .cover{border-radius:2px;box-shadow:inset 0 0 0 1px var(--acc)}
+.k-pal .cover b{font-weight:600;font-size:15px}
+.k-obl .cover{border-radius:14px}
+
+/* ── текст глави ── */
+.rs{flex:1;min-height:0;overflow:auto;scrollbar-width:none;position:relative}
+.rs::-webkit-scrollbar{display:none}
+.rt{display:flex;flex-direction:column;gap:14px}
+.rt p{font:17px/1.7 var(--f-rd);color:var(--read);hyphens:auto;position:relative}
+.k-zv .rt p{font-size:17.5px;text-align:justify}
+.k-pal .rt{gap:0}
+.k-pal .rt p{font-size:17.5px;line-height:1.72;text-align:justify;text-indent:1.5em}
+.k-pal .rt p.first{text-indent:0}
+.k-pal .rt p.first::first-letter{font:600 3.1em/.8 var(--f-h);float:left;padding:6px 6px 0 0;color:var(--acc)}
+.k-obl .rt{gap:16px}
+.k-obl .rt p{font-size:18px;line-height:1.72}
+.ph .rs{padding:24px 20px 32px}
+.k-pal.ph .rs{padding:0 24px 40px}
+.k-obl.ph .rs{padding:92px 22px 120px}
+.mine{display:block;font:500 12px/1.3 var(--f-ui);color:var(--acc);margin-bottom:2px;text-indent:0}
+.mine-p{box-shadow:-10px 0 0 var(--bg),-12px 0 0 var(--acc)}
+.k-pal .mine{font-variant:all-small-caps;letter-spacing:.08em;font-size:14px}
+.k-pult .mine{font:500 11px/1.3 var(--f-num)}
+/* заголовок глави */
+.chh{display:flex;flex-direction:column;gap:6px;padding-bottom:20px}
+.chh-n,.chh-m{display:none}
+.chh-k{font-size:13px;color:var(--dim)}
+.chh-t{font:var(--wh) 25px/1.22 var(--f-h);color:var(--strong);text-wrap:balance}
+.k-pult .chh-k{font:500 12px/1 var(--f-num);color:var(--acc2);letter-spacing:.06em;text-transform:uppercase}
+.k-pult .chh-t{font:600 23px/1.25 var(--f-rd)}
+.k-pal .chh{align-items:center;text-align:center;padding:38px 0 22px}
+.k-pal .chh-k{font-variant:all-small-caps;letter-spacing:.1em;color:var(--acc);font-size:15px}
+.k-pal .chh-t{font-size:31px;line-height:1.12}
+.k-pal .chh::after{content:"· · ·";color:var(--faint);letter-spacing:.5em;padding-left:.5em;font:20px/1 var(--f-h);margin-top:4px}
+.k-obl .chh-n{display:block;font:800 80px/.9 var(--f-num);color:var(--acc);letter-spacing:-.03em}
+.k-obl .chh-t{font:700 27px/1.2 var(--f-rd)}
+.chh-meta{display:flex;gap:6px;flex-wrap:wrap}
+.k-pal .chh-meta{order:-1}
+.k-obl .chh-k,.k-obl .chh-m{display:inline-flex;height:28px;padding:0 12px;border-radius:14px;background:var(--s2);align-items:center;font-size:13px;color:var(--dim)}
+/* правка на місці */
+.ed{display:flex;flex-direction:column;gap:12px;padding:14px;background:var(--s1);border-radius:var(--rcard);box-shadow:inset 0 0 0 1px var(--acc);margin:0 -8px}
+.ed-l{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:600;color:var(--acc)}
+.ed-l span:last-child{font-weight:400;color:var(--faint)}
+.ed-f{font:17px/1.65 var(--f-rd);color:var(--strong)}
+.ed-t{display:flex;gap:8px;flex-wrap:wrap}
+.ed-t button{display:inline-flex;align-items:center;gap:6px;height:var(--hbs);padding:0 12px;border-radius:var(--rb);background:var(--s2);font-size:14px}
+.ed-a{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ed-a .btn{width:100%}
+.rt .ed-n,.ed-n{font:12.5px/1.4 var(--f-ui);color:var(--faint);text-indent:0;text-align:left}
+.ed-k{display:none;font:12px/1 var(--f-num);color:var(--faint)}
+.k-pult .ed{padding:0;gap:0;margin:0;box-shadow:inset 0 0 0 1px var(--acc2)}
+.k-pult .ed-l{padding:8px 10px;font:500 12px/1 var(--f-num);color:var(--acc2);border-bottom:1px solid var(--line)}
+.k-pult .ed-f{padding:10px}
+.k-pult .ed-t{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--line)}
+.k-pult .ed-t button{height:44px;justify-content:center;border-radius:0;background:none}
+.k-pult .ed-t button+button,.k-pult .ed-a .btn+.btn{box-shadow:inset 1px 0 0 var(--line)}
+.k-pult .ed-a{gap:0;border-top:1px solid var(--line)}
+.k-pult .ed-a .btn{box-shadow:none;height:44px}
+.k-pult .rt .ed-n,.k-pult .ed-n{padding:8px 10px;border-top:1px solid var(--line);font:11.5px/1.3 var(--f-num)}
+.k-pal .ed{margin:12px -10px;padding:12px 10px;border-radius:0;background:var(--s2);box-shadow:none;border-top:1px solid var(--acc);border-bottom:1px solid var(--line)}
+.k-pal .ed-l{font-variant:all-small-caps;letter-spacing:.08em;font-size:15px;font-weight:500}
+.k-pal .ed-f{font-size:17.5px;text-indent:0}
+.k-pal .ed-t button{background:none;padding:0;height:auto;border-radius:0;border-bottom:1px dotted var(--dim);color:var(--dim);font-size:15px}
+.k-pal .ed-t button svg{display:none}
+.k-pal .ed-a{display:flex;justify-content:flex-end}
+.k-pal .ed-a .btn{width:auto}
+.k-obl .ed{border-radius:24px;padding:16px;box-shadow:0 0 0 2px var(--acc);gap:14px}
+.k-obl .ed-l{font:700 11.5px/1 var(--f-h);letter-spacing:.03em;text-transform:uppercase}
+.k-obl .ed-f{font-size:18px}
+.k-obl .ed-t button{height:38px;border-radius:19px;font-weight:600}
+.k-obl .ed-a{grid-template-columns:1fr 1.4fr}
+.k-obl .ed-a .btn{height:50px}
+/* панель виділення */
+.selbar{display:flex;gap:2px;padding:4px;background:var(--s1);border-radius:var(--rcard);box-shadow:0 10px 30px rgba(0,0,0,.35),inset 0 0 0 1px var(--line);align-self:flex-start;margin:-6px 0 2px;z-index:3;text-indent:0}
+.selbar button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 9px;border-radius:var(--rb);font-size:12px;color:var(--tx);min-width:62px}
+.selbar button:first-child{color:var(--acc)}
+.k-pult .selbar{padding:0;gap:0}
+.k-pult .selbar button{border-radius:0;box-shadow:inset -1px 0 0 var(--line)}
+.k-pal .selbar{background:var(--bg);box-shadow:0 10px 30px rgba(0,0,0,.35),inset 0 0 0 1px var(--acc);margin:6px 0 8px}
+.k-pal .selbar button{font-variant:all-small-caps;letter-spacing:.06em;font-size:14px}
+.k-obl .selbar{border-radius:22px;padding:6px;background:var(--s2)}
+.k-obl .selbar button{border-radius:16px;font-weight:600}
+.k-obl .selbar button:first-child{background:var(--acc);color:var(--onacc)}
+/* роздільник глав (безшовно) */
+.chd-p{display:flex;align-items:center;gap:10px;padding:22px 0 8px;font:500 12px/1 var(--f-num);color:var(--acc2)}
+.chd-p::before,.chd-p::after{content:"";flex:1;height:1px;background:var(--line)}
+.chd-z{display:flex;flex-direction:column;align-items:center;gap:6px;padding:30px 0 12px}
+.chd-z span{height:26px;padding:0 12px;border-radius:13px;background:var(--s2);font-size:13px;color:var(--dim);display:flex;align-items:center}
+.chd-z h2{font:700 21px/1.25 var(--f-h);color:var(--strong)}
+.chd-a{display:flex;flex-direction:column;align-items:center;gap:4px;padding:40px 0 18px;text-align:center}
+.chd-a .fl{color:var(--acc);font:30px/1 var(--f-h)}
+.chd-a .k{font-variant:all-small-caps;letter-spacing:.1em;color:var(--dim);font-size:15px}
+.chd-a h2{font:600 25px/1.2 var(--f-h);color:var(--strong)}
+.chd-o{margin:30px -8px 14px;border-radius:28px;background:var(--s1);padding:20px;display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:center}
+.chd-o .n{grid-row:1/3;font:800 54px/1 var(--f-num);color:var(--acc2)}
+.chd-o b{font:700 20px/1.2 var(--f-rd);color:var(--strong)}
+.chd-o span:last-child{font-size:13px;color:var(--dim)}
+/* кінець глави, естафета */
+.end{display:flex;flex-direction:column;gap:14px;padding-top:26px}
+.end-mark{text-align:center;font-size:13px;color:var(--faint)}
+.k-pal .end-mark{font-variant:all-small-caps;letter-spacing:.1em;font-size:15px}
+.k-pult .end-mark{font:500 12px/1 var(--f-num)}
+.end-box{padding:14px;display:flex;flex-direction:column;gap:10px}
+.k-pal .end-box{padding:14px 0}
+.end-box .row .btn{flex:1}
+.end-next{display:flex;align-items:center;gap:12px;padding:14px}
+.k-pal .end-next{padding:14px 0}
+.end-next b{display:block;font:600 17px/1.25 var(--f-h);color:var(--strong)}
+.k-obl .end-next b{font-family:var(--f-rd)}
+.cm{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px}
+.cm .av{width:32px;height:32px;font-size:13px}
+.cm-h{display:flex;gap:8px;align-items:baseline;font-size:13.5px}
+.cm-h b{color:var(--strong)}
+.cm-t{font-size:14.5px;line-height:1.5}
+.cm-q{font-size:13.5px;color:var(--dim);padding-left:10px;box-shadow:inset 2px 0 0 var(--line);margin-bottom:2px}
+.cm-sp{background:var(--s2);color:transparent;border-radius:4px;text-shadow:0 0 8px var(--dim)}
+.cm-f{display:flex;gap:14px;font-size:12.5px;color:var(--faint)}
+.cm-f span{display:inline-flex;align-items:center;gap:4px}
+/* стани: повідомлення */
+.msg{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:110px 18px 0}
+.msg .i{color:var(--dim)}
+.msg b{font:var(--wh) 21px/1.3 var(--f-h);color:var(--strong)}
+.msg p{font-size:14.5px;line-height:1.5;color:var(--dim);max-width:300px}
+.offl{display:flex;align-items:center;gap:8px;padding:8px 12px;margin:-8px -4px 16px;border-radius:var(--rin);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);font-size:13px;color:var(--dim)}
+.offl .i{color:var(--warn)}
+.ld{display:flex;flex-direction:column;gap:11px}
+/* сторінки */
+.pg-edge{position:absolute;right:0;top:0;bottom:0;width:18px;background:linear-gradient(90deg,transparent,rgba(0,0,0,.18))}
+
+/* ── хром телефона ── */
+.r-top-p{height:40px;flex:none;display:flex;align-items:center;gap:6px;padding:0 10px 0 2px;font:12px/1 var(--f-num);color:var(--dim)}
+.r-top-p b{color:var(--tx);font-weight:500}
+.r-top-p .ib{width:36px;height:36px}
+.r-cmd{height:58px;flex:none;display:grid;grid-template-columns:52px 1fr 52px 52px 52px 52px;border-top:1px solid var(--line);background:var(--s0)}
+.r-cmd>*{display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:inset -1px 0 0 var(--line);color:var(--dim)}
+.r-cmd>:last-child{box-shadow:none}
+.r-cmd .mid{font:13px/1 var(--f-num);color:var(--tx)}
+.r-cmd .on{color:var(--acc)}
+.r-cmd .aa{font:600 16px/1 var(--f-ui);color:var(--tx)}
+.r-top-z{height:58px;flex:none;display:flex;align-items:center;gap:2px;padding:0 6px;border-bottom:1px solid var(--line)}
+.r-top-z b{font-size:15px;font-weight:600;color:var(--strong)}
+.r-top-z .dim{font-size:12.5px}
+.aa{font:600 17px/1 var(--f-rd);color:var(--tx)}
+.r-bot-z{flex:none;border-top:1px solid var(--line);background:var(--bg)}
+.r-bot-z .prog{height:3px;border-radius:0}
+.r-bot-z .r3{height:54px;display:grid;grid-template-columns:54px 1fr 54px 54px;align-items:center}
+.r-bot-z .r3>button{height:54px;display:grid;place-items:center;color:var(--dim)}
+.r-bot-z .mid{text-align:center;font-size:13px;color:var(--dim)}
+.r-bot-z .mid b{color:var(--strong)}
+.r-top-a{height:50px;flex:none;display:flex;align-items:center;gap:4px;padding:0 10px 0 4px;border-bottom:1px solid var(--line);color:var(--dim)}
+.r-top-a .t{flex:1;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r-top-a em{font-style:normal;color:var(--strong)}
+.r-top-a .aa{font:600 20px/1 var(--f-h)}
+.r-bot-a{height:40px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 20px;font-size:13px;color:var(--faint);border-top:1px solid var(--line)}
+.r-bot-a .bar{flex:1;height:1px;background:var(--line);margin:0 14px;position:relative}
+.r-bot-a .bar i{position:absolute;left:0;top:-1px;height:3px;width:34%;background:var(--acc)}
+.r-top-o{position:absolute;left:12px;right:12px;top:12px;z-index:5;height:56px;border-radius:28px;background:color-mix(in srgb,var(--s2) 90%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;gap:4px;padding:0 6px}
+.r-top-o .ib{width:44px;height:44px}
+.r-top-o b{font-size:14px;color:var(--strong)}
+.r-top-o .dim{font-size:12px}
+.r-top-o .aa{font:700 15px/1 var(--f-h)}
+.r-dock{position:absolute;left:16px;right:16px;bottom:16px;z-index:5;height:64px;border-radius:32px;background:var(--s2);display:grid;grid-template-columns:52px 1fr 52px;align-items:center;padding:0 6px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.r-dock>button{width:52px;height:52px;border-radius:26px;display:grid;place-items:center}
+.r-dock .nx{background:var(--acc);color:var(--onacc)}
+.r-dock .mid{display:flex;flex-direction:column;gap:6px;padding:0 10px}
+.r-dock .mid span{display:flex;justify-content:space-between;font-size:12px;color:var(--dim)}
+.r-dock .mid b{color:var(--strong)}
+
+/* ── комп'ютер і планшет ── */
+.dr-body{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,700px) minmax(0,1fr);column-gap:48px;align-items:start;scrollbar-width:thin}
+.dr-col{grid-column:2;padding:40px 0 80px;position:relative}
+.dr-mar{grid-column:3;padding-top:180px;max-width:300px}
+.tb .dr-mar{display:none}
+.tb .dr-body{grid-template-columns:minmax(0,1fr) minmax(0,640px) minmax(0,1fr);column-gap:0}
+.dk .rt p{font-size:19px;line-height:1.72}
+.k-pal.dk .dr-col{padding-top:20px}
+.k-obl .dr-col{padding-top:110px;padding-bottom:140px}
+.pen{position:absolute;left:-44px;top:2px;width:32px;height:32px;display:grid;place-items:center;color:var(--dim);border-radius:var(--rb);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);text-indent:0}
+.dk .ed-k,.tb .ed-k{display:block}
+.who-m{display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--s1);border-radius:var(--rcard);box-shadow:inset 0 0 0 1px var(--line)}
+.who-m .av{width:44px;height:44px;font-size:18px}
+.who-m li{font-size:13.5px;line-height:1.45;display:grid;grid-template-columns:42px 1fr;gap:6px}
+.who-m li span{color:var(--faint);font-size:12px;padding-top:2px}
+.k-pal .who-m{background:transparent;box-shadow:none;padding:0 0 0 16px;border-left:1px solid var(--line)}
+.k-pult .who-m{box-shadow:inset 0 0 0 1px var(--line),inset 0 2px 0 var(--acc2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:64px;height:100%}
+.two .rt{overflow:hidden}
+.two-f{display:flex;justify-content:space-between;font-size:13px;color:var(--faint);padding-top:14px}
+.d-top-p{height:44px;flex:none;display:flex;align-items:center;gap:6px;padding:0 10px 0 6px;border-bottom:1px solid var(--line);background:var(--s0);font:12.5px/1 var(--f-num);color:var(--dim)}
+.d-top-p b{color:var(--tx);font-weight:500}
+.d-top-p .ib{width:34px;height:34px}
+.d-st-p{height:30px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-top:1px solid var(--line);background:var(--s0);font:12px/1 var(--f-num);color:var(--dim)}
+.d-st-p .acc{color:var(--acc)}
+.d-top-z{height:60px;flex:none;display:flex;align-items:center;gap:6px;padding:0 16px;border-bottom:1px solid var(--line)}
+.d-top-z .t{flex:1;text-align:center}
+.d-top-z .t b{display:block;font-size:15px;color:var(--strong)}
+.d-top-z .t span{font-size:13px;color:var(--dim)}
+.d-bot-z{flex:none;border-top:1px solid var(--line)}
+.d-bot-z .prog{height:3px;border-radius:0}
+.d-bot-z .r{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:14px;color:var(--dim)}
+.d-bot-z .r b{color:var(--strong)}
+.d-top-a{height:56px;flex:none;display:flex;align-items:center;gap:6px;padding:0 20px 0 10px;border-bottom:1px solid var(--line);color:var(--dim)}
+.d-top-a .w{font:italic 600 24px/1 var(--f-h);color:var(--strong);margin-right:16px}
+.d-top-a .t{flex:1;text-align:center;font:italic 500 19px/1 var(--f-h);color:var(--strong)}
+.d-top-a .aa{font:600 20px/1 var(--f-h)}
+.d-top-o{position:absolute;top:16px;left:50%;transform:translateX(-50%);width:820px;z-index:5;height:60px;border-radius:30px;background:color-mix(in srgb,var(--s2) 92%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;padding:0 8px}
+.tb .d-top-o{width:760px}
+.d-top-o .w{font:800 18px/1 var(--f-h);color:var(--strong);padding:0 10px}
+.d-top-o .w i{color:var(--acc);font-style:normal}
+.d-top-o .t{flex:1;min-width:0;display:flex;flex-direction:column}
+.d-top-o .t b{font-size:14px;color:var(--strong)}
+.d-top-o .t span{font-size:12px;color:var(--dim)}
+.d-top-o .aa{font:700 15px/1 var(--f-h)}
+.d-dock{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);width:560px;z-index:5;height:64px;border-radius:32px;background:var(--s2);display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:0 8px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.d-dock .btn{height:48px}
+.d-dock .mid{display:flex;flex-direction:column;gap:6px}
+.d-dock .mid span{display:flex;justify-content:space-between;font-size:12.5px;color:var(--dim)}
+.aa-pop{top:52px;right:24px;width:360px;padding:18px}
+.k-obl .aa-pop{top:84px;right:calc(50% - 400px)}
+.tb.k-obl .aa-pop{right:48px}
+/* «Aa» */
+.aa-b{display:flex;flex-direction:column;gap:16px}
+.aa-sw{display:flex;gap:10px}
+.aa-sw>span{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--dim);flex:1}
+.aa-sw .sw{width:44px;height:44px;border-radius:var(--rin);display:grid;place-items:center;font:600 15px/1 var(--f-rd)}
+.k-obl .aa-sw .sw{border-radius:50%}
+.aa-sw .on .sw{box-shadow:0 0 0 2px var(--acc)}
+.aa-sw .on{color:var(--strong)}
+.aa-r{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14.5px}
+.aa-r small{display:block;font-size:12px;color:var(--faint)}
+.aa-r .seg{min-width:190px}
+.aa-more{font-size:14px;color:var(--acc);display:flex;align-items:center;gap:6px}
+/* «Хто це», зміст, коментарі, скарга */
+.who-h{display:flex;gap:14px;align-items:center}
+.who-h .av{width:64px;height:64px;font-size:26px}
+.who-f{display:flex;flex-direction:column;gap:10px}
+.who-f li{display:grid;grid-template-columns:52px 1fr;gap:8px;font-size:14.5px;line-height:1.45}
+.who-f li span{font-size:12.5px;color:var(--faint);padding-top:2px}
+.k-pult .who-f li span{font-family:var(--f-num)}
+.k-pal .who-f li span{font:600 16px/1.2 var(--f-h);color:var(--acc)}
+.note{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--dim);padding:10px 12px;border-radius:var(--rin);background:var(--s2)}
+.k-pal .note{background:transparent;padding:0;font-style:italic}
+.toc-v{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0}
+.toc-r{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line);font-size:14.5px}
+.toc-r .n{color:var(--faint);font-variant-numeric:tabular-nums}
+.toc-r.cur{color:var(--acc);font-weight:600}
+.toc-r.cur .n{color:var(--acc)}
+.toc-r .ok{color:var(--acc2)}
+.k-pult .toc-r .n{font-family:var(--f-num);font-size:12.5px}
+.k-pal .toc-r{border-bottom:1px dotted var(--line)}
+.k-pal .toc-r .n{font:600 18px/1 var(--f-h)}
+.k-obl .toc-r{border:0;border-radius:16px;padding:10px 12px}
+.k-obl .toc-r.cur{background:var(--acc);color:var(--onacc)}
+.k-obl .toc-r.cur .n{color:var(--onacc)}
+.rep li{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.rad{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--dim);flex:none;margin-top:1px}
+.rad.on{box-shadow:inset 0 0 0 6px var(--acc)}
+.k-pult .rad{border-radius:0}
+.ta{min-height:88px;padding:10px 12px;border-radius:var(--rin);background:var(--bg);box-shadow:inset 0 0 0 1px var(--line);font-size:14px;color:var(--faint)}
+.drawer{position:absolute;top:0;bottom:0;right:0;width:440px;z-index:21;background:var(--s1);display:flex;flex-direction:column;box-shadow:-20px 0 40px rgba(0,0,0,.3)}
+.drawer.left{left:0;right:auto;box-shadow:20px 0 40px rgba(0,0,0,.3)}
+.k-pal .drawer{background:var(--bg);border-left:1px solid var(--acc)}
+.k-obl .drawer{top:12px;bottom:12px;right:12px;border-radius:28px}
+.k-obl .drawer.left{left:12px}
+.modal{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:520px;z-index:21;background:var(--s1);border-radius:var(--rsheet);box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.k-pal .modal{background:var(--bg);box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 0 0 1px var(--acc)}
+</style>
+</helmet>
+<div class="{{ cls }}" style="width:834px;height:1194px;display:flex;flex-direction:column">
+<sc-if value="{{ k.pult }}" hint-placeholder-val="{{ true }}"><div class="d-top-p"><a href="NovelK.dc.html" class="ib" aria-label="До новели"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a><span class="grow ell">Доглядач маяка › <b>гл 12 · Лінза, що пам’ятає світло</b></span><span>34% · ще 6 хв</span><span style="width:10px"></span><button type="button" class="ib on" aria-label="Підказки зі словника" aria-pressed="true"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></button><button type="button" class="ib aa" aria-label="Вигляд читалки">Aa</button><button type="button" class="ib" aria-label="Зміст"><svg class="i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg></button><button type="button" class="ib" aria-label="Обговорення"><svg class="i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z"/></svg></button><button type="button" class="ib" onClick="{{ toggleLight }}" aria-label="Світла чи темна тема"><sc-if value="{{ dark }}" hint-placeholder-val="{{ true }}"><svg class="i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg></sc-if><sc-if value="{{ light }}" hint-placeholder-val="{{ false }}"><svg class="i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></sc-if></button></div><div class="prog" style="border-radius:0"><i style="width:34%"></i></div></sc-if>
+<sc-if value="{{ k.zv }}" hint-placeholder-val="{{ false }}"><div class="d-top-z"><a href="NovelK.dc.html" class="ib" aria-label="До новели"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a><span style="width:170px"></span><div class="t"><b>Доглядач маяка</b><span>Глава 12 з 40 · Лінза, що пам’ятає світло</span></div><button type="button" class="ib on" aria-label="Підказки зі словника" aria-pressed="true"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></button><button type="button" class="ib aa" aria-label="Вигляд читалки">Aa</button><button type="button" class="ib" aria-label="Зміст"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg></button><button type="button" class="ib" aria-label="Обговорення"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z"/></svg></button><button type="button" class="ib" onClick="{{ toggleLight }}" aria-label="Світла чи темна тема"><sc-if value="{{ dark }}" hint-placeholder-val="{{ true }}"><svg class="i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg></sc-if><sc-if value="{{ light }}" hint-placeholder-val="{{ false }}"><svg class="i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></sc-if></button></div></sc-if>
+<sc-if value="{{ k.pal }}" hint-placeholder-val="{{ false }}"><div class="d-top-a"><a href="NovelK.dc.html" class="ib" aria-label="До новели"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a><span class="w">Новелка</span><span class="lab">Доглядач маяка</span><span class="t">глава 12 · Лінза, що пам’ятає світло</span><button type="button" class="ib on" aria-label="Підказки зі словника" aria-pressed="true"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></button><button type="button" class="ib aa" aria-label="Вигляд читалки">Aa</button><button type="button" class="ib" aria-label="Зміст"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg></button><button type="button" class="ib" onClick="{{ toggleLight }}" aria-label="Світла чи темна тема"><sc-if value="{{ dark }}" hint-placeholder-val="{{ true }}"><svg class="i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg></sc-if><sc-if value="{{ light }}" hint-placeholder-val="{{ false }}"><svg class="i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></sc-if></button></div></sc-if>
+<sc-if value="{{ k.obl }}" hint-placeholder-val="{{ false }}"><div class="d-top-o"><a href="NovelK.dc.html" class="ib" aria-label="До новели"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a><span class="w">новелка<i>.</i></span><div class="t"><b class="ell">Доглядач маяка</b><span>Глава 12 з 40</span></div><button type="button" class="ib on" aria-label="Підказки зі словника" aria-pressed="true"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></button><button type="button" class="ib aa" aria-label="Вигляд читалки">Aa</button><button type="button" class="ib" aria-label="Зміст"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg></button><button type="button" class="ib" onClick="{{ toggleLight }}" aria-label="Світла чи темна тема"><sc-if value="{{ dark }}" hint-placeholder-val="{{ true }}"><svg class="i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg></sc-if><sc-if value="{{ light }}" hint-placeholder-val="{{ false }}"><svg class="i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></sc-if></button></div></sc-if>
+<div class="dr-body"><main class="dr-col"><sc-if value="{{ readish }}" hint-placeholder-val="{{ true }}"><header class="chh"><span class="chh-n">12</span><h1 class="chh-t">Лінза, що пам’ятає світло</h1><div class="chh-meta"><span class="chh-k">Том 1 · глава 12</span><span class="chh-m">ще 6 хв</span></div></header><div class="rt"><p class="first">Маяк стояв темним уже третю ніч, коли <span class="term">Ліна</span> нарешті піднялася сходами.</p><p class="">— Ти запізнилася, — не обертаючись, сказав <span class="term">майстер Орест</span>. Він натирав <span class="term">велику лінзу</span> ганчіркою, що колись була сорочкою.</p><p class="">— Пором запізнився, — відповіла вона. — На цьому острові все запізнюється.</p><p><span class="mine">ваша правка · на перевірці</span>Він засміявся — сухо, наче хтось гортав сторінки. — Тоді запізнюватимемося разом. Подай олію.</p><p class="">Унизу під тонкою ковдрою туману спала гавань, і десь у ній один раз ударив дзвін.</p><p class=""><span class="term">Ліна</span> поставила бляшанку з олією на сходинку й подивилася вгору, на лінзу. Та тримала останнє вечірнє світло, ніби пам’ятала сонце.</p><p class="">— Вона завжди так світиться? — спитала вона.</p><p class="">— Лише коли на неї дивляться, — сказав <span class="term">Орест</span>. — Решту часу вона спить, як і всі ми на цьому острові.</p></div></sc-if>
+<sc-if value="{{ is.sel }}" hint-placeholder-val="{{ false }}"><header class="chh"><span class="chh-n">12</span><h1 class="chh-t">Лінза, що пам’ятає світло</h1><div class="chh-meta"><span class="chh-k">Том 1 · глава 12</span><span class="chh-m">ще 6 хв</span></div></header><div class="rt"><p class="first">Маяк стояв темним уже третю ніч, коли <span class="selw">Ліна</span> нарешті піднялася сходами.</p><div class="selbar" role="toolbar" aria-label="Дії з виділеним"><button type="button"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Хто це</button><button type="button"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>Виправити</button><button type="button"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg>Замінити</button><button type="button"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h4v4c0 3-1.5 5-4 6M14 7h4v4c0 3-1.5 5-4 6"/></svg>Цитувати</button></div><p class="">— Ти запізнилася, — не обертаючись, сказав <span class="term">майстер Орест</span>. Він натирав <span class="term">велику лінзу</span> ганчіркою, що колись була сорочкою.</p><p class="">— Пором запізнився, — відповіла вона. — На цьому острові все запізнюється.</p><p class="">Він засміявся — сухо, наче хтось гортав сторінки. — Тоді запізнюватимемося разом. Подай олію.</p><p class="">Унизу під тонкою ковдрою туману спала гавань, і десь у ній один раз ударив дзвін.</p><p class=""><span class="term">Ліна</span> поставила бляшанку з олією на сходинку й подивилася вгору, на лінзу. Та тримала останнє вечірнє світло, ніби пам’ятала сонце.</p></div></sc-if>
+<sc-if value="{{ is.edit }}" hint-placeholder-val="{{ false }}"><header class="chh"><span class="chh-n">12</span><h1 class="chh-t">Лінза, що пам’ятає світло</h1><div class="chh-meta"><span class="chh-k">Том 1 · глава 12</span><span class="chh-m">ще 6 хв</span></div></header><div class="rt"><p class="first">Маяк стояв темним уже третю ніч, коли <span class="term">Ліна</span> нарешті піднялася сходами.</p><div style="position:relative"><div class="ed"><div class="ed-l"><span>Ваша правка · абзац 2</span><span>не надіслано</span></div>
+<div class="ed-f">— Ти запізнилася, — не обертаючись, мовив майстер Орест. Він натирав велику лінзу ганчіркою, яка колись була сорочкою.<span class="caret"></span></div>
+<div class="ed-t"><button type="button"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7z"/></svg> Варіант від ШІ</button><button type="button"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg> Показати оригінал</button></div>
+<div class="ed-a"><button type="button" class="btn">Скасувати</button><button type="button" class="btn pri">Зберегти</button></div>
+<p class="ed-n">Правка піде команді на перевірку; вам її видно в тексті.</p><span class="ed-k">Esc — скасувати · ⌘↵ — зберегти</span></div></div><p><button type="button" class="pen" aria-label="Виправити абзац"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg></button>— Пором запізнився, — відповіла вона. — На цьому острові все запізнюється.</p><p class="">Він засміявся — сухо, наче хтось гортав сторінки. — Тоді запізнюватимемося разом. Подай олію.</p><p class="">Унизу під тонкою ковдрою туману спала гавань, і десь у ній один раз ударив дзвін.</p><p class=""><span class="term">Ліна</span> поставила бляшанку з олією на сходинку й подивилася вгору, на лінзу. Та тримала останнє вечірнє світло, ніби пам’ятала сонце.</p></div></sc-if>
+<sc-if value="{{ is.seam }}" hint-placeholder-val="{{ false }}"><div class="rt"><p><span class="term">Ліна</span> поставила бляшанку з олією на сходинку й подивилася вгору, на лінзу. Та тримала останнє вечірнє світло, ніби пам’ятала сонце.</p><p class="">— Вона завжди так світиться? — спитала вона.</p><p class="">— Лише коли на неї дивляться, — сказав <span class="term">Орест</span>. — Решту часу вона спить, як і всі ми на цьому острові.</p></div><sc-if value="{{ k.pult }}" hint-placeholder-val="{{ true }}"><div class="chd-p">гл 13 · Журнал доглядача</div></sc-if>
+<sc-if value="{{ k.zv }}" hint-placeholder-val="{{ false }}"><div class="chd-z"><span>Глава 13</span><h2>Журнал доглядача</h2></div></sc-if>
+<sc-if value="{{ k.pal }}" hint-placeholder-val="{{ false }}"><div class="chd-a"><span class="fl">❦</span><span class="k">Глава 13</span><h2>Журнал доглядача</h2></div></sc-if>
+<sc-if value="{{ k.obl }}" hint-placeholder-val="{{ false }}"><div class="chd-o"><span class="n">13</span><b>Журнал доглядача</b><span>Далі без зупинок · глава підвантажилась</span></div></sc-if><div class="rt"><p class="first">Журнал лежав на тому ж місці, де його лишив попередній доглядач, — під лампою, обгорнутий у цератку.</p></div><div style="height:14px"></div><div class="ld" aria-label="Глава 13 вантажиться"><span class="sk" style="height:14px;width:100%"></span><span class="sk" style="height:14px;width:97%"></span><span class="sk" style="height:14px;width:100%"></span><span class="sk" style="height:14px;width:88%"></span><span class="sk" style="height:14px;width:62%"></span><span class="sk" style="height:14px;width:100%"></span><span class="sk" style="height:14px;width:94%"></span><span class="sk" style="height:14px;width:70%"></span></div></sc-if>
+<sc-if value="{{ is.end }}" hint-placeholder-val="{{ false }}"><div class="rt"><p>— Вона завжди так світиться? — спитала вона.</p><p class="">— Лише коли на неї дивляться, — сказав <span class="term">Орест</span>. — Решту часу вона спить, як і всі ми на цьому острові.</p></div><section class="end">
+<p class="end-mark">Кінець глави 12</p>
+<div class="card end-box"><div class="row"><span class="grow"><b class="strong">2 правки не надіслано</b><br><span class="dim" style="font-size:13.5px">Їх бачите лише ви, доки не надішлете команді.</span></span></div><div class="row"><button type="button" class="btn sm">Переглянути</button><button type="button" class="btn sm pri">Надіслати команді</button></div></div>
+<a href="ReaderT.dc.html" class="card end-next"><span class="grow"><span class="lab">Далі</span><b>13. Журнал доглядача</b></span><svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a>
+<div class="row"><button type="button" class="btn sm out"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg> Оцінити переклад</button><button type="button" class="btn sm out"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg> Поскаржитися</button></div>
+<div class="col" style="gap:14px;padding-top:6px"><div class="row"><span class="h3 grow">Обговорення глави</span><span class="faint">14</span></div><div class="cm"><span class="av">М</span><div class="col" style="gap:4px"><div class="cm-h"><b>marta_k</b><span class="faint">2 год тому</span></div><p class="cm-t">Обожнюю, як Орест жартує про запізнення. І лінза, яка «спить», — це ж явно про щось більше.</p><div class="cm-f"><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg> 18</span><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg> Відповісти · 2</span></div></div></div><div class="cm"><span class="av">Н</span><div class="col" style="gap:4px"><div class="cm-h"><b>nika</b><span class="faint">вчора</span></div><div class="cm-q">«Вона завжди так світиться?»</div><p class="cm-t">Ця репліка — найкраща в главі.</p><div class="cm-f"><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg> 4</span><span><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg> Відповісти · 1</span></div></div></div><div class="field">Написати коментар…</div></div>
+</section></sc-if>
+<sc-if value="{{ is.relay }}" hint-placeholder-val="{{ false }}"><div class="rt"><p>Світло лінзи пройшло над водою і зникло в тумані. Цього разу ніхто не запізнився.</p></div><section class="end">
+<p class="end-mark">Кінець глави 40 · переклад «Солоної води»</p>
+<div class="card end-box"><span class="lab">Естафета</span><b class="h2">Далі перекладає команда «Світанок»</b><p class="dim" style="font-size:14.5px;line-height:1.5">Вона продовжила переклад з глави 41. Місце читання й бібліотека переходять разом з вами.</p><a href="ReaderT.dc.html" class="btn pri wide">Читати главу 41</a><a href="NovelT.dc.html" class="btn out wide">Про переклад «Світанку»</a></div>
+</section></sc-if>
+<sc-if value="{{ is.load }}" hint-placeholder-val="{{ false }}"><div class="ld" aria-busy="true" aria-label="Глава відкривається"><span class="sk" style="height:12px;width:30%;margin-bottom:6px"></span><span class="sk" style="height:26px;width:82%;margin-bottom:18px"></span><span class="sk" style="height:14px;width:100%"></span><span class="sk" style="height:14px;width:100%"></span><span class="sk" style="height:14px;width:96%"></span><span class="sk" style="height:14px;width:64%"></span><span style="height:10px"></span><span class="sk" style="height:14px;width:100%"></span><span class="sk" style="height:14px;width:98%"></span><span class="sk" style="height:14px;width:100%"></span><span class="sk" style="height:14px;width:80%"></span><span style="height:10px"></span><span class="sk" style="height:14px;width:100%"></span><span class="sk" style="height:14px;width:92%"></span><span class="sk" style="height:14px;width:52%"></span></div></sc-if>
+<sc-if value="{{ is.err }}" hint-placeholder-val="{{ false }}"><div class="msg" role="alert"><svg class="i" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17.5h.01"/></svg><b>Не вдалося відкрити главу</b><p>Сайт не відповів. Спробуйте ще раз за хвилину — місце в главі збережено.</p><button type="button" class="btn pri"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg> Спробувати ще раз</button><a href="NovelT.dc.html" class="btn out">До змісту</a></div></sc-if>
+<sc-if value="{{ is.off }}" hint-placeholder-val="{{ false }}"><div class="offl"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01"/><path d="M3 3l18 18"/></svg> Ви офлайн — показуємо збережені глави</div><div class="msg" style="padding-top:70px" role="status"><svg class="i" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01"/><path d="M3 3l18 18"/></svg><b>Глава 12 не збережена</b><p>Без інтернету можна читати збережені глави: 9–11. Нові зберігаються самі, коли є зв’язок — до трьох наперед.</p><a href="ReaderT.dc.html" class="btn pri">Читати главу 11</a></div></sc-if><sc-if value="{{ is.two }}" hint-placeholder-val="{{ false }}"><div class="two"><div class="col"><div class="rt"><p class="first">Маяк стояв темним уже третю ніч, коли <span class="term">Ліна</span> нарешті піднялася сходами.</p><p class="">— Ти запізнилася, — не обертаючись, сказав <span class="term">майстер Орест</span>. Він натирав <span class="term">велику лінзу</span> ганчіркою, що колись була сорочкою.</p><p class="">— Пором запізнився, — відповіла вона. — На цьому острові все запізнюється.</p></div><div class="two-f"><span>7</span></div></div><div class="col"><div class="rt"><p class="">Він засміявся — сухо, наче хтось гортав сторінки. — Тоді запізнюватимемося разом. Подай олію.</p><p class="">Унизу під тонкою ковдрою туману спала гавань, і десь у ній один раз ударив дзвін.</p><p class=""><span class="term">Ліна</span> поставила бляшанку з олією на сходинку й подивилася вгору, на лінзу. Та тримала останнє вечірнє світло, ніби пам’ятала сонце.</p></div><div class="two-f"><span></span><span>8</span></div></div></div></sc-if></main><sc-if value="{{ is.read }}" hint-placeholder-val="{{ true }}"><div class="dr-mar"><aside class="who-m" aria-label="Хто це"><div class="row" style="gap:10px"><span class="av">Л</span><div class="col"><b class="strong">Ліна</b><span class="dim" style="font-size:12.5px">учениця доглядача маяка</span></div></div><ul class="col" style="gap:8px"><li><span>гл. 3</span>Боїться висоти, але приховує це від Ореста.</li><li><span>гл. 9</span>Навчилася чистити лінзу без жодної подряпини.</li><li><span>гл. 11</span>Чує дзвін у тумані, якого не чують інші.</li></ul><span class="faint" style="font-size:12px">до глави 12 · без спойлерів</span></aside></div></sc-if></div>
+<sc-if value="{{ k.pult }}" hint-placeholder-val="{{ true }}"><div class="d-st-p"><span>‹ гл 11 · Пором о сьомій</span><span><span class="acc">●</span> гл 12 / 40 · <sc-if value="{{ is.two }}" hint-placeholder-val="{{ false }}">с 7–8 / 11</sc-if><sc-if value="{{ not.two }}" hint-placeholder-val="{{ true }}">34%</sc-if> · ← → глави</span><span>гл 13 · Журнал доглядача ›</span></div></sc-if>
+<sc-if value="{{ k.zv }}" hint-placeholder-val="{{ false }}"><div class="d-bot-z"><div class="prog"><i style="width:34%"></i></div><div class="r"><button type="button" class="row"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Пором о сьомій</button><span><sc-if value="{{ is.two }}" hint-placeholder-val="{{ false }}">Сторінки <b>7–8</b> з 11</sc-if><sc-if value="{{ not.two }}" hint-placeholder-val="{{ true }}"><b>34 %</b> · ще 6 хв</sc-if></span><button type="button" class="row">Журнал доглядача <svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button></div></div></sc-if>
+<sc-if value="{{ k.pal }}" hint-placeholder-val="{{ false }}"><div class="r-bot-a" style="height:44px;padding:0 28px"><span>‹ 11 · Пором о сьомій</span><span class="bar"><i></i></span><span><sc-if value="{{ is.two }}" hint-placeholder-val="{{ false }}">с. 7–8 з 11</sc-if><sc-if value="{{ not.two }}" hint-placeholder-val="{{ true }}">34 % · ще 6 хв</sc-if></span><span class="bar" style="flex:.3"></span><span>13 · Журнал доглядача ›</span></div></sc-if>
+<sc-if value="{{ k.obl }}" hint-placeholder-val="{{ false }}"><div class="d-dock"><button type="button" class="btn"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> 11</button><div class="mid"><div class="prog"><i style="width:34%"></i></div><span><b class="strong"><sc-if value="{{ is.two }}" hint-placeholder-val="{{ false }}">с. 7–8 з 11</sc-if><sc-if value="{{ not.two }}" hint-placeholder-val="{{ true }}">34% · ще 6 хв</sc-if></b><span>Глава 12 з 40</span></span></div><button type="button" class="btn pri">13 <svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button></div></sc-if>
+<sc-if value="{{ is.aa }}" hint-placeholder-val="{{ false }}"><div class="pop aa-pop" role="dialog" aria-label="Вигляд тексту"><div class="aa-b">
+<div class="col" style="gap:10px"><span class="lab">Тло тексту</span><div class="aa-sw">
+<span class="on"><span class="sw" style="background:var(--bg);color:var(--read)">Аа</span>Як сайт</span>
+<span><span class="sw" style="background:#F4F2EC;color:#1C1B18">Аа</span>Папір</span>
+<span><span class="sw" style="background:#2A251D;color:#E6D9BF">Аа</span>Сепія</span>
+<span><span class="sw" style="background:#1B1E24;color:#C9CDD5">Аа</span>Сірий</span>
+<span><span class="sw" style="background:#000;color:#BFC3CC">Аа</span>Чорний</span></div></div>
+<div class="aa-r"><span>Шрифт</span><div class="seg"><span class="on">Каркаса</span><span>Інший</span><span>Для дислексії</span></div></div>
+<div class="aa-r"><span>Розмір</span><div class="row"><button type="button" class="ib" aria-label="Менше"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button><b class="num strong" style="width:28px;text-align:center">18</b><button type="button" class="ib" aria-label="Більше"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+<div class="aa-r"><span>Міжрядок</span><div class="seg"><span>1,5</span><span class="on">1,7</span><span>1,9</span></div></div>
+<div class="aa-r"><span>Вирівнювання</span><div class="seg"><span class="on">По ширині</span><span>Ліворуч</span></div></div>
+<div class="aa-r"><span>Читати</span><div class="seg"><span class="on">Прокруткою</span><span>Сторінками</span></div></div>
+<div class="aa-r"><span>Безшовно<small>наступна глава починається одразу</small></span><span class="tog on" role="switch" aria-checked="true"></span></div>
+<div class="aa-r"><span>Підказки зі словника<small>лампочка в шапці</small></span><span class="tog on" role="switch" aria-checked="true"></span></div>
+<a href="#" class="aa-more">Усі налаштування читання <svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a></div></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"karkas":{"editor":"enum","options":["Пульт","Звичний","Палітурка","Обкладинка"],"default":"Пульт"},"tema":{"editor":"enum","options":["Сланець","Графіт","Сукно","Слива"],"default":"Сланець"},"svitla":{"editor":"boolean","default":false},"stan":{"editor":"enum","options":["читання","правка","Aa","дві сторінки"],"default":"читання"},"$preview":{"width":834,"height":1194}}'>
+function baseVals(props, state, ui, opt) {
+  const K = { 'Пульт': 'pult', 'Звичний': 'zv', 'Палітурка': 'pal', 'Обкладинка': 'obl' };
+  const T = { 'Сланець': 'slanets', 'Графіт': 'graphite', 'Сукно': 'sukno', 'Слива': 'slyva' };
+  const kid = K[props.karkas] || 'pult';
+  const tid = T[props.tema] || 'slanets';
+  const light = state.light !== undefined ? state.light : !!props.svitla;
+  const stan = state.stan || props.stan || opt.stany[0];
+  const is = {}, not = {};
+  opt.stany.forEach((s, i) => { is[opt.ids[i]] = s === stan; not[opt.ids[i]] = s !== stan; });
+  const k = { pult: kid === 'pult', zv: kid === 'zv', pal: kid === 'pal', obl: kid === 'obl' };
+  const alias = {};
+  Object.entries(opt.alias || {}).forEach(([a, ids]) => { alias[a] = ids.some(id => is[id]); });
+  return {
+    ...alias,
+    cls: 'nv ' + opt.dev + ' k-' + kid + ' th-' + tid + (light && opt.dev !== 'ph' ? ' lt' : ''),
+    k, is, not, light, dark: !light,
+    toggleLight: () => ui.setState({ light: !light }),
+    go: Object.fromEntries(opt.ids.map((id, i) => [id, () => ui.setState({ stan: opt.stany[i] })]))
+  };
+}
+class Component extends DCLogic {
+  renderVals() {
+    return baseVals(this.props, this.state || {}, this, {"dev":"tb","stany":["читання","правка","Aa","дві сторінки"],"ids":["read","edit","aa","two"],"alias":{"readish":["read","aa"]}});
+  }
+}
+</script>
+</body>
+</html>
