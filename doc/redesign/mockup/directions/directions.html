@@ -1,0 +1,768 @@
+<title>Напрями дизайну Новелки</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=Manrope:wght@400;500;600;700;800&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Unbounded:wght@500;700;800&display=swap">
+<style>
+/* Сторінка порівняння: нейтральна оболонка, яка не підказує жодного напряму; макети всередині рамок мають власні кольори. */
+:root {
+  --bg: #121315; --panel: #1A1B1E; --line: #2C2E33; --fg: #E6E7EA; --muted: #A0A3AB; --link: #C9CCD3;
+  --ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #F3F3F4; --panel: #FFFFFF; --line: #DDDEE2; --fg: #16171A; --muted: #5B5E66; --link: #2E3138; color-scheme: light } }
+:root[data-theme="light"] { --bg: #F3F3F4; --panel: #FFFFFF; --line: #DDDEE2; --fg: #16171A; --muted: #5B5E66; --link: #2E3138; color-scheme: light }
+:root[data-theme="dark"] { --bg: #121315; --panel: #1A1B1E; --line: #2C2E33; --fg: #E6E7EA; --muted: #A0A3AB; --link: #C9CCD3; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--ui); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 64px }
+.wrap { max-width: 1480px; margin: 0 auto }
+.top { padding-block: 40px 8px; display: grid; gap: 10px; max-width: 860px }
+.top h1 { font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 0; text-wrap: balance; font-weight: 650 }
+.top p { margin: 0; color: var(--muted) }
+.jump { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); display: flex; flex-wrap: wrap; gap: 8px; padding-block: 12px; border-bottom: 1px solid var(--line); margin-bottom: 8px }
+.jump a { color: var(--fg); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 14px; background: var(--panel) }
+.jump a:hover, .jump a:focus-visible { border-color: var(--muted); outline: none }
+section.dir { padding-block: 40px 24px; border-bottom: 1px solid var(--line); display: grid; gap: 22px; scroll-margin-top: 64px }
+.head { display: grid; gap: 6px; max-width: 900px }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
+.head h2 { margin: 0; font-size: clamp(24px, 3.4vw, 32px); line-height: 1.15; font-weight: 650 }
+.head p { margin: 0; color: var(--muted); max-width: 70ch }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden }
+.facts > div { background: var(--panel); padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0 }
+.facts b { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600 }
+.facts span { font-size: 14px }
+.sw { display: flex; flex-wrap: wrap; gap: 6px }
+.sw i { width: 30px; height: 30px; border-radius: 6px; border: 1px solid rgba(128,128,128,.35); display: block }
+.screens { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 28px; align-items: start }
+@media (max-width: 980px) { .screens { grid-template-columns: minmax(0, 1fr) } }
+.cap { font-size: 13px; color: var(--muted); margin: 8px 0 0; max-width: 60ch }
+.fit { position: relative; width: 100%; overflow: hidden }
+.fit > .frame { position: absolute; left: 0; top: 0; transform-origin: 0 0 }
+.fit.phone { max-width: 390px }
+.frame.ph { width: 390px; height: 844px; border-radius: 36px; overflow: hidden; border: 1px solid rgba(128,128,128,.35) }
+.frame.dk { width: 1440px; height: 900px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(128,128,128,.35) }
+.now { display: grid; grid-template-columns: 234px minmax(0, 1fr); gap: 20px; align-items: start }
+@media (max-width: 760px) { .now { grid-template-columns: minmax(0, 1fr) } }
+.now img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); display: block }
+.now ul { margin: 0; padding-left: 18px; display: grid; gap: 6px }
+.pick { padding-block: 36px 0; max-width: 820px; display: grid; gap: 10px }
+.pick h2 { margin: 0; font-size: 26px }
+.pick p { margin: 0; color: var(--muted) }
+.keep { margin: 0; padding-left: 18px; color: var(--muted); display: grid; gap: 4px }
+
+/* Спільне для макетів */
+:where(.frame) button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer }
+:where(.frame) button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px }
+.frame .ic { display: block; flex: none }
+:where(.frame) p { margin: 0 }
+.sk { display: block; border-radius: 6px; background: var(--skel); animation: pulse 1.6s ease-in-out infinite }
+@keyframes pulse { 50% { opacity: .45 } }
+@media (prefers-reduced-motion: reduce) { .sk { animation: none } .caret { animation: none } }
+.caret { display: inline-block; width: 2px; height: 1.1em; vertical-align: -0.18em; background: currentColor; animation: blink 1s steps(1) infinite; margin-left: 1px }
+@keyframes blink { 50% { opacity: 0 } }
+
+/* ───────── А · «Палітурка»: зелене сукно, латунь, книжкові засічки; без карток, лише поля й лінійки ───────── */
+.dA { --bg:#0E1613; --page:#131E1A; --page2:#1A2722; --rule:#2A3A33; --ink:#E9E2CC; --read:#DCD5BE; --dim:#A9A58F; --faint:#767B6C; --brass:#D2A84E; --onbrass:#17120A; --rust:#E59072; --term:rgba(210,168,78,.17); --sel:rgba(210,168,78,.34); --ins:#EBCB7C; --skel:#22302A;
+  --disp:'Cormorant Garamond', Georgia, serif; --rd:'Spectral', Georgia, serif; --ui:'Alegreya Sans', 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--ink); font: 16px/1.45 var(--ui) }
+.dA.lt { --bg:#E6E9E1; --page:#F7F8F2; --page2:#EDEFE6; --rule:#C9D0C2; --ink:#18221D; --read:#1E2621; --dim:#535E4F; --faint:#7F877A; --brass:#85601A; --onbrass:#FFFFFF; --rust:#A4431E; --term:#F1E2B7; --sel:#E6CB82; --ins:#6A4A0C; --skel:#DDE2D6 }
+.dA .sc { font-variant: all-small-caps; letter-spacing: .09em; font-weight: 500 }
+.dA .term { background: var(--term); border-radius: 2px; box-shadow: 0 1px 0 var(--brass) }
+.a-ph { height: 100%; display: flex; flex-direction: column; background: var(--bg) }
+.a-run { height: 50px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--rule); color: var(--dim) }
+.a-run .t { flex: 1; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.a-run .t em { font-style: normal; color: var(--ink) }
+.a-run .on { color: var(--brass) }
+.a-run .aa { font: 600 19px/1 var(--disp) }
+.a-scroll { flex: 1; overflow: auto; padding: 0 24px 40px; scrollbar-width: none }
+.a-chap { text-align: center; padding: 38px 0 22px; display: grid; gap: 6px }
+.a-chap .sc { color: var(--brass); font-size: 15px }
+.a-chap h1 { margin: 0; font: 600 31px/1.12 var(--disp); text-wrap: balance }
+.a-orn { color: var(--faint); font: 20px/1 var(--disp); letter-spacing: .5em; padding-left: .5em }
+.a-txt p { font: 17.5px/1.72 var(--rd); color: var(--read); text-align: justify; hyphens: auto; text-indent: 1.5em }
+.a-txt p.first { text-indent: 0 }
+.a-txt p.first::first-letter { font: 600 3.1em/0.8 var(--disp); float: left; padding: 6px 6px 0 0; color: var(--brass) }
+.a-edit { margin: 10px -10px; padding: 12px 10px 12px; background: var(--page2); border-top: 1px solid var(--brass); border-bottom: 1px solid var(--rule); display: grid; gap: 10px }
+.a-edit .lab { display: flex; justify-content: space-between; color: var(--brass); font-size: 14px }
+.a-edit .field { font: 17.5px/1.7 var(--rd); color: var(--ink) }
+.a-edit .row { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 15px; color: var(--dim); align-items: center }
+.a-edit .row button { border-bottom: 1px dotted currentColor }
+.a-edit .act { display: flex; justify-content: flex-end; gap: 10px; align-items: center }
+.a-btn { height: 40px; padding: 0 16px; border: 1px solid var(--rule); border-radius: 2px; font-size: 15px }
+.a-pri { height: 40px; padding: 0 18px; background: var(--brass); color: var(--onbrass); border-radius: 2px; font-weight: 700; font-size: 15px }
+.a-note { font-size: 13px; color: var(--faint) }
+.a-div { text-align: center; padding: 40px 0 18px; display: grid; gap: 4px }
+.a-div .fl { color: var(--brass); font: 30px/1 var(--disp) }
+.a-div .sc { color: var(--dim) }
+.a-div h2 { margin: 0; font: 600 25px/1.2 var(--disp) }
+.a-foot { height: 40px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; font-size: 13px; color: var(--faint); border-top: 1px solid var(--rule) }
+.a-foot .bar { flex: 1; height: 1px; background: var(--rule); margin: 0 14px; position: relative }
+.a-foot .bar i { position: absolute; left: 0; top: -1px; height: 3px; width: 34%; background: var(--brass) }
+.a-dk { height: 100%; display: grid; grid-template-rows: 60px 44px 1fr; background: var(--bg) }
+.a-top { display: flex; align-items: center; gap: 28px; padding: 0 28px; border-bottom: 1px solid var(--rule) }
+.a-brand { display: flex; align-items: baseline; gap: 10px }
+.a-brand .w { font: italic 600 27px/1 var(--disp) }
+.a-brand .sc { color: var(--brass); font-size: 15px }
+.a-crumb { flex: 1; color: var(--dim); font-size: 15px }
+.a-crumb i { font-style: normal; color: var(--faint); margin: 0 8px }
+.a-crumb em { color: var(--ink); font: italic 500 19px/1 var(--disp) }
+.a-topr { display: flex; align-items: center; gap: 22px; font-size: 15px }
+.a-topr .st { color: var(--faint) }
+.a-topr .tx { color: var(--ink); border-bottom: 1px dotted var(--dim) }
+.a-bar { display: flex; align-items: center; gap: 22px; padding: 0 28px; border-bottom: 1px solid var(--rule); font-size: 15px; color: var(--dim) }
+.a-bar label { display: flex; align-items: center; gap: 8px; cursor: pointer }
+.a-bar .bx { width: 14px; height: 14px; border: 1px solid var(--dim); display: grid; place-items: center }
+.a-bar .bx.on { background: var(--brass); border-color: var(--brass) }
+.a-bar .bx.on::after { content: ""; width: 6px; height: 3px; border-left: 1.6px solid var(--onbrass); border-bottom: 1.6px solid var(--onbrass); transform: rotate(-45deg) translate(1px, -1px) }
+.a-bar .vr { width: 1px; height: 18px; background: var(--rule) }
+.a-bar .seg b { color: var(--ink); font-weight: 500; border-bottom: 2px solid var(--brass); padding-bottom: 2px }
+.a-bar .rt { margin-left: auto; color: var(--ink) }
+.a-body { display: grid; grid-template-columns: 250px minmax(0, 1fr) 300px; min-height: 0 }
+.a-toc { border-right: 1px solid var(--rule); padding: 22px 20px; overflow: auto; display: grid; align-content: start; gap: 2px }
+.a-toc .sc { color: var(--brass); margin-bottom: 10px }
+.a-toc .r { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 2px 6px; padding: 8px 0; border-bottom: 1px dotted var(--rule); font-size: 15px }
+.a-toc .r .n { font: 600 18px/1.1 var(--disp); color: var(--dim) }
+.a-toc .r .s { grid-column: 2; font-size: 13px; color: var(--faint) }
+.a-toc .r.cur .n, .a-toc .r.cur .t { color: var(--brass) }
+.a-toc .add { margin-top: 14px; color: var(--ink); font-size: 15px; border-bottom: 1px dotted var(--dim); justify-self: start }
+.a-spread { overflow: auto; padding: 26px 30px 40px; background: var(--page); scrollbar-width: thin }
+.a-row { display: grid; grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1fr); align-items: start }
+.a-row.h { color: var(--brass); padding-bottom: 14px; font-size: 15px }
+.a-row.h > :first-child { text-align: right }
+.a-row .o, .a-row .u { padding: 10px 0; position: relative }
+.a-row .o { font: 15.5px/1.62 var(--rd); color: var(--dim); text-align: right; hyphens: auto }
+.a-row .u { font: 17px/1.62 var(--rd); color: var(--read) }
+.a-row .num { align-self: stretch; display: grid; justify-items: center; align-content: start; padding-top: 12px; font: 600 17px/1 var(--disp); color: var(--faint); border-left: 1px solid var(--rule); border-right: 1px solid var(--rule); margin: 0 10px }
+.a-row.sel .u { background: var(--page2); box-shadow: -10px 0 0 var(--page2), 10px 0 0 var(--page2) }
+.a-row.sel .num { color: var(--brass) }
+.a-row .selw { background: var(--sel); border-radius: 2px }
+.a-pop { position: absolute; left: 70px; top: 100%; z-index: 2; margin-top: -6px; background: var(--bg); border: 1px solid var(--brass); padding: 10px 14px; display: grid; gap: 6px; font: 15px/1.3 var(--ui); color: var(--ink); width: 300px; box-shadow: 0 10px 30px rgba(0,0,0,.35) }
+.a-pop .f { color: var(--dim) }
+.a-pop .f i { color: var(--ink); font-style: italic }
+.a-pop .l { display: flex; gap: 16px }
+.a-pop .l button { border-bottom: 1px dotted var(--dim) }
+.a-acts { grid-column: 3; display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 74px 0 12px; font-size: 15px; color: var(--dim) }
+.a-acts button { border-bottom: 1px dotted var(--dim) }
+.a-row del { color: var(--rust); text-decoration-thickness: 1.5px }
+.a-row ins { color: var(--ins); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px }
+.a-sug { grid-column: 3; display: flex; align-items: center; gap: 14px; padding: 0 0 12px; font-size: 15px; color: var(--dim) }
+.a-sug .sc { color: var(--brass) }
+.a-sug button.x { border-bottom: 1px dotted var(--dim) }
+.a-row .empty { color: var(--faint); font: italic 17px/1.6 var(--rd) }
+.a-row .empty button { font: 15px var(--ui); color: var(--ink); border-bottom: 1px dotted var(--dim); margin-left: 8px; font-style: normal }
+.a-margin { border-left: 1px solid var(--rule); padding: 22px 22px; overflow: auto; display: grid; align-content: start; gap: 16px }
+.a-margin .sc { color: var(--brass) }
+.a-note2 { display: grid; gap: 3px; font-size: 15px; padding-bottom: 14px; border-bottom: 1px dotted var(--rule) }
+.a-note2 .w { font: 600 20px/1.1 var(--disp) }
+.a-note2 .o { color: var(--dim); font-style: italic }
+.a-note2 .m { color: var(--faint); font-size: 14px }
+.a-note2 .l { display: flex; gap: 14px; margin-top: 4px }
+.a-note2 .l .a-pri { height: 32px; padding: 0 12px; font-size: 14px }
+.a-note2 .l button.x { border-bottom: 1px dotted var(--dim) }
+.a-cnt { display: grid; gap: 6px; font-size: 15px }
+.a-cnt div { display: flex; justify-content: space-between; border-bottom: 1px dotted var(--rule); padding-bottom: 6px }
+.a-cnt b { font: 600 19px/1 var(--disp); color: var(--brass) }
+
+/* ───────── Б · «Пульт»: сланцевий робочий стіл, бірюза — оригінал, бурштин — переклад; моно для чисел, щільно, рядок стану ───────── */
+.dB { --bg:#1C1F25; --pane:#22262D; --deep:#17191E; --line:#333842; --tx:#D6DAE1; --read:#D9DCE2; --dim:#8D95A4; --faint:#636A77; --amb:#F2B35B; --onamb:#1D1404; --teal:#5CCFBF; --rowsel:#2A303A; --del:#F39479; --delbg:rgba(243,148,121,.13); --ins:#F5C27A; --insbg:rgba(242,179,91,.16); --term:rgba(92,207,191,.16); --selw:rgba(242,179,91,.30); --skel:#2B3038;
+  --ui:'IBM Plex Sans', 'Segoe UI', sans-serif; --mono:'IBM Plex Mono', ui-monospace, monospace; --rd:'IBM Plex Serif', Georgia, serif;
+  background: var(--bg); color: var(--tx); font: 14px/1.45 var(--ui) }
+.dB.lt { --bg:#F3F4F6; --pane:#FFFFFF; --deep:#E8EAEE; --line:#D5D9E0; --tx:#1B1F27; --read:#1E222A; --dim:#596070; --faint:#8C93A0; --amb:#A86200; --onamb:#FFFFFF; --teal:#0B786B; --rowsel:#EEF1F5; --del:#B23A17; --delbg:#FBE4DC; --ins:#7A4600; --insbg:#FCEBCF; --term:#D7F1EC; --selw:#F7D9A6; --skel:#E3E6EB }
+.dB .mono { font-family: var(--mono) }
+.dB .term { background: var(--term); border-radius: 2px }
+.b-ph { height: 100%; display: flex; flex-direction: column; background: var(--bg) }
+.b-stat { height: 34px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 16px; font: 12px/1 var(--mono); color: var(--dim) }
+.b-stat .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.b-stat .t b { color: var(--tx); font-weight: 500 }
+.b-prog { height: 2px; flex: none; background: var(--line) }
+.b-prog i { display: block; height: 100%; width: 34%; background: var(--amb) }
+.b-scroll { flex: 1; overflow: auto; padding: 26px 20px 30px; scrollbar-width: none }
+.b-h { display: grid; gap: 6px; padding-bottom: 20px }
+.b-h .k { font: 12px/1 var(--mono); color: var(--teal) }
+.b-h h1 { margin: 0; font: 600 23px/1.25 var(--rd) }
+.b-txt { display: grid; gap: 14px }
+.b-txt p { font: 17px/1.7 var(--rd); color: var(--read) }
+.b-edit { border: 1px solid var(--teal); background: var(--pane); display: grid }
+.b-edit .lab { display: flex; justify-content: space-between; padding: 7px 10px; font: 12px/1 var(--mono); color: var(--teal); border-bottom: 1px solid var(--line) }
+.b-edit .field { padding: 10px; font: 17px/1.65 var(--rd) }
+.b-edit .row { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line) }
+.b-edit .row button { height: 44px; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 6px }
+.b-edit .row button + button { border-left: 1px solid var(--line) }
+.b-edit .row .pri { background: var(--amb); color: var(--onamb); font-weight: 600 }
+.b-edit .hint { padding: 7px 10px; font: 12px/1.3 var(--mono); color: var(--faint); border-top: 1px solid var(--line) }
+.b-div { display: flex; align-items: center; gap: 10px; padding: 22px 0 6px; font: 12px/1 var(--mono); color: var(--teal) }
+.b-div::before, .b-div::after { content: ""; flex: 1; height: 1px; background: var(--line) }
+.b-cmd { height: 58px; flex: none; display: grid; grid-template-columns: 52px 1fr 52px 52px 52px 52px; border-top: 1px solid var(--line); background: var(--deep) }
+.b-cmd > * { display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--line); color: var(--dim) }
+.b-cmd > :last-child { border-right: 0 }
+.b-cmd .mid { font: 13px/1 var(--mono); color: var(--tx); gap: 8px }
+.b-cmd .on { color: var(--amb) }
+.b-cmd .aa { font: 600 16px/1 var(--ui) }
+.b-dk { height: 100%; display: grid; grid-template-columns: 54px 240px minmax(0, 1fr) 310px; grid-template-rows: 44px minmax(0, 1fr) 28px; background: var(--bg) }
+.b-rail { grid-row: 1 / 3; background: var(--deep); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0 }
+.b-rail .logo { width: 30px; height: 30px; display: grid; place-items: center; background: var(--amb); color: var(--onamb); font: 700 17px/1 var(--mono); margin-bottom: 10px }
+.b-rail button { width: 40px; height: 40px; display: grid; place-items: center; color: var(--dim); position: relative }
+.b-rail button.on { color: var(--tx); background: var(--rowsel) }
+.b-rail .dot { position: absolute; right: 6px; top: 6px; min-width: 15px; height: 15px; padding: 0 3px; background: var(--amb); color: var(--onamb); font: 600 10px/15px var(--mono); text-align: center }
+.b-rail .sp { flex: 1 }
+.b-exp { grid-row: 1 / 3; background: var(--pane); border-right: 1px solid var(--line); display: grid; grid-template-rows: 44px auto 1fr; min-height: 0 }
+.b-exp .hd { display: flex; align-items: center; padding: 0 14px; font: 600 11px/1 var(--mono); letter-spacing: .08em; color: var(--dim); border-bottom: 1px solid var(--line) }
+.b-exp .q { margin: 10px 12px; height: 30px; border: 1px solid var(--line); display: flex; align-items: center; gap: 8px; padding: 0 8px; color: var(--faint); font-size: 13px }
+.b-list { overflow: auto; padding-bottom: 10px }
+.b-list .grp { padding: 8px 14px 4px; font: 11px/1 var(--mono); color: var(--faint) }
+.b-list .r { display: grid; grid-template-columns: 30px minmax(0, 1fr) 10px; align-items: center; gap: 4px; padding: 6px 14px; font-size: 13px }
+.b-list .r .n { font: 12px/1 var(--mono); color: var(--dim) }
+.b-list .r .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.b-list .r.cur { background: var(--rowsel); color: var(--tx) }
+.b-list .r.cur .n { color: var(--amb) }
+.b-st { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--dim) }
+.b-st.pub { background: var(--teal); border-color: var(--teal) }
+.b-st.dr { border-color: var(--amb); background: linear-gradient(90deg, var(--amb) 50%, transparent 50%) }
+.b-st.q { border-style: dotted }
+.b-tabs { grid-column: 3 / 5; display: flex; align-items: stretch; background: var(--deep); border-bottom: 1px solid var(--line) }
+.b-tab { white-space: nowrap; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-right: 1px solid var(--line); font-size: 13px; color: var(--dim) }
+.b-tab.on { background: var(--bg); color: var(--tx); box-shadow: inset 0 2px 0 var(--amb) }
+.b-tab .mono { font-size: 12px }
+.b-tools { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 0 10px }
+.b-k { height: 28px; min-width: 240px; border: 1px solid var(--line); display: flex; align-items: center; gap: 8px; padding: 0 8px; color: var(--faint); font-size: 13px; margin-right: 8px }
+.b-k kbd, .dB kbd { font: 11px/1 var(--mono); color: var(--dim); border: 1px solid var(--line); padding: 2px 4px; margin-left: auto }
+.b-tg { white-space: nowrap; height: 28px; padding: 0 9px; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dim); border: 1px solid transparent }
+.b-tg.on { color: var(--tx); border-color: var(--line); background: var(--pane) }
+.b-pub { height: 28px; padding: 0 14px; background: var(--amb); color: var(--onamb); font-weight: 600; font-size: 13px; margin-left: 4px }
+.b-ed { grid-column: 3; overflow: auto; min-height: 0 }
+.b-grid { display: grid; grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr) }
+.b-grid > .h { position: sticky; top: 0; z-index: 1; background: var(--bg); border-bottom: 1px solid var(--line); padding: 10px 14px; font: 11px/1 var(--mono); letter-spacing: .06em }
+.b-grid > .h.o { color: var(--teal) } .b-grid > .h.u { color: var(--amb) }
+.b-grid > .c { padding: 12px 14px; border-bottom: 1px solid var(--line); position: relative }
+.b-grid > .c.n { font: 12px/1.9 var(--mono); color: var(--faint); text-align: right; padding-right: 10px }
+.b-grid > .c.o { font: 14.5px/1.6 var(--rd); color: var(--dim); border-left: 1px solid var(--line) }
+.b-grid > .c.u { font: 15.5px/1.6 var(--rd); color: var(--read); border-left: 1px solid var(--line) }
+.b-grid > .c.sel { background: var(--rowsel) }
+.b-grid > .c.n.sel { color: var(--amb) }
+.b-grid .selw { background: var(--selw) }
+.b-grid del { color: var(--del); background: var(--delbg); text-decoration-thickness: 1.5px }
+.b-grid ins { color: var(--ins); background: var(--insbg); text-decoration: none; box-shadow: inset 0 -1.5px 0 var(--ins) }
+.b-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 14px 8px 60px; background: var(--rowsel); border-bottom: 1px solid var(--line) }
+.b-bar button { height: 28px; padding: 0 10px; border: 1px solid var(--line); background: var(--pane); display: flex; align-items: center; gap: 8px; font-size: 13px }
+.b-bar .lab { font: 12px/28px var(--mono); color: var(--amb); margin-right: 6px }
+.b-bar .acc { background: var(--amb); color: var(--onamb); border-color: var(--amb) }
+.b-pop { position: absolute; left: 120px; top: 64px; z-index: 2; background: var(--pane); border: 1px solid var(--line); box-shadow: 0 12px 28px rgba(0,0,0,.4); width: 300px; font-size: 13px }
+.b-pop .f { padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--dim) }
+.b-pop .f b { color: var(--teal); font: 500 13px var(--mono) }
+.b-pop button { display: flex; width: 100%; padding: 7px 10px; gap: 8px; align-items: center }
+.b-pop button:hover { background: var(--rowsel) }
+.b-empty { color: var(--faint); font: italic 15px/1.6 var(--rd) }
+.b-empty button { font: 13px var(--ui); color: var(--amb); margin-left: 8px; font-style: normal }
+.b-ins { grid-column: 4; border-left: 1px solid var(--line); background: var(--pane); display: grid; grid-template-rows: 38px 1fr; min-height: 0 }
+.b-ins .tb { display: flex; border-bottom: 1px solid var(--line) }
+.b-ins .tb button { padding: 0 12px; font-size: 13px; color: var(--dim) }
+.b-ins .tb button.on { color: var(--tx); box-shadow: inset 0 -2px 0 var(--amb) }
+.b-ins .bd { overflow: auto; padding: 4px 0 }
+.b-ent { padding: 10px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 3px }
+.b-ent .u { font-weight: 600; color: var(--amb) }
+.b-ent .o { font: 12.5px/1.3 var(--mono); color: var(--teal) }
+.b-ent .m { font-size: 12.5px; color: var(--dim) }
+.b-ent .chip { justify-self: start; font: 11px/1 var(--mono); padding: 3px 5px; border: 1px solid var(--amb); color: var(--amb) }
+.b-ent .l { display: flex; gap: 6px; margin-top: 4px }
+.b-ent .l button { height: 26px; padding: 0 9px; border: 1px solid var(--line); font-size: 12.5px }
+.b-ent .l .acc { background: var(--amb); color: var(--onamb); border-color: var(--amb) }
+.b-cnt { padding: 12px 14px; display: grid; gap: 7px; font-size: 13px }
+.b-cnt div { display: flex; justify-content: space-between }
+.b-cnt b { font: 500 13px var(--mono); color: var(--tx) }
+.b-status { grid-column: 1 / -1; display: flex; align-items: center; gap: 18px; padding: 0 12px; background: var(--deep); border-top: 1px solid var(--line); font: 12px/1 var(--mono); color: var(--dim) }
+.b-status .amb { color: var(--amb) }
+.b-status .rt { margin-left: auto }
+
+/* ───────── В · «Обкладинка»: сливовий вечір, рожевий і лимонний, широкий гротеск і великі числа; округлі пухкі форми ───────── */
+.dC { --bg:#191120; --s1:#241830; --s2:#2F2140; --line:#3F2E50; --tx:#F7ECF4; --read:#EEE1EA; --dim:#BCA7BE; --faint:#8E7A94; --pink:#FF7EA4; --onpink:#2B0716; --lemon:#F4E27C; --onlemon:#2A2306; --term:rgba(255,126,164,.2); --del:#FFB08F; --delbg:rgba(255,140,100,.16); --ins:#F4E27C; --insbg:rgba(244,226,124,.15); --selw:rgba(255,126,164,.36); --skel:#2E2240;
+  --disp:'Unbounded', 'Arial Black', sans-serif; --ui:'Manrope', 'Segoe UI', sans-serif; --rd:'Lora', Georgia, serif;
+  background: var(--bg); color: var(--tx); font: 15px/1.45 var(--ui) }
+.dC.lt { --bg:#FFF4F7; --s1:#FFFFFF; --s2:#FCE7EF; --line:#F1D2DE; --tx:#2A1430; --read:#2A1430; --dim:#6D5370; --faint:#9F89A1; --pink:#CF2E66; --onpink:#FFFFFF; --lemon:#7C6300; --onlemon:#FFFFFF; --term:#FFD9E5; --del:#A93A12; --delbg:#FFE3D6; --ins:#6B5400; --insbg:#FFF1B8; --selw:#FFC2D5; --skel:#F6DCE6 }
+.dC .term { background: var(--term); border-radius: 6px; padding: 0 2px }
+.c-ph { height: 100%; position: relative; background: var(--bg) }
+.c-scroll { position: absolute; inset: 0; overflow: auto; padding: 88px 22px 120px; scrollbar-width: none }
+.c-head { position: absolute; left: 12px; right: 12px; top: 12px; z-index: 2; height: 56px; border-radius: 28px; background: color-mix(in srgb, var(--s2) 88%, transparent); backdrop-filter: blur(10px); display: flex; align-items: center; gap: 6px; padding: 0 6px }
+.c-head button { width: 44px; height: 44px; border-radius: 22px; display: grid; place-items: center }
+.c-head .on { background: var(--pink); color: var(--onpink) }
+.c-head .t { flex: 1; min-width: 0; display: grid; line-height: 1.2 }
+.c-head .t b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.c-head .t span { font-size: 12px; color: var(--dim) }
+.c-head .aa { font: 700 15px/1 var(--disp) }
+.c-hero { display: grid; gap: 8px; padding-bottom: 22px }
+.c-hero .big { font: 800 80px/0.9 var(--disp); color: var(--pink); letter-spacing: -.03em }
+.c-hero h1 { margin: 0; font: 700 27px/1.2 var(--rd); text-wrap: balance }
+.c-chips { display: flex; gap: 6px; flex-wrap: wrap }
+.c-chips span { height: 28px; padding: 0 12px; border-radius: 14px; background: var(--s2); font-size: 13px; display: flex; align-items: center; color: var(--dim) }
+.c-txt { display: grid; gap: 16px }
+.c-txt p { font: 18px/1.72 var(--rd); color: var(--read) }
+.c-edit { background: var(--s1); border-radius: 24px; padding: 16px; box-shadow: 0 0 0 2px var(--pink); display: grid; gap: 12px; margin: 0 -8px }
+.c-edit .lab { font: 700 12px/1 var(--disp); color: var(--pink); letter-spacing: .02em }
+.c-edit .field { font: 18px/1.65 var(--rd) }
+.c-edit .row { display: flex; gap: 8px; flex-wrap: wrap }
+.c-edit .soft { height: 38px; padding: 0 14px; border-radius: 19px; background: var(--s2); font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px }
+.c-edit .act { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px }
+.c-edit .act button { height: 50px; border-radius: 25px; font-weight: 700; font-size: 15px }
+.c-edit .act .gh { background: var(--s2) }
+.c-edit .act .pri { background: var(--pink); color: var(--onpink) }
+.c-edit .note { font-size: 13px; color: var(--faint) }
+.c-next { margin: 34px -8px 18px; border-radius: 28px; background: var(--s1); padding: 20px; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; align-items: center }
+.c-next .big { grid-row: 1 / 3; font: 800 54px/1 var(--disp); color: var(--lemon) }
+.c-next b { font: 700 20px/1.2 var(--rd) }
+.c-next span { font-size: 13px; color: var(--dim) }
+.c-dock { position: absolute; left: 16px; right: 16px; bottom: 16px; height: 64px; border-radius: 32px; background: var(--s2); display: grid; grid-template-columns: 52px 1fr 52px; align-items: center; padding: 0 6px; box-shadow: 0 10px 30px rgba(0,0,0,.35) }
+.c-dock button { width: 52px; height: 52px; border-radius: 26px; display: grid; place-items: center }
+.c-dock .nx { background: var(--pink); color: var(--onpink) }
+.c-dock .mid { display: grid; gap: 6px; padding: 0 10px }
+.c-dock .mid .bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden }
+.c-dock .mid .bar i { display: block; height: 100%; width: 34%; background: var(--pink); border-radius: 4px }
+.c-dock .mid span { font-size: 12px; color: var(--dim); display: flex; justify-content: space-between }
+.c-dk { height: 100%; display: grid; grid-template-columns: 240px minmax(0, 1fr) 296px; gap: 14px; padding: 14px; background: var(--bg) }
+.c-side { background: var(--s1); border-radius: 28px; padding: 22px 16px; display: flex; flex-direction: column; gap: 16px; min-height: 0 }
+.c-logo { display: flex; align-items: center; gap: 10px; padding: 0 6px }
+.c-logo .w { font: 800 21px/1 var(--disp); letter-spacing: -.02em }
+.c-logo .w i { color: var(--pink); font-style: normal }
+.c-logo .tag { height: 22px; padding: 0 9px; border-radius: 11px; background: var(--lemon); color: var(--onlemon); font: 700 10px/22px var(--disp); letter-spacing: .04em }
+.c-nav { display: grid; gap: 4px }
+.c-nav button { height: 42px; border-radius: 21px; padding: 0 14px; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; color: var(--dim) }
+.c-nav button.on { background: var(--s2); color: var(--tx) }
+.c-nav .n { margin-left: auto; min-width: 22px; height: 22px; border-radius: 11px; background: var(--pink); color: var(--onpink); font: 700 11px/22px var(--ui); text-align: center }
+.c-book { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; padding: 10px; border-radius: 20px; background: var(--s2) }
+.c-cover { width: 64px; height: 92px; border-radius: 12px; background: var(--pink); color: var(--onpink); font: 800 10px/1.15 var(--disp); padding: 8px; display: flex; align-items: flex-end }
+.c-book b { font-size: 15px; display: block }
+.c-book span { font-size: 12px; color: var(--dim) }
+.c-chs { overflow: auto; display: grid; gap: 4px; align-content: start; min-height: 0 }
+.c-chs .r { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 0 6px; padding: 8px 10px; border-radius: 16px; align-items: center }
+.c-chs .r .n { font: 700 14px/1 var(--disp); color: var(--faint) }
+.c-chs .r .t { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.c-chs .r .s { grid-column: 2; font-size: 12px; color: var(--dim) }
+.c-chs .r.cur { background: var(--pink); color: var(--onpink) }
+.c-chs .r.cur .n, .c-chs .r.cur .s { color: var(--onpink) }
+.c-chs .add { height: 40px; border-radius: 20px; border: 1.5px dashed var(--line); font-weight: 600; font-size: 14px; color: var(--dim) }
+.c-main { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 14px; min-height: 0 }
+.c-mh { display: flex; align-items: center; gap: 18px; padding: 6px 6px 0 }
+.c-mh .big { font: 800 66px/0.9 var(--disp); color: var(--pink); letter-spacing: -.03em }
+.c-mh .tt { flex: 1; min-width: 0; display: grid; gap: 4px }
+.c-mh .tt span { font-size: 13px; color: var(--dim) }
+.c-mh h1 { margin: 0; font: 700 29px/1.15 var(--rd) }
+.c-pill { height: 44px; padding: 0 18px; border-radius: 22px; background: var(--s1); font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px }
+.c-pill.pri { background: var(--pink); color: var(--onpink); padding: 0 22px }
+.c-round { width: 44px; height: 44px; border-radius: 22px; background: var(--s1); display: grid; place-items: center }
+.c-tg { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 6px }
+.c-tg .c-pill { height: 42px }
+.c-seg { display: flex; background: var(--s1); border-radius: 22px; padding: 4px; gap: 2px }
+.c-seg button { height: 34px; padding: 0 14px; border-radius: 17px; font-size: 13.5px; font-weight: 600; color: var(--dim); display: flex; align-items: center; gap: 6px }
+.c-seg button.on { background: var(--s2); color: var(--tx) }
+.c-prog { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--dim) }
+.c-prog .bar { width: 140px; height: 8px; border-radius: 4px; background: var(--s2); overflow: hidden }
+.c-prog .bar i { display: block; width: 57%; height: 100%; background: var(--lemon) }
+.c-cards { overflow: auto; display: grid; gap: 10px; align-content: start; padding: 2px 4px 20px; min-height: 0 }
+.c-card { display: grid; grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr); gap: 0 18px; background: var(--s1); border-radius: 22px; padding: 16px 18px; position: relative }
+.c-card .n { width: 32px; height: 32px; border-radius: 16px; background: var(--s2); display: grid; place-items: center; font: 700 12px/1 var(--disp); color: var(--dim) }
+.c-card .o { font: 14.5px/1.6 var(--ui); color: var(--dim) }
+.c-card .u { font: 16.5px/1.6 var(--rd); color: var(--read) }
+.c-card.sel { box-shadow: 0 0 0 2px var(--pink) }
+.c-card.sel .n { background: var(--pink); color: var(--onpink) }
+.c-card .selw { background: var(--selw); border-radius: 6px; padding: 0 2px }
+.c-card .acts { grid-column: 3; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px }
+.c-card .acts button { height: 34px; padding: 0 13px; border-radius: 17px; background: var(--s2); font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px }
+.c-card del { color: var(--del); background: var(--delbg); border-radius: 4px; text-decoration-thickness: 1.5px }
+.c-card ins { color: var(--ins); background: var(--insbg); border-radius: 4px; text-decoration: none }
+.c-card .flag { position: absolute; top: -9px; right: 18px; height: 22px; padding: 0 10px; border-radius: 11px; background: var(--lemon); color: var(--onlemon); font: 700 10.5px/22px var(--disp) }
+.c-card .acts .acc { background: var(--lemon); color: var(--onlemon) }
+.c-card.todo { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line) }
+.c-card .empty { color: var(--faint); font: italic 16px/1.6 var(--rd); display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+.c-card .empty button { height: 34px; padding: 0 14px; border-radius: 17px; background: var(--pink); color: var(--onpink); font: 700 13px var(--ui); font-style: normal }
+.c-card .u { position: relative }
+.c-pop { position: absolute; left: 40px; top: calc(100% + 8px); z-index: 2; background: var(--s2); border-radius: 18px; padding: 12px; width: 290px; display: grid; gap: 8px; box-shadow: 0 14px 34px rgba(0,0,0,.4); font: 13.5px/1.4 var(--ui) }
+.c-pop .f { color: var(--dim) } .c-pop .f b { color: var(--tx) }
+.c-pop .l { display: flex; gap: 6px }
+.c-pop .l button { height: 32px; padding: 0 12px; border-radius: 16px; background: var(--s1); font-weight: 600 }
+.c-drawer { background: var(--s1); border-radius: 28px; padding: 22px 18px; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: auto }
+.c-drawer h3 { margin: 0; font: 700 15px/1.2 var(--disp) }
+.c-ent { display: grid; grid-template-columns: 42px 1fr; gap: 2px 12px; align-items: center; padding: 10px; border-radius: 20px; background: var(--s2) }
+.c-ent .av { grid-row: 1 / 3; width: 42px; height: 42px; border-radius: 21px; display: grid; place-items: center; font: 800 16px/1 var(--disp); background: var(--pink); color: var(--onpink) }
+.c-ent .av.b { background: var(--lemon); color: var(--onlemon) }
+.c-ent .av.c { background: var(--line); color: var(--tx) }
+.c-ent b { font-size: 15px }
+.c-ent span { font-size: 12.5px; color: var(--dim) }
+.c-ent.new { box-shadow: inset 0 0 0 2px var(--lemon) }
+.c-ent .l { grid-column: 1 / -1; display: flex; gap: 6px; margin-top: 8px }
+.c-ent .l button { height: 34px; padding: 0 14px; border-radius: 17px; background: var(--s1); font-weight: 700; font-size: 13px }
+.c-ent .l .acc { background: var(--lemon); color: var(--onlemon) }
+.c-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px }
+.c-tiles div { background: var(--s2); border-radius: 18px; padding: 12px 10px; display: grid; gap: 4px }
+.c-tiles b { font: 800 26px/1 var(--disp); color: var(--pink) }
+.c-tiles span { font-size: 12px; color: var(--dim); line-height: 1.25 }
+</style>
+
+<div class="wrap" lang="uk">
+  <header class="top">
+    <div class="eyebrow">Новелка · задача 20.11 · крок 2</div>
+    <h1>Три напрями нового дизайну</h1>
+    <p>Кожен напрям показано на двох екранах: читалка на телефоні та робоче місце перекладача на комп'ютері. Текст, дані й функції однакові, різниться лише вигляд. Екран телефона прокручується, а сонце чи місяць у шапці макета комп'ютера вмикає світлу тему.</p>
+  </header>
+  <nav class="jump" aria-label="Напрями">
+    <a href="#now">Зараз</a><a href="#a">А · Палітурка</a><a href="#b">Б · Пульт</a><a href="#c">В · Обкладинка</a><a href="#pick">Як вибрати</a>
+  </nav>
+
+  <section class="dir" id="now">
+    <div class="head">
+      <div class="eyebrow">Мірило</div>
+      <h2>Як сайт виглядає зараз</h2>
+      <p>Перший макет нового дизайну взяв ці самі кольори, шрифти й форми, тому сайт після нього майже не змінився. Нижче видно, від чого треба відійти.</p>
+    </div>
+    <div class="now">
+      <img src="now-reader-phone.jpg" alt="Читалка на телефоні зараз: графітове тло, світлий текст, блакитна кнопка «Далі»" width="468" height="1013">
+      <div style="display:grid;gap:16px;min-width:0">
+        <img src="now-reader-desktop.jpg" alt="Читалка на комп'ютері зараз: колонка тексту по центру на графітовому тлі" width="560" height="350">
+        <ul>
+          <li>Графітове тло з холодним відтінком і блакитний акцент: кнопки, посилання, прогрес.</li>
+          <li>Шрифти Golos Text для інтерфейсу й Literata для тексту книжки.</li>
+          <li>Округлі картки й кнопки-пігулки однакового заокруглення скрізь.</li>
+          <li>На телефоні нижня панель із п'ятьма іконками, на комп'ютері ті самі пункти рядком угорі.</li>
+          <li>Абзаци книжки з проміжками й без відступу першого рядка, як у звичайній вебсторінці.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="dir" id="a">
+    <div class="head">
+      <div class="eyebrow">Напрям А</div>
+      <h2>Палітурка</h2>
+      <p>Сайт як добре зроблена книжка: темно-зелене сукно, латунне тиснення, засічки й класична верстка з відступом першого рядка. Карток немає зовсім, усе тримається на полях, тонких лінійках і капітелі. Робоче місце виглядає як розворот рукопису: оригінал на лівій сторінці, переклад на правій, номери абзаців у корінці, словник на полях.</p>
+    </div>
+    <div class="facts">
+      <div><b>Кольори</b><div class="sw"><i style="background:#0E1613"></i><i style="background:#131E1A"></i><i style="background:#E9E2CC"></i><i style="background:#D2A84E"></i><i style="background:#E59072"></i></div><span>Зелене сукно, слонова кістка, латунь</span></div>
+      <div><b>Шрифти</b><span><span style="font:600 20px 'Cormorant Garamond',serif">Cormorant Garamond</span> заголовки · <span style="font:16px Spectral,serif">Spectral</span> текст книжки · <span style="font:15px 'Alegreya Sans',sans-serif">Alegreya Sans</span> інтерфейс</span></div>
+      <div><b>Форма</b><span>Кути 2 px, жодних карток і пігулок; дії — текстом з крапковим підкресленням, головна кнопка — латунна плашка</span></div>
+      <div><b>Навігація</b><span>Телефон: без нижньої панелі; угорі колонтитул, унизу прогрес. Комп'ютер: тонка шапка, зміст глав ліворуч, як у книжці</span></div>
+    </div>
+    <div class="screens">
+      <div><div class="fit phone" data-w="390" data-h="844"><div class="frame ph dA" id="aPh"></div></div><p class="cap">Глава 12, абзац 2 у правці на місці; лампочка ввімкнена. Унизу екрана безшовний перехід у главу 13 і каркас, поки вона вантажиться.</p></div>
+      <div style="min-width:0"><div class="fit" data-w="1440" data-h="900"><div class="frame dk dA" id="aDk"></div></div><p class="cap">Розворот: виділене слово в абзаці 2, пропозиція вичитки ШІ в абзаці 3, неперекладений абзац 7. Праворуч словник глави на полях.</p></div>
+    </div>
+  </section>
+
+  <section class="dir" id="b">
+    <div class="head">
+      <div class="eyebrow">Напрям Б</div>
+      <h2>Пульт</h2>
+      <p>Студія як професійний інструмент, схожий на редактор коду. Сланцеві панелі стоять впритул і розділені однією лінією. Бірюзовий колір завжди позначає оригінал, бурштиновий — переклад. Номери, лічильники й клавіші набрано моноширинним шрифтом, унизу рядок стану, а будь-яку дію можна знайти через ⌘K. Читалка при цьому лишається спокійною: зверху лише тонкий рядок, знизу командна панель.</p>
+    </div>
+    <div class="facts">
+      <div><b>Кольори</b><div class="sw"><i style="background:#1C1F25"></i><i style="background:#22262D"></i><i style="background:#D6DAE1"></i><i style="background:#5CCFBF"></i><i style="background:#F2B35B"></i></div><span>Сланець, бірюза для оригіналу, бурштин для перекладу й головних дій</span></div>
+      <div><b>Шрифти</b><span><span style="font:500 15px 'IBM Plex Sans',sans-serif">IBM Plex Sans</span> інтерфейс · <span style="font:16px 'IBM Plex Serif',serif">Plex Serif</span> текст книжки · <span style="font:14px 'IBM Plex Mono',monospace">Plex Mono</span> числа й клавіші</span></div>
+      <div><b>Форма</b><span>Прямі кути, панелі без проміжків, щільно (14 px); стани — точками й моно-позначками</span></div>
+      <div><b>Навігація</b><span>Телефон: нижня командна панель «‹ · глава · Aa · лампочка · зміст · ›». Комп'ютер: смуга іконок ліворуч, вкладки глав, ⌘K, рядок стану</span></div>
+    </div>
+    <div class="screens">
+      <div><div class="fit phone" data-w="390" data-h="844"><div class="frame ph dB" id="bPh"></div></div><p class="cap">Та сама глава й та сама правка. Номер абзацу видно лише в правці. Безшовний перехід позначено лінією «гл 13».</p></div>
+      <div style="min-width:0"><div class="fit" data-w="1440" data-h="900"><div class="frame dk dB" id="bDk"></div></div><p class="cap">Сітка «№ · EN · UK» на всю висоту, під вибраним абзацом панель дій з клавішами. Праворуч інспектор: словник, вичитка, історія.</p></div>
+    </div>
+  </section>
+
+  <section class="dir" id="c">
+    <div class="head">
+      <div class="eyebrow">Напрям В</div>
+      <h2>Обкладинка</h2>
+      <p>Яскравий сайт для читачів ранобе: сливовий вечір, рожевий і лимонний, широкий гротеск і величезні номери глав, як на обкладинках. Форми пухкі й округлі, кнопки великі, керування плаває над текстом. Сам текст глави спокійний, бо колір живе в рамці навколо нього, а не на сторінці.</p>
+    </div>
+    <div class="facts">
+      <div><b>Кольори</b><div class="sw"><i style="background:#191120"></i><i style="background:#2F2140"></i><i style="background:#F7ECF4"></i><i style="background:#FF7EA4"></i><i style="background:#F4E27C"></i></div><span>Слива, рожевий для дій, лимонний для нового й ШІ</span></div>
+      <div><b>Шрифти</b><span><span style="font:700 15px Unbounded,sans-serif">Unbounded</span> числа й заголовки · <span style="font:16px Lora,serif">Lora</span> текст книжки · <span style="font:600 15px Manrope,sans-serif">Manrope</span> інтерфейс</span></div>
+      <div><b>Форма</b><span>Великі заокруглення (20–28 px), кнопки-пігулки 44–50 px, картки абзаців, кругла позначка номера</span></div>
+      <div><b>Навігація</b><span>Телефон: плаваюча шапка й плаваючий док із прогресом. Комп'ютер: бічна панель з обкладинкою й главами, шухляда словника праворуч</span></div>
+    </div>
+    <div class="screens">
+      <div><div class="fit phone" data-w="390" data-h="844"><div class="frame ph dC" id="cPh"></div></div><p class="cap">Великий номер глави відкриває главу. Правка в абзаці — картка з рожевою рамкою, наступна глава з'являється карткою з лимонним «13».</p></div>
+      <div style="min-width:0"><div class="fit" data-w="1440" data-h="900"><div class="frame dk dC" id="cDk"></div></div><p class="cap">Абзаци картками «оригінал · переклад», пропозиція ШІ — з лимонною позначкою. Праворуч словник з портретами-буквами й лічильники глави.</p></div>
+    </div>
+  </section>
+
+  <section class="pick" id="pick">
+    <h2>Як вибрати</h2>
+    <p>Напишіть літеру: «А», «Б» чи «В». Можна й поєднання, наприклад «читалка з А, Студія з Б». Тоді сайт для читача і Студія матимуть різний характер, але спільну основу: тло, шрифт тексту книжки, кнопки. Після вибору малюю в цьому напрямі всі екрани з переліку.</p>
+    <p>У кожному напрямі однаково лишаються ваші вимоги:</p>
+    <ul class="keep">
+      <li>темна тема основна, світла вмикається кнопкою на комп'ютері;</li>
+      <li>мінімальна читалка;</li>
+      <li>правка просто в абзаці;</li>
+      <li>безшовне читання;</li>
+      <li>каркаси замість «Завантажуємо…»;</li>
+      <li>приклади англійською й українською.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+const IC = {
+  back: '<path d="M15 5l-7 7 7 7"/>',
+  next: '<path d="M9 5l7 7-7 7"/>',
+  bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+  list: '<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/>',
+  moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  pen: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/>',
+  spark: '<path d="M12 3l1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7z"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
+  layers: '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>',
+  pulse: '<path d="M3 12h4l3-7 4 14 3-7h4"/>',
+  book: '<path d="M4 5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2V5z"/><path d="M4 19a2 2 0 0 1 2-2h14"/>',
+  bell: '<path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/>',
+  chat: '<path d="M4 5h16v11H9l-5 4V5z"/>',
+  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>',
+  trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  cols: '<rect x="3" y="4" width="18" height="16"/><path d="M9 4v16M15 4v16"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>'
+};
+const ic = (n, s = 20, w = 1.8) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
+const fmt = t => t.replace(/\[\[(.+?)\]\]/g, '<span class="term">$1</span>').replace(/\{\{(.+?)\}\}/g, '<span class="selw">$1</span>');
+
+// Глава 12 «Лінза, що пам'ятає світло» — вигадана демонстраційна новела «Доглядач маяка».
+const READ = [
+  'Маяк стояв темним уже третю ніч, коли [[Ліна]] нарешті піднялася сходами.',
+  null,
+  '— Пором запізнився, — відповіла вона. — На цьому острові все запізнюється.',
+  'Він засміявся — сухо, наче хтось гортав сторінки. — Тоді запізнюватимемося разом. Подай олію.',
+  'Унизу під тонкою ковдрою туману спала гавань, і десь у ній один раз ударив дзвін.',
+  '[[Ліна]] поставила бляшанку з олією на сходинку й подивилася вгору, на лінзу. Та тримала останнє вечірнє світло, ніби пам’ятала сонце.',
+  '— Вона завжди так світиться? — спитала вона.',
+  '— Лише коли на неї дивляться, — сказав [[Орест]].'
+];
+const EDITED = '— Ти запізнилася, — не обертаючись, мовив майстер Орест. Він натирав велику лінзу ганчіркою, яка колись була сорочкою.';
+const NEXT = 'Журнал лежав на тому ж місці, де його лишив попередній доглядач, — під лампою, обгорнутий у цератку.';
+const ROWS = [
+  { en: 'The lighthouse had been dark for three nights when [[Lina]] finally climbed the stairs.', uk: READ[0] },
+  { en: '“You’re late,” said [[Master Orest]] without turning around. He was polishing {{the great lens}} with a rag that had once been a shirt.', uk: '— Ти запізнилася, — не обертаючись, сказав [[майстер Орест]]. Він натирав {{велику лінзу}} ганчіркою, що колись була сорочкою.', sel: true },
+  { en: '“The ferry was late,” she said. “Everything is late on this island.”', uk: '— Пором запізнився, — відповіла вона. — На цьому острові <del>ніщо не приходить вчасно</del> <ins>все запізнюється</ins>.', sug: true },
+  { en: 'He laughed, a dry sound like pages turning. “Then we’ll be late together. Hand me the oil.”', uk: READ[3] },
+  { en: 'Below them the harbour slept under a thin blanket of fog, and somewhere in it a bell rang once.', uk: READ[4] },
+  { en: '[[Lina]] set the oil can on the step and looked up at the lens. It held the last of the evening light, as if it remembered the sun.', uk: READ[5] },
+  { en: '“Does it always glow like that?” she asked.', uk: null }
+];
+const CHAPS = [
+  { n: 9, t: 'Острів без годинників', s: 'опубліковано', k: 'pub' },
+  { n: 10, t: 'Сім сходинок', s: 'опубліковано', k: 'pub' },
+  { n: 11, t: 'Пором о сьомій', s: 'опубліковано', k: 'pub' },
+  { n: 12, t: 'Лінза, що пам’ятає світло', s: 'чернетка', k: 'dr', cur: true },
+  { n: 13, t: 'Журнал доглядача', s: 'у черзі', k: 'q' },
+  { n: 14, t: 'Сигнал із півночі', s: 'не перекладено', k: '' },
+  { n: 15, t: '', s: 'немає оригіналу', k: '' }
+];
+const paras = (fn) => READ.map((p, i) => p === null ? fn.edit(i + 1) : fn.p(fmt(p), i)).join('');
+const skel = (gap, widths = [100, 96, 100, 88, 60]) => `<div style="display:grid;gap:${gap}px;margin-top:${gap + 4}px" aria-label="Глава 13 вантажиться">${widths.map(w => `<span class="sk" style="height:14px;width:${w}%"></span>`).join('')}</div>`;
+const themeBtn = (cls) => `<button class="${cls}" data-theme-toggle aria-label="Світла тема">${ic('sun', 18)}</button>`;
+
+/* ── А ── */
+document.getElementById('aPh').innerHTML = `
+<div class="a-ph">
+  <div class="a-run"><button aria-label="До новели">${ic('back', 20)}</button><span class="t">Доглядач маяка · <em>глава 12</em></span><button class="on" aria-label="Підказки зі словника">${ic('bulb', 20)}</button><button class="aa" aria-label="Вигляд читалки">Aa</button><button aria-label="Зміст">${ic('list', 20)}</button></div>
+  <div class="a-scroll">
+    <div class="a-chap"><div class="sc">Том перший · глава 12</div><h1>Лінза, що пам’ятає світло</h1><div class="a-orn">· · ·</div></div>
+    <div class="a-txt">${paras({
+      p: (t, i) => `<p class="${i === 0 ? 'first' : ''}">${t}</p>`,
+      edit: n => `<div class="a-edit"><div class="lab"><span class="sc">Ваша правка · абзац ${n}</span><span>Esc</span></div><div class="field">${EDITED}<span class="caret"></span></div><div class="row"><button>Варіант від ШІ</button><button>Показати оригінал</button></div><div class="act"><button class="a-btn">Скасувати</button><button class="a-pri">Зберегти</button></div><div class="a-note">Правка піде команді на перевірку; її видно вам у тексті.</div></div>`
+    })}</div>
+    <div class="a-div"><div class="fl">❦</div><div class="sc">Глава 13</div><h2>Журнал доглядача</h2></div>
+    <div class="a-txt"><p class="first">${NEXT}</p></div>
+    ${skel(14)}
+  </div>
+  <div class="a-foot"><span>34 % · ще 6 хв</span><span class="bar"><i></i></span><span>12 / 40</span></div>
+</div>`;
+
+document.getElementById('aDk').innerHTML = `
+<div class="a-dk">
+  <header class="a-top">
+    <div class="a-brand"><span class="w">Новелка</span><span class="sc">студія</span></div>
+    <nav class="a-crumb">Доглядач маяка<i>/</i>Глава 12<i>/</i><em>Лінза, що пам’ятає світло</em></nav>
+    <div class="a-topr"><span class="st">чернетка · збережено щойно</span><button class="tx">Історія · 5</button><button class="tx">Вичитати главу з ШІ</button><button class="a-pri">Опублікувати</button>${themeBtn('')}</div>
+  </header>
+  <div class="a-bar">
+    <label><span class="bx on"></span>Глави</label><label><span class="bx on"></span>Оригінал</label><label><span class="bx on"></span>Словник</label>
+    <span class="vr"></span><span class="seg"><b>Поруч</b></span><span class="seg">Як у книжці</span>
+    <span class="rt">Перевірено 4 з 7</span>
+  </div>
+  <div class="a-body">
+    <aside class="a-toc"><div class="sc">Зміст · 40 глав</div>
+      ${CHAPS.map(c => `<div class="r ${c.cur ? 'cur' : ''}"><span class="n">${c.n}</span><span class="t">${c.t || '<span style="color:var(--faint)">без назви</span>'}</span><span class="s">${c.s}</span></div>`).join('')}
+      <button class="add">+ Нова глава</button>
+    </aside>
+    <main class="a-spread">
+      <div class="a-row h"><span class="sc">Оригінал · англійська</span><span></span><span class="sc">Переклад</span></div>
+      ${ROWS.map((r, i) => `
+      <div class="a-row ${r.sel ? 'sel' : ''}">
+        <div class="o">${fmt(r.en)}</div><div class="num">${i + 1}</div>
+        <div class="u">${r.uk ? fmt(r.uk) : '<span class="empty">Ще не перекладено<button>Перекласти абзац</button></span>'}
+          ${r.sel ? `<div class="a-pop"><span class="f">з оригіналу: <i>the great lens</i></span><span class="l"><button>До словника</button><button>Замінити в главі</button></span></div>` : ''}
+        </div>
+        ${r.sel ? `<div class="a-acts"><button>Інший варіант</button><button>Вичитати абзац</button><button>Повернути машинний</button><button>Історія абзацу</button></div>` : ''}
+        ${r.sug ? `<div class="a-sug"><span class="sc">вичитка ШІ</span><button class="a-pri" style="height:30px;padding:0 12px;font-size:14px">Прийняти</button><button class="x">Лишити як є</button></div>` : ''}
+      </div>`).join('')}
+    </main>
+    <aside class="a-margin">
+      <div class="sc">На полях · словник глави</div>
+      <div class="a-note2"><span class="w">Ліна</span><span class="o">Lina</span><span class="m">персонаж · жін. · учениця доглядача</span></div>
+      <div class="a-note2"><span class="w">майстер Орест</span><span class="o">Master Orest</span><span class="m">персонаж · чол. · доглядач маяка</span></div>
+      <div class="a-note2"><span class="w">велика лінза</span><span class="o">the great lens</span><span class="m">нове · термін · з цієї глави</span><span class="l"><button class="a-pri">Погодити</button><button class="x">Змінити</button></span></div>
+      <div class="sc">У цій главі</div>
+      <div class="a-cnt"><div><span>Правки читачів</span><b>3</b></div><div><span>Пропозиції вичитки ШІ</span><b>1</b></div><div><span>Неперекладені абзаци</span><b>1</b></div></div>
+    </aside>
+  </div>
+</div>`;
+
+/* ── Б ── */
+document.getElementById('bPh').innerHTML = `
+<div class="b-ph">
+  <div class="b-stat"><span class="t">Доглядач маяка › <b>гл 12</b></span><span>34%</span><span>· 6 хв</span></div>
+  <div class="b-prog"><i></i></div>
+  <div class="b-scroll">
+    <div class="b-h"><span class="k">ГЛАВА 12 · ТОМ 1</span><h1>Лінза, що пам’ятає світло</h1></div>
+    <div class="b-txt">${paras({
+      p: t => `<p>${t}</p>`,
+      edit: n => `<div class="b-edit"><div class="lab"><span>¶${n} · ваша правка</span><span>чернетка</span></div><div class="field">${EDITED}<span class="caret"></span></div><div class="row"><button>${ic('spark', 16)} Варіант ШІ</button><button>${ic('eye', 16)} Оригінал</button></div><div class="row"><button>Скасувати</button><button class="pri">Зберегти</button></div><div class="hint">→ команді на перевірку · видно вам у тексті</div></div>`
+    })}</div>
+    <div class="b-div">гл 13 · Журнал доглядача</div>
+    <div class="b-txt"><p>${NEXT}</p></div>
+    ${skel(12)}
+  </div>
+  <nav class="b-cmd"><button aria-label="Попередня глава">${ic('back', 20)}</button><button class="mid">${ic('list', 18)} 12 / 40</button><button class="aa" aria-label="Вигляд читалки">Aa</button><button class="on" aria-label="Підказки зі словника">${ic('bulb', 20)}</button><button aria-label="Обговорення">${ic('chat', 20)}</button><button aria-label="Наступна глава">${ic('next', 20)}</button></nav>
+</div>`;
+
+document.getElementById('bDk').innerHTML = `
+<div class="b-dk">
+  <nav class="b-rail"><span class="logo">н</span>
+    <button class="on" aria-label="Мої переклади">${ic('layers', 20)}</button>
+    <button aria-label="Хід перекладу">${ic('pulse', 20)}<span class="dot">1</span></button>
+    <button aria-label="Словник">${ic('book', 20)}</button>
+    <button aria-label="Правки">${ic('pen', 20)}<span class="dot">3</span></button>
+    <button aria-label="Команди">${ic('users', 20)}</button>
+    <span class="sp"></span>
+    <button aria-label="Сповіщення">${ic('bell', 20)}</button>
+    <button aria-label="Повідомлення">${ic('chat', 20)}</button>
+    ${themeBtn('')}
+  </nav>
+  <aside class="b-exp">
+    <div class="hd">ДОГЛЯДАЧ МАЯКА</div>
+    <div class="q">${ic('search', 15)} Глава чи назва</div>
+    <div class="b-list"><div class="grp">ТОМ 1 · 40 глав · 28 опубл.</div>
+      ${CHAPS.map(c => `<div class="r ${c.cur ? 'cur' : ''}"><span class="n">${String(c.n).padStart(3, '0')}</span><span class="t">${c.t || '<span style="color:var(--faint)">немає оригіналу</span>'}</span><span class="b-st ${c.k}"></span></div>`).join('')}
+      <div class="r" style="color:var(--amb)"><span class="n">+</span><span class="t">Нова глава</span></div>
+    </div>
+  </aside>
+  <div class="b-tabs">
+    <div class="b-tab on"><span class="mono">12</span> Лінза, що пам’ятає світло <span style="color:var(--amb)">●</span></div>
+    <div class="b-tools">
+      <button class="b-tg" aria-label="Знайти чи виконати">${ic('search', 15)}<kbd style="margin:0">⌘K</kbd></button>
+      <button class="b-tg on">${ic('cols', 15)} Глави</button><button class="b-tg on">Оригінал</button><button class="b-tg on">Словник</button><button class="b-tg">Як у книжці</button>
+      <button class="b-tg">${ic('clock', 15)} Історія · 5</button><button class="b-tg">${ic('spark', 15)} Вичитати з ШІ</button>
+      <button class="b-pub">Опублікувати</button>
+    </div>
+  </div>
+  <main class="b-ed"><div class="b-grid">
+    <div class="h">¶</div><div class="h o">EN · ОРИГІНАЛ</div><div class="h u">UK · ПЕРЕКЛАД</div>
+    ${ROWS.map((r, i) => `
+      <div class="c n ${r.sel ? 'sel' : ''}">${i + 1}</div>
+      <div class="c o ${r.sel ? 'sel' : ''}">${fmt(r.en)}</div>
+      <div class="c u ${r.sel ? 'sel' : ''}">${r.uk ? fmt(r.uk) : '<span class="b-empty">не перекладено<button>Перекласти абзац</button></span>'}
+</div>
+      ${r.sel ? `<div class="b-bar"><span class="lab">¶2</span><button>${ic('spark', 15)} Інший варіант<kbd>⌥1</kbd></button><button>Вичитати абзац<kbd>⌥2</kbd></button><button>${ic('undo', 15)} Повернути машинний</button><button>${ic('clock', 15)} Історія абзацу</button><span class="lab" style="margin-left:14px">«велику лінзу» ← <span style="color:var(--teal)">the great lens</span></span><button>${ic('book', 15)} До словника<kbd>D</kbd></button><button>${ic('search', 15)} Замінити в главі<kbd>R</kbd></button></div>` : ''}
+      ${r.sug ? `<div class="b-bar"><span class="lab">ВИЧИТКА ШІ</span><button class="acc">${ic('check', 15)} Прийняти<kbd style="border-color:currentColor;color:inherit">⌘↵</kbd></button><button>Лишити як є<kbd>Esc</kbd></button></div>` : ''}
+    `).join('')}
+  </div></main>
+  <aside class="b-ins">
+    <div class="tb"><button class="on">Словник глави</button><button>Вичитка · 1</button><button>Історія</button></div>
+    <div class="bd">
+      <div class="b-ent"><span class="u">Ліна</span><span class="o">Lina</span><span class="m">персонаж · жін. · учениця доглядача</span></div>
+      <div class="b-ent"><span class="u">майстер Орест</span><span class="o">Master Orest</span><span class="m">персонаж · чол. · доглядач маяка</span></div>
+      <div class="b-ent"><span class="chip">НОВЕ</span><span class="u">велика лінза</span><span class="o">the great lens</span><span class="m">термін · з цієї глави</span><span class="l"><button class="acc">Погодити</button><button>Змінити</button></span></div>
+      <div class="b-cnt"><div><span>Правки читачів</span><b>3</b></div><div><span>Пропозиції вичитки ШІ</span><b>1</b></div><div><span>Неперекладені абзаци</span><b>1</b></div><div><span>Перевірено</span><b>4/7</b></div></div>
+    </div>
+  </aside>
+  <footer class="b-status"><span class="amb">● чернетка</span><span>збережено 12:04</span><span>¶ 7 · перевірено 4/7</span><span>правки 3 · вичитка 1</span><span class="rt">Esc скасувати · ⌘↵ зберегти · ⌘K команди</span></footer>
+</div>`;
+
+/* ── В ── */
+document.getElementById('cPh').innerHTML = `
+<div class="c-ph">
+  <div class="c-head"><button aria-label="До новели">${ic('back', 20)}</button><div class="t"><b>Доглядач маяка</b><span>Глава 12 з 40</span></div><button class="on" aria-label="Підказки зі словника">${ic('bulb', 20)}</button><button class="aa" aria-label="Вигляд читалки">Aa</button></div>
+  <div class="c-scroll">
+    <div class="c-hero"><div class="big">12</div><h1>Лінза, що пам’ятає світло</h1><div class="c-chips"><span>Том 1</span><span>ще 6 хв</span></div></div>
+    <div class="c-txt">${paras({
+      p: t => `<p>${t}</p>`,
+      edit: n => `<div class="c-edit"><div class="lab">ВАША ПРАВКА · АБЗАЦ ${n}</div><div class="field">${EDITED}<span class="caret"></span></div><div class="row"><button class="soft">${ic('spark', 16)} Варіант від ШІ</button><button class="soft">${ic('eye', 16)} Оригінал</button></div><div class="act"><button class="gh">Скасувати</button><button class="pri">Зберегти</button></div><div class="note">Правка піде команді на перевірку.</div></div>`
+    })}</div>
+    <div class="c-next"><span class="big">13</span><b>Журнал доглядача</b><span>Далі без зупинок · глава підвантажилась</span></div>
+    <div class="c-txt"><p>${NEXT}</p></div>
+    ${skel(12)}
+  </div>
+  <div class="c-dock"><button aria-label="Попередня глава">${ic('back', 20)}</button><div class="mid"><div class="bar"><i></i></div><span><b>34%</b><span>Зміст</span></span></div><button class="nx" aria-label="Наступна глава">${ic('next', 20)}</button></div>
+</div>`;
+
+document.getElementById('cDk').innerHTML = `
+<div class="c-dk">
+  <aside class="c-side">
+    <div class="c-logo"><span class="w">новелка<i>.</i></span><span class="tag">СТУДІЯ</span></div>
+    <nav class="c-nav">
+      <button class="on">${ic('layers', 18)} Мої переклади</button>
+      <button>${ic('pulse', 18)} Хід перекладу<span class="n">1</span></button>
+      <button>${ic('users', 18)} Команди</button>
+      <button>${ic('trash', 18)} Кошик</button>
+    </nav>
+    <div class="c-book"><div class="c-cover">Доглядач маяка</div><div><b>Доглядач маяка</b><span>40 глав · 28 опубліковано</span></div></div>
+    <div class="c-chs">
+      ${CHAPS.map(c => `<div class="r ${c.cur ? 'cur' : ''}"><span class="n">${c.n}</span><span class="t">${c.t || 'Без назви'}</span><span class="s">${c.s}</span></div>`).join('')}
+      <button class="add">+ Нова глава</button>
+    </div>
+  </aside>
+  <main class="c-main">
+    <div class="c-mh"><span class="big">12</span><div class="tt"><span>Доглядач маяка · чернетка · збережено щойно</span><h1>Лінза, що пам’ятає світло</h1></div>
+      <button class="c-pill pri">Опублікувати</button>${themeBtn('c-round')}</div>
+    <div class="c-tg">
+      <div class="c-seg"><button class="on">${ic('check', 15)} Глави</button><button class="on">${ic('check', 15)} Оригінал</button><button class="on">${ic('check', 15)} Словник</button></div>
+      <div class="c-seg"><button class="on">Поруч</button><button>Як у книжці</button></div>
+      <button class="c-pill">${ic('clock', 17)} Історія · 5</button><button class="c-pill">${ic('spark', 17)} Вичитати з ШІ</button>
+    </div>
+    <div class="c-cards">
+      ${ROWS.map((r, i) => r.uk ? `
+      <div class="c-card ${r.sel ? 'sel' : ''}">
+        ${r.sug ? '<span class="flag">ВИЧИТКА ШІ</span>' : ''}
+        <span class="n">${i + 1}</span><div class="o">${fmt(r.en)}</div><div class="u">${fmt(r.uk)}${r.sel ? `<div class="c-pop"><span class="f">з оригіналу: <b>the great lens</b></span><span class="l"><button>До словника</button><button>Замінити в главі</button></span></div>` : ''}</div>
+        ${r.sel ? `<div class="acts" style="margin-top:84px"><button>${ic('spark', 15)} Інший варіант</button><button>Вичитати абзац</button><button>${ic('undo', 15)} Повернути машинний</button><button>${ic('clock', 15)} Історія</button></div>` : ''}
+        ${r.sug ? `<div class="acts"><button class="acc">${ic('check', 15)} Прийняти</button><button>Лишити як є</button></div>` : ''}
+      </div>` : `
+      <div class="c-card todo"><span class="n">${i + 1}</span><div class="o">${fmt(r.en)}</div><div class="empty">Ще не перекладено <button>${ic('spark', 14)} Перекласти абзац</button></div></div>`).join('')}
+    </div>
+  </main>
+  <aside class="c-drawer">
+    <h3>Словник глави</h3>
+    <div class="c-ent"><span class="av">Л</span><b>Ліна</b><span>Lina · персонаж · жін.</span></div>
+    <div class="c-ent"><span class="av b">О</span><b>майстер Орест</b><span>Master Orest · персонаж · чол.</span></div>
+    <div class="c-ent new"><span class="av c">✦</span><b>велика лінза</b><span>the great lens · нове · термін</span><div class="l"><button class="acc">Погодити</button><button>Змінити</button></div></div>
+    <h3 style="margin-top:6px">У цій главі</h3>
+    <div class="c-prog" style="margin:0">Перевірено 4 з 7<span class="bar"><i></i></span></div>
+    <div class="c-tiles"><div><b>3</b><span>правки читачів</span></div><div><b>1</b><span>вичитка ШІ</span></div><div><b>1</b><span>не перекладено</span></div></div>
+  </aside>
+</div>`;
+
+// Тема всередині макета комп'ютера
+document.querySelectorAll('[data-theme-toggle]').forEach(b => b.addEventListener('click', () => {
+  const f = b.closest('.frame'); const light = f.classList.toggle('lt');
+  b.innerHTML = ic(light ? 'moon' : 'sun', 18); b.setAttribute('aria-label', light ? 'Темна тема' : 'Світла тема');
+}));
+
+// Масштаб рамок під ширину
+function fit() {
+  document.querySelectorAll('.fit').forEach(w => {
+    const W = +w.dataset.w, H = +w.dataset.h, s = Math.min(1, w.clientWidth / W);
+    w.firstElementChild.style.transform = `scale(${s})`; w.style.height = Math.ceil(H * s) + 'px';
+  });
+}
+fit(); new ResizeObserver(fit).observe(document.body);
+</script>
