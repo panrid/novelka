@@ -10,6 +10,7 @@ import * as site from './site.mjs';
 import * as comm from './comm.mjs';
 import * as studio from './studio.mjs';
 import * as work from './work.mjs';
+import * as admin from './admin.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, '..', 'mockup');
@@ -21,7 +22,8 @@ export const SCREENS = [reader.ReaderT, reader.ReaderPanelsT, reader.ReaderP, re
   comm.MySuggestionsT, comm.MySuggestionsK, comm.PicturesT, comm.PicturesK, comm.ShahsT, comm.ShahsK,
   studio.StudioT, studio.StudioP, studio.StudioK, studio.RunsT, studio.RunsK, studio.LiveT, studio.LiveK, studio.NewT, studio.NewK,
   studio.TrT, studio.TrP, studio.TrK, studio.OriginalK, studio.TranslateP, studio.TranslateK, studio.AutoT, studio.AutoK,
-  work.WorkT, work.WorkP, work.WorkK, work.HistoryK, work.GlossaryT, work.GlossaryK, work.ReviewT, work.ReviewK, work.TrMoreK];
+  work.WorkT, work.WorkP, work.WorkK, work.HistoryK, work.GlossaryT, work.GlossaryK, work.ReviewT, work.ReviewK, work.TrMoreK,
+  admin.AdminK, admin.TermsK, admin.LoadingK];
 
 for (const s of SCREENS) {
   writeFileSync(join(out, s.file), dcFile(s));
