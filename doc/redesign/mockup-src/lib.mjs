@@ -214,8 +214,10 @@ export function baseVals(props, state, ui, opt) {
   const k = { pult: kid === 'pult', zv: kid === 'zv', pal: kid === 'pal', obl: kid === 'obl' };
   const alias = {};
   Object.entries(opt.alias || {}).forEach(([a, ids]) => { alias[a] = ids.some(id => is[id]); });
+  const curId = opt.ids[opt.stany.indexOf(stan)];
   return {
     ...alias,
+    scls: (opt.scls || {})[curId] || '',
     cls: 'nv ' + opt.dev + ' k-' + kid + ' th-' + tid + (light && opt.dev !== 'ph' ? ' lt' : ''),
     k, is, not, light, dark: !light,
     toggleLight: () => ui.setState({ light: !light }),
@@ -224,7 +226,7 @@ export function baseVals(props, state, ui, opt) {
 }
 
 // Обгортка файлу .dc.html
-export function dcFile({ title, w, h, dev, stany, ids, alias, root, extra = '' }) {
+export function dcFile({ title, w, h, dev, stany, ids, alias, scls, root, extra = '' }) {
   const props = {
     karkas: { editor: 'enum', options: KARKASY.map(x => x[0]), default: 'Пульт' },
     tema: { editor: 'enum', options: TEMY.map(x => x[0]), default: 'Сланець' }
@@ -233,7 +235,7 @@ export function dcFile({ title, w, h, dev, stany, ids, alias, root, extra = '' }
   if (stany.length > 1) props.stan = { editor: 'enum', options: stany, default: stany[0] };
   props.$preview = { width: w, height: h };
   const json = JSON.stringify(props).replace(/&/g, '&amp;').replace(/'/g, '&#39;');
-  const opt = JSON.stringify({ dev, stany, ids, alias });
+  const opt = JSON.stringify({ dev, stany, ids, alias, scls });
   return `<!doctype html>
 <html lang="uk">
 <head>
@@ -304,7 +306,7 @@ export function render(s, scope) {
 function holes(s, scope) {
   return s.replace(/\s(on[A-Z]\w*)="\{\{[^}]+\}\}"/g, '').replace(/\{\{(.+?)\}\}/g, (_, p) => { const v = get(scope, p); return v == null || typeof v === 'function' ? '' : String(v); });
 }
-export function previewHtml({ title, root, w, h, dev, stany, ids, alias, extra = '' }, props, state = {}) {
-  const vals = baseVals(props, state, { setState() {} }, { dev, stany, ids, alias });
+export function previewHtml({ title, root, w, h, dev, stany, ids, alias, scls, extra = '' }, props, state = {}) {
+  const vals = baseVals(props, state, { setState() {} }, { dev, stany, ids, alias, scls });
   return `<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>${title}</title><link href="${FONTS}" rel="stylesheet"><style>${CSS}${extra}</style></head><body>${render(root, vals)}</body></html>`;
 }

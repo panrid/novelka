@@ -477,8 +477,10 @@ function baseVals(props, state, ui, opt) {
   const k = { pult: kid === 'pult', zv: kid === 'zv', pal: kid === 'pal', obl: kid === 'obl' };
   const alias = {};
   Object.entries(opt.alias || {}).forEach(([a, ids]) => { alias[a] = ids.some(id => is[id]); });
+  const curId = opt.ids[opt.stany.indexOf(stan)];
   return {
     ...alias,
+    scls: (opt.scls || {})[curId] || '',
     cls: 'nv ' + opt.dev + ' k-' + kid + ' th-' + tid + (light && opt.dev !== 'ph' ? ' lt' : ''),
     k, is, not, light, dark: !light,
     toggleLight: () => ui.setState({ light: !light }),

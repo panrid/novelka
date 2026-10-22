@@ -6,7 +6,7 @@ import { CHROME_CSS, phoneFrame, deskFrame } from './chrome.mjs';
 import { READER_CSS } from './reader.mjs';
 import { SITE_CSS } from './site.mjs';
 
-const COMM_CSS = `
+export const COMM_CSS = `
 .flt-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
 .dk .flt-row{flex-wrap:wrap}
 .day{font-size:12.5px;color:var(--faint);padding:14px 0 4px}

@@ -8,6 +8,7 @@ import * as reader from './reader.mjs';
 import * as novel from './novel.mjs';
 import * as site from './site.mjs';
 import * as comm from './comm.mjs';
+import * as studio from './studio.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, '..', 'mockup');
@@ -16,7 +17,9 @@ export const SCREENS = [reader.ReaderT, reader.ReaderPanelsT, reader.ReaderP, re
   site.HomeT, site.HomeK, site.CatalogT, site.CatalogK, site.LibraryT, site.LibraryK, site.ProposalsT, site.ProposalsK,
   site.ProfileT, site.ProfileK, site.AuthT, site.AuthK, site.ErrorsT, site.ErrorsK, site.InfoK,
   comm.NotificationsT, comm.NotificationsK, comm.MessagesT, comm.MessagesK, comm.MeT, comm.SettingsT, comm.SettingsK,
-  comm.MySuggestionsT, comm.MySuggestionsK, comm.PicturesT, comm.PicturesK, comm.ShahsT, comm.ShahsK];
+  comm.MySuggestionsT, comm.MySuggestionsK, comm.PicturesT, comm.PicturesK, comm.ShahsT, comm.ShahsK,
+  studio.StudioT, studio.StudioP, studio.StudioK, studio.RunsT, studio.RunsK, studio.LiveT, studio.LiveK, studio.NewT, studio.NewK,
+  studio.TrT, studio.TrP, studio.TrK, studio.OriginalK, studio.TranslateP, studio.TranslateK, studio.AutoT, studio.AutoK];
 
 for (const s of SCREENS) {
   writeFileSync(join(out, s.file), dcFile(s));

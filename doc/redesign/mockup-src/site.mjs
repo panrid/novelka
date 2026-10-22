@@ -6,6 +6,9 @@ import { CHROME_CSS, phoneFrame, deskFrame } from './chrome.mjs';
 import { READER_CSS } from './reader.mjs';
 
 export const SITE_CSS = `
+.pager{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--dim);padding-top:8px}
+.pager .row a{width:34px;height:34px;display:grid;place-items:center;border-radius:var(--rb);box-shadow:inset 0 0 0 1px var(--line);font-size:13px}
+.pager .row a.on{background:var(--acc);color:var(--onacc);box-shadow:none}
 .page{display:flex;flex-direction:column;gap:26px;padding:20px 16px 32px;min-width:0}
 .dk .page{padding:30px 44px 60px;max-width:1340px}
 .sec{display:flex;flex-direction:column;gap:12px;min-width:0}
