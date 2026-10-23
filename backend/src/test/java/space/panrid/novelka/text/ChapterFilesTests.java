@@ -70,4 +70,94 @@ class ChapterFilesTests {
                 .hasMessage("Підходять лише файли .txt і .md.");
         assertThatThrownBy(() -> ChapterFiles.parse("empty.md", "\n\n# \n")).isInstanceOf(UserFacingException.class);
     }
+
+    // ---- one chapter's text from the API (етап 22.11) ------------------------------------------
+
+    @Test
+    void aChapterInMarkdownGetsEveryMarkOfTheSite() {
+        ChapterFiles.ParsedChapter chapter = ChapterFiles.parseChapter(ChapterFiles.Format.MARKDOWN, """
+                **жирний** *курсив* _теж курсив_ ++підкреслений++ ~~закреслений~~ і \\*зірочка\\*
+
+                ---
+                * * *
+                ◇◇◇
+                ![Кузня](https://example.com/forge.png "Підпис")
+                ## Підзаголовок
+                Текст із [посиланням](https://example.com) і `кодом`.
+                """);
+
+        assertThat(chapter.title()).as("no heading, no guessing").isNull();
+        assertThat(chapter.blocks()).extracting(Block::type)
+                .containsExactly("paragraph", "separator", "separator", "separator", "image", "paragraph", "paragraph");
+        assertThat(chapter.blocks()).extracting(Block::id).containsExactly("b1", "b2", "b3", "b4", "b5", "b6", "b7");
+        assertThat(chapter.blocks().getFirst().content()).containsExactly(
+                new Span("жирний", List.of("bold")), Span.plain(" "), new Span("курсив", List.of("italic")), Span.plain(" "),
+                new Span("теж курсив", List.of("italic")), Span.plain(" "), new Span("підкреслений", List.of("underline")),
+                Span.plain(" "), new Span("закреслений", List.of("strike")), Span.plain(" і *зірочка*"));
+        assertThat(chapter.blocks().get(4).sourceUrl()).isEqualTo("https://example.com/forge.png");
+        assertThat(chapter.blocks().get(5).text()).isEqualTo("Підзаголовок");
+        assertThat(chapter.blocks().get(6).text()).isEqualTo("Текст із посиланням і кодом.");
+    }
+
+    @Test
+    void plainTextKeepsMarkupAsWrittenButBreaksScenes() {
+        ChapterFiles.ParsedChapter chapter = ChapterFiles.parseChapter(ChapterFiles.Format.PLAIN, """
+                Глава 7. Ринок
+                **не жирний** і ![не картинка](https://example.com/a.png)
+                ***
+                # не заголовок
+                """);
+
+        assertThat(chapter.title()).as("«Глава 7.» goes, as on import").isEqualTo("Ринок");
+        assertThat(chapter.blocks()).extracting(Block::type).containsExactly("paragraph", "separator", "paragraph");
+        assertThat(chapter.blocks().getFirst().content()).containsExactly(Span.plain("**не жирний** і ![не картинка](https://example.com/a.png)"));
+        assertThat(chapter.blocks().get(2).content()).containsExactly(Span.plain("# не заголовок"));
+    }
+
+    @Test
+    void aHeadingOpeningTheTextIsTheTitleAndNowhereElse() {
+        assertThat(ChapterFiles.parseChapter(ChapterFiles.Format.MARKDOWN, "# Глава 12. *Ніч* у кузні\nТекст.").title())
+                .isEqualTo("Ніч у кузні");
+        assertThat(ChapterFiles.parseChapter(ChapterFiles.Format.MARKDOWN, "# Глава 12\nТекст.").title())
+                .as("a heading that is only the number stays as it is").isEqualTo("Глава 12");
+        assertThatThrownBy(() -> ChapterFiles.parseChapter(ChapterFiles.Format.MARKDOWN, "Текст.\n# Друга\nЩе текст."))
+                .isInstanceOf(UserFacingException.class).hasMessageContaining("починає нову");
+        assertThatThrownBy(() -> ChapterFiles.parseChapter(ChapterFiles.Format.MARKDOWN, "# Перша\nТекст.\n# Друга\nЩе."))
+                .isInstanceOf(UserFacingException.class).hasMessageContaining("починає нову");
+        assertThatThrownBy(() -> ChapterFiles.parseChapter(ChapterFiles.Format.PLAIN, "Текст.\nРозділ 2\nЩе текст."))
+                .isInstanceOf(UserFacingException.class).hasMessageContaining("починає нову");
+    }
+
+    @Test
+    void anEmptyOrTooLongTextOrAPictureNotByHttpsIsRefused() {
+        assertThatThrownBy(() -> ChapterFiles.parseChapter(ChapterFiles.Format.MARKDOWN, " \n\n\t\n"))
+                .isInstanceOf(UserFacingException.class).hasMessageContaining("порожній");
+        assertThatThrownBy(() -> ChapterFiles.parseChapter(ChapterFiles.Format.MARKDOWN, "# Лише назва\n"))
+                .isInstanceOf(UserFacingException.class).hasMessageContaining("порожній");
+        String tooLong = ("а".repeat(999) + "\n").repeat(ChapterFiles.MAX_CHAPTER_CHARS / 999 + 1);
+        assertThatThrownBy(() -> ChapterFiles.parseChapter(ChapterFiles.Format.PLAIN, tooLong))
+                .isInstanceOf(UserFacingException.class).hasMessageContaining("задовга");
+        assertThatThrownBy(() -> ChapterFiles.parseChapter(ChapterFiles.Format.MARKDOWN, "Текст.\n![](http://example.com/a.png)"))
+                .isInstanceOf(UserFacingException.class).hasMessageContaining("https://");
+    }
+
+    @Test
+    void aChapterGivesTheBlocksTheImportOfTheSameFileGives() {
+        String file = """
+                # Глава 3. Перший день
+
+                Він **знав**, що ++це++ ~~не~~ *сон*.
+                ---
+                ![Хатина](https://example.com/hut.png)
+                ## Вночі
+                Далі — [посилання](https://example.com).
+                """;
+
+        ChapterFiles.ParsedChapter imported = ChapterFiles.parse("3.md", file).chapters().getFirst();
+        ChapterFiles.ParsedChapter sent = ChapterFiles.parseChapter(ChapterFiles.Format.MARKDOWN, file);
+        assertThat(sent.blocks()).isEqualTo(imported.blocks());
+        String text = "Глава 3\nРьо *прокинувся*.\n◇◇◇\nРанок.";
+        assertThat(ChapterFiles.parseChapter(ChapterFiles.Format.PLAIN, text).blocks())
+                .isEqualTo(ChapterFiles.parse("3.txt", text).chapters().getFirst().blocks());
+    }
 }

@@ -24,6 +24,8 @@ import org.jooq.Field;
 import org.jooq.impl.DSL;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -55,6 +57,7 @@ import space.panrid.novelka.platform.text.Block;
 import space.panrid.novelka.platform.web.Idempotency;
 import space.panrid.novelka.platform.web.UserFacingException;
 import space.panrid.novelka.team.Teams;
+import space.panrid.novelka.text.ChapterFiles;
 import space.panrid.novelka.text.Chapters;
 import space.panrid.novelka.text.EditorModels;
 import tools.jackson.databind.json.JsonMapper;
@@ -82,11 +85,13 @@ class StudioApiController {
     private final DSLContext db;
     private final Idempotency idempotency;
     private final JsonMapper json;
+    private final TransactionTemplate transaction;
 
     StudioApiController(AccessPolicy access, Teams teams, Chapters chapters, Images images, PictureLibrary library, DSLContext db,
-            Idempotency idempotency, JsonMapper json) {
+            Idempotency idempotency, JsonMapper json, PlatformTransactionManager transactions) {
         this.idempotency = idempotency;
         this.json = json;
+        this.transaction = new TransactionTemplate(transactions);
         this.access = access;
         this.teams = teams;
         this.chapters = chapters;
@@ -209,7 +214,10 @@ class StudioApiController {
 
             Заголовок `Idempotency-Key` (до 255 знаків, напр. UUID) робить повтор безпечним: той самий запит із тим самим \
             ключем протягом 7 днів отримує ту саму відповідь (і `Idempotent-Replayed: true`) і нічого не змінює вдруге; \
-            той самий ключ з іншим тілом чи адресою — 409. Відповідь із помилкою не запам'ятовується.""")
+            той самий ключ з іншим тілом чи адресою — 409. Відповідь із помилкою не запам'ятовується.
+
+            Текст — блоками (`blocks`) або Markdown чи простим текстом (`text` і `format`): сервер розбере його так само, як \
+            імпорт файла в Студії, і завантажить картинки за посиланнями; повтор із тим самим ключем не завантажує їх удруге.""")
     @ApiResponse(responseCode = "200", description = "Готово: главу вже було, чернетку замінено",
             content = @Content(schema = @Schema(implementation = StudioApiV1.ChapterSaved.class)),
             headers = @Header(name = Idempotency.REPLAYED, description = "З `Idempotency-Key`: `true` — це збережена відповідь першого "
@@ -226,17 +234,18 @@ class StudioApiController {
             @RequestHeader(name = Idempotency.HEADER, required = false) String key,
             @RequestBody StudioApiV1.Text body) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
-        if (body == null || body.blocks() == null) {
-            throw UserFacingException.badRequest("Надішліть текст глави блоками (blocks); порожній список — порожня глава.");
+        Written written = written(body);
+        if (written == null) {
+            throw UserFacingException.badRequest("Надішліть текст глави: блоками (blocks; порожній список — порожня глава) "
+                    + "або в text з format: markdown чи plain.");
         }
         long accountId = who.viewer().accountId();
-        List<Block> blocks = StudioApiV1.blocks(body.blocks());
         // The request as the key remembers it: the translation by its id, so a renamed address or another
         // spelling of the team is the same request; the body as parsed, so spacing and field order do not matter.
         String request = "PUT chapter " + who.editionId() + " " + number + " " + json.writeValueAsString(body);
         return idempotency.once(accountId, key, request, () -> {
-            boolean created = chapters.putDraft(who.editionId(), number, accountId, body.title(), blocks, body.baseRevision(),
-                    who.role().translates());
+            boolean created = chapters.putDraft(who.editionId(), number, accountId, written.title(), pictures(accountId, written),
+                    body.baseRevision(), who.role().translates());
             EditorModels.EditorState state = chapters.editorState(who.editionId(), number, accountId);
             EditorModels.Draft draft = state.draft();
             return new Idempotency.Answer(created ? HttpStatus.CREATED : HttpStatus.OK, new StudioApiV1.ChapterSaved(number,
@@ -247,12 +256,15 @@ class StudioApiController {
 
     /** The person's draft of the chapter: kept for them alone until published or replaced. */
     @PutMapping("/novels/{novel}/translations/{team}/chapters/{number}/draft")
-    @Operation(summary = "Зберегти чернетку", description = "Ваша чернетка глави: її бачите лише ви, доки не опублікуєте.")
+    @Operation(summary = "Зберегти чернетку", description = "Ваша чернетка глави: її бачите лише ви, доки не опублікуєте. "
+            + "Текст — блоками або Markdown чи простим текстом (`text` і `format`), як у `PUT …/chapters/{number}`.")
     StudioApiV1.Chapter saveDraft(@PathVariable String novel, @PathVariable String team, @PathVariable int number,
             @RequestBody StudioApiV1.Text body) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
-        chapters.saveDraft(who.editionId(), number, who.viewer().accountId(), body.title(), StudioApiV1.blocks(body.blocks()),
-                body.baseRevision());
+        long accountId = who.viewer().accountId();
+        Written written = written(body);
+        chapters.saveDraft(who.editionId(), number, accountId, written == null ? body.title() : written.title(),
+                written == null ? List.of() : pictures(accountId, written), body.baseRevision());
         return chapter(who, number);
     }
 
@@ -262,15 +274,18 @@ class StudioApiController {
      * newer publication is never overwritten: 409, and the text stays the person's draft.
      */
     @PostMapping("/novels/{novel}/translations/{team}/chapters/{number}/publish")
-    @Operation(summary = "Опублікувати главу", description = "Надісланий текст або, без блоків, вашу чернетку. Новішу чужу публікацію не перезаписує: 409, а текст лишається чернеткою.")
+    @Operation(summary = "Опублікувати главу", description = "Надісланий текст (блоками або Markdown чи простим текстом — `text` і "
+            + "`format`, як у `PUT …/chapters/{number}`) або, без тексту, вашу чернетку. Новішу чужу публікацію не перезаписує: 409, "
+            + "а текст лишається чернеткою.")
     StudioApiV1.Published publish(@PathVariable String novel, @PathVariable String team, @PathVariable int number,
             @RequestBody(required = false) StudioApiV1.Text body) {
         EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
         long accountId = who.viewer().accountId();
+        Written written = written(body);
         String title;
         List<Block> blocks;
         Long base;
-        if (body == null || body.blocks() == null) {
+        if (written == null) {
             EditorModels.Draft draft = chapters.editorState(who.editionId(), number, accountId).draft();
             if (draft == null) {
                 throw UserFacingException.badRequest("Немає ні тексту, ні вашої чернетки цієї глави — нічого публікувати.");
@@ -279,19 +294,85 @@ class StudioApiController {
             blocks = draft.blocks();
             base = draft.baseRevisionId();
         } else {
-            title = body.title();
-            blocks = StudioApiV1.blocks(body.blocks());
+            title = written.title();
+            blocks = pictures(accountId, written);
             base = body.baseRevision();
         }
         try {
             return new StudioApiV1.Published(number, chapters.publish(who.editionId(), number, accountId, title, blocks, base,
                     who.role().translates()));
         } catch (UserFacingException conflict) {
-            if (conflict.status() == HttpStatus.CONFLICT && body != null && body.blocks() != null) {
+            if (conflict.status() == HttpStatus.CONFLICT && written != null) {
                 chapters.saveDraft(who.editionId(), number, accountId, title, blocks, base);
             }
             throw conflict;
         }
+    }
+
+    /**
+     * The chapter's text as sent (етап 22.11): its blocks, or Markdown or plain text turned into blocks
+     * by the very code of the Studio's import — pictures still as links. Null when no text was sent.
+     */
+    private static Written written(StudioApiV1.Text body) {
+        if (body == null || (body.blocks() == null && body.text() == null)) {
+            if (body != null && body.format() != null) {
+                throw UserFacingException.badRequest("Поле format описує text, а тексту немає.");
+            }
+            return null;
+        }
+        if (body.text() == null) {
+            if (body.format() != null) {
+                throw UserFacingException.badRequest("Поле format описує text, а надіслано blocks: format не потрібен.");
+            }
+            return new Written(body.title(), StudioApiV1.blocks(body.blocks()));
+        }
+        if (body.blocks() != null) {
+            throw UserFacingException.badRequest("Надішліть текст одним способом: або blocks, або text.");
+        }
+        ChapterFiles.Format format = switch (body.format() == null ? "" : body.format()) {
+            case "markdown" -> ChapterFiles.Format.MARKDOWN;
+            case "plain" -> ChapterFiles.Format.PLAIN;
+            case "" -> throw UserFacingException.badRequest("Вкажіть, як написано text: \"format\": \"markdown\" чи \"plain\".");
+            default -> throw UserFacingException.badRequest("Невідомий format «" + body.format() + "»: можна markdown чи plain.");
+        };
+        ChapterFiles.ParsedChapter parsed = ChapterFiles.parseChapter(format, body.text());
+        return new Written(body.title() != null ? body.title() : parsed.title(), parsed.blocks());
+    }
+
+    /** A chapter's title and blocks; a picture by link has its {@code sourceUrl} until it is downloaded. */
+    private record Written(String title, List<Block> blocks) {
+    }
+
+    /**
+     * The blocks with every picture by link downloaded into the person's «Мої картинки», as the
+     * import does (рішення 13): all of them or none — one that fails is named and nothing is kept.
+     */
+    private List<Block> pictures(long accountId, Written written) {
+        if (written.blocks().stream().noneMatch(block -> block.sourceUrl() != null)) {
+            return written.blocks();
+        }
+        return transaction.execute(status -> {
+            List<Block> out = new ArrayList<>(written.blocks().size());
+            int picture = 0;
+            for (Block block : written.blocks()) {
+                if (block.sourceUrl() == null) {
+                    out.add(block);
+                    continue;
+                }
+                picture++;
+                try {
+                    long imageId = images.storeFromUrl(accountId, ImageKind.ILLUSTRATION, block.sourceUrl()).id();
+                    out.add(new Block(block.id(), "image", List.of(), imageId, null));
+                } catch (UserFacingException failed) {
+                    if (failed.status() != HttpStatus.BAD_REQUEST) {
+                        throw failed;
+                    }
+                    throw UserFacingException.badRequest("Картинка %d (%s): %s Нічого не збережено.".formatted(picture,
+                            block.sourceUrl(), failed.getMessage()));
+                }
+            }
+            return out;
+        });
     }
 
     // ---- «Мої картинки» -------------------------------------------------------------------------

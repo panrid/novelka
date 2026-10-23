@@ -73,6 +73,8 @@ describe('«Для розробників»', () => {
         expect(screen.getByRole('heading', { name: 'Новий твір з нуля' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Глави скриптом, без дублів' })).toBeInTheDocument();
         expect(screen.getByText(/Idempotency-Key: mag-vody-12-v1/)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Глава з Markdown чи простого тексту' })).toBeInTheDocument();
+        expect(screen.getByText(/format: "markdown", text: \$text/)).toBeInTheDocument();
         expect(screen.getByText(/curl -X POST ".*\/studio\/novels"/)).toBeInTheDocument();
 
         // The reference is a separate chunk: its first import may take a moment.

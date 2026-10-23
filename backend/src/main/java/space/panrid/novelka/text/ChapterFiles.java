@@ -7,6 +7,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import space.panrid.novelka.platform.text.Block;
+import space.panrid.novelka.platform.text.ChapterLabels;
 import space.panrid.novelka.platform.text.Span;
 import space.panrid.novelka.platform.text.Markup;
 import space.panrid.novelka.platform.web.UserFacingException;
@@ -22,6 +23,9 @@ import space.panrid.novelka.platform.web.UserFacingException;
  *   <li>.txt: a line starting with «Глава N» or «Розділ N» starts a chapter; no formatting.</li>
  *   <li>Without chapter markers the whole file is one chapter; its first short line is the title.</li>
  * </ul>
+ *
+ * <p>The API's chapter text (етап 22.11) goes through the same lines, one chapter at a time:
+ * {@link #parseChapter}.
  */
 public final class ChapterFiles {
 
@@ -31,9 +35,15 @@ public final class ChapterFiles {
     public record Parsed(List<ParsedChapter> chapters, List<String> simplified) {
     }
 
+    /** How the text is written: Markdown by the site's rules (.md) or plain text (.txt). */
+    public enum Format {
+        MARKDOWN, PLAIN
+    }
+
     public static final int MAX_CHAPTERS = 500;
     public static final int MAX_CHAPTER_CHARS = 200_000;
     private static final int TITLE_MAX = 200;
+    private static final String NOT_HTTPS = "Картинки підтримуються лише за посиланнями https://.";
 
     private static final Pattern TXT_CHAPTER = Pattern.compile("^(глава|розділ|частина|chapter)\\s+\\d+.*",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
@@ -53,11 +63,71 @@ public final class ChapterFiles {
         if (!markdown && !lower.endsWith(".txt")) {
             throw UserFacingException.badRequest("Підходять лише файли .txt і .md.");
         }
-        String text = content.replace("\r\n", "\n").replace('\r', '\n').replace("﻿", "");
         List<String> simplified = new ArrayList<>();
+        List<Draft> drafts = drafts(markdown, content, simplified);
+
+        List<ParsedChapter> chapters = new ArrayList<>();
+        for (Draft draft : drafts) {
+            ParsedChapter chapter = draft.finish(baseName(fileName));
+            if (!chapter.blocks().isEmpty() || drafts.size() == 1) {
+                chapters.add(chapter);
+            }
+        }
+        if (chapters.isEmpty() || chapters.stream().allMatch(chapter -> chapter.blocks().isEmpty())) {
+            throw UserFacingException.badRequest("У файлі немає тексту.");
+        }
+        if (chapters.size() > MAX_CHAPTERS) {
+            throw UserFacingException.badRequest("Забагато глав в одному файлі: до %d.".formatted(MAX_CHAPTERS));
+        }
+        for (ParsedChapter chapter : chapters) {
+            if (chars(chapter.blocks()) > MAX_CHAPTER_CHARS) {
+                throw UserFacingException.badRequest("Глава «%s» задовга: до %d знаків.".formatted(chapter.title(), MAX_CHAPTER_CHARS));
+            }
+        }
+        return new Parsed(chapters, simplified.stream().distinct().toList());
+    }
+
+    /**
+     * One chapter's text sent through the API (етап 22.11), turned into blocks line by line exactly
+     * as a file is. A chapter heading ({@code # Назва}, or «Глава N …» in plain text) may open the
+     * text and is its title («Глава 12. Ніч» gives «Ніч», as on import) — null without one, never
+     * guessed from the first line; anywhere else
+     * it would start a second chapter, so it is refused. Pictures keep their link
+     * ({@link Block#sourceUrl()}) for the caller to download; a link that is not https is refused,
+     * since there is no preview to tell the person it was dropped.
+     */
+    public static ParsedChapter parseChapter(Format format, String content) {
+        boolean markdown = format == Format.MARKDOWN;
+        List<String> simplified = new ArrayList<>();
+        List<Draft> drafts = drafts(markdown, content == null ? "" : content, simplified);
+        if (drafts.size() > 1) {
+            throw UserFacingException.badRequest(markdown
+                    ? "У запиті одна глава, а рядок «# …» посеред тексту на сайті починає нову. Надішліть кожну главу окремим запитом "
+                            + "або приберіть «#» на початку рядка."
+                    : "У запиті одна глава, а рядок «Глава N…» посеред тексту на сайті починає нову. Надішліть кожну главу окремим "
+                            + "запитом або надішліть назву полем title і приберіть цей рядок.");
+        }
+        if (simplified.contains(NOT_HTTPS)) {
+            throw UserFacingException.badRequest("Картинки в тексті — лише за посиланнями https://: «![опис](https://…)» окремим рядком.");
+        }
+        Draft draft = drafts.isEmpty() ? null : drafts.getFirst();
+        if (draft == null || draft.blocks.isEmpty()) {
+            throw UserFacingException.badRequest("Текст глави порожній. Порожню главу задають блоками: \"blocks\": [].");
+        }
+        if (chars(draft.blocks) > MAX_CHAPTER_CHARS) {
+            throw UserFacingException.badRequest("Глава задовга: до %d знаків.".formatted(MAX_CHAPTER_CHARS));
+        }
+        // «Глава 12. Ніч» keeps «Ніч», as an imported chapter does; the number is the request's.
+        String title = draft.title == null ? null
+                : ChapterLabels.splitUkrainian(draft.title).filter(parts -> !parts[1].isEmpty()).map(parts -> parts[1]).orElse(draft.title);
+        return new ParsedChapter(title, List.copyOf(draft.blocks));
+    }
+
+    /** The text's lines grouped into chapters: a new one at every chapter heading. */
+    private static List<Draft> drafts(boolean markdown, String content, List<String> simplified) {
+        String text = content.replace("\r\n", "\n").replace('\r', '\n').replace("\uFEFF", "");
         List<Draft> drafts = new ArrayList<>();
         Draft current = null;
-
         for (String raw : text.split("\n", -1)) {
             String line = raw.strip();
             if (line.isEmpty()) {
@@ -75,27 +145,11 @@ public final class ChapterFiles {
             }
             current.add(line, markdown, simplified);
         }
+        return drafts;
+    }
 
-        List<ParsedChapter> chapters = new ArrayList<>();
-        for (Draft draft : drafts) {
-            ParsedChapter chapter = draft.finish(baseName(fileName));
-            if (!chapter.blocks().isEmpty() || drafts.size() == 1) {
-                chapters.add(chapter);
-            }
-        }
-        if (chapters.isEmpty() || chapters.stream().allMatch(chapter -> chapter.blocks().isEmpty())) {
-            throw UserFacingException.badRequest("У файлі немає тексту.");
-        }
-        if (chapters.size() > MAX_CHAPTERS) {
-            throw UserFacingException.badRequest("Забагато глав в одному файлі: до %d.".formatted(MAX_CHAPTERS));
-        }
-        for (ParsedChapter chapter : chapters) {
-            int chars = chapter.blocks().stream().mapToInt(block -> block.text().length()).sum();
-            if (chars > MAX_CHAPTER_CHARS) {
-                throw UserFacingException.badRequest("Глава «%s» задовга: до %d знаків.".formatted(chapter.title(), MAX_CHAPTER_CHARS));
-            }
-        }
-        return new Parsed(chapters, simplified.stream().distinct().toList());
+    private static int chars(List<Block> blocks) {
+        return blocks.stream().mapToInt(block -> block.text().length()).sum();
     }
 
     /** Lines of one chapter before they become blocks. */
@@ -120,7 +174,7 @@ public final class ChapterFiles {
                     if (url.startsWith("https://")) {
                         blocks.add(Block.imageLink(id, url));
                     } else {
-                        simplified.add("Картинки підтримуються лише за посиланнями https://.");
+                        simplified.add(NOT_HTTPS);
                     }
                     return;
                 }

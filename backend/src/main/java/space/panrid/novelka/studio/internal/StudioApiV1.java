@@ -73,11 +73,39 @@ final class StudioApiV1 {
     }
 
     /**
-     * Text to save as a draft or to publish.
+     * Text to save as a draft or to publish: as blocks, or (етап 22.11) as Markdown or plain text the
+     * server turns into blocks exactly as the Studio's import of a .md or .txt file does.
      *
      * @param baseRevision the revision it was edited from: publishing over someone else's newer one is refused (409)
+     * @param text         the chapter written out, instead of {@code blocks}
+     * @param format       how {@code text} is written: markdown or plain
      */
-    record Text(String title, List<TextBlock> blocks, Long baseRevision) {
+    @Schema(description = "Текст глави: блоками (`blocks`) або одним рядком `text` у Markdown чи простим текстом (`format`) — "
+            + "сервер сам розбере його на блоки так само, як імпорт файла .md чи .txt у Студії. Щось одне з двох.")
+    record Text(
+            @Schema(description = "Назва глави. Без неї назвою стає заголовок `# Назва` на початку `text` (префікс «Глава 12.» "
+                    + "відкидається, як при імпорті); інакше назва порожня", example = "Ніч у кузні")
+            String title,
+            @Schema(description = "Текст блоками; порожній список — порожня глава. Не разом із `text`") List<TextBlock> blocks,
+            Long baseRevision,
+            @Schema(description = """
+                    Текст глави одним рядком, замість `blocks`. Кожен непорожній рядок — абзац.
+
+                    `markdown` — правила сайту: `**жирний**`, `*курсив*`, `++підкреслений++`, `~~закреслений~~`; рядок `---`, \
+                    `***` чи `◇` — розділювач сцен; рядок `![опис](https://…)` — картинка: сервер завантажує її в «Мої картинки» \
+                    і ставить у главу (не вдалося — 400, нічого не збережено). `# Назва` можна лише першим рядком — це назва \
+                    глави; посеред тексту він на сайті починає нову главу, тож тут — 400. Решта Markdown (`##`, списки, \
+                    посилання, код) стає звичайним текстом.
+
+                    `plain` — без розмітки, як файл .txt: зірочки лишаються зірочками; розділювачі сцен ті самі; рядок \
+                    «Глава N …» можна лише першим — це назва.
+
+                    Порожній текст — 400 (порожня глава — `"blocks": []`); до 200 000 знаків.""",
+                    example = "# Глава 12. Ніч у кузні\n\nВогонь **не гас** до ранку.\n\n---\n\n![Кузня](https://example.com/forge.png)")
+            String text,
+            @Schema(description = "Як написано `text`: `markdown` чи `plain`; обов'язкове разом із `text`",
+                    allowableValues = { "markdown", "plain" }, example = "markdown")
+            String format) {
     }
 
     record Published(int number, long revision) {

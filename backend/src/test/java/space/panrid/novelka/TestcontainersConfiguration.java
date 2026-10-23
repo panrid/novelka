@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import space.panrid.novelka.media.internal.FakeRemoteImages;
 import space.panrid.novelka.support.FakeGoogle;
 import space.panrid.novelka.support.FakeModel;
 import space.panrid.novelka.support.FakeSyosetu;
@@ -58,6 +59,12 @@ public class TestcontainersConfiguration {
     @Primary
     LocalWebhooks localWebhooks() {
         return new LocalWebhooks();
+    }
+
+    @Bean
+    @Primary
+    FakeRemoteImages fakeRemoteImages() {
+        return new FakeRemoteImages();
     }
 
     @Bean

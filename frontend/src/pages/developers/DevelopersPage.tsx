@@ -90,6 +90,19 @@ curl -X PUT "${BASE}/studio/novels/mag-vody/translations/zoria/chapters/12" \\
 curl -X POST "${BASE}/studio/novels/mag-vody/translations/zoria/chapters/12/publish" \\
   -H "Authorization: Bearer $NOVELKA_TOKEN"`;
 
+const MARKDOWN = `# Глава з Markdown — сервер сам розбере її на блоки, як імпорт файла .md у Студії.
+# glava-13.md:
+#   # Глава 13. Після повені
+#   Вода **відступила**, а ++слід++ на стіні лишився.
+#   ---
+#   ![Двір](https://example.com/dvir.png)
+jq -n --rawfile text glava-13.md '{format: "markdown", text: $text}' |
+curl -X PUT "${BASE}/studio/novels/mag-vody/translations/zoria/chapters/13" \\
+  -H "Authorization: Bearer $NOVELKA_TOKEN" -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: mag-vody-13-v1" -d @-
+# Назва — з першого рядка «# …» (або полем title); картинку сервер завантажить до себе.
+# Простий текст без розмітки — "format": "plain".`;
+
 const TYPES = `npx openapi-typescript ${BASE}/openapi.json -o novelka-api.d.ts`;
 
 /**
@@ -216,6 +229,17 @@ export function DevelopersPage() {
                 Із заголовком <code>Idempotency-Key</code> скрипт, що впав посередині, можна просто запустити ще раз.
             </p>
             <pre className={styles.code}><code>{CHAPTERS}</code></pre>
+            <h3>Глава з Markdown чи простого тексту</h3>
+            <p>
+                Замість блоків можна надіслати текст: <code>"format": "markdown"</code> — за правилами сайту (
+                <code>**жирний**</code>, <code>*курсив*</code>, <code>++підкреслений++</code>, <code>~~закреслений~~</code>,
+                рядок <code>---</code> — розділювач сцен, рядок <code>![опис](https://…)</code> — картинка, яку сервер
+                завантажить до себе), або <code>"format": "plain"</code> — без розмітки. Сервер розбирає його так само, як
+                імпорт файла в Студії. <code># Назва</code> можна лише першим рядком: це назва глави, а посеред тексту він
+                на сайті починає нову главу, тож запит відхиляється — надсилайте кожну главу окремо. Так само приймають
+                текст <code>…/draft</code> і <code>…/publish</code>.
+            </p>
+            <pre className={styles.code}><code>{MARKDOWN}</code></pre>
             <p>Типи для TypeScript можна згенерувати з опису:</p>
             <pre className={styles.code}><code>{TYPES}</code></pre>
 

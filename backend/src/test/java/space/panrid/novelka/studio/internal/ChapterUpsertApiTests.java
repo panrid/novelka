@@ -108,7 +108,7 @@ class ChapterUpsertApiTests {
 
         HttpResponse<String> empty = put(12, studio, null, JSON.writeValueAsString(Map.of("title", "Без тексту")));
         assertThat(empty.statusCode()).isEqualTo(400);
-        assertThat(empty.body()).contains("Надішліть текст глави блоками");
+        assertThat(empty.body()).contains("Надішліть текст глави: блоками");
     }
 
     @Test
