@@ -77,6 +77,19 @@ curl -X PATCH "${BASE}/studio/novels/mag-vody/translations/zoria/settings" \\
   -H "Authorization: Bearer $NOVELKA_TOKEN" -H "Content-Type: application/json" \\
   -d '{"status":"paused","pausedUntil":"2027-01-15"}'`;
 
+const CHAPTERS = `# Глава за номером: створити, якщо нема, або замінити вашу чернетку — токен із правом studio.
+# Ключ (напр. UUID) зберігається 7 днів: повтор того самого запиту з ним не зробить нічого вдруге.
+curl -X PUT "${BASE}/studio/novels/mag-vody/translations/zoria/chapters/12" \\
+  -H "Authorization: Bearer $NOVELKA_TOKEN" -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: mag-vody-12-v1" \\
+  -d '{"title":"Глава 12. Повінь","blocks":[{"type":"paragraph","content":[{"text":"Вода піднялася до порога."}]}]}'
+# Перший раз — 201 і "created": true; повтор — та сама відповідь і Idempotent-Replayed: true.
+# Той самий ключ з іншим текстом — 409: для нової версії візьміть новий ключ (mag-vody-12-v2).
+
+# Читачі побачать текст лише після публікації — окремим запитом (без тіла публікується ваша чернетка)
+curl -X POST "${BASE}/studio/novels/mag-vody/translations/zoria/chapters/12/publish" \\
+  -H "Authorization: Bearer $NOVELKA_TOKEN"`;
+
 const TYPES = `npx openapi-typescript ${BASE}/openapi.json -o novelka-api.d.ts`;
 
 /**
@@ -195,6 +208,14 @@ export function DevelopersPage() {
                 власник.
             </p>
             <pre className={styles.code}><code>{STUDIO}</code></pre>
+            <h3>Глави скриптом, без дублів</h3>
+            <p>
+                <code>PUT …/chapters/{'{number}'}</code> створює главу на цьому місці або замінює вашу чернетку, тож скрипт
+                не мусить сам стежити за номерами: можна з пропуском чи всередині тому, адреси інших глав не зміняться.
+                Текст завжди стає чернеткою — опублікована глава для читачів не зміниться, доки ви її не опублікуєте.
+                Із заголовком <code>Idempotency-Key</code> скрипт, що впав посередині, можна просто запустити ще раз.
+            </p>
+            <pre className={styles.code}><code>{CHAPTERS}</code></pre>
             <p>Типи для TypeScript можна згенерувати з опису:</p>
             <pre className={styles.code}><code>{TYPES}</code></pre>
 

@@ -23,18 +23,25 @@ import org.jooq.DSLContext;
 import org.jooq.Field;
 import org.jooq.impl.DSL;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import space.panrid.novelka.access.AccessPolicy;
@@ -45,10 +52,12 @@ import space.panrid.novelka.media.Images;
 import space.panrid.novelka.media.StoredImage;
 import space.panrid.novelka.platform.security.TokenGrant;
 import space.panrid.novelka.platform.text.Block;
+import space.panrid.novelka.platform.web.Idempotency;
 import space.panrid.novelka.platform.web.UserFacingException;
 import space.panrid.novelka.team.Teams;
 import space.panrid.novelka.text.Chapters;
 import space.panrid.novelka.text.EditorModels;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The Studio's API (етап 22.3), {@code /api/v1/studio}: the translations a person works on, their
@@ -71,8 +80,13 @@ class StudioApiController {
     private final Images images;
     private final PictureLibrary library;
     private final DSLContext db;
+    private final Idempotency idempotency;
+    private final JsonMapper json;
 
-    StudioApiController(AccessPolicy access, Teams teams, Chapters chapters, Images images, PictureLibrary library, DSLContext db) {
+    StudioApiController(AccessPolicy access, Teams teams, Chapters chapters, Images images, PictureLibrary library, DSLContext db,
+            Idempotency idempotency, JsonMapper json) {
+        this.idempotency = idempotency;
+        this.json = json;
         this.access = access;
         this.teams = teams;
         this.chapters = chapters;
@@ -176,6 +190,59 @@ class StudioApiController {
     StudioApiV1.Chapter newChapter(@PathVariable String novel, @PathVariable String team) {
         EditionAccess who = access.requireTranslator(access.editionAt(novel, team));
         return chapter(who, chapters.createChapter(who.editionId()));
+    }
+
+    /**
+     * The chapter by its number in one request (етап 22.10): created there if there is none, its
+     * draft replaced if there is. Publishing stays a request of its own, so readers never see a
+     * text change quietly. With {@code Idempotency-Key} a request sent again gets the first answer.
+     */
+    @PutMapping("/novels/{novel}/translations/{team}/chapters/{number}")
+    @Operation(summary = "Глава за номером: створити або оновити", description = """
+            Створює главу на цьому місці, якщо її ще немає (лише власник і перекладачі команди), або замінює вашу чернетку, \
+            якщо є. Текст завжди стає вашою чернеткою: опублікована глава лишається для читачів такою, як була, доки ви не \
+            викличете `POST …/publish`.
+
+            Місце — будь-яке вільне від 1 до 99 999: можна з пропуском чи всередині тому; адреси інших глав не змінюються, \
+            а номери для читачів перераховуються, як на сайті. Без `baseRevision` чернетка йде від редакції, яку читачі \
+            бачать зараз.
+
+            Заголовок `Idempotency-Key` (до 255 знаків, напр. UUID) робить повтор безпечним: той самий запит із тим самим \
+            ключем протягом 7 днів отримує ту саму відповідь (і `Idempotent-Replayed: true`) і нічого не змінює вдруге; \
+            той самий ключ з іншим тілом чи адресою — 409. Відповідь із помилкою не запам'ятовується.""")
+    @ApiResponse(responseCode = "200", description = "Готово: главу вже було, чернетку замінено",
+            content = @Content(schema = @Schema(implementation = StudioApiV1.ChapterSaved.class)),
+            headers = @Header(name = Idempotency.REPLAYED, description = "З `Idempotency-Key`: `true` — це збережена відповідь першого "
+                    + "такого запиту, нічого не змінено", schema = @Schema(type = "string", example = "true")))
+    @ApiResponse(responseCode = "201", description = "Готово: главу створено",
+            content = @Content(schema = @Schema(implementation = StudioApiV1.ChapterSaved.class)),
+            headers = @Header(name = Idempotency.REPLAYED, description = "З `Idempotency-Key`: `true` — це збережена відповідь першого "
+                    + "такого запиту, нічого не змінено", schema = @Schema(type = "string", example = "true")))
+    @ApiResponse(responseCode = "409", description = "Ключ `Idempotency-Key` уже використано для іншого запиту; або глава на цьому місці в кошику",
+            content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
+    ResponseEntity<String> putChapter(@PathVariable String novel, @PathVariable String team, @PathVariable int number,
+            @Parameter(description = "Будь-який унікальний рядок до 255 знаків (напр. UUID); повтор із ним не зробить нічого вдруге",
+                    example = "3f1c9a6e-0d4b-4a57-9a8e-2b6f1c0d7e21")
+            @RequestHeader(name = Idempotency.HEADER, required = false) String key,
+            @RequestBody StudioApiV1.Text body) {
+        EditionAccess who = access.requireTextEditor(access.editionAt(novel, team));
+        if (body == null || body.blocks() == null) {
+            throw UserFacingException.badRequest("Надішліть текст глави блоками (blocks); порожній список — порожня глава.");
+        }
+        long accountId = who.viewer().accountId();
+        List<Block> blocks = StudioApiV1.blocks(body.blocks());
+        // The request as the key remembers it: the translation by its id, so a renamed address or another
+        // spelling of the team is the same request; the body as parsed, so spacing and field order do not matter.
+        String request = "PUT chapter " + who.editionId() + " " + number + " " + json.writeValueAsString(body);
+        return idempotency.once(accountId, key, request, () -> {
+            boolean created = chapters.putDraft(who.editionId(), number, accountId, body.title(), blocks, body.baseRevision(),
+                    who.role().translates());
+            EditorModels.EditorState state = chapters.editorState(who.editionId(), number, accountId);
+            EditorModels.Draft draft = state.draft();
+            return new Idempotency.Answer(created ? HttpStatus.CREATED : HttpStatus.OK, new StudioApiV1.ChapterSaved(number,
+                    state.label(), created, state.published(), state.revisionId(),
+                    draft == null ? null : new StudioApiV1.SavedDraft(draft.title(), draft.baseRevisionId(), draft.updatedAt())));
+        });
     }
 
     /** The person's draft of the chapter: kept for them alone until published or replaced. */

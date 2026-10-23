@@ -265,6 +265,40 @@ class ChapterService implements Chapters {
     }
 
     @Override
+    @Transactional
+    public boolean putDraft(long editionId, int number, long accountId, String title, List<Block> blocks, Long baseRevisionId,
+            boolean mayCreate) {
+        if (number < 1 || number > MAX_NUMBER) {
+            throw UserFacingException.badRequest("Номер глави — від 1 до 99 999.");
+        }
+        db.execute("SELECT 1 FROM edition WHERE id = ? FOR UPDATE", editionId);
+        ChapterRecord chapter = db.selectFrom(CHAPTER)
+                .where(CHAPTER.EDITION_ID.eq(editionId).and(CHAPTER.NUMBER.eq(number))).fetchOne();
+        boolean created = chapter == null;
+        if (created) {
+            if (!mayCreate) {
+                throw new UserFacingException(HttpStatus.FORBIDDEN,
+                        "Глави " + number + " ще немає, а нові глави додають лише власник і перекладачі команди.");
+            }
+            int first = db.select(EDITION.FIRST_NUMBER).from(EDITION).where(EDITION.ID.eq(editionId)).fetchOne(EDITION.FIRST_NUMBER);
+            if (number < first) {
+                throw UserFacingException.badRequest("Цей переклад продовжує попередній із глави " + first
+                        + ", тож глави перед нею в ньому не додаються.");
+            }
+            db.insertInto(CHAPTER).set(CHAPTER.EDITION_ID, editionId).set(CHAPTER.NUMBER, number)
+                    .set(CHAPTER.UPDATED_AT, now()).execute();
+            volumes.renumber(editionId);
+            chapter = chapter(editionId, number);
+        } else if (chapter.getDeletedAt() != null) {
+            throw new UserFacingException(HttpStatus.CONFLICT, "Глава " + number + " у кошику: відновіть її в Студії й тоді надсилайте текст. "
+                    + "Її місце звільниться, лише коли кошик її зітре (за 30 днів).",
+                    "chapter-in-trash");
+        }
+        saveDraft(editionId, number, accountId, title, blocks, baseRevisionId != null ? baseRevisionId : chapter.getPublishedRevisionId());
+        return created;
+    }
+
+    @Override
     public EditorState editorState(long editionId, int number, long accountId) {
         ChapterRecord chapter = chapter(editionId, number);
         Record published = chapter.getPublishedRevisionId() == null ? null
@@ -541,6 +575,9 @@ class ChapterService implements Chapters {
     // ---- helpers --------------------------------------------------------------------------
 
     /** The next free number; a continuation (естафета) starts where the previous team stopped. */
+    /** The largest place a chapter may take: the number readers see has at most five digits. */
+    private static final int MAX_NUMBER = 99_999;
+
     private int nextNumber(long editionId) {
         db.execute("SELECT 1 FROM edition WHERE id = ? FOR UPDATE", editionId);
         int last = db.select(DSL.coalesce(DSL.max(CHAPTER.NUMBER), 0)).from(CHAPTER)

@@ -84,6 +84,30 @@ final class StudioApiV1 {
     }
 
     /**
+     * What {@code PUT …/chapters/{number}} did (етап 22.10): the chapter created or its draft replaced.
+     * The text itself is not sent back — {@code GET …/chapters/{number}} has it.
+     */
+    @Schema(name = "StudioChapterSaved", description = "Глава створена чи оновлена: текст став вашою чернеткою. Сам текст — у `GET …/chapters/{number}`.")
+    record ChapterSaved(
+            @Schema(description = "Місце глави, воно ж її адреса: не змінюється ніколи", example = "12") int number,
+            @Schema(description = "Номер, який бачать читачі, коли він не збігається з місцем; null — показується місце", example = "11.1")
+            String label,
+            @Schema(description = "true — главу створено цим запитом; false — вона вже була, замінено вашу чернетку") boolean created,
+            @Schema(description = "Чи бачать главу читачі; опублікований текст не змінюється, доки не викличете `POST …/publish`")
+            boolean published,
+            @Schema(description = "Опублікована редакція, яку бачать читачі; null — ще не опублікована") Long revision,
+            SavedDraft draft) {
+    }
+
+    /** @param baseRevision the published revision the draft was started from */
+    @Schema(name = "StudioSavedDraft", description = "Ваша чернетка глави після збереження.")
+    record SavedDraft(String title,
+            @Schema(description = "Опублікована редакція, від якої вона йде; публікацію поверх новішої чужої буде відхилено (409)")
+            Long baseRevision,
+            OffsetDateTime updatedAt) {
+    }
+
+    /**
      * A picture of «Мої картинки».
      *
      * @param drawn drawn on the site, not uploaded

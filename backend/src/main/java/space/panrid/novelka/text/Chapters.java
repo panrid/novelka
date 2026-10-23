@@ -65,6 +65,19 @@ public interface Chapters {
     /** A new empty chapter at the end, unpublished until its first «Опублікувати». */
     int createChapter(long editionId);
 
+    /**
+     * The chapter under {@code number} with the person's draft replaced by this text (етап 22.10):
+     * created there, unpublished, if there is none — any free place, a gap or the middle of a
+     * volume, never moving another chapter's address. A published chapter keeps what readers see
+     * until it is published again. Without {@code baseRevisionId} the draft is based on the
+     * revision readers see now, as when the chapter is opened on the site.
+     *
+     * @param mayCreate whether the person may add chapters (owners and translators)
+     * @return true when the chapter was created
+     */
+    boolean putDraft(long editionId, int number, long accountId, String title, List<Block> blocks, Long baseRevisionId,
+            boolean mayCreate);
+
     EditorState editorState(long editionId, int number, long accountId);
 
     void saveDraft(long editionId, int number, long accountId, String title, List<Block> blocks, Long baseRevisionId);

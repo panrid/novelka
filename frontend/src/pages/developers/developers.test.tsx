@@ -71,6 +71,8 @@ describe('«Для розробників»', () => {
         expect(screen.getByText(/curl --get/)).toBeInTheDocument();
         expect(screen.getByText(/async function\* chapters/)).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Новий твір з нуля' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Глави скриптом, без дублів' })).toBeInTheDocument();
+        expect(screen.getByText(/Idempotency-Key: mag-vody-12-v1/)).toBeInTheDocument();
         expect(screen.getByText(/curl -X POST ".*\/studio\/novels"/)).toBeInTheDocument();
 
         // The reference is a separate chunk: its first import may take a moment.

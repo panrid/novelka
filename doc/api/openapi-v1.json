@@ -1343,6 +1343,39 @@
         },
         "type" : "object"
       },
+      "StudioChapterSaved" : {
+        "description" : "Глава створена чи оновлена: текст став вашою чернеткою. Сам текст — у `GET …/chapters/{number}`.",
+        "properties" : {
+          "created" : {
+            "description" : "true — главу створено цим запитом; false — вона вже була, замінено вашу чернетку",
+            "type" : "boolean"
+          },
+          "draft" : {
+            "$ref" : "#/components/schemas/StudioSavedDraft"
+          },
+          "label" : {
+            "description" : "Номер, який бачать читачі, коли він не збігається з місцем; null — показується місце",
+            "example" : "11.1",
+            "type" : "string"
+          },
+          "number" : {
+            "description" : "Місце глави, воно ж її адреса: не змінюється ніколи",
+            "example" : 12,
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "published" : {
+            "description" : "Чи бачать главу читачі; опублікований текст не змінюється, доки не викличете `POST …/publish`",
+            "type" : "boolean"
+          },
+          "revision" : {
+            "description" : "Опублікована редакція, яку бачать читачі; null — ще не опублікована",
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "StudioNewNovel" : {
         "description" : "Новий твір: свій переклад (`human`) чи свій твір (`original`).",
         "properties" : {
@@ -1520,6 +1553,24 @@
           },
           "title" : {
             "description" : "Назва, від 1 до 200 знаків",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioSavedDraft" : {
+        "description" : "Ваша чернетка глави після збереження.",
+        "properties" : {
+          "baseRevision" : {
+            "description" : "Опублікована редакція, від якої вона йде; публікацію поверх новішої чужої буде відхилено (409)",
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
             "type" : "string"
           }
         },
@@ -3278,6 +3329,168 @@
           "token" : [ "studio" ]
         } ],
         "summary" : "Глава з чернеткою",
+        "tags" : [ "Студія" ]
+      },
+      "put" : {
+        "description" : "Створює главу на цьому місці, якщо її ще немає (лише власник і перекладачі команди), або замінює вашу чернетку, якщо є. Текст завжди стає вашою чернеткою: опублікована глава лишається для читачів такою, як була, доки ви не викличете `POST …/publish`.\n\nМісце — будь-яке вільне від 1 до 99 999: можна з пропуском чи всередині тому; адреси інших глав не змінюються, а номери для читачів перераховуються, як на сайті. Без `baseRevision` чернетка йде від редакції, яку читачі бачать зараз.\n\nЗаголовок `Idempotency-Key` (до 255 знаків, напр. UUID) робить повтор безпечним: той самий запит із тим самим ключем протягом 7 днів отримує ту саму відповідь (і `Idempotent-Replayed: true`) і нічого не змінює вдруге; той самий ключ з іншим тілом чи адресою — 409. Відповідь із помилкою не запам'ятовується.",
+        "operationId" : "putChapter",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "number",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Будь-який унікальний рядок до 255 знаків (напр. UUID); повтор із ним не зробить нічого вдруге",
+          "example" : "3f1c9a6e-0d4b-4a57-9a8e-2b6f1c0d7e21",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Text"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudioChapterSaved"
+                }
+              }
+            },
+            "description" : "Готово",
+            "headers" : {
+              "Idempotent-Replayed" : {
+                "description" : "З `Idempotency-Key`: `true` — це збережена відповідь першого такого запиту, нічого не змінено",
+                "schema" : {
+                  "example" : "true",
+                  "type" : "string"
+                },
+                "style" : "simple"
+              }
+            }
+          },
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudioChapterSaved"
+                }
+              }
+            },
+            "description" : "Готово",
+            "headers" : {
+              "Idempotent-Replayed" : {
+                "description" : "З `Idempotency-Key`: `true` — це збережена відповідь першого такого запиту, нічого не змінено",
+                "schema" : {
+                  "example" : "true",
+                  "type" : "string"
+                },
+                "style" : "simple"
+              }
+            }
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Ключ `Idempotency-Key` уже використано для іншого запиту; або глава на цьому місці в кошику"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Глава за номером: створити або оновити",
         "tags" : [ "Студія" ]
       }
     },
