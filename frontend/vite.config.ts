@@ -6,6 +6,8 @@ export default defineConfig({
     server: {
         port: 5173,
         strictPort: true,
+        // Tests check the themes against the mockup's own values (src/appearance/newDesign.test.tsx).
+        fs: { allow: ['.', '../doc/redesign/mockup-src'] },
         proxy: {
             // The API runs from `./gradlew :backend:bootRun` on 8080.
             '/api': 'http://127.0.0.1:8080',

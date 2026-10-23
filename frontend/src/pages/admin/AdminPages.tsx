@@ -18,6 +18,9 @@ import { Pager } from '../../ui/Pager';
 import { PAGE_SIZE, usePage, usePaged } from '../../lib/usePage';
 import styles from './admin.module.css';
 import { askText } from '../../ui/ask';
+import { setSiteDefault, useSite } from '../../appearance/store';
+import { FRAMES, THEMES, themeVars, type FrameId, type ThemeId } from '../../appearance/themes';
+import { FramePicker, ThemePicker } from '../me/AppearancePages';
 
 const RANK = { reader: 0, moderator: 1, admin: 2, owner: 3 } as const;
 
@@ -311,7 +314,10 @@ function SettingsForm({ initial }: { initial: SiteSettingsView }) {
     const [months, setMonths] = useState(String(initial.relayInactiveMonths));
     const save = useMutation({
         mutationFn: () => adminApi.saveSettings({ ...draft, relayInactiveMonths: Number(months) }),
-        onSuccess: (saved) => client.setQueryData(['admin-settings'], saved),
+        onSuccess: (saved) => {
+            client.setQueryData(['admin-settings'], saved);
+            setSiteDefault({ frame: saved.defaultFrame, theme: saved.defaultTheme });
+        },
     });
     return (
         <form className={styles.form} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
@@ -326,11 +332,43 @@ function SettingsForm({ initial }: { initial: SiteSettingsView }) {
             </p>
             <TextInput label="Строк естафети, місяців" value={months} onChange={setMonths} inputMode="numeric"
                 hint="Переклад стає вільним, якщо власник команди стільки не заходив." />
+            <DefaultLook frame={draft.defaultFrame} theme={draft.defaultTheme}
+                onPick={(look) => setDraft({ ...draft, defaultFrame: look.frame, defaultTheme: look.theme })} />
             {save.isError && <Notice tone="error">{save.error.message}</Notice>}
             {save.isSuccess && <Notice tone="success">Збережено.</Notice>}
             <Button type="submit" pending={save.isPending} pendingLabel="Зберігаємо…">Зберегти</Button>
         </form>
     );
+}
+
+/**
+ * «Тема й каркас за замовчуванням» (#292; `AdminK`, «налаштування сайту»): what guests and those who never
+ * chose see. The pair opens the same choice as «Вигляд сайту», without «Свої кольори».
+ */
+function DefaultLook({ frame, theme, onPick }: { frame: FrameId; theme: ThemeId; onPick: (look: { frame: FrameId; theme: ThemeId }) => void }) {
+    const [open, setOpen] = useState(false);
+    const { light } = useSite();
+    const label = lookLabel(frame, theme);
+    return (
+        <div className={styles.setRow}>
+            <span>Тема й каркас за замовчуванням<small>для нових відвідувачів</small></span>
+            <button type="button" className={styles.setValue} onClick={() => setOpen(true)} aria-label={`Тема й каркас за замовчуванням: ${label}`}>{label}</button>
+            <Sheet open={open} onClose={() => setOpen(false)} title="Тема й каркас за замовчуванням" tall>
+                <div style={{ display: 'grid', gap: 18 }}>
+                    <FramePicker value={frame} colors={themeVars(theme, { bg: 0, accent: '#000000' }, light)}
+                        onPick={(next) => onPick({ frame: next, theme })} />
+                    <ThemePicker value={theme} withOwn={false}
+                        onPick={(next) => next !== 'own' && onPick({ frame, theme: next })} />
+                    <Button onPress={() => setOpen(false)}>Готово</Button>
+                </div>
+            </Sheet>
+        </div>
+    );
+}
+
+/** «Пульт · Сланець». */
+function lookLabel(frame: FrameId, theme: ThemeId) {
+    return `${FRAMES.find((item) => item.value === frame)?.label ?? ''} · ${THEMES.find((item) => item.value === theme)?.label.replace(' · зараз', '') ?? ''}`;
 }
 
 /**
@@ -404,7 +442,10 @@ function describe(entry: AuditEntry): string {
         const { before, after } = entry.details as { before?: Partial<SiteSettingsView>; after?: Partial<SiteSettingsView> };
         const ai = before?.hideAiWithoutShahs !== undefined && after?.hideAiWithoutShahs !== undefined
             && before.hideAiWithoutShahs !== after.hideAiWithoutShahs;
-        return `${ACTIONS.settings}${ai ? (after!.hideAiWithoutShahs ? ' · ховає ШІ від людей без шагів' : ' · показує ШІ й людям без шагів') : ''}`;
+        const look = after?.defaultFrame && after.defaultTheme && before?.defaultFrame
+            && (before.defaultFrame !== after.defaultFrame || before.defaultTheme !== after.defaultTheme);
+        return `${ACTIONS.settings}${ai ? (after!.hideAiWithoutShahs ? ' · ховає ШІ від людей без шагів' : ' · показує ШІ й людям без шагів') : ''}`
+            + (look ? ` · за замовчуванням ${lookLabel(after.defaultFrame!, after.defaultTheme!)}` : '');
     }
     if (entry.action === 'api_token_revoked') {
         const details = entry.details as { nick?: string; name?: string };

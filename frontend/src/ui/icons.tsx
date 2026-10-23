@@ -1,13 +1,10 @@
 import * as lucide from 'lucide-react';
-import { useEffect, useState, type CSSProperties } from 'react';
-import { siteLook, type SiteLook } from '../appearance/model';
-import { useAppearance } from '../appearance/store';
+import type { CSSProperties } from 'react';
 
 /**
- * The site's icons in the set the person chose (етап 18): Lucide (always here), or Tabler,
- * Phosphor, Iconoir, Heroicons — all open, loaded only when picked. The names are lucide-react's,
- * so pages import from here as they did from it. The line width follows the chosen one; Phosphor
- * and Heroicons can also be filled.
+ * The site's icons: Lucide, in the line width the site has drawn them with since етап 18. The names are
+ * lucide-react's, so pages import from here as they did from it. The new design's own icons come with
+ * the каркас (#293).
  */
 
 export type IconProps = {
@@ -20,43 +17,18 @@ export type IconProps = {
     'aria-hidden'?: boolean | 'true' | 'false';
 };
 export type LucideIcon = (props: IconProps) => React.ReactElement;
-export type SetIconProps = { size: number; stroke: number; fill: boolean };
-type SetRender = (name: string, props: SetIconProps) => React.ReactElement | null;
 
-type SetName = Exclude<SiteLook['icons'], 'lucide'>;
-const LOADERS: Record<SetName, () => Promise<{ default: SetRender }>> = {
-    tabler: () => import('./iconSets/tabler'),
-    phosphor: () => import('./iconSets/phosphor'),
-    iconoir: () => import('./iconSets/iconoir'),
-    heroicons: () => import('./iconSets/heroicons'),
-};
-const loaded: Partial<Record<SetName, SetRender>> = {};
-const loading: Partial<Record<SetName, Promise<unknown>>> = {};
-
-function useSet(set: SiteLook['icons']) {
-    const [, rerender] = useState(0);
-    useEffect(() => {
-        if (set === 'lucide' || loaded[set]) return;
-        loading[set] ??= LOADERS[set]().then((module) => { loaded[set] = module.default; });
-        let gone = false;
-        void loading[set].then(() => { if (!gone) rerender((n) => n + 1); }, () => {});
-        return () => { gone = true; };
-    }, [set]);
-    return set === 'lucide' ? null : loaded[set] ?? null;
-}
+/** The line width the icons have had by default: 1,75 for a shape drawn at 2. */
+const WEIGHT = 1.75;
 
 function icon(name: keyof typeof lucide & string): LucideIcon {
     const Lucide = lucide[name] as unknown as React.ComponentType<Record<string, unknown>>;
     function Icon({ size = 24, strokeWidth, className, style, fill, ...rest }: IconProps) {
-        const look = siteLook(useAppearance());
-        const set = useSet(look.icons);
-        // The caller's width is the shape it was drawn for; the person's choice scales it.
-        const stroke = (strokeWidth ?? 2) * (look.iconWeight / 2);
-        const pixels = typeof size === 'number' ? size : parseFloat(size) || 24;
-        const drawn = set?.(name, { size: pixels, stroke, fill: look.iconFill || Boolean(fill) }) ?? null;
+        // The caller's width is the shape it was drawn for.
+        const stroke = (strokeWidth ?? 2) * (WEIGHT / 2);
         return (
             <span data-icon className={className} style={{ display: 'inline-flex', lineHeight: 0, ...style }} aria-hidden={rest['aria-hidden'] ?? true}>
-                {drawn ?? <Lucide size={size} strokeWidth={stroke} fill={fill ?? 'none'} aria-hidden />}
+                <Lucide size={size} strokeWidth={stroke} fill={fill ?? 'none'} aria-hidden />
             </span>
         );
     }

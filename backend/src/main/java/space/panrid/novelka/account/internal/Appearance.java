@@ -5,15 +5,18 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
+import space.panrid.novelka.platform.SiteLook;
 import space.panrid.novelka.platform.web.UserFacingException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * How a person wants the site and the reader to look (етап 18): {@code {"site": {...}, "siteOwn": {...},
- * "reader": {...}, "readerOwn": {...}}} — the own ones wait while ready styles are tried. Only the choices the site offers get in: known keys, values from their
- * lists or ranges, colours as #rrggbb. Nothing of the person's own (files, fonts, styles).
+ * How a person wants the site and the reader to look (етап 18, етап 20): {@code {"site": {...},
+ * "reader": {...}, "readerOwn": {...}}} — the reader's own style waits while ready ones are tried; the site's
+ * own colours are {@code site.own}. A key left out means the site's choice ({@link SiteLook}). Only the choices
+ * the site offers get in: known keys, values from their lists or ranges, colours as #rrggbb. Nothing of the
+ * person's own (files, fonts, styles).
  */
 final class Appearance {
 
@@ -21,27 +24,22 @@ final class Appearance {
     private static final Set<String> FONTS = Set.of("inter", "rubik", "nunito", "plex", "comfortaa", "jetbrains",
             "literata", "lora", "ptserif", "merriweather", "playfair");
 
+    /** The site's tones (frontend SITE_TONES) and the accents offered for «Свої кольори». */
+    private static final Map<String, Predicate<JsonNode>> OWN_COLORS = Map.of(
+            "bg", whole(0, 6),
+            "accent", Appearance::color);
+
+    /** Каркас and тема apart (рішення 30–33); the fonts, shapes and menu come with the каркас. */
     private static final Map<String, Predicate<JsonNode>> SITE = Map.ofEntries(
-            Map.entry("preset", oneOf("default", "light", "bookish", "parchment", "night", "contrast", "minimal",
-                    "sakura", "ocean", "forest", "neon", "terminal")),
-            Map.entry("custom", JsonNode::isBoolean),
-            Map.entry("base", oneOf("light", "dark")),
-            Map.entry("bg", whole(0, 9)),
-            Map.entry("accent", Appearance::color),
-            Map.entry("ui", oneOf(FONTS)),
-            Map.entry("head", oneOf(FONTS)),
+            Map.entry("frame", oneOf(Set.copyOf(SiteLook.FRAMES))),
+            Map.entry("theme", node -> node.isString()
+                    && (SiteLook.THEMES.contains(node.asString()) || SiteLook.OWN_THEME.equals(node.asString()))),
+            Map.entry("mode", oneOf("dark", "light", "system")),
+            Map.entry("own", node -> fits(node, OWN_COLORS)),
             Map.entry("scale", number(0.85, 1.25)),
-            Map.entry("icons", oneOf("lucide", "tabler", "phosphor", "iconoir", "heroicons")),
-            Map.entry("iconWeight", number(1, 2.5)),
-            Map.entry("iconColor", oneOf("text", "accent", "muted")),
-            Map.entry("iconFill", JsonNode::isBoolean),
-            Map.entry("radius", whole(0, 24)),
-            Map.entry("density", oneOf("compact", "normal", "airy")),
-            Map.entry("cards", oneOf("flat", "border", "shadow")),
-            Map.entry("nav", oneOf("top", "side")),
             Map.entry("catalog", oneOf("rows", "grid", "shelf")),
             Map.entry("portraits", oneOf("round", "square")),
-            Map.entry("anim", oneOf("system", "full", "light", "off")));
+            Map.entry("anim", oneOf("system", "light", "off")));
 
     private static final Map<String, Predicate<JsonNode>> READER = Map.ofEntries(
             Map.entry("preset", oneOf("site", "paper", "sepia", "gray", "night", "black", "book", "dyslexia")),
@@ -77,8 +75,8 @@ final class Appearance {
         ObjectNode out = JsonNodeFactory.instance.objectNode();
         for (String section : body.propertyNames()) {
             Map<String, Predicate<JsonNode>> rules = switch (section) {
-                // «Свій стиль» kept aside while the person tries ready ones.
-                case "site", "siteOwn" -> SITE;
+                case "site" -> SITE;
+                // «Свій стиль» of the reader kept aside while the person tries ready ones.
                 case "reader", "readerOwn" -> READER;
                 default -> throw UserFacingException.badRequest("Невідомий розділ вигляду «%s».".formatted(section));
             };
@@ -96,6 +94,16 @@ final class Appearance {
             }
         }
         return out;
+    }
+
+    /** An object of known keys only, each with a value its rule accepts. */
+    private static boolean fits(JsonNode node, Map<String, Predicate<JsonNode>> rules) {
+        if (!node.isObject()) return false;
+        for (String key : node.propertyNames()) {
+            Predicate<JsonNode> rule = rules.get(key);
+            if (rule == null || !rule.test(node.get(key))) return false;
+        }
+        return true;
     }
 
     private static Predicate<JsonNode> oneOf(String... values) {

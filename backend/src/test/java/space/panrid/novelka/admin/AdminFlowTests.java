@@ -237,6 +237,32 @@ class AdminFlowTests {
         assertThat(read(owner.browser().get("/api/admin/audit")).path("items").path(0).path("action").asString()).isEqualTo("settings");
     }
 
+    @Test
+    void theOwnerPicksTheLookOfThoseWhoNeverChose() {
+        JsonNode site = read(new Browser(port).get("/api/site/look"));
+        assertThat(site.path("frame").asString()).as("Пульт · Сланець unless the owner picks another").isEqualTo("pult");
+        assertThat(site.path("theme").asString()).isEqualTo("slanets");
+        assertThat(read(owner.browser().get("/api/admin/settings")).path("defaultTheme").asString()).isEqualTo("slanets");
+
+        assertThat(admin.browser().put("/api/admin/settings", json("relayInactiveMonths", 3, "registrationOpen", true,
+                "adultEnabled", true, "defaultFrame", "zv", "defaultTheme", "graphite")).status()).isEqualTo(403);
+        JsonNode saved = read(owner.browser().put("/api/admin/settings", json("relayInactiveMonths", 3, "registrationOpen", true,
+                "adultEnabled", true, "defaultFrame", "zv", "defaultTheme", "graphite")));
+        assertThat(saved.path("defaultFrame").asString()).isEqualTo("zv");
+        site = read(new Browser(port).get("/api/site/look"));
+        assertThat(site.path("frame").asString()).as("guests see it at once").isEqualTo("zv");
+        assertThat(site.path("theme").asString()).isEqualTo("graphite");
+
+        read(owner.browser().put("/api/admin/settings", json("relayInactiveMonths", 4, "registrationOpen", true, "adultEnabled", true)));
+        assertThat(read(new Browser(port).get("/api/site/look")).path("frame").asString()).as("left out — unchanged").isEqualTo("zv");
+
+        for (Object[] wrong : new Object[][] {{"defaultFrame", "mine"}, {"defaultTheme", "rainbow"}, {"defaultTheme", "own"}}) {
+            assertThat(owner.browser().put("/api/admin/settings", json("relayInactiveMonths", 3, "registrationOpen", true,
+                    "adultEnabled", true, wrong[0], wrong[1])).status()).as(wrong[1].toString()).isEqualTo(400);
+        }
+        assertThat(read(new Browser(port).get("/api/site/look")).path("theme").asString()).isEqualTo("graphite");
+    }
+
     private static JsonNode read(Response response) {
         assertThat(response.status()).as(response.body()).isBetween(200, 299);
         return response.body().isEmpty() ? JSON.createObjectNode() : JSON.readTree(response.body());

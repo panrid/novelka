@@ -22,63 +22,13 @@
     font-size: 14px;
 }
 
-.presets {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
-    gap: 10px;
-}
 
-.preset {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    padding: 0;
-    overflow: hidden;
-    border: 2px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--text);
-    text-align: left;
-    cursor: pointer;
-}
 
-.preset[aria-checked='true'] {
-    border-color: var(--accent);
-}
 
-.thumb {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    height: 64px;
-    padding: 9px;
-}
 
-.thumb i {
-    display: block;
-    height: 6px;
-}
 
-.covers {
-    display: flex;
-    gap: 4px;
-    margin-top: auto;
-}
 
-.covers b {
-    display: block;
-    flex: 1;
-    height: 20px;
-}
 
-.name {
-    padding: 6px 9px 7px;
-    border-top: 1px solid var(--line);
-    font-size: 13px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
 
 .group {
     display: flex;
@@ -96,15 +46,6 @@
     font: 600 16px var(--font-ui);
 }
 
-.link {
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--accent);
-    font: inherit;
-    text-decoration: underline;
-    cursor: pointer;
-}
 
 .sample {
     padding-block: 16px;
@@ -121,15 +62,6 @@
     text-indent: 1.6em;
 }
 
-.iconDemo {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 18px;
-    padding: 12px 14px;
-    border-radius: var(--radius-sm);
-    background: var(--surface-2);
-    color: var(--icon-color, currentColor);
-}
 
 .tabs {
     display: flex;
@@ -153,3 +85,227 @@
     color: var(--text);
     font-weight: 600;
 }
+
+/*
+ * «Вигляд сайту» (#292) as on the mockup (doc/redesign/mockup-src/comm.mjs: .set, .kgrid, .kc, .mini, .thg,
+ * .tc, .set-r, .seg). Shapes and fonts follow today's tokens until the каркас takes them over (#293).
+ */
+.set {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    max-width: 760px;
+}
+
+.block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.lab {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.about {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13.5px;
+}
+
+.kgrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.kc {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border: 0;
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.kc[aria-checked='true'],
+.tc[aria-checked='true'] {
+    box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.kc b {
+    color: var(--strong);
+    font-size: 14.5px;
+}
+
+.kc > span:last-child {
+    color: var(--faint);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.mini {
+    position: relative;
+    height: 86px;
+    overflow: hidden;
+    border-radius: calc(var(--radius) * 0.5);
+    background: var(--mini-bg);
+    box-shadow: inset 0 0 0 1px var(--mini-line);
+}
+
+.mini i {
+    position: absolute;
+    display: block;
+    background: var(--mini-s2);
+}
+
+.mini .ln {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--mini-faint);
+    opacity: 0.5;
+}
+
+.thg {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.tc {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px;
+    border: 0;
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.sws {
+    display: flex;
+    flex: none;
+    width: 30px;
+    height: 30px;
+    overflow: hidden;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgb(128 128 128 / 40%);
+}
+
+.sws i {
+    flex: 1;
+}
+
+.more {
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 13.5px;
+    cursor: pointer;
+}
+
+.own {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.rows {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.setRow,
+.toggleRow {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14.5px;
+}
+
+.setRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.setRow small,
+.toggleRow small {
+    display: block;
+    margin-top: 2px;
+    color: var(--faint);
+    font-size: 12.5px;
+}
+
+.seg {
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: calc(var(--radius-sm) + 3px);
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.seg button {
+    display: grid;
+    flex: 1;
+    place-items: center;
+    height: 32px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.seg button[aria-checked='true'] {
+    background: var(--surface-2);
+    color: var(--strong);
+    font-weight: 600;
+}
+
+.onComputer {
+    display: none;
+}
+
+@media (min-width: 768px) {
+    .kgrid,
+    .thg {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .onPhone {
+        display: none;
+    }
+
+    .onComputer {
+        display: inline;
+    }
+}
+

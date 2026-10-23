@@ -6,7 +6,7 @@ import { ApiError } from './api/client';
 import { createAppRouter } from './app/router';
 import { mutationCache, queryCache } from './app/mutationErrors';
 import { watchClientErrors } from './app/clientErrors';
-import { apply as applyAppearance } from './appearance/store';
+import { apply as applyAppearance, fetchSiteDefault } from './appearance/store';
 import { meQuery } from './auth/me';
 import { OfflineNotice } from './offline/OfflineNotice';
 import { watchProgressQueue } from './offline/progressQueue';
@@ -15,6 +15,7 @@ import { readingApi } from './reading/api';
 import './styles/global.css';
 
 applyAppearance();
+fetchSiteDefault();
 watchClientErrors();
 
 const queryClient = new QueryClient({

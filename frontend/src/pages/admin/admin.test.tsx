@@ -142,6 +142,28 @@ describe('administration', () => {
         expect(await screen.findByText('Збережено.')).toBeInTheDocument();
     });
 
+    it('the owner picks the каркас and the тема of those who never chose (#292)', async () => {
+        const settings = { relayInactiveMonths: 3, registrationOpen: true, adultEnabled: true, hideAiWithoutShahs: true,
+            defaultFrame: 'pult', defaultTheme: 'slanets' };
+        const { calls } = await renderAt('/admin/settings', {
+            'GET /api/me': { body: person('owner') },
+            'GET /api/admin/settings': { body: settings },
+            'PUT /api/admin/settings': (body) => ({ body }),
+        });
+        await userEvent.click(await screen.findByRole('button', { name: 'Тема й каркас за замовчуванням: Пульт · Сланець' }));
+        const sheet = await screen.findByRole('dialog', { name: 'Тема й каркас за замовчуванням' });
+        await userEvent.click(within(within(sheet).getByRole('radiogroup', { name: 'Каркас' })).getByRole('radio', { name: /Звичний/ }));
+        const themes = within(sheet).getByRole('radiogroup', { name: 'Тема' });
+        expect(within(themes).queryByRole('radio', { name: 'Свої кольори' })).not.toBeInTheDocument();
+        await userEvent.click(within(themes).getByRole('radio', { name: 'Графіт · зараз' }));
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Готово' }));
+        expect(screen.getByRole('button', { name: 'Тема й каркас за замовчуванням: Звичний · Графіт' })).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Зберегти' }));
+        await vi.waitFor(() => expect(calls.find((call) => call.method === 'PUT')?.body)
+            .toEqual({ ...settings, defaultFrame: 'zv', defaultTheme: 'graphite' }));
+        await vi.waitFor(() => expect(document.documentElement.dataset.frame).toBe('zv'));
+    });
+
     it('the owner shows AI to people without шаги (етап 19, п. 7)', async () => {
         const { calls } = await renderAt('/admin/settings', {
             'GET /api/me': { body: person('owner') },

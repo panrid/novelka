@@ -27,26 +27,20 @@ describe('the look of the site and of the reader', () => {
             'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
         });
 
-        await userEvent.click(within(await screen.findByRole('radiogroup', { name: 'Готовий стиль' })).getByRole('radio', { name: /Світлий/ }));
+        await userEvent.click(await screen.findByRole('button', { name: /Усі теми/ }));
+        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Тема' })).getByRole('radio', { name: 'Світлий' }));
+        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Світла чи темна' })).getByRole('radio', { name: 'Світла' }));
         expect(document.documentElement.dataset.theme).toBe('light');
         expect(document.documentElement.style.getPropertyValue('--bg')).toBe('#f7f5ef');
-        // One's own change on top of the style: the accent.
-        await userEvent.click(screen.getByRole('radio', { name: '#c2456b' }));
-        expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#c2456b');
-        expect(screen.getByText(/Свій стиль на основі «Світлий»/)).toBeInTheDocument();
-        // Trying another ready style keeps one's own, and «Свій» brings it back.
-        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Готовий стиль' })).getByRole('radio', { name: /Неон/ }));
-        expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#ff3ea5');
-        await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Готовий стиль' })).getByRole('radio', { name: /Свій/ }));
-        expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#c2456b');
+        expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#4f7a40');
 
         await act(() => router.navigate({ to: '/me/settings/reader' }));
         await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Кольори' })).getByRole('radio', { name: 'Чорний' }));
         expect(document.documentElement.dataset.theme).toBe('light'); // the reader's colours stay in the reader
         await waitFor(() => expect(saved.at(-1)).toMatchObject({
-            site: { preset: 'light', accent: '#c2456b', custom: true }, reader: { colors: 'black', custom: true },
+            site: { theme: 'light', mode: 'light' }, reader: { colors: 'black', custom: true },
         }), { timeout: 2000 });
-        expect(JSON.parse(localStorage.getItem('novelka:appearance')!)).toMatchObject({ site: { preset: 'light' }, reader: { colors: 'black' } });
+        expect(JSON.parse(localStorage.getItem('novelka:appearance')!)).toMatchObject({ site: { theme: 'light', mode: 'light' }, reader: { colors: 'black' } });
 
         await act(() => router.navigate({ to: '/n/$slug/$number', params: { slug: 'mah-vody', number: '12' } }));
         await screen.findByRole('heading', { name: '12. Спокійне життя' });

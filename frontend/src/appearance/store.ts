@@ -2,46 +2,81 @@ import { useSyncExternalStore } from 'react';
 import { api } from '../api/client';
 import { loadFont } from './fonts';
 import {
-    NOVELKA_ACCENT, NOVELKA_TONE, SITE_TONES,
-    clean, ownReaderVars, presetLook, readerColors, readerLook, siteLook, sitePresetLook, siteStyle,
-    type Appearance, type ReaderAppearance, type ReaderPreset, type SiteAppearance, type SiteStyle,
+    SITE_DEFAULT,
+    clean, isLight, ownReaderVars, presetLook, readerColors, readerLook, siteLook,
+    type Appearance, type OwnColors, type ReaderAppearance, type ReaderPreset, type SiteAppearance, type SiteDefault, type SiteLook,
 } from './model';
 import { COLOR_VARS, siteVars } from './siteVars';
+import { FRAMES, THEMES, themeVars } from './themes';
 
 /**
- * The person's appearance settings: in this browser at once (so the page opens in its style,
+ * The person's appearance settings: in this browser at once (so the page opens in its look,
  * see public/appearance-boot.js), and in the account when signed in, so every device agrees.
+ * What they never chose follows the site's каркас and тема (/api/site/look), kept here too.
  */
 const KEY = 'novelka:appearance';
+const SITE_KEY = 'novelka:site-look';
 const LEGACY_THEME = 'novelka:theme';
 const LEGACY_SIZE = 'novelka:reader-size';
 const VARS_KEY = 'novelka:appearance-css';
 
 const listeners = new Set<() => void>();
 let current: Appearance = load();
+let siteDefault: SiteDefault = loadSiteDefault();
 let signedIn = false;
 let pending: ReturnType<typeof setTimeout> | undefined;
 /** A change on its way to the account: an older copy of the account must not undo it. */
 let unsent = false;
 /** While the reader shows its own colours, the site's style waits under it. */
 let readerOpen = false;
+/** «Як у системі»: the device's light or dark. */
+const system = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-color-scheme: light)') : null;
+
+/** The site's look as it shows, light or dark right now, and the site's own choice. */
+export type SiteNow = { look: SiteLook; light: boolean; siteDefault: SiteDefault };
+let now: SiteNow = site();
+
+system?.addEventListener?.('change', () => {
+    if (now.look.mode === 'system') {
+        apply();
+        listeners.forEach((listener) => listener());
+    }
+});
+
+function site(): SiteNow {
+    const look = siteLook(current, siteDefault);
+    return { look, light: isLight(look, system?.matches ?? false), siteDefault };
+}
 
 function load(): Appearance {
     try {
+        // A look saved before #292 (one site style) becomes a тема here (model.ts clean).
         const stored = localStorage.getItem(KEY);
         if (stored) return clean(JSON.parse(stored));
         // Before етап 18 the reader's theme was the site's theme, and the size lived apart.
-        const legacy: Appearance = {};
+        const old: Record<string, unknown> = {};
         const theme = localStorage.getItem(LEGACY_THEME);
-        if (theme === 'light') legacy.site = { preset: 'light' };
-        if (theme === 'black') legacy.site = { preset: 'night' };
+        if (theme === 'light') old.site = { preset: 'light' };
+        if (theme === 'black') old.site = { preset: 'night' };
         const size = Number(localStorage.getItem(LEGACY_SIZE));
-        const reader = size ? clean({ reader: { size } }).reader : undefined;
-        if (reader) legacy.reader = reader;
-        return clean(legacy);
+        if (size) old.reader = { size };
+        return clean(old);
     } catch {
         return {};
     }
+}
+
+function loadSiteDefault(): SiteDefault {
+    try {
+        const stored = JSON.parse(localStorage.getItem(SITE_KEY) ?? 'null') as Partial<SiteDefault> | null;
+        if (stored && FRAMES.some((f) => f.value === stored.frame) && THEMES.some((t) => t.value === stored.theme)) {
+            return { frame: stored.frame!, theme: stored.theme! };
+        }
+    } catch {
+        // Storage blocked: the code's default.
+    }
+    return SITE_DEFAULT;
 }
 
 function keep(next: Appearance) {
@@ -61,12 +96,14 @@ function keep(next: Appearance) {
  */
 export function apply() {
     const root = document.documentElement;
-    const site = siteLook(current);
-    const style = siteStyle(current);
+    now = site();
+    const { look, light } = now;
+    const colors = themeVars(look.theme, look.own, light);
+    const siteTheme: 'dark' | 'light' | 'black' = light ? 'light' : colors.bg.toLowerCase() === '#000000' ? 'black' : 'dark';
     const reader = readerColors(current);
     const own = readerOpen && reader.theme !== null;
-    const theme = own && reader.theme ? reader.theme : style.theme;
-    const vars = siteVars(site);
+    const theme = own && reader.theme ? reader.theme : siteTheme;
+    const vars = siteVars(look, colors, light);
     // «Свої» colours of the reader are not in the stylesheet: they go on the page like the site's.
     const readerVars = reader.value === 'own' ? ownReaderVars(readerLook(current)) : null;
     for (const [name, value] of Object.entries(vars)) {
@@ -76,23 +113,25 @@ export function apply() {
         } else root.style.setProperty(name, value);
     }
     // The reader has its own text size; the scale is for the rest of the site.
-    root.style.setProperty('--ui-scale', readerOpen ? '1' : String(site.scale));
+    root.style.setProperty('--ui-scale', readerOpen ? '1' : String(look.scale));
     const accent = readerOpen ? readerLook(current).accent : null;
     if (accent) root.style.setProperty('--accent', accent);
-    root.dataset.style = site.preset;
+    root.dataset.frame = look.frame;
     root.dataset.theme = theme;
-    root.dataset.motion = site.anim;
-    root.dataset.nav = site.nav;
-    root.dataset.catalog = site.catalog;
+    root.dataset.motion = look.anim;
+    root.dataset.catalog = look.catalog;
     if (own) root.dataset.reader = reader.value;
     else delete root.dataset.reader;
-    void loadFont(site.ui);
-    void loadFont(site.head);
+    void loadFont('golos');
+    void loadFont('literata');
     if (readerOpen) void loadFont(readerLook(current).font);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', own ? reader.bg : style.color);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', own ? reader.bg : colors.bg);
     try {
         // The next visit starts in this look before the app loads (public/appearance-boot.js).
-        localStorage.setItem(VARS_KEY, JSON.stringify({ vars: { ...vars, '--ui-scale': String(site.scale) }, readerVars, readerTheme: readerVars ? reader.theme : null, theme: style.theme, preset: site.preset, motion: site.anim, nav: site.nav, catalog: site.catalog }));
+        localStorage.setItem(VARS_KEY, JSON.stringify({
+            vars: { ...vars, '--ui-scale': String(look.scale) }, readerVars, readerTheme: readerVars ? reader.theme : null,
+            theme: siteTheme, frame: look.frame, motion: look.anim, catalog: look.catalog,
+        }));
     } catch {
         // Private mode: the default look until the app loads.
     }
@@ -103,6 +142,14 @@ export function useAppearance(): Appearance {
         listeners.add(listener);
         return () => listeners.delete(listener);
     }, () => current);
+}
+
+/** The site's look with the site's own choices filled in, and whether it is light now. */
+export function useSite(): SiteNow {
+    return useSyncExternalStore((listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+    }, () => now);
 }
 
 function changed(next: Appearance) {
@@ -119,40 +166,47 @@ function changed(next: Appearance) {
     }, 600);
 }
 
-/** A change to the site's look: from now on it is one's own («Свій стиль»). */
+/** A change to the site's look: its каркас, тема, light or dark, size and the rest. */
 export function setSite(patch: SiteAppearance) {
-    const site = { ...current.site, ...patch, custom: true };
-    changed({ ...current, site, siteOwn: site });
+    changed({ ...current, site: { ...current.site, ...patch } });
 }
 
-/**
- * The sun / moon button in the header (етап 20): the same look, light or dark. The new design's tone
- * and accent follow to their pair; another tone keeps its place when the other base has it.
- */
+/** «Свої кольори»: picking a tone or an accent makes them the тема. */
+export function setOwnColors(patch: Partial<OwnColors>) {
+    setSite({ theme: 'own', own: { ...now.look.own, ...patch } });
+}
+
+/** The sun / moon button in the header (етап 20): the same тема, light or dark — «Світла чи темна» in the settings. */
 export function toggleSiteBase() {
-    const look = siteLook(current);
-    const base = look.base === 'dark' ? 'light' : 'dark';
-    const patch: SiteAppearance = { base, bg: look.bg < SITE_TONES[base].length ? look.bg : 0 };
-    if (look.accent.toLowerCase() === NOVELKA_ACCENT[look.base]) patch.accent = NOVELKA_ACCENT[base];
-    if (look.bg === NOVELKA_TONE) patch.bg = NOVELKA_TONE;
-    const site = { ...current.site, ...patch };
-    changed({ ...current, site, ...(look.custom ? { siteOwn: site } : {}) });
+    setSite({ mode: now.light ? 'dark' : 'light' });
 }
 
-/** A ready site style replaces whatever was changed before. */
-export function setSitePreset(preset: SiteStyle) {
-    changed({ ...current, site: sitePresetLook(preset) });
+/** The site's own каркас and тема, as the server has them; whoever never chose follows them. */
+export function setSiteDefault(next: SiteDefault) {
+    if (next.frame === siteDefault.frame && next.theme === siteDefault.theme) return;
+    siteDefault = { frame: next.frame, theme: next.theme };
+    try {
+        localStorage.setItem(SITE_KEY, JSON.stringify(siteDefault));
+    } catch {
+        // Private mode: asked again on the next visit.
+    }
+    apply();
+    listeners.forEach((listener) => listener());
+}
+
+/** Asks the server for the site's own каркас and тема once the app starts. */
+export function fetchSiteDefault() {
+    void api<SiteDefault>('/api/site/look').then((look) => {
+        if (look && FRAMES.some((f) => f.value === look.frame) && THEMES.some((t) => t.value === look.theme)) setSiteDefault(look);
+    }, () => {
+        // Offline: the copy this browser keeps.
+    });
 }
 
 /** A change to the reader's look: from now on it is one's own («Свій стиль»). */
 export function setReader(patch: ReaderAppearance) {
     const reader = { ...current.reader, ...patch, custom: true };
     changed({ ...current, reader, readerOwn: reader });
-}
-
-/** Back to one's own site style after trying ready ones. */
-export function restoreOwnSite() {
-    if (current.siteOwn) changed({ ...current, site: current.siteOwn });
 }
 
 /** Back to one's own reader style after trying ready ones. */

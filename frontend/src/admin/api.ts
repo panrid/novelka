@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
+import type { FrameId, ThemeId } from '../appearance/themes';
 import { useMe } from '../auth/me';
 
 export type Target = 'comment' | 'chat' | 'message' | 'image' | 'edition';
@@ -18,8 +19,14 @@ export type Person = { nick: string; role: 'reader' | 'moderator' | 'admin' | 'o
     autotranslate?: boolean | null };
 /** Someone asked for «Автопереклад із сайту» (етап 19) and waits for the owner's answer. */
 export type AccessRequest = { nick: string; requestedAt: string; shahs: number | null };
-/** hideAiWithoutShahs: AI is hidden from people without шаги (етап 19, п. 7). */
-export type SiteSettingsView = { relayInactiveMonths: number; registrationOpen: boolean; adultEnabled: boolean; hideAiWithoutShahs: boolean };
+/**
+ * hideAiWithoutShahs: AI is hidden from people without шаги (етап 19, п. 7); defaultFrame, defaultTheme: the look of
+ * guests and of those who never chose theirs (#292).
+ */
+export type SiteSettingsView = {
+    relayInactiveMonths: number; registrationOpen: boolean; adultEnabled: boolean; hideAiWithoutShahs: boolean;
+    defaultFrame: FrameId; defaultTheme: ThemeId;
+};
 export type AuditEntry = {
     id: number; actor: string; action: string; targetType: string; targetId: number | null; details: Record<string, unknown>; createdAt: string;
 };

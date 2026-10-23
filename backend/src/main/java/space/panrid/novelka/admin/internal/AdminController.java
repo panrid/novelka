@@ -25,6 +25,7 @@ import space.panrid.novelka.access.AccessPolicy;
 import space.panrid.novelka.account.CurrentUser;
 import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.account.Viewer;
+import space.panrid.novelka.platform.SiteLook;
 import space.panrid.novelka.platform.SiteSettings;
 import space.panrid.novelka.platform.audit.AuditLog;
 import space.panrid.novelka.platform.web.UserFacingException;
@@ -40,17 +41,19 @@ class AdminController {
     private final Moderation moderation;
     private final Staff staff;
     private final SiteSettings settings;
+    private final SiteLook siteLook;
     private final AuditLog audit;
     private final DSLContext db;
     private final JsonMapper json;
 
     AdminController(AccessPolicy access, CurrentUser currentUser, Moderation moderation, Staff staff, SiteSettings settings,
-            AuditLog audit, DSLContext db, JsonMapper json) {
+            SiteLook siteLook, AuditLog audit, DSLContext db, JsonMapper json) {
         this.access = access;
         this.currentUser = currentUser;
         this.moderation = moderation;
         this.staff = staff;
         this.settings = settings;
+        this.siteLook = siteLook;
         this.audit = audit;
         this.db = db;
         this.json = json;
@@ -181,8 +184,12 @@ class AdminController {
         staff.refuseAutotranslate(access.requireSiteRole(SiteRole.OWNER), nick);
     }
 
-    /** {@code hideAiWithoutShahs}: AI is hidden from people without шаги (етап 19, п. 7); left out — unchanged. */
-    record SiteSettingsView(int relayInactiveMonths, boolean registrationOpen, boolean adultEnabled, Boolean hideAiWithoutShahs) {
+    /**
+     * {@code hideAiWithoutShahs}: AI is hidden from people without шаги (етап 19, п. 7); {@code defaultFrame},
+     * {@code defaultTheme}: the look of guests and of those who never chose theirs (#292). Left out — unchanged.
+     */
+    record SiteSettingsView(int relayInactiveMonths, boolean registrationOpen, boolean adultEnabled, Boolean hideAiWithoutShahs,
+            String defaultFrame, String defaultTheme) {
     }
 
     @GetMapping("/admin/settings")
@@ -197,7 +204,16 @@ class AdminController {
         if (body.relayInactiveMonths() < 1 || body.relayInactiveMonths() > 24) {
             throw UserFacingException.badRequest("Строк естафети — від 1 до 24 місяців.");
         }
+        SiteLook.Default look = siteLook.current();
+        String frame = body.defaultFrame() != null ? body.defaultFrame() : look.frame();
+        String theme = body.defaultTheme() != null ? body.defaultTheme() : look.theme();
+        if (!SiteLook.FRAMES.contains(frame) || !SiteLook.THEMES.contains(theme)) {
+            throw UserFacingException.badRequest("Такого каркаса чи теми немає.");
+        }
         SiteSettingsView before = current();
+        if (!frame.equals(look.frame()) || !theme.equals(look.theme())) {
+            siteLook.save(frame, theme, owner.accountId());
+        }
         settings.put(SiteSettings.RELAY_INACTIVE_MONTHS, String.valueOf(body.relayInactiveMonths()), owner.accountId());
         settings.put(SiteSettings.REGISTRATION_OPEN, String.valueOf(body.registrationOpen()), owner.accountId());
         settings.put(SiteSettings.ADULT_ENABLED, String.valueOf(body.adultEnabled()), owner.accountId());
@@ -210,9 +226,10 @@ class AdminController {
     }
 
     private SiteSettingsView current() {
+        SiteLook.Default look = siteLook.current();
         return new SiteSettingsView(settings.integer(SiteSettings.RELAY_INACTIVE_MONTHS, 3),
                 settings.flag(SiteSettings.REGISTRATION_OPEN, true), settings.flag(SiteSettings.ADULT_ENABLED, true),
-                settings.flag(SiteSettings.AI_HIDDEN_WITHOUT_SHAHS, true));
+                settings.flag(SiteSettings.AI_HIDDEN_WITHOUT_SHAHS, true), look.frame(), look.theme());
     }
 
     record Entry(long id, String actor, String action, String targetType, Long targetId, Map<String, Object> details,

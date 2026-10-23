@@ -1,168 +1,217 @@
 import { useMutation } from '@tanstack/react-query';
+import { useState, type CSSProperties } from 'react';
 import { SettingsFrame } from './SettingsFrame';
 
 import { meApi } from '../../auth/api';
 import { useMe, useSetMe } from '../../auth/me';
-import { FONT_STACKS, loadFont } from '../../appearance/fonts';
+import { FONT_STACKS } from '../../appearance/fonts';
 import {
-    ICON_SETS, SITE_SCALES, READER_WIDTHS, SITE_ACCENTS, SITE_FONTS, SITE_PRESETS, SITE_TONES, inkOn, readerColors, readerLook, siteLook, sitePresetLook,
-    type FontId, type SiteLook,
+    SITE_ACCENTS, SITE_SCALES, SITE_TONES, READER_WIDTHS, inkOn, readerColors, readerLook,
+    type FrameId, type SiteLook, type ThemeId,
 } from '../../appearance/model';
 import { ReaderLookForm } from '../../appearance/ReaderLookForm';
-import { restoreOwnSite, setSite, setSitePreset, useAppearance } from '../../appearance/store';
+import { setOwnColors, setSite, useAppearance, useSite } from '../../appearance/store';
+import { FRAMES, OWN_THEME_LABEL, THEMES, THEMES_AT_ONCE, themeVars, type ThemeVars } from '../../appearance/themes';
 import form from '../../appearance/ReaderLookForm.module.css';
 import { Notice } from '../../ui/Notice';
 import { Toggle } from '../../ui/Toggle';
-import { Bell, BookOpen, Home, Inbox, Search, User } from '../../ui/icons';
 import styles from './appearance.module.css';
 
 /**
- * «Вигляд сайту» (етап 18): a ready style, or one's own put together from the site's choices.
- * The whole site changes as soon as something is picked.
+ * «Вигляд сайту» (етап 20, #292; `SettingsT`, `SettingsK`, стан «вигляд сайту»): the каркас and the тема
+ * apart, then light or dark, size, catalog, portraits and animations. The whole site changes as soon as
+ * something is picked; a guest's choice stays in the browser.
  */
 export function SiteAppearancePage() {
-    const appearance = useAppearance();
-    const look = siteLook(appearance);
-    const base = SITE_PRESETS.find((item) => item.value === look.preset)!;
+    const { look, light, siteDefault } = useSite();
+    const colors = themeVars(look.theme, look.own, light);
     return (
         <SettingsFrame title="Вигляд сайту">
-        <div className={styles.page}>
-            <p className={styles.lead}>Готовий стиль або свій: змініть будь-що нижче, і стиль стане вашим. Читалка має свій вигляд — вкладка «Читалка».</p>
+            <div className={styles.set}>
+                <div className={styles.block}>
+                    <span className={styles.lab}>Каркас</span>
+                    <p className={styles.about}>Будова сайту: меню, шрифти, форма кнопок і карток, щільність. Вибраний — у кожного свій; гостю його пам’ятає браузер.</p>
+                    <FramePicker value={look.frame} siteFrame={siteDefault.frame} colors={colors} onPick={(frame) => setSite({ frame })} />
+                </div>
+                <div className={styles.block}>
+                    <span className={styles.lab}>Тема</span>
+                    <p className={styles.about}>Лише кольори; будь-яка тема лягає на будь-який каркас. Кольори нинішніх стилів сайту — теж тут.</p>
+                    <ThemePicker value={look.theme} withOwn onPick={(theme) => setSite({ theme })} />
+                    {look.theme === 'own' && <OwnColorsForm look={look} light={light} />}
+                </div>
+                <div className={styles.rows}>
+                    <SetRow label="Світла чи темна" hint={<>
+                        <span className={styles.onPhone}>на телефоні сайт темний, якщо не вибрати інше</span>
+                        <span className={styles.onComputer}>на комп’ютері — ще й кнопкою в шапці</span>
+                    </>}>
+                        <Seg label="Світла чи темна" value={look.mode} onPick={(mode) => setSite({ mode })} min={250}
+                            options={[{ value: 'dark', label: 'Темна' }, { value: 'light', label: 'Світла' }, { value: 'system', label: 'Як у системі' }]} />
+                    </SetRow>
+                    <SetRow label="Розмір сторінок">
+                        <Seg label="Розмір сторінок" value={String(look.scale)} onPick={(scale) => setSite({ scale: Number(scale) })} min={200}
+                            options={SITE_SCALES.map((scale) => ({ value: String(scale), label: `${Math.round(scale * 100)}%` }))} />
+                    </SetRow>
+                    <SetRow label="Каталог">
+                        <Seg label="Каталог" value={look.catalog} onPick={(catalog) => setSite({ catalog })} min={220}
+                            options={[{ value: 'rows', label: 'Рядками' }, { value: 'grid', label: 'Сіткою' }, { value: 'shelf', label: 'Полицею' }]} />
+                    </SetRow>
+                    <SetRow label="Портрети персонажів">
+                        <Seg label="Портрети персонажів" value={look.portraits} onPick={(portraits) => setSite({ portraits })} min={150}
+                            options={[{ value: 'round', label: 'Кола' }, { value: 'square', label: 'Квадрати' }]} />
+                    </SetRow>
+                    <SetRow label="Анімації">
+                        <Seg label="Анімації" value={look.anim} onPick={(anim) => setSite({ anim })} min={250}
+                            options={[{ value: 'system', label: 'Як у системі' }, { value: 'light', label: 'Легкі' }, { value: 'off', label: 'Вимкнені' }]} />
+                    </SetRow>
+                    <StudioInMenu />
+                </div>
+            </div>
+        </SettingsFrame>
+    );
+}
 
-            <div className={styles.presets} role="radiogroup" aria-label="Готовий стиль">
-                {SITE_PRESETS.map((preset) => {
-                    const thumb = { ...look, ...sitePresetLook(preset.value) } as SiteLook;
-                    const tone = SITE_TONES[thumb.base][thumb.bg]!;
+/** The four каркаси, each drawn small in the colours of the тема in use. */
+export function FramePicker({ value, siteFrame, colors, onPick }: {
+    value: FrameId; siteFrame?: FrameId; colors: ThemeVars; onPick: (frame: FrameId) => void;
+}) {
+    const paint = {
+        '--mini-bg': colors.bg, '--mini-s0': colors.s0, '--mini-s1': colors.s1, '--mini-s2': colors.s2, '--mini-line': colors.line,
+        '--mini-acc': colors.acc, '--mini-faint': colors.faint,
+    } as CSSProperties;
+    return (
+        <div className={styles.kgrid} role="radiogroup" aria-label="Каркас" style={paint}>
+            {FRAMES.map((frame) => (
+                <button key={frame.value} type="button" role="radio" aria-checked={value === frame.value} className={styles.kc}
+                    onClick={() => onPick(frame.value)}>
+                    <span className={styles.mini} aria-hidden>{MINI[frame.value]}</span>
+                    <b>{frame.label}</b>
+                    <span>{frame.about}{frame.value === siteFrame ? ' · за замовчуванням' : ''}</span>
+                </button>
+            ))}
+        </div>
+    );
+}
+
+/** doc/redesign/mockup-src/comm.mjs, mini(): each каркас in a few strokes. */
+const MINI: Record<FrameId, React.ReactNode> = {
+    pult: <>
+        <i style={{ left: 0, top: 0, bottom: 0, width: 14, background: 'var(--mini-s0)' }} />
+        <i style={{ left: 14, right: 0, top: 0, height: 10, background: 'var(--mini-s0)' }} />
+        <i className={styles.ln} style={{ left: 22, top: 20, width: '60%' }} />
+        <i className={styles.ln} style={{ left: 22, top: 30, width: '50%' }} />
+        <i className={styles.ln} style={{ left: 22, top: 40, width: '55%' }} />
+        <i style={{ left: 22, top: 54, width: 30, height: 10, background: 'var(--mini-acc)' }} />
+    </>,
+    zv: <>
+        <i style={{ left: 0, right: 0, top: 0, height: 14, background: 'var(--mini-s1)' }} />
+        <i style={{ left: 8, top: 22, width: '40%', height: 40, borderRadius: 5, background: 'var(--mini-s1)' }} />
+        <i style={{ right: 8, top: 22, width: '40%', height: 40, borderRadius: 5, background: 'var(--mini-s1)' }} />
+        <i style={{ left: 8, top: 68, width: 40, height: 10, borderRadius: 4, background: 'var(--mini-acc)' }} />
+    </>,
+    pal: <>
+        <i className={styles.ln} style={{ left: '35%', top: 8, width: '30%', background: 'var(--mini-acc)' }} />
+        <i style={{ left: 8, right: 8, top: 18, height: 1, background: 'var(--mini-line)' }} />
+        <i className={styles.ln} style={{ left: '20%', top: 30, width: '60%' }} />
+        <i className={styles.ln} style={{ left: '20%', top: 40, width: '60%' }} />
+        <i className={styles.ln} style={{ left: '20%', top: 50, width: '55%' }} />
+        <i className={styles.ln} style={{ left: '20%', top: 60, width: '60%' }} />
+    </>,
+    obl: <>
+        <i style={{ left: 6, top: 6, bottom: 6, width: 22, borderRadius: 8, background: 'var(--mini-s1)' }} />
+        <i style={{ left: 34, top: 8, width: 26, height: 20, borderRadius: 4, background: 'var(--mini-acc)', opacity: 0.85 }} />
+        <i style={{ left: 34, top: 36, right: 8, height: 16, borderRadius: 8, background: 'var(--mini-s1)' }} />
+        <i style={{ left: 34, top: 58, width: 44, height: 14, borderRadius: 7, background: 'var(--mini-acc)' }} />
+    </>,
+};
+
+/**
+ * The themes as on the mockup: seven at once and «Усі теми · 16 ›» for the rest (open from the start
+ * when the chosen one is among them); «Свої кольори» last, for a person, not for the site's default.
+ */
+export function ThemePicker({ value, withOwn, onPick }: {
+    value: ThemeId | 'own'; withOwn: boolean; onPick: (theme: ThemeId | 'own') => void;
+}) {
+    const hidden = THEMES.findIndex((theme) => theme.value === value) >= THEMES_AT_ONCE;
+    const [all, setAll] = useState(hidden);
+    const shown = all || hidden ? THEMES : THEMES.slice(0, THEMES_AT_ONCE);
+    const total = THEMES.length + (withOwn ? 1 : 0);
+    return (
+        <>
+            <div className={styles.thg} role="radiogroup" aria-label="Тема">
+                {shown.map((theme) => {
+                    // As on the mockup: the dark variant's page, acc2 and acc, in light and dark alike.
+                    const colors = themeVars(theme.value, { bg: 0, accent: '#000000' }, false);
                     return (
-                        <button key={preset.value} type="button" role="radio" aria-checked={!look.custom && look.preset === preset.value}
-                            className={styles.preset} onClick={() => setSitePreset(preset.value)} onFocus={() => void loadFont(thumb.head)}>
-                            <span className={styles.thumb} style={{ background: tone.bg }}>
-                                <i style={{ width: '62%', background: tone.text, borderRadius: thumb.radius / 3 }} />
-                                <i style={{ width: '36%', background: thumb.accent, borderRadius: thumb.radius / 3 }} />
-                                <span className={styles.covers}>
-                                    <b style={{ background: tone.surface2, borderRadius: thumb.radius / 4 }} />
-                                    <b style={{ background: thumb.accent, opacity: 0.7, borderRadius: thumb.radius / 4 }} />
-                                    <b style={{ background: tone.surface2, borderRadius: thumb.radius / 4 }} />
-                                </span>
-                            </span>
-                            <span className={styles.name} style={{ fontFamily: FONT_STACKS[thumb.head] }}>{preset.label}</span>
+                        <button key={theme.value} type="button" role="radio" aria-checked={value === theme.value} className={styles.tc}
+                            onClick={() => onPick(theme.value)}>
+                            <span className={styles.sws} aria-hidden><i style={{ background: colors.bg }} /><i style={{ background: colors.acc2 }} /><i style={{ background: colors.acc }} /></span>
+                            {theme.label}
                         </button>
                     );
                 })}
-                {appearance.siteOwn && (() => {
-                    const own = siteLook({ site: appearance.siteOwn });
-                    const tone = SITE_TONES[own.base][own.bg] ?? SITE_TONES[own.base][0]!;
-                    return (
-                        <button type="button" role="radio" aria-checked={look.custom} className={styles.preset}
-                            onClick={restoreOwnSite} onFocus={() => void loadFont(own.head)}>
-                            <span className={styles.thumb} style={{ background: tone.bg }}>
-                                <i style={{ width: '62%', background: tone.text, borderRadius: own.radius / 3 }} />
-                                <i style={{ width: '36%', background: own.accent, borderRadius: own.radius / 3 }} />
-                                <span className={styles.covers}>
-                                    <b style={{ background: tone.surface2, borderRadius: own.radius / 4 }} />
-                                    <b style={{ background: own.accent, opacity: 0.7, borderRadius: own.radius / 4 }} />
-                                    <b style={{ background: tone.surface2, borderRadius: own.radius / 4 }} />
-                                </span>
-                            </span>
-                            <span className={styles.name} style={{ fontFamily: FONT_STACKS[own.head] }}>Свій</span>
-                        </button>
-                    );
-                })()}
-            </div>
-            {look.custom && (
-                <p className={form.note}>
-                    Свій стиль на основі «{base.label}». Він збережеться: можна перебрати готові й повернутись до «Свій».{' '}
-                    <button type="button" className={styles.link} onClick={() => setSitePreset(look.preset)}>Повернути «{base.label}»</button>
-                </p>
-            )}
-
-            <div className={styles.group}>
-                <h2 className={styles.groupTitle}>Кольори</h2>
-                <Choice label="Основа" value={look.base} onPick={(value) => setSite({ base: value, bg: 0 })}
-                    options={[{ value: 'light', label: 'Світла' }, { value: 'dark', label: 'Темна' }]} />
-                <div className={form.row}>
-                    <span className={form.label}>Тло</span>
-                    <div className={form.swatches} role="radiogroup" aria-label="Тло">
-                        {SITE_TONES[look.base].map((tone, index) => (
-                            <button key={tone.name} type="button" role="radio" aria-checked={look.bg === index} aria-label={tone.name} title={tone.name}
-                                className={form.pair} style={{ background: `linear-gradient(135deg, ${tone.bg} 50%, ${tone.surface} 50%)`, color: tone.text }}
-                                onClick={() => setSite({ bg: index })}>Аа</button>
-                        ))}
-                    </div>
-                </div>
-                <div className={form.row}>
-                    <span className={form.label}>Акцент</span>
-                    <div className={form.swatches} role="radiogroup" aria-label="Акцент">
-                        {SITE_ACCENTS.map((accent) => (
-                            <button key={accent} type="button" role="radio" aria-checked={look.accent === accent} aria-label={accent} title={accent}
-                                className={form.swatch} style={{ background: accent, color: inkOn(accent) }} onClick={() => setSite({ accent })} />
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            <div className={styles.group}>
-                <h2 className={styles.groupTitle}>Шрифти</h2>
-                <FontSelect label="Меню, кнопки, підписи" value={look.ui} onPick={(ui) => setSite({ ui })} />
-                <FontSelect label="Заголовки й назви" value={look.head} onPick={(head) => setSite({ head })} />
-                <Choice label="Розмір сторінок" value={String(look.scale)} onPick={(scale) => setSite({ scale: Number(scale) })}
-                    options={SITE_SCALES.map((scale) => ({ value: String(scale), label: `${Math.round(scale * 100)} %` }))} />
-                <p className={form.note}>Більше чи менше все на сторінках сайту; текст у читалці має свій розмір.</p>
-            </div>
-
-            <div className={styles.group}>
-                <h2 className={styles.groupTitle}>Форма</h2>
-                <label className={form.row}>
-                    <span className={form.label}>Кути</span>
-                    <span className={form.range}>
-                        <input type="range" min={0} max={24} step={2} value={look.radius} onChange={(event) => setSite({ radius: Number(event.target.value) })} />
-                        <output>{look.radius} px</output>
-                    </span>
-                </label>
-                <Choice label="Щільність" value={look.density} onPick={(density) => setSite({ density })}
-                    options={[{ value: 'compact', label: 'Компактно' }, { value: 'normal', label: 'Звичайно' }, { value: 'airy', label: 'Просторо' }]} />
-                <Choice label="Картки" value={look.cards} onPick={(cards) => setSite({ cards })}
-                    options={[{ value: 'flat', label: 'Пласкі' }, { value: 'border', label: 'З рамкою' }, { value: 'shadow', label: 'З тінню' }]} />
-                <Choice label="Портрети персонажів" value={look.portraits} onPick={(portraits) => setSite({ portraits })}
-                    options={[{ value: 'round', label: 'Кола' }, { value: 'square', label: 'Квадрати' }]} />
-                <Choice label="Анімації" value={look.anim} onPick={(anim) => setSite({ anim })}
-                    options={[{ value: 'system', label: 'Як у системі' }, { value: 'full', label: 'Увімкнені' }, { value: 'light', label: 'Лише легкі' }, { value: 'off', label: 'Вимкнені' }]} />
-            </div>
-            <div className={styles.group}>
-                <h2 className={styles.groupTitle}>Іконки</h2>
-                <div className={styles.iconDemo} aria-hidden>
-                    <Home size={26} /><Search size={26} /><BookOpen size={26} /><Inbox size={26} /><Bell size={26} /><User size={26} />
-                </div>
-                <Choice label="Набір" value={look.icons} onPick={(icons) => setSite({ icons })}
-                    options={ICON_SETS.map(({ value, label }) => ({ value, label }))} />
-                {look.icons === 'phosphor' ? (
-                    <p className={form.note}>Phosphor має чотири товщини: найближча до вибраної.</p>
-                ) : null}
-                <label className={form.row}>
-                    <span className={form.label}>Товщина ліній</span>
-                    <span className={form.range}>
-                        <input type="range" min={1} max={2.5} step={0.25} value={look.iconWeight}
-                            onChange={(event) => setSite({ iconWeight: Number(event.target.value) })} />
-                        <output>{look.iconWeight.toFixed(2).replace('.', ',')}</output>
-                    </span>
-                </label>
-                <Choice label="Колір у меню й панелях" value={look.iconColor} onPick={(iconColor) => setSite({ iconColor })}
-                    options={[{ value: 'text', label: 'Як текст' }, { value: 'accent', label: 'Акцент' }, { value: 'muted', label: 'Приглушений' }]} />
-                {ICON_SETS.find((set) => set.value === look.icons)?.fill && (
-                    <Toggle label="Заповнені" isSelected={look.iconFill} onChange={(iconFill) => setSite({ iconFill })} />
+                {withOwn && (
+                    <button type="button" role="radio" aria-checked={value === 'own'} className={styles.tc} onClick={() => onPick('own')}>
+                        <span className={styles.sws} aria-hidden><i style={{ background: '#333' }} /><i style={{ background: '#777' }} /><i style={{ background: '#bbb' }} /></span>
+                        {OWN_THEME_LABEL}
+                    </button>
                 )}
             </div>
-            <div className={styles.group}>
-                <h2 className={styles.groupTitle}>Верстка</h2>
-                <Choice label="Меню на комп’ютері" value={look.nav} onPick={(nav) => setSite({ nav })}
-                    options={[{ value: 'top', label: 'Вгорі' }, { value: 'side', label: 'Збоку' }]} />
-                <Choice label="Новели в каталозі" value={look.catalog} onPick={(catalog) => setSite({ catalog })}
-                    options={[{ value: 'rows', label: 'Рядками' }, { value: 'grid', label: 'Сіткою' }, { value: 'shelf', label: 'Полицею' }]} />
-                <p className={form.note}>Меню збоку — лише на широкому екрані; на телефоні вкладки завжди внизу.</p>
-                <StudioInMenu />
+            {!(all || hidden) && (
+                <button type="button" className={styles.more} onClick={() => setAll(true)}>Усі теми · {total} ›</button>
+            )}
+        </>
+    );
+}
+
+/** «Свої кольори»: a tone of the site and an accent, as «Свій стиль» had them. */
+function OwnColorsForm({ look, light }: { look: SiteLook; light: boolean }) {
+    const tones = SITE_TONES[light ? 'light' : 'dark'];
+    return (
+        <div className={styles.own}>
+            <div className={form.row}>
+                <span className={form.label}>Тло</span>
+                <div className={form.swatches} role="radiogroup" aria-label="Тло">
+                    {tones.map((tone, index) => (
+                        <button key={tone.name} type="button" role="radio" aria-checked={look.own.bg === index} aria-label={tone.name} title={tone.name}
+                            className={form.pair} style={{ background: `linear-gradient(135deg, ${tone.bg} 50%, ${tone.surface} 50%)`, color: tone.text }}
+                            onClick={() => setOwnColors({ bg: index })}>Аа</button>
+                    ))}
+                </div>
+            </div>
+            <div className={form.row}>
+                <span className={form.label}>Акцент</span>
+                <div className={form.swatches} role="radiogroup" aria-label="Акцент">
+                    {SITE_ACCENTS.map((accent) => (
+                        <button key={accent} type="button" role="radio" aria-checked={look.own.accent === accent} aria-label={accent} title={accent}
+                            className={form.swatch} style={{ background: accent, color: inkOn(accent) }} onClick={() => setOwnColors({ accent })} />
+                    ))}
+                </div>
             </div>
         </div>
-        </SettingsFrame>
+    );
+}
+
+function SetRow({ label, hint, children }: { label: string; hint?: React.ReactNode; children: React.ReactNode }) {
+    return (
+        <div className={styles.setRow}>
+            <span>{label}{hint && <small>{hint}</small>}</span>
+            {children}
+        </div>
+    );
+}
+
+/** A row of choices joined together (the mockup's `.seg`). */
+function Seg<T extends string>({ label, value, options, onPick, min }: {
+    label: string; value: T; options: { value: T; label: string }[]; onPick: (value: T) => void; min: number;
+}) {
+    return (
+        <div className={styles.seg} role="radiogroup" aria-label={label} style={{ minWidth: min }}>
+            {options.map((option) => (
+                <button key={option.value} type="button" role="radio" aria-checked={value === option.value} onClick={() => onPick(option.value)}>
+                    {option.label}
+                </button>
+            ))}
+        </div>
     );
 }
 
@@ -217,39 +266,10 @@ function StudioInMenu() {
     const save = useMutation({ mutationFn: (studioInMenu: boolean) => meApi.update({ studioInMenu }), onSuccess: setMe });
     if (!me) return null;
     return (
-        <div>
+        <div className={styles.toggleRow}>
             <Toggle label="Студія в нижньому меню на телефоні" isSelected={Boolean(me.studioInMenu)} onChange={(value) => save.mutate(value)} />
-            <p className={form.note}>Вкладка «Студія» поруч із «Бібліотекою», а не лише в «Я». На комп'ютері вона в меню завжди.</p>
+            <small>вкладка «Студія» поруч із «Бібліотекою», а не лише в «Я»; на комп'ютері вона в меню завжди</small>
             {save.isError && <Notice tone="error">{save.error.message}</Notice>}
-        </div>
-    );
-}
-
-function FontSelect({ label, value, onPick }: { label: string; value: FontId; onPick: (font: FontId) => void }) {
-    return (
-        <label className={form.row}>
-            <span className={form.label}>{label}</span>
-            <select className={form.select} value={value} style={{ fontFamily: FONT_STACKS[value] }}
-                onChange={(event) => onPick(event.target.value as FontId)}
-                onFocus={() => SITE_FONTS.forEach((font) => void loadFont(font.value))}>
-                {SITE_FONTS.map((font) => <option key={font.value} value={font.value} style={{ fontFamily: FONT_STACKS[font.value] }}>{font.label}</option>)}
-            </select>
-        </label>
-    );
-}
-
-function Choice<T extends string>({ label, value, options, onPick }: {
-    label: string; value: T; options: { value: T; label: string }[]; onPick: (value: T) => void;
-}) {
-    return (
-        <div className={form.row}>
-            <span className={form.label}>{label}</span>
-            <div className={form.chips} role="radiogroup" aria-label={label}>
-                {options.map((option) => (
-                    <button key={option.value} type="button" role="radio" aria-checked={value === option.value}
-                        className={form.chip} onClick={() => onPick(option.value)}>{option.label}</button>
-                ))}
-            </div>
         </div>
     );
 }

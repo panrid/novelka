@@ -48,24 +48,40 @@ class ProfileSettingsTests {
     void theLookOfTheSiteAndTheReaderIsKeptWithTheAccount() {
         assertThat(read(person.browser().get("/api/me")).path("appearance").isEmpty()).as("defaults at first").isTrue();
         String look = """
-                {"site": {"preset": "light", "accent": "#4f7a40", "radius": 8},
+                {"site": {"frame": "pal", "theme": "own", "mode": "system", "own": {"bg": 2, "accent": "#4f7a40"},
+                          "scale": 1.1, "catalog": "grid", "portraits": "square", "anim": "light"},
                  "reader": {"preset": "paper", "size": 20, "lineHeight": 1.7, "align": "justify", "hideBars": true,
                             "colors": "own", "bg": "#1a2230", "text": "#e8d9b8", "taps": "forward"},
                  "readerOwn": {"colors": "own", "bg": "#1a2230", "text": "#e8d9b8", "custom": true}}""";
         JsonNode me = read(person.browser().put("/api/me/appearance", look));
-        assertThat(me.path("appearance").path("site").path("preset").asString()).isEqualTo("light");
+        assertThat(me.path("appearance").path("site").path("frame").asString()).isEqualTo("pal");
+        assertThat(me.path("appearance").path("site").path("own").path("accent").asString()).isEqualTo("#4f7a40");
         assertThat(me.path("appearance").path("reader").path("size").asInt()).isEqualTo(20);
         assertThat(me.path("appearance").path("readerOwn").path("bg").asString()).as("one's own style kept aside").isEqualTo("#1a2230");
         assertThat(read(person.browser().get("/api/me")).path("appearance").path("reader").path("align").asString())
                 .as("another device sees the same").isEqualTo("justify");
+        assertThat(read(person.browser().put("/api/me/appearance", "{\"site\": {\"theme\": \"sukno\"}}")).path("appearance")
+                .path("site").path("theme").asString()).as("any of the site's themes").isEqualTo("sukno");
 
-        assertThat(person.browser().put("/api/me/appearance", "{\"site\": {\"preset\": \"my-own\"}}").status())
-                .as("only the site's own styles").isEqualTo(400);
-        assertThat(person.browser().put("/api/me/appearance", "{\"site\": {\"iconsUrl\": \"https://x\"}}").status())
-                .as("nothing of one's own").isEqualTo(400);
-        assertThat(person.browser().put("/api/me/appearance", "{\"reader\": {\"size\": 99}}").status()).isEqualTo(400);
-        assertThat(person.browser().put("/api/me/appearance", "{\"reader\": {\"taps\": \"everywhere\"}}").status()).isEqualTo(400);
-        assertThat(person.browser().put("/api/me/appearance", "{\"site\": {\"accent\": \"red\"}}").status()).isEqualTo(400);
+        for (String wrong : new String[] {
+                "{\"site\": {\"frame\": \"my-own\"}}",
+                "{\"site\": {\"theme\": \"rainbow\"}}",
+                "{\"site\": {\"mode\": \"black\"}}",
+                "{\"site\": {\"own\": {\"bg\": 9, \"accent\": \"#4f7a40\"}}}",
+                "{\"site\": {\"own\": {\"accent\": \"red\"}}}",
+                "{\"site\": {\"own\": {\"image\": \"https://x\"}}}",
+                "{\"site\": {\"own\": \"#4f7a40\"}}",
+                "{\"site\": {\"anim\": \"full\"}}",
+                // Chosen by the каркас now (рішення 33).
+                "{\"site\": {\"preset\": \"light\"}}",
+                "{\"site\": {\"radius\": 8}}",
+                "{\"site\": {\"icons\": \"tabler\"}}",
+                "{\"siteOwn\": {\"accent\": \"#4f7a40\"}}",
+                "{\"site\": {\"iconsUrl\": \"https://x\"}}",
+                "{\"reader\": {\"size\": 99}}",
+                "{\"reader\": {\"taps\": \"everywhere\"}}"}) {
+            assertThat(person.browser().put("/api/me/appearance", wrong).status()).as(wrong).isEqualTo(400);
+        }
         assertThat(new Browser(port).put("/api/me/appearance", look).status()).isEqualTo(401);
     }
 

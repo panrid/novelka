@@ -1,43 +1,34 @@
 /**
- * How a person wants the site and the reader to look (етап 18): two separate sets, each a
- * ready style or one's own built from the site's choices. The server accepts the same keys and
- * values (Appearance.java); new choices are added in both places.
+ * How a person wants the site and the reader to look (етап 18, етап 20). The site: a каркас (its build —
+ * menus, fonts, shapes) and a тема (colours), chosen apart (doc/redesign/README.md, рішення 30–33); a key
+ * left out follows the site's own choice. The server accepts the same keys and values (Appearance.java);
+ * new choices are added in both places.
  */
 
-export type SiteStyle = 'default' | 'light' | 'bookish' | 'parchment' | 'night' | 'contrast' | 'minimal' | 'sakura'
-    | 'ocean' | 'forest' | 'neon' | 'terminal';
+import { FRAMES, NOVELKA_TONE, THEMES, inkOn, type FrameId, type OwnColors, type ThemeId } from './themes';
 
-/** The site's look: a ready style, and what the person changed in it («Свій стиль»). */
+export { NOVELKA_TONE, SITE_TONES, inkOn, type Tone } from './themes';
+export type { FrameId, OwnColors, ThemeId } from './themes';
+
+/** The site's look as it shows. */
 export type SiteLook = {
-    preset: SiteStyle;
-    custom: boolean;
-    base: 'light' | 'dark';
-    /** Index into SITE_TONES[base]. */
-    bg: number;
-    accent: string;
-    ui: FontId;
-    head: FontId;
+    frame: FrameId;
+    theme: ThemeId | 'own';
+    /** «Світла чи темна»: dark unless chosen; on a computer also the sun / moon in the header. */
+    mode: 'dark' | 'light' | 'system';
+    own: OwnColors;
     /** Pages' content larger or smaller than the default, 0.9–1.2. */
     scale: number;
-    radius: number;
-    density: 'compact' | 'normal' | 'airy';
-    cards: 'flat' | 'border' | 'shadow';
-    anim: 'system' | 'full' | 'light' | 'off';
-    icons: 'lucide' | 'tabler' | 'phosphor' | 'iconoir' | 'heroicons';
-    /** Line width of the icons, 1–2.5. */
-    iconWeight: number;
-    /** In menus and bars: like the text, the accent, or muted. */
-    iconColor: 'text' | 'accent' | 'muted';
-    /** Filled icons, where the set has them (Phosphor, Heroicons). */
-    iconFill: boolean;
-    /** The main menu on a wide screen: across the top or down the side. */
-    nav: 'top' | 'side';
     /** Novels in the catalog and on the home page: rows, a grid of covers, or a shelf. */
     catalog: 'rows' | 'grid' | 'shelf';
     /** Pictures of characters (the novel's «Персонажі»): circles or squares. */
     portraits: 'round' | 'square';
+    anim: 'system' | 'light' | 'off';
 };
 export type SiteAppearance = Partial<SiteLook>;
+/** The site's каркас and тема for those who never chose theirs (the owner picks it; /api/site/look). */
+export type SiteDefault = { frame: FrameId; theme: ThemeId };
+export const SITE_DEFAULT: SiteDefault = { frame: 'pult', theme: 'slanets' };
 
 export type ReaderPreset = 'site' | 'paper' | 'sepia' | 'gray' | 'night' | 'black' | 'book' | 'dyslexia';
 export type ReaderColors = 'site' | 'paper' | 'sepia' | 'gray' | 'night' | 'black' | 'tea' | 'dusk' | 'own';
@@ -76,107 +67,30 @@ export type ReaderLook = {
     awake: boolean;
 };
 export type ReaderAppearance = Partial<ReaderLook>;
-/** The look in use, and the person's own one kept aside while they try ready styles. */
-export type Appearance = { site?: SiteAppearance; reader?: ReaderAppearance; siteOwn?: SiteAppearance; readerOwn?: ReaderAppearance };
-
-/** Backgrounds the site offers: the page, cards, raised parts, lines and the text that reads on them. */
-export type Tone = { name: string; bg: string; surface: string; surface2: string; line: string; text: string; reading: string; muted: string; faint: string };
-export const SITE_TONES: Record<'light' | 'dark', Tone[]> = {
-    light: [
-        { name: 'Кремовий', bg: '#f7f5ef', surface: '#ffffff', surface2: '#eeebe2', line: '#dedad0', text: '#1c1e1b', reading: '#262823', muted: '#5f625b', faint: '#8a8c85' },
-        { name: 'Білий', bg: '#ffffff', surface: '#ffffff', surface2: '#f2f3f5', line: '#e2e4e8', text: '#15171a', reading: '#1f2226', muted: '#5c6168', faint: '#8a9097' },
-        { name: 'Папір', bg: '#f1ead9', surface: '#faf6ec', surface2: '#e8dfca', line: '#d6c9ad', text: '#2a2118', reading: '#2e251b', muted: '#6b5d4a', faint: '#948670' },
-        { name: 'Пергамент', bg: '#e9dcc0', surface: '#f3e9d3', surface2: '#ddcfaf', line: '#c9b791', text: '#3b2f22', reading: '#3b2f22', muted: '#6f5f48', faint: '#978569' },
-        { name: 'Рожевий', bg: '#fbf1f3', surface: '#ffffff', surface2: '#f6e4e8', line: '#ecd2d8', text: '#2a1d21', reading: '#33242a', muted: '#7a5f67', faint: '#a08890' },
-        { name: 'Блакитний', bg: '#eef4f6', surface: '#ffffff', surface2: '#e1ebef', line: '#cfdde3', text: '#17232a', reading: '#1f2c33', muted: '#566770', faint: '#82939b' },
-        // The new design (етап 20, doc/redesign/README.md «Вигляд»): its light pair of «Новелка».
-        { name: 'Новелка', bg: '#f3f4f6', surface: '#ffffff', surface2: '#f1f2f5', line: '#e3e5ea', text: '#15171c', reading: '#1b1d22', muted: '#5b6170', faint: '#8a8f9b' },
-    ],
-    dark: [
-        { name: 'Графіт', bg: '#121412', surface: '#1b1e1b', surface2: '#242824', line: '#2f342f', text: '#e9e7df', reading: '#dcdad1', muted: '#9a9d94', faint: '#6d7069' },
-        { name: 'Чорний', bg: '#000000', surface: '#111311', surface2: '#1b1e1b', line: '#262a26', text: '#e2e0d8', reading: '#cfcdc5', muted: '#8f9289', faint: '#62655e' },
-        { name: 'Глибина', bg: '#0e1a24', surface: '#14232f', surface2: '#1b2e3c', line: '#26394a', text: '#e2ebf2', reading: '#d2dde6', muted: '#8fa3b3', faint: '#627585' },
-        { name: 'Мох', bg: '#172016', surface: '#1e2a1d', surface2: '#263425', line: '#324231', text: '#e6eadb', reading: '#d6dccb', muted: '#9aa58f', faint: '#6d7863' },
-        { name: 'Фіолет', bg: '#0b0716', surface: '#140e24', surface2: '#1d1532', line: '#2a2045', text: '#ece6fa', reading: '#ddd5ef', muted: '#a497c2', faint: '#73688f' },
-        { name: 'Термінал', bg: '#0a0f0a', surface: '#0f160f', surface2: '#142014', line: '#1e301e', text: '#b8f5c0', reading: '#a6e8ae', muted: '#5fae6a', faint: '#3f7a48' },
-        // The new design's dark (етап 20): the site's look unless a person chose another.
-        { name: 'Новелка', bg: '#0f1115', surface: '#171a20', surface2: '#1f232b', line: '#2a2f39', text: '#e8eaee', reading: '#dadde3', muted: '#a3a9b6', faint: '#6f7584' },
-    ],
-};
+/** The look in use, and the reader's own one kept aside while ready reader styles are tried. */
+export type Appearance = { site?: SiteAppearance; reader?: ReaderAppearance; readerOwn?: ReaderAppearance };
 
 /** Accents picked so a button's text stays readable on them (dark or white ink is chosen for each). */
-/**
- * The new design's tone and accent for each base (етап 20): the default look, and what the sun / moon
- * button in the header switches between. Tones are added at the end, so people's chosen ones keep their place.
- */
-export const NOVELKA_TONE = 6;
-export const NOVELKA_ACCENT: Record<'light' | 'dark', string> = { dark: '#8ea6ff', light: '#2a4bd7' };
-
 export const SITE_ACCENTS = ['#8ea6ff', '#2a4bd7', '#8fb07f', '#4f7a40', '#2f4a6b', '#4fb3d9', '#6c7ae0', '#b48cff', '#c2456b', '#ff3ea5',
     '#d9776b', '#e07b39', '#d8b45a', '#ffd400', '#7a5a2b', '#2a9d8f', '#8cff9c', '#111111'];
 
-const SITE_DEFAULTS: SiteLook = {
-    preset: 'default', custom: false, base: 'dark', bg: NOVELKA_TONE, accent: NOVELKA_ACCENT.dark, ui: 'golos', head: 'literata', scale: 1,
-    radius: 12, density: 'normal', cards: 'flat', anim: 'system', icons: 'lucide', iconWeight: 1.75, iconColor: 'text', iconFill: false,
-    nav: 'top', catalog: 'rows', portraits: 'round',
-};
-
-export const ICON_SETS: { value: SiteLook['icons']; label: string; fill: boolean }[] = [
-    { value: 'lucide', label: 'Lucide', fill: false },
-    { value: 'tabler', label: 'Tabler', fill: false },
-    { value: 'phosphor', label: 'Phosphor', fill: true },
-    { value: 'iconoir', label: 'Iconoir', fill: false },
-    { value: 'heroicons', label: 'Heroicons', fill: true },
-];
-
-export const SITE_PRESETS: { value: SiteStyle; label: string; look: Partial<SiteLook> }[] = [
-    { value: 'default', label: 'Звичайний', look: {} },
-    { value: 'light', label: 'Світлий', look: { base: 'light', bg: 0, accent: '#4f7a40', cards: 'shadow', catalog: 'grid' } },
-    { value: 'bookish', label: 'Книжковий', look: { base: 'light', bg: 2, accent: '#2f4a6b', ui: 'ptserif', head: 'playfair', radius: 2, cards: 'border', icons: 'phosphor', iconWeight: 1.5, iconColor: 'accent', nav: 'side', catalog: 'shelf' } },
-    { value: 'parchment', label: 'Пергамент', look: { base: 'light', bg: 3, accent: '#7a5a2b', ui: 'merriweather', head: 'merriweather', radius: 6, cards: 'border', icons: 'iconoir', iconWeight: 1.5, catalog: 'shelf' } },
-    { value: 'night', label: 'Нічний', look: { base: 'dark', bg: 1 } },
-    { value: 'contrast', label: 'Контрастний', look: { base: 'dark', bg: 1, accent: '#ffd400', ui: 'rubik', head: 'rubik', radius: 8, cards: 'border', iconWeight: 2.25 } },
-    { value: 'minimal', label: 'Мінімалізм', look: { base: 'light', bg: 1, accent: '#111111', head: 'inter', radius: 0, density: 'airy', anim: 'off', icons: 'tabler', iconWeight: 1.25 } },
-    { value: 'sakura', label: 'Сакура', look: { base: 'light', bg: 4, accent: '#c2456b', ui: 'nunito', head: 'comfortaa', radius: 20, cards: 'shadow', anim: 'full', icons: 'phosphor', iconFill: true, iconColor: 'accent', catalog: 'grid' } },
-    { value: 'ocean', label: 'Океан', look: { base: 'dark', bg: 2, accent: '#4fb3d9', ui: 'plex', head: 'plex', radius: 14, cards: 'shadow', icons: 'heroicons', nav: 'side', catalog: 'grid' } },
-    { value: 'forest', label: 'Ліс', look: { base: 'dark', bg: 3, accent: '#d8b45a', ui: 'nunito', head: 'lora', radius: 10, cards: 'border', icons: 'iconoir', catalog: 'shelf' } },
-    { value: 'neon', label: 'Неон', look: { base: 'dark', bg: 4, accent: '#ff3ea5', ui: 'rubik', head: 'rubik', radius: 10, cards: 'shadow', anim: 'full', iconWeight: 2, iconColor: 'accent', catalog: 'grid' } },
-    { value: 'terminal', label: 'Ретро-термінал', look: { base: 'dark', bg: 5, accent: '#8cff9c', ui: 'jetbrains', head: 'jetbrains', radius: 0, cards: 'border', density: 'compact', anim: 'off', icons: 'tabler', iconWeight: 2, iconColor: 'accent', nav: 'side' } },
-];
-
 export const SITE_SCALES = [0.9, 1, 1.1, 1.2];
 
-export const SITE_FONTS: { value: FontId; label: string }[] = [
-    { value: 'golos', label: 'Голос' }, { value: 'inter', label: 'Інтер' }, { value: 'rubik', label: 'Рубік' }, { value: 'nunito', label: 'Нуніто' },
-    { value: 'plex', label: 'IBM Plex Sans' }, { value: 'comfortaa', label: 'Комфортаа' }, { value: 'jetbrains', label: 'JetBrains Mono' },
-    { value: 'literata', label: 'Літерата' }, { value: 'lora', label: 'Лора' }, { value: 'ptserif', label: 'PT Serif' },
-    { value: 'merriweather', label: 'Мерівезер' }, { value: 'playfair', label: 'Плейфер' },
-];
+const SITE_DEFAULTS: Omit<SiteLook, 'frame' | 'theme'> = {
+    mode: 'dark', own: { bg: NOVELKA_TONE, accent: '#8ea6ff' }, scale: 1, catalog: 'rows', portraits: 'round', anim: 'system',
+};
 
-/** The site's look as it shows: the defaults, the chosen style, the person's own changes. */
-export function siteLook(appearance: Appearance): SiteLook {
-    const preset = SITE_PRESETS.find((item) => item.value === appearance.site?.preset) ?? SITE_PRESETS[0]!;
-    return { ...SITE_DEFAULTS, ...preset.look, ...appearance.site, preset: preset.value } as SiteLook;
+/** The site's look as it shows: the person's choices over the site's own каркас and тема. */
+export function siteLook(appearance: Appearance, site: SiteDefault = SITE_DEFAULT): SiteLook {
+    const chosen = Object.entries(appearance.site ?? {}).filter(([, value]) => value !== undefined);
+    return { ...SITE_DEFAULTS, ...site, ...Object.fromEntries(chosen) } as SiteLook;
 }
 
-export function sitePresetLook(preset: SiteStyle): SiteAppearance {
-    const found = SITE_PRESETS.find((item) => item.value === preset) ?? SITE_PRESETS[0]!;
-    return { ...SITE_DEFAULTS, ...found.look, preset: found.value, custom: false };
+/** Light or dark right now: «Як у системі» follows the device. */
+export function isLight(look: SiteLook, systemLight: boolean): boolean {
+    return look.mode === 'light' || (look.mode === 'system' && systemLight);
 }
 
-/** Kept for the reader and older callers: the light/dark/black base of the site's look. */
-export function siteStyle(appearance: Appearance) {
-    const look = siteLook(appearance);
-    const theme: 'dark' | 'light' | 'black' = look.base === 'light' ? 'light' : look.bg === 1 ? 'black' : 'dark';
-    return { value: look.preset, theme, color: SITE_TONES[look.base][look.bg]?.bg ?? '#121412' };
-}
-
-/** Dark ink on a light accent, white on a dark one. */
-export function inkOn(hex: string): string {
-    const n = parseInt(hex.slice(1), 16);
-    const light = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
-    return light > 150 ? '#10140f' : '#ffffff';
-}
 
 /** The reader's palettes (styles/tokens.css, [data-reader]); theme is the light or dark base for its controls. */
 export const READER_COLORS: { value: ReaderColors; label: string; theme: 'dark' | 'light' | 'black' | null; bg: string; text: string }[] = [
@@ -320,34 +234,26 @@ const RANGE: { [K in keyof ReaderLook]?: [number, number, boolean] } = {
     margin: [READER_MARGIN.min, READER_MARGIN.max, true],
 };
 const SITE_ONE_OF: { [K in keyof SiteLook]?: readonly unknown[] } = {
-    preset: SITE_PRESETS.map((item) => item.value),
-    base: ['light', 'dark'],
-    ui: SITE_FONTS.map((item) => item.value),
-    head: SITE_FONTS.map((item) => item.value),
-    density: ['compact', 'normal', 'airy'],
-    cards: ['flat', 'border', 'shadow'],
-    anim: ['system', 'full', 'light', 'off'],
-    icons: ICON_SETS.map((item) => item.value),
-    iconColor: ['text', 'accent', 'muted'],
-    nav: ['top', 'side'],
+    frame: FRAMES.map((item) => item.value),
+    theme: [...THEMES.map((item) => item.value), 'own'],
+    mode: ['dark', 'light', 'system'],
     catalog: ['rows', 'grid', 'shelf'],
     portraits: ['round', 'square'],
+    anim: ['system', 'light', 'off'],
     scale: SITE_SCALES,
 };
-const SITE_RANGE: { [K in keyof SiteLook]?: [number, number] } = { bg: [0, 5], radius: [0, 24] };
 const FLAGS: (keyof ReaderLook)[] = ['custom', 'hideBars', 'seamless', 'clock', 'percent', 'awake'];
 
 /** Only the keys and values this version knows: an older or damaged copy never breaks the page. */
 export function clean(raw: unknown): Appearance {
     const value = (raw && typeof raw === 'object' ? raw : {}) as Record<string, Record<string, unknown> | undefined>;
     const out: Appearance = {};
-    const site = cleanSite(value.site);
+    // A look saved before #292 (one site style): its colours become a тема.
+    const site = cleanSite(isLegacy(value) ? upgradeSite(value.site, value.siteOwn) : value.site);
     if (site) out.site = site;
     const reader = cleanReader(value.reader);
     if (reader) out.reader = reader;
-    // «Свій стиль» waits here while the person tries ready ones.
-    const siteOwn = cleanSite(value.siteOwn);
-    if (siteOwn) out.siteOwn = siteOwn;
+    // The reader's «Свій стиль» waits here while the person tries ready ones.
     const readerOwn = cleanReader(value.readerOwn);
     if (readerOwn) out.readerOwn = readerOwn;
     return out;
@@ -357,14 +263,69 @@ function cleanSite(raw: Record<string, unknown> | undefined): SiteAppearance | u
     const site: Record<string, unknown> = {};
     for (const [key, item] of Object.entries(raw && typeof raw === 'object' ? raw : {})) {
         const k = key as keyof SiteLook;
-        const range = SITE_RANGE[k];
         if (SITE_ONE_OF[k]?.includes(item)) site[k] = item;
-        else if (range && typeof item === 'number' && Number.isInteger(item) && item >= range[0] && item <= range[1]) site[k] = item;
-        else if ((k === 'custom' || k === 'iconFill') && typeof item === 'boolean') site[k] = item;
-        else if (k === 'iconWeight' && typeof item === 'number' && item >= 1 && item <= 2.5) site[k] = item;
-        else if (k === 'accent' && typeof item === 'string' && SITE_ACCENTS.includes(item)) site[k] = item;
+        else if (k === 'own' && isOwn(item)) site[k] = { bg: item.bg, accent: item.accent };
     }
     return Object.keys(site).length > 0 ? site as SiteAppearance : undefined;
+}
+
+function isOwn(item: unknown): item is OwnColors {
+    const own = item as Partial<OwnColors> | null;
+    return Boolean(own && typeof own === 'object' && Number.isInteger(own.bg) && own.bg! >= 0 && own.bg! <= 6
+        && typeof own.accent === 'string' && /^#[0-9a-fA-F]{6}$/.test(own.accent));
+}
+
+const LEGACY_KEYS = ['preset', 'custom', 'base', 'bg', 'accent', 'ui', 'head', 'radius', 'density', 'cards', 'icons', 'iconWeight',
+    'iconColor', 'iconFill', 'nav'];
+
+function isLegacy(value: Record<string, Record<string, unknown> | undefined>): boolean {
+    const site = value.site ?? {};
+    if (['frame', 'theme', 'mode', 'own'].some((key) => key in site)) return false;
+    return Boolean(value.siteOwn) || LEGACY_KEYS.some((key) => key in site) || site.anim === 'full';
+}
+
+/** The old site styles' colours: the base, the tone and the accent (V62__appearance_frame_theme.sql has the same). */
+const LEGACY_STYLES: Record<string, ['light' | 'dark', number, string]> = {
+    default: ['dark', NOVELKA_TONE, '#8ea6ff'], light: ['light', 0, '#4f7a40'], bookish: ['light', 2, '#2f4a6b'],
+    parchment: ['light', 3, '#7a5a2b'], night: ['dark', 1, '#8ea6ff'], contrast: ['dark', 1, '#ffd400'], minimal: ['light', 1, '#111111'],
+    sakura: ['light', 4, '#c2456b'], ocean: ['dark', 2, '#4fb3d9'], forest: ['dark', 3, '#d8b45a'], neon: ['dark', 4, '#ff3ea5'],
+    terminal: ['dark', 5, '#8cff9c'],
+};
+
+function legacyColors(site: Record<string, unknown> = {}) {
+    const style = typeof site.preset === 'string' && site.preset in LEGACY_STYLES ? site.preset : 'default';
+    const [base, bg, accent] = LEGACY_STYLES[style]!;
+    const look = {
+        style,
+        base: site.base === 'light' || site.base === 'dark' ? site.base : base,
+        bg: Number.isInteger(site.bg) && (site.bg as number) >= 0 && (site.bg as number) <= 6 ? site.bg as number : typeof site.bg === 'number' ? 0 : bg,
+        accent: (typeof site.accent === 'string' ? site.accent : accent).toLowerCase(),
+    };
+    // The sun / moon kept the tone and the accent; only «Звичайний» swapped its accent for the light pair.
+    const own = !(look.bg === bg && (look.accent === accent || (style === 'default' && look.accent === '#2a4bd7')));
+    return { ...look, own };
+}
+
+/** Whoever set up the look keeps their colours; fonts, shapes and the menu now come with the каркас. */
+export function upgradeSite(site: Record<string, unknown> = {}, siteOwn?: Record<string, unknown>): Record<string, unknown> {
+    const look = legacyColors(site);
+    const out: Record<string, unknown> = {};
+    if (look.own) {
+        out.theme = 'own';
+        out.own = { bg: look.bg, accent: look.accent };
+    } else if (look.style !== 'default') {
+        out.theme = look.style;
+    }
+    if (look.base === 'light') out.mode = 'light';
+    if (!look.own && siteOwn && typeof siteOwn === 'object') {
+        const kept = legacyColors(siteOwn);
+        if (kept.own) out.own = { bg: kept.bg, accent: kept.accent };
+    }
+    for (const key of ['scale', 'catalog', 'portraits'] as const) {
+        if (key in site) out[key] = site[key];
+    }
+    if (site.anim === 'light' || site.anim === 'off') out.anim = site.anim;
+    return out;
 }
 
 function cleanReader(raw: Record<string, unknown> | undefined): ReaderAppearance | undefined {
