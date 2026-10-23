@@ -1,5 +1,6 @@
 package space.panrid.novelka.studio.internal;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -113,6 +114,62 @@ final class StudioApiV1 {
 
     /** @param skipped the pictures left out, each with its reason */
     record Placed(int chapters, int pictures, List<String> skipped) {
+    }
+
+    /**
+     * A new work. {@code team}: its handle; none — your own team. For a translation also the name in
+     * the original, its language and «Маю право перекладати цей текст».
+     */
+    @Schema(name = "StudioNewNovel", description = "Новий твір: свій переклад (`human`) чи свій твір (`original`).")
+    record NewNovel(
+            @Schema(description = "`human` — свій переклад, `original` — свій твір", allowableValues = {"human", "original"},
+                    requiredMode = Schema.RequiredMode.REQUIRED, example = "human") String kind,
+            @Schema(description = "Назва українською, від 1 до 200 знаків", requiredMode = Schema.RequiredMode.REQUIRED,
+                    example = "Маг води") String title,
+            @Schema(description = "Адреса новели: латинські літери, цифри й дефіси, від 2 до 80 знаків; без неї — з назви",
+                    example = "mag-vody") String slug,
+            @Schema(description = "Автор; у свого твору без нього — ваш нік") String author,
+            @Schema(description = "Опис — абзаци, до 3000 знаків") List<TextBlock> description,
+            @Schema(description = "Теги зі списку сайту (`/api/v1/tags`)", example = "[\"Фентезі\"]") List<String> tags,
+            @Schema(description = "18+: не видно гостям і тим, хто не підтвердив вік") Boolean adult,
+            @Schema(description = "Адреса команди; без неї — ваша особиста команда", example = "panrid") String team,
+            @Schema(description = "Мова оригіналу (лише переклад)", allowableValues = {"ja", "en", "zh", "ko"}, example = "ja")
+            String language,
+            @Schema(description = "Назва в оригіналі (лише переклад), до 300 знаків") String titleOriginal,
+            @Schema(description = "«Маю право перекладати цей текст» (лише переклад)") Boolean rightsConfirmed) {
+    }
+
+    /** What to change; a field left out (or null) stays as it is. */
+    @Schema(name = "StudioNovelChanges", description = "Що змінити; поле, якого немає (чи null), лишається як є.")
+    record NovelChanges(
+            @Schema(description = "Назва, від 1 до 200 знаків") String title,
+            @Schema(description = "Нова адреса; стара й далі веде сюди. Поки переклад у новели один — її змінює власник, "
+                    + "інакше адміністрація", example = "mag-vody") String slug,
+            @Schema(description = "Автор (у новели, яку ввела ваша команда)") String author,
+            @Schema(description = "Опис — абзаци, до 3000 знаків") List<TextBlock> description,
+            @Schema(description = "Теги зі списку сайту; порожній список прибирає всі") List<String> tags,
+            @Schema(description = "18+") Boolean adult,
+            @Schema(description = "Стан: триває, завершено, на паузі, закинуто",
+                    allowableValues = {"ongoing", "completed", "paused", "abandoned"}, example = "paused") String status,
+            @Schema(description = "До якого дня пауза (`2026-12-01`); порожньо — без дати; діє лише зі станом `paused`",
+                    example = "2026-12-01") String pausedUntil,
+            @Schema(description = "Читачі можуть завантажити переклад в EPUB") Boolean downloadAllowed) {
+    }
+
+    /**
+     * A work's data as its team edits it.
+     *
+     * @param kind     human, machine, mixed or original
+     * @param status   ongoing, completed, paused or abandoned
+     * @param cover    the cover, 480 wide; null — the generated one shows
+     * @param language the original's language (ja, en, zh, ko), when known
+     * @param chapters published chapters
+     * @param role     your role in the team: owner, translator or editor
+     */
+    @Schema(name = "StudioNovel", description = "Дані твору, як їх змінює команда.")
+    record Novel(String novel, String team, String teamName, String kind, String title, String author, List<TextBlock> description,
+            List<String> tags, boolean adult, String status, LocalDate pausedUntil, boolean downloadAllowed, String cover,
+            String language, String titleOriginal, int chapters, String role) {
     }
 
     // ---- conversions ------------------------------------------------------------------------------

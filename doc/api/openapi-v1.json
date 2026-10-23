@@ -1343,6 +1343,188 @@
         },
         "type" : "object"
       },
+      "StudioNewNovel" : {
+        "description" : "Новий твір: свій переклад (`human`) чи свій твір (`original`).",
+        "properties" : {
+          "adult" : {
+            "description" : "18+: не видно гостям і тим, хто не підтвердив вік",
+            "type" : "boolean"
+          },
+          "author" : {
+            "description" : "Автор; у свого твору без нього — ваш нік",
+            "type" : "string"
+          },
+          "description" : {
+            "description" : "Опис — абзаци, до 3000 знаків",
+            "items" : {
+              "$ref" : "#/components/schemas/TextBlock"
+            },
+            "type" : "array"
+          },
+          "kind" : {
+            "description" : "`human` — свій переклад, `original` — свій твір",
+            "enum" : [ "human", "original" ],
+            "example" : "human",
+            "type" : "string"
+          },
+          "language" : {
+            "description" : "Мова оригіналу (лише переклад)",
+            "enum" : [ "ja", "en", "zh", "ko" ],
+            "example" : "ja",
+            "type" : "string"
+          },
+          "rightsConfirmed" : {
+            "description" : "«Маю право перекладати цей текст» (лише переклад)",
+            "type" : "boolean"
+          },
+          "slug" : {
+            "description" : "Адреса новели: латинські літери, цифри й дефіси, від 2 до 80 знаків; без неї — з назви",
+            "example" : "mag-vody",
+            "type" : "string"
+          },
+          "tags" : {
+            "description" : "Теги зі списку сайту (`/api/v1/tags`)",
+            "example" : [ "Фентезі" ],
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "team" : {
+            "description" : "Адреса команди; без неї — ваша особиста команда",
+            "example" : "panrid",
+            "type" : "string"
+          },
+          "title" : {
+            "description" : "Назва українською, від 1 до 200 знаків",
+            "example" : "Маг води",
+            "type" : "string"
+          },
+          "titleOriginal" : {
+            "description" : "Назва в оригіналі (лише переклад), до 300 знаків",
+            "type" : "string"
+          }
+        },
+        "required" : [ "kind", "title" ],
+        "type" : "object"
+      },
+      "StudioNovel" : {
+        "description" : "Дані твору, як їх змінює команда.",
+        "properties" : {
+          "adult" : {
+            "type" : "boolean"
+          },
+          "author" : {
+            "type" : "string"
+          },
+          "chapters" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "cover" : {
+            "type" : "string"
+          },
+          "description" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TextBlock"
+            },
+            "type" : "array"
+          },
+          "downloadAllowed" : {
+            "type" : "boolean"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "language" : {
+            "type" : "string"
+          },
+          "novel" : {
+            "type" : "string"
+          },
+          "pausedUntil" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "tags" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "team" : {
+            "type" : "string"
+          },
+          "teamName" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "titleOriginal" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioNovelChanges" : {
+        "description" : "Що змінити; поле, якого немає (чи null), лишається як є.",
+        "properties" : {
+          "adult" : {
+            "description" : "18+",
+            "type" : "boolean"
+          },
+          "author" : {
+            "description" : "Автор (у новели, яку ввела ваша команда)",
+            "type" : "string"
+          },
+          "description" : {
+            "description" : "Опис — абзаци, до 3000 знаків",
+            "items" : {
+              "$ref" : "#/components/schemas/TextBlock"
+            },
+            "type" : "array"
+          },
+          "downloadAllowed" : {
+            "description" : "Читачі можуть завантажити переклад в EPUB",
+            "type" : "boolean"
+          },
+          "pausedUntil" : {
+            "description" : "До якого дня пауза (`2026-12-01`); порожньо — без дати; діє лише зі станом `paused`",
+            "example" : "2026-12-01",
+            "type" : "string"
+          },
+          "slug" : {
+            "description" : "Нова адреса; стара й далі веде сюди. Поки переклад у новели один — її змінює власник, інакше адміністрація",
+            "example" : "mag-vody",
+            "type" : "string"
+          },
+          "status" : {
+            "description" : "Стан: триває, завершено, на паузі, закинуто",
+            "enum" : [ "ongoing", "completed", "paused", "abandoned" ],
+            "example" : "paused",
+            "type" : "string"
+          },
+          "tags" : {
+            "description" : "Теги зі списку сайту; порожній список прибирає всі",
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "title" : {
+            "description" : "Назва, від 1 до 200 знаків",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "StudioTranslation" : {
         "description" : "Переклад, у команді якого ви є.",
         "properties" : {
@@ -2587,6 +2769,108 @@
         "tags" : [ "Читання" ]
       }
     },
+    "/api/v1/studio/novels" : {
+      "post" : {
+        "description" : "Свій переклад чи свій твір — у вашій команді або в тій, де ви власник чи перекладач. Обкладинку додайте окремим запитом `PUT …/cover`.",
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StudioNewNovel"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudioNovel"
+                }
+              }
+            },
+            "description" : "Готово"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Така адреса вже зайнята іншою новелою"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Новий твір",
+        "tags" : [ "Студія" ]
+      }
+    },
     "/api/v1/studio/novels/{novel}/translations/{team}" : {
       "get" : {
         "description" : "Переклад і ваша роль у його команді.",
@@ -3223,6 +3507,214 @@
           "token" : [ "studio" ]
         } ],
         "summary" : "Опублікувати главу",
+        "tags" : [ "Студія" ]
+      }
+    },
+    "/api/v1/studio/novels/{novel}/translations/{team}/cover" : {
+      "delete" : {
+        "description" : "Лише власник команди. Без обкладинки показується згенерована з назвою.",
+        "operationId" : "removeCover",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudioNovel"
+                }
+              }
+            },
+            "description" : "Готово"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Прибрати обкладинку",
+        "tags" : [ "Студія" ]
+      },
+      "put" : {
+        "description" : "Лише власник команди. JPEG, PNG чи WebP до 5 МБ; сервер обріже її до 2:3 по центру.",
+        "operationId" : "cover",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "file" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "required" : [ "file" ],
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudioNovel"
+                }
+              }
+            },
+            "description" : "Готово"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Обкладинка",
         "tags" : [ "Студія" ]
       }
     },
@@ -5731,6 +6223,208 @@
         } ],
         "summary" : "Продовжити запуск",
         "tags" : [ "Оригінал, автопереклад і словник" ]
+      }
+    },
+    "/api/v1/studio/novels/{novel}/translations/{team}/settings" : {
+      "get" : {
+        "description" : "Назва, адреса, опис, теги, 18+, стан, обкладинка — як у «Налаштуваннях» перекладу.",
+        "operationId" : "settings",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudioNovel"
+                }
+              }
+            },
+            "description" : "Готово"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Дані твору",
+        "tags" : [ "Студія" ]
+      },
+      "patch" : {
+        "description" : "Лише власник команди. Поле, якого немає, лишається як є. Нова адреса не скасовує стару: вона й далі веде сюди.",
+        "operationId" : "update",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StudioNovelChanges"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Така адреса вже зайнята іншою новелою; або переклад у кошику"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Змінити дані й стан",
+        "tags" : [ "Студія" ]
       }
     },
     "/api/v1/studio/novels/{novel}/translations/{team}/suggestions" : {

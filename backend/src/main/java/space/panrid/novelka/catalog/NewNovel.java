@@ -7,9 +7,15 @@ import space.panrid.novelka.platform.text.Block;
 /**
  * @param kind      human, machine, mixed or original
  * @param sourceUrl where the original is, when the team knows it (a proposal's link); null otherwise
+ * @param slug      the address asked for (a–z, digits, hyphens); null — made from the title
  */
 public record NewNovel(String title, String author, List<Block> description, List<String> tags, String kind,
-        boolean adult, long teamId, Long authorAccountId, String sourceUrl) {
+        boolean adult, long teamId, Long authorAccountId, String sourceUrl, String slug) {
+
+    public NewNovel(String title, String author, List<Block> description, List<String> tags, String kind,
+            boolean adult, long teamId, Long authorAccountId, String sourceUrl) {
+        this(title, author, description, tags, kind, adult, teamId, authorAccountId, sourceUrl, null);
+    }
 
     public NewNovel(String title, String author, List<Block> description, List<String> tags, String kind,
             boolean adult, long teamId, Long authorAccountId) {

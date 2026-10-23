@@ -61,7 +61,15 @@ class CatalogService implements Catalog {
         if (novel.kind() == null || !KINDS.contains(novel.kind())) {
             throw UserFacingException.badRequest("Невідомий вид перекладу.");
         }
-        String slug = freeSlug(Slugs.slug(title, 60));
+        String slug;
+        if (novel.slug() == null || novel.slug().isBlank()) {
+            slug = freeSlug(Slugs.slug(title, 60));
+        } else {
+            slug = wantedSlug(novel.slug());
+            if (slugTaken(slug, null)) {
+                throw UserFacingException.conflict("Така адреса вже зайнята іншою новелою.");
+            }
+        }
         long novelId = db.insertInto(NOVEL)
                 .set(NOVEL.SOURCE, novel.kind().equals("original") ? "original" : "manual")
                 .set(NOVEL.TITLE, title)
@@ -344,19 +352,14 @@ class CatalogService implements Catalog {
     @Override
     @Transactional
     public String changeSlug(long editionId, String slug) {
-        String wanted = slug == null ? "" : slug.strip().toLowerCase(java.util.Locale.ROOT).replaceAll("[\\s_]+", "-");
-        if (wanted.length() < 2 || wanted.length() > 80 || !SLUG.matcher(wanted).matches()) {
-            throw UserFacingException.badRequest("Адреса — латинські літери, цифри й дефіси, від 2 до 80 знаків: mag-vody.");
-        }
+        String wanted = wantedSlug(slug);
         long novelId = db.select(EDITION.NOVEL_ID).from(EDITION).where(EDITION.ID.eq(editionId)).fetchOptional(EDITION.NOVEL_ID)
                 .orElseThrow(() -> UserFacingException.notFound("Такої новели немає."));
         String now = db.select(NOVEL.SLUG).from(NOVEL).where(NOVEL.ID.eq(novelId)).fetchSingle(NOVEL.SLUG);
         if (now.equals(wanted)) {
             return now;
         }
-        boolean taken = db.fetchExists(NOVEL, NOVEL.SLUG.eq(wanted)) || db.fetchExists(NOVEL_SLUG_ALIAS,
-                NOVEL_SLUG_ALIAS.SLUG.eq(wanted).and(NOVEL_SLUG_ALIAS.NOVEL_ID.ne(novelId)));
-        if (taken) {
+        if (slugTaken(wanted, novelId)) {
             throw UserFacingException.conflict("Така адреса вже зайнята іншою новелою.");
         }
         // The new address stops being an alias; the old one becomes one.
@@ -371,6 +374,21 @@ class CatalogService implements Catalog {
     public Optional<String> currentSlug(String oldSlug) {
         return db.select(NOVEL.SLUG).from(NOVEL_SLUG_ALIAS).join(NOVEL).on(NOVEL.ID.eq(NOVEL_SLUG_ALIAS.NOVEL_ID))
                 .where(NOVEL_SLUG_ALIAS.SLUG.eq(oldSlug)).fetchOptional(NOVEL.SLUG);
+    }
+
+    /** An address as typed, as stored: lower case, a–z, digits and hyphens; 400 when it cannot be one. */
+    private static String wantedSlug(String slug) {
+        String wanted = slug == null ? "" : slug.strip().toLowerCase(java.util.Locale.ROOT).replaceAll("[\\s_]+", "-");
+        if (wanted.length() < 2 || wanted.length() > 80 || !SLUG.matcher(wanted).matches()) {
+            throw UserFacingException.badRequest("Адреса — латинські літери, цифри й дефіси, від 2 до 80 знаків: mag-vody.");
+        }
+        return wanted;
+    }
+
+    /** Another novel has the address, now or as an old one; {@code novelId} — the novel asking, if it exists. */
+    private boolean slugTaken(String slug, Long novelId) {
+        return db.fetchExists(NOVEL, NOVEL.SLUG.eq(slug)) || db.fetchExists(NOVEL_SLUG_ALIAS,
+                NOVEL_SLUG_ALIAS.SLUG.eq(slug).and(novelId == null ? DSL.noCondition() : NOVEL_SLUG_ALIAS.NOVEL_ID.ne(novelId)));
     }
 
     private String freeSlug(String base) {

@@ -60,6 +60,23 @@ for await (const chapter of chapters('mag-vody', 'zoria')) {
     console.log(chapter.number, chapter.title);
 }`;
 
+const STUDIO = `# Новий твір з нуля — токен із правом studio.
+# kind: human — свій переклад, original — свій твір; team — адреса команди (без неї — ваша).
+curl -X POST "${BASE}/studio/novels" \\
+  -H "Authorization: Bearer $NOVELKA_TOKEN" -H "Content-Type: application/json" \\
+  -d '{"kind":"human","title":"Маг води","slug":"mag-vody","language":"ja",
+       "tags":["Фентезі"],"adult":false,"team":"zoria","rightsConfirmed":true,
+       "description":[{"type":"paragraph","content":[{"text":"Хлопець, що говорить із водою."}]}]}'
+
+# Обкладинка — окремим запитом: JPEG, PNG чи WebP до 5 МБ, сервер обріже до 2:3
+curl -X PUT "${BASE}/studio/novels/mag-vody/translations/zoria/cover" \\
+  -H "Authorization: Bearer $NOVELKA_TOKEN" -F "file=@cover.jpg"
+
+# Стан: ongoing, completed, paused (можна до дати), abandoned; поля, яких немає, не змінюються
+curl -X PATCH "${BASE}/studio/novels/mag-vody/translations/zoria/settings" \\
+  -H "Authorization: Bearer $NOVELKA_TOKEN" -H "Content-Type: application/json" \\
+  -d '{"status":"paused","pausedUntil":"2027-01-15"}'`;
+
 const TYPES = `npx openapi-typescript ${BASE}/openapi.json -o novelka-api.d.ts`;
 
 /**
@@ -165,6 +182,13 @@ export function DevelopersPage() {
             <pre className={styles.code}><code>{CURL}</code></pre>
             <h3>TypeScript</h3>
             <pre className={styles.code}><code>{TYPESCRIPT}</code></pre>
+            <h3>Новий твір з нуля</h3>
+            <p>
+                Створити переклад чи свій твір, дати йому обкладинку й змінити стан можна без сайту — він зʼявиться в Студії
+                так само, як створений там. Права й перевірки ті самі: створюють власник і перекладачі команди, змінює
+                власник.
+            </p>
+            <pre className={styles.code}><code>{STUDIO}</code></pre>
             <p>Типи для TypeScript можна згенерувати з опису:</p>
             <pre className={styles.code}><code>{TYPES}</code></pre>
 

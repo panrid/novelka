@@ -11,6 +11,7 @@ import space.panrid.novelka.support.FakeModel;
 import space.panrid.novelka.support.FakeSyosetu;
 import space.panrid.novelka.support.FakeTelegram;
 import space.panrid.novelka.support.LocalWebhooks;
+import space.panrid.novelka.support.NovelEvents;
 import space.panrid.novelka.support.TestMailbox;
 
 /** A real PostgreSQL 17, a mailbox that keeps letters, and Syosetu, Google, Telegram and the model faked. */
@@ -57,5 +58,10 @@ public class TestcontainersConfiguration {
     @Primary
     LocalWebhooks localWebhooks() {
         return new LocalWebhooks();
+    }
+
+    @Bean
+    NovelEvents novelEvents() {
+        return new NovelEvents();
     }
 }

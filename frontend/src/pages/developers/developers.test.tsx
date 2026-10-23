@@ -70,6 +70,8 @@ describe('«Для розробників»', () => {
         }
         expect(screen.getByText(/curl --get/)).toBeInTheDocument();
         expect(screen.getByText(/async function\* chapters/)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Новий твір з нуля' })).toBeInTheDocument();
+        expect(screen.getByText(/curl -X POST ".*\/studio\/novels"/)).toBeInTheDocument();
 
         // The reference is a separate chunk: its first import may take a moment.
         const path = await screen.findByText('/api/v1/novels/{slug}/translations/{team}/chapters', {}, { timeout: 5000 });
