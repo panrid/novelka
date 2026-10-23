@@ -26,6 +26,11 @@ enum Scope {
         return name().toLowerCase(Locale.ROOT);
     }
 
+    /** Whether a token limited to one translation (етап 22.12) may have it: not the library, not administration. */
+    boolean fitsOneTranslation() {
+        return this != LIBRARY && this != ADMIN;
+    }
+
     static Optional<Scope> of(String code) {
         return Arrays.stream(values()).filter(scope -> scope.code().equals(code)).findFirst();
     }

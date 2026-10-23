@@ -17,6 +17,7 @@ import space.panrid.novelka.account.SiteRole;
 import space.panrid.novelka.account.Viewer;
 import space.panrid.novelka.apitoken.internal.ApiTokenService.Created;
 import space.panrid.novelka.apitoken.internal.ApiTokenService.TokenView;
+import space.panrid.novelka.apitoken.internal.ApiTokenService.Translation;
 import space.panrid.novelka.platform.security.TokenGrant;
 import space.panrid.novelka.platform.web.UserFacingException;
 
@@ -28,12 +29,18 @@ import space.panrid.novelka.platform.web.UserFacingException;
 @RestController
 class ApiTokenController {
 
-    /** @param days how long it works: 7, 30, 90 or 365 days */
-    record NewToken(String name, List<String> scopes, Integer days) {
+    /**
+     * @param days    how long it works: 7, 30, 90 or 365 days
+     * @param edition the one translation it is limited to; null — all the person's
+     */
+    record NewToken(String name, List<String> scopes, Integer days, Long edition) {
     }
 
-    /** @param offered the scopes this person may give a token */
-    record Tokens(List<TokenView> tokens, List<String> offered, List<Integer> days) {
+    /**
+     * @param offered      the scopes this person may give a token
+     * @param translations the translations it may be limited to
+     */
+    record Tokens(List<TokenView> tokens, List<String> offered, List<Integer> days, List<Translation> translations) {
     }
 
     private final ApiTokenService tokens;
@@ -48,13 +55,13 @@ class ApiTokenController {
     Tokens mine(HttpServletRequest request) {
         Viewer viewer = signedInBySession(request);
         return new Tokens(tokens.mine(viewer.accountId()), Scope.offeredTo(viewer.role()).stream().map(Scope::code).toList(),
-                ApiTokenService.DAYS);
+                ApiTokenService.DAYS, tokens.translations(viewer.accountId()));
     }
 
     @PostMapping("/api/me/api-tokens")
     @ResponseStatus(HttpStatus.CREATED)
     Created create(@RequestBody NewToken body, HttpServletRequest request) {
-        return tokens.create(signedInBySession(request), body.name(), body.scopes(), body.days());
+        return tokens.create(signedInBySession(request), body.name(), body.scopes(), body.days(), body.edition());
     }
 
     @DeleteMapping("/api/me/api-tokens/{id}")

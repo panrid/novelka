@@ -26,10 +26,18 @@ export type ApiToken = {
     revokedAt: string | null;
     state: 'active' | 'expired' | 'revoked';
     owner: string;
+    /** The one translation the token is limited to; null — all its owner's. */
+    translation: TokenTranslation | null;
 };
 
-type Tokens = { tokens: ApiToken[]; offered: string[]; days: number[] };
-type NewToken = { name: string; scopes: string[]; days: number };
+/** A translation as the API names it: {@code /novels/{novel}/translations/{team}}. */
+export type TokenTranslation = { editionId: number; novel: string; team: string; title: string; teamName: string };
+
+type Tokens = { tokens: ApiToken[]; offered: string[]; days: number[]; translations: TokenTranslation[] };
+type NewToken = { name: string; scopes: string[]; days: number; edition?: number };
+
+/** Rights a token limited to one translation cannot have: they are not about a translation. */
+const NOT_FOR_ONE = ['library', 'admin'];
 
 export const apiTokensApi = {
     mine: () => api<Tokens>('/api/me/api-tokens'),
@@ -66,7 +74,8 @@ function dayWord(days: number) {
 
 /**
  * «Налаштування → API» (етап 22.1): tokens for programs and agents. A new token is shown once —
- * the site keeps only its fingerprint; each can be revoked at any time. The site owner also sees
+ * the site keeps only its fingerprint; each can be revoked at any time, and may be limited to one
+ * translation (етап 22.12). The site owner also sees
  * everyone's tokens and may revoke any.
  */
 export function ApiSettingsPage() {
@@ -95,8 +104,14 @@ function NewTokenSection() {
     const [name, setName] = useState('');
     const [scopes, setScopes] = useState<string[]>(['read']);
     const [days, setDays] = useState('90');
+    const [reach, setReach] = useState<'all' | 'one'>('all');
+    const [edition, setEdition] = useState('');
+    const translations = tokens.data?.translations ?? [];
+    const limited = reach === 'one';
+    const chosen = limited ? (edition || String(translations[0]?.editionId ?? '')) : '';
+    const rights = limited ? scopes.filter((scope) => !NOT_FOR_ONE.includes(scope)) : scopes;
     const create = useMutation({
-        mutationFn: () => apiTokensApi.create({ name: name.trim(), scopes, days: Number(days) }),
+        mutationFn: () => apiTokensApi.create({ name: name.trim(), scopes: rights, days: Number(days), ...(chosen ? { edition: Number(chosen) } : {}) }),
         onSuccess: () => {
             setName('');
             void client.invalidateQueries({ queryKey: ['api-tokens'] });
@@ -124,12 +139,36 @@ function NewTokenSection() {
             </div>
         );
     }
-    const offered = tokens.data?.offered ?? [];
+    const offered = (tokens.data?.offered ?? []).filter((scope) => !limited || !NOT_FOR_ONE.includes(scope));
     return (
         <form className={styles.section} onSubmit={submit}>
             <h2 className={styles.sectionTitle}>Новий токен</h2>
             <div className={styles.form}>
                 <TextInput label="Назва" value={name} onChange={setName} maxLength={60} hint="Щоб потім знати, де він: «Читалка на телефоні», «Агент перекладу»." isRequired />
+                {translations.length > 0 && (
+                    <div className={styles.form} style={{ gap: 8 }}>
+                        <Segmented label="Переклади" value={reach} onChange={setReach}
+                            options={[{ value: 'all', label: 'Усі мої' }, { value: 'one', label: 'Лише один' }]} />
+                        {limited && (
+                            <>
+                                <label className={styles.muted} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    Переклад
+                                    <select className={styles.select} value={chosen} onChange={(event) => setEdition(event.target.value)}>
+                                        {translations.map((translation) => (
+                                            <option key={translation.editionId} value={translation.editionId}>
+                                                {translation.title} · {translation.teamName}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                                <p className={styles.muted}>
+                                    Токен працюватиме лише з цим перекладом — його не страшно віддати ботові чи агентові ШІ. Бібліотека й
+                                    адміністрування — лише для токена на всі переклади.
+                                </p>
+                            </>
+                        )}
+                    </div>
+                )}
                 <div>
                     <p className={styles.muted} style={{ marginBottom: 8 }}>Права</p>
                     {offered.map((scope) => (
@@ -143,7 +182,7 @@ function NewTokenSection() {
                 <Segmented label="Строк дії" value={days} onChange={setDays}
                     options={(tokens.data?.days ?? [7, 30, 90, 365]).map((value) => ({ value: String(value), label: dayWord(value) }))} />
                 {create.isError && <Notice tone="error">{create.error.message}</Notice>}
-                <Button type="submit" pending={create.isPending} pendingLabel="Створюємо…" isDisabled={!name.trim() || scopes.length === 0}>
+                <Button type="submit" pending={create.isPending} pendingLabel="Створюємо…" isDisabled={!name.trim() || rights.length === 0}>
                     Створити токен
                 </Button>
             </div>
@@ -157,6 +196,9 @@ function TokenRow({ token, showOwner, onRevoke, pending }: { token: ApiToken; sh
             <div className={styles.row} style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 0 }}>
                     <b>{token.name}</b>{showOwner && <> · {token.owner}</>} <code>{token.hint}</code>
+                    {token.translation && (
+                        <p className={styles.muted}>Лише переклад «{token.translation.title}» · {token.translation.teamName}</p>
+                    )}
                     <p className={styles.muted}>
                         {token.scopes.map((scope) => SCOPES[scope]?.label ?? scope).join(', ')} · {STATES[token.state]}
                         {token.state === 'active' && <> до {messageTime(new Date(token.expiresAt))}</>}

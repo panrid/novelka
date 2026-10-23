@@ -3,6 +3,10 @@ package space.panrid.novelka.apitoken.internal;
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.API_TOKEN;
 import static space.panrid.novelka.jooq.Tables.API_TOKEN_WRITE;
+import static space.panrid.novelka.jooq.Tables.EDITION;
+import static space.panrid.novelka.jooq.Tables.NOVEL;
+import static space.panrid.novelka.jooq.Tables.TEAM;
+import static space.panrid.novelka.jooq.Tables.TEAM_MEMBER;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -23,7 +27,9 @@ import java.util.Set;
 
 import org.jooq.Condition;
 import org.jooq.DSLContext;
+import org.jooq.Field;
 import org.jooq.Record;
+import org.jooq.impl.DSL;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Component;
@@ -40,7 +46,8 @@ import space.panrid.novelka.platform.web.UserFacingException;
  * Access tokens (етап 22.1). A token is {@code nvk_} and 32 random bytes; it is shown once, when
  * made, and the database keeps only its SHA-256 — enough to recognise it, useless to sign in. A
  * token signs in as its owner, read afresh on every request, so it never gives more than the
- * owner has now; its scopes ({@link TokenScopes}) narrow that further.
+ * owner has now; its scopes ({@link TokenScopes}) narrow that further, and so may one translation
+ * it is limited to ({@link OneTranslation}, етап 22.12).
  */
 @Component
 class ApiTokenService implements BearerTokens {
@@ -59,9 +66,18 @@ class ApiTokenService implements BearerTokens {
      * @param hint  its first characters, «nvk_Ab3dE…»
      * @param state active, expired or revoked
      * @param owner whose it is (the site owner's list of all tokens)
+     * @param translation the one translation it is limited to; null — all its owner's
      */
     record TokenView(long id, String name, String hint, List<String> scopes, OffsetDateTime createdAt, OffsetDateTime expiresAt,
-            OffsetDateTime lastUsedAt, String lastUsedIp, OffsetDateTime revokedAt, String state, String owner) {
+            OffsetDateTime lastUsedAt, String lastUsedIp, OffsetDateTime revokedAt, String state, String owner, Translation translation) {
+    }
+
+    /**
+     * A translation a token may be limited to (етап 22.12).
+     *
+     * @param novel the novel's slug and {@code team} the team's handle, as the API's addresses name them
+     */
+    record Translation(long editionId, String novel, String team, String title, String teamName) {
     }
 
     /** A token just made: the only time {@code secret} is told. */
@@ -82,7 +98,7 @@ class ApiTokenService implements BearerTokens {
     // ---- managing tokens (session only) -------------------------------------------------------
 
     @Transactional
-    Created create(Viewer viewer, String name, List<String> scopeCodes, Integer days) {
+    Created create(Viewer viewer, String name, List<String> scopeCodes, Integer days, Long editionId) {
         String title = name == null ? "" : name.strip();
         if (title.isEmpty() || title.length() > 60) {
             throw UserFacingException.badRequest("Назвіть токен: до 60 символів, щоб потім знати, де він.");
@@ -100,6 +116,14 @@ class ApiTokenService implements BearerTokens {
         if (!Scope.offeredTo(viewer.role()).containsAll(scopes)) {
             throw new UserFacingException(HttpStatus.FORBIDDEN, "Право «admin» — лише для ролей сайту.");
         }
+        if (editionId != null) {
+            if (!scopes.stream().allMatch(Scope::fitsOneTranslation)) {
+                throw UserFacingException.badRequest("Права «library» і «admin» не поєднуються з обмеженням одним перекладом.");
+            }
+            if (translations(viewer.accountId()).stream().noneMatch(translation -> translation.editionId() == editionId)) {
+                throw new UserFacingException(HttpStatus.FORBIDDEN, "Обмежити токен можна лише перекладом вашої команди.");
+            }
+        }
         // One at a time per person, so two quick clicks do not slip past the limit together.
         db.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.ID.eq(viewer.accountId())).forUpdate().execute();
         if (db.fetchCount(API_TOKEN, API_TOKEN.ACCOUNT_ID.eq(viewer.accountId()).and(live())) >= MAX_LIVE) {
@@ -115,6 +139,7 @@ class ApiTokenService implements BearerTokens {
                 .set(API_TOKEN.SECRET_HASH, hash(secret))
                 .set(API_TOKEN.SCOPES, scopes.stream().map(Scope::code).toArray(String[]::new))
                 .set(API_TOKEN.EXPIRES_AT, now().plusDays(days))
+                .set(API_TOKEN.EDITION_ID, editionId)
                 .set(API_TOKEN.CREATED_AT, now())
                 .returning(API_TOKEN.ID).fetchOne(API_TOKEN.ID);
         return new Created(view(id), secret);
@@ -123,6 +148,16 @@ class ApiTokenService implements BearerTokens {
     /** A person's tokens, the newest first: live ones and those that ended within 30 days. */
     List<TokenView> mine(long accountId) {
         return views(API_TOKEN.ACCOUNT_ID.eq(accountId).and(recent()), 100);
+    }
+
+    /** The translations a person may limit a token to: those of the teams they are in, the newest first. */
+    List<Translation> translations(long accountId) {
+        var member = DSL.select(TEAM_MEMBER.TEAM_ID).from(TEAM_MEMBER).where(TEAM_MEMBER.ACCOUNT_ID.eq(accountId));
+        return db.select(EDITION.ID, NOVEL.SLUG, TEAM.HANDLE, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), teamName())
+                .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
+                .where(TEAM.OWNER_ID.eq(accountId).or(TEAM.ID.in(member)), EDITION.DELETED_AT.isNull())
+                .orderBy(EDITION.ID.desc()).limit(200)
+                .fetch(r -> new Translation(r.value1(), r.value2(), r.value3(), r.value4(), r.value5()));
     }
 
     /** Every live token of the site, for its owner. */
@@ -166,7 +201,7 @@ class ApiTokenService implements BearerTokens {
         if (token == null || !token.startsWith(PREFIX) || token.length() > 100) {
             return Optional.empty();
         }
-        Record row = db.select(API_TOKEN.ID, API_TOKEN.ACCOUNT_ID, API_TOKEN.SCOPES).from(API_TOKEN)
+        Record row = db.select(API_TOKEN.ID, API_TOKEN.ACCOUNT_ID, API_TOKEN.SCOPES, API_TOKEN.EDITION_ID).from(API_TOKEN)
                 .join(ACCOUNT).on(ACCOUNT.ID.eq(API_TOKEN.ACCOUNT_ID))
                 .where(API_TOKEN.SECRET_HASH.eq(hash(token)).and(live()))
                 .fetchOne();
@@ -182,6 +217,7 @@ class ApiTokenService implements BearerTokens {
                         .or(API_TOKEN.LAST_USED_IP.isDistinctFrom(ip)))
                 .execute();
         return Optional.of(new TokenGrant(id, accountId, Set.copyOf(Arrays.asList(row.get(API_TOKEN.SCOPES))),
+                row.get(API_TOKEN.EDITION_ID),
                 UsernamePasswordAuthenticationToken.authenticated(new AccountPrincipal(accountId), null, List.of())));
     }
 
@@ -198,6 +234,18 @@ class ApiTokenService implements BearerTokens {
         }
         if (!grant.scopes().contains(needed.get().code())) {
             return "Токену бракує права «" + needed.get().code() + "».";
+        }
+        if (grant.editionId() != null) {
+            Record bound = db.select(NOVEL.SLUG, TEAM.HANDLE_KEY, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), teamName())
+                    .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
+                    .where(EDITION.ID.eq(grant.editionId())).fetchOne();
+            if (bound == null) {
+                return "Переклад, яким обмежено токен, видалено.";
+            }
+            if (!OneTranslation.allows(new OneTranslation.Bound(bound.get(NOVEL.SLUG), bound.get(TEAM.HANDLE_KEY)), method, path)) {
+                return "Токен обмежено перекладом «" + bound.get(2, String.class) + "» (команда «" + bound.get(3, String.class)
+                        + "»): поза ним він не працює.";
+            }
         }
         return null;
     }
@@ -236,9 +284,15 @@ class ApiTokenService implements BearerTokens {
 
     private List<TokenView> views(Condition where, int limit) {
         OffsetDateTime now = now();
+        var title = DSL.coalesce(EDITION.TITLE, NOVEL.TITLE);
+        var team = teamName();
         return db.select(API_TOKEN.ID, API_TOKEN.NAME, API_TOKEN.HINT, API_TOKEN.SCOPES, API_TOKEN.CREATED_AT, API_TOKEN.EXPIRES_AT,
-                        API_TOKEN.LAST_USED_AT, API_TOKEN.LAST_USED_IP, API_TOKEN.REVOKED_AT, ACCOUNT.NICK)
+                        API_TOKEN.LAST_USED_AT, API_TOKEN.LAST_USED_IP, API_TOKEN.REVOKED_AT, ACCOUNT.NICK, API_TOKEN.EDITION_ID,
+                        NOVEL.SLUG, TEAM.HANDLE, title, team)
                 .from(API_TOKEN).join(ACCOUNT).on(ACCOUNT.ID.eq(API_TOKEN.ACCOUNT_ID))
+                .leftJoin(EDITION).on(EDITION.ID.eq(API_TOKEN.EDITION_ID))
+                .leftJoin(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
+                .leftJoin(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
                 .where(where)
                 .orderBy(API_TOKEN.ID.desc())
                 .limit(limit)
@@ -246,7 +300,15 @@ class ApiTokenService implements BearerTokens {
                         List.of(r.get(API_TOKEN.SCOPES)), r.get(API_TOKEN.CREATED_AT), r.get(API_TOKEN.EXPIRES_AT),
                         r.get(API_TOKEN.LAST_USED_AT), r.get(API_TOKEN.LAST_USED_IP), r.get(API_TOKEN.REVOKED_AT),
                         r.get(API_TOKEN.REVOKED_AT) != null ? "revoked" : r.get(API_TOKEN.EXPIRES_AT).isAfter(now) ? "active" : "expired",
-                        r.get(ACCOUNT.NICK)));
+                        r.get(ACCOUNT.NICK), r.get(API_TOKEN.EDITION_ID) == null ? null
+                                : new Translation(r.get(API_TOKEN.EDITION_ID), r.get(NOVEL.SLUG), r.get(TEAM.HANDLE), r.get(title),
+                                        r.get(team))));
+    }
+
+    /** The team's name; a team of one without a name is shown as its owner's nick. */
+    private static Field<String> teamName() {
+        var owner = ACCOUNT.as("team_owner");
+        return DSL.coalesce(TEAM.NAME, DSL.field(DSL.select(owner.NICK).from(owner).where(owner.ID.eq(TEAM.OWNER_ID))));
     }
 
     /** Hex SHA-256 of the whole token. */

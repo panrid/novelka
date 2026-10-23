@@ -6957,7 +6957,7 @@
     },
     "/api/v1/studio/translations" : {
       "get" : {
-        "description" : "Переклади команд, де ви є, — найновіші першими.",
+        "description" : "Переклади команд, де ви є, — найновіші першими. Токен, обмежений одним перекладом, бачить лише його.",
         "operationId" : "translations",
         "parameters" : [ {
           "in" : "query",

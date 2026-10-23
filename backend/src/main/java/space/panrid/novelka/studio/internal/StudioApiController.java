@@ -36,12 +36,14 @@ import org.springframework.web.multipart.MultipartFile;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import space.panrid.novelka.access.AccessPolicy;
 import space.panrid.novelka.access.EditionAccess;
 import space.panrid.novelka.account.Viewer;
 import space.panrid.novelka.media.ImageKind;
 import space.panrid.novelka.media.Images;
 import space.panrid.novelka.media.StoredImage;
+import space.panrid.novelka.platform.security.TokenGrant;
 import space.panrid.novelka.platform.text.Block;
 import space.panrid.novelka.platform.web.UserFacingException;
 import space.panrid.novelka.team.Teams;
@@ -81,18 +83,22 @@ class StudioApiController {
 
     // ---- translations -------------------------------------------------------------------------
 
-    /** The translations of the teams the person is in, the newest first, 20 to a page (at most 100). */
+    /**
+     * The translations of the teams the person is in, the newest first, 20 to a page (at most 100);
+     * for a token limited to one translation (етап 22.12) — that one alone.
+     */
     @GetMapping("/translations")
-    @Operation(summary = "Мої переклади", description = "Переклади команд, де ви є, — найновіші першими.")
+    @Operation(summary = "Мої переклади", description = "Переклади команд, де ви є, — найновіші першими. Токен, обмежений одним перекладом, бачить лише його.")
     StudioApiV1.Page<StudioApiV1.Translation> translations(@RequestParam(required = false) String after,
-            @RequestParam(defaultValue = "" + PAGE) int limit) {
+            @RequestParam(defaultValue = "" + PAGE) int limit, HttpServletRequest request) {
         Viewer viewer = access.requireSignedIn();
         int size = size(limit, 100);
         Long from = id(after);
+        Long only = TokenGrant.edition(request);
         var member = DSL.select(TEAM_MEMBER.TEAM_ID).from(TEAM_MEMBER).where(TEAM_MEMBER.ACCOUNT_ID.eq(viewer.accountId()));
         var rows = db.select(EDITION.ID).from(EDITION).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
                 .where(TEAM.OWNER_ID.eq(viewer.accountId()).or(TEAM.ID.in(member)), EDITION.DELETED_AT.isNull(),
-                        from == null ? DSL.noCondition() : EDITION.ID.lt(from))
+                        from == null ? DSL.noCondition() : EDITION.ID.lt(from), only == null ? DSL.noCondition() : EDITION.ID.eq(only))
                 .orderBy(EDITION.ID.desc()).limit(size).fetch(EDITION.ID);
         List<StudioApiV1.Translation> items = new ArrayList<>();
         for (long editionId : rows) {

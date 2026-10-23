@@ -72,6 +72,18 @@
     font-size: 14px;
 }
 
+.select {
+    min-height: 40px;
+    width: 100%;
+    min-width: 0;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font: 14px var(--font-ui);
+}
+
 .menu {
     display: flex;
     flex-direction: column;
