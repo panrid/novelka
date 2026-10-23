@@ -555,6 +555,22 @@
       "h": 900,
       "title": "Завантаження й очікування — комп’ютер",
       "is_interactive": true
+    },
+    "MailNotifK.dc.html": {
+      "x": 0,
+      "y": 19100,
+      "w": 1440,
+      "h": 1100,
+      "title": "Листи зі сповіщеннями — світла пошта на комп’ютері й темна на телефоні (stan: 13 листів)",
+      "is_interactive": true
+    },
+    "MailServiceK.dc.html": {
+      "x": 1520,
+      "y": 19100,
+      "w": 1440,
+      "h": 1100,
+      "title": "Службові листи — підтвердження, пароль, пошта, нік, код видалення (stan: 7 листів)",
+      "is_interactive": true
     }
   },
   "order": [
@@ -622,7 +638,9 @@
     "TrMoreK.dc.html",
     "AdminK.dc.html",
     "TermsK.dc.html",
-    "LoadingK.dc.html"
+    "LoadingK.dc.html",
+    "MailNotifK.dc.html",
+    "MailServiceK.dc.html"
   ],
   "notes": {
     "newTitle": {
@@ -665,6 +683,13 @@
       "x": 0,
       "y": 17400,
       "text": "Адміністрування · терміни й доступ · завантаження",
+      "kind": "title1",
+      "maxW": 6000
+    },
+    "mailTitle": {
+      "x": 0,
+      "y": 18800,
+      "text": "Листи зі сповіщеннями й службові · один вигляд у кольорах «Сланцю»",
       "kind": "title1",
       "maxW": 6000
     }

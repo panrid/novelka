@@ -11,6 +11,7 @@ import * as comm from './comm.mjs';
 import * as studio from './studio.mjs';
 import * as work from './work.mjs';
 import * as admin from './admin.mjs';
+import * as mail from './mail.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, '..', 'mockup');
@@ -23,13 +24,13 @@ export const SCREENS = [reader.ReaderT, reader.ReaderPanelsT, reader.ReaderP, re
   studio.StudioT, studio.StudioP, studio.StudioK, studio.RunsT, studio.RunsK, studio.LiveT, studio.LiveK, studio.NewT, studio.NewK,
   studio.TrT, studio.TrP, studio.TrK, studio.OriginalK, studio.TranslateP, studio.TranslateK, studio.AutoT, studio.AutoK,
   work.WorkT, work.WorkP, work.WorkK, work.HistoryK, work.GlossaryT, work.GlossaryK, work.ReviewT, work.ReviewK, work.TrMoreK,
-  admin.AdminK, admin.TermsK, admin.LoadingK];
+  admin.AdminK, admin.TermsK, admin.LoadingK, mail.MailNotifK, mail.MailServiceK];
 
 for (const s of SCREENS) {
   writeFileSync(join(out, s.file), dcFile(s));
   if (prev) {
     mkdirSync(prev, { recursive: true });
-    for (const [kname, kid] of KARKASY) for (const st of s.stany) {
+    for (const [kname, kid] of (s.fixed ? KARKASY.slice(0, 1) : KARKASY)) for (const st of s.stany) {
       const name = `${s.file.replace('.dc.html', '')}__${kid}__${s.ids[s.stany.indexOf(st)]}.html`;
       writeFileSync(join(prev, name), previewHtml(s, { karkas: kname, tema: { pult: 'Сланець', zv: 'Графіт', pal: 'Сукно', obl: 'Слива' }[kid], stan: st }));
     }

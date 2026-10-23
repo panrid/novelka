@@ -226,12 +226,13 @@ export function baseVals(props, state, ui, opt) {
 }
 
 // Обгортка файлу .dc.html
-export function dcFile({ title, w, h, dev, stany, ids, alias, scls, root, extra = '' }) {
-  const props = {
+export function dcFile({ title, w, h, dev, stany, ids, alias, scls, root, extra = '', fixed = false }) {
+  // fixed — екран без каркасів і тем (листи): лише перемикач стану
+  const props = fixed ? {} : {
     karkas: { editor: 'enum', options: KARKASY.map(x => x[0]), default: 'Пульт' },
     tema: { editor: 'enum', options: TEMY.map(x => x[0]), default: 'Сланець' }
   };
-  if (dev !== 'ph') props.svitla = { editor: 'boolean', default: false };
+  if (dev !== 'ph' && !fixed) props.svitla = { editor: 'boolean', default: false };
   if (stany.length > 1) props.stan = { editor: 'enum', options: stany, default: stany[0] };
   props.$preview = { width: w, height: h };
   const json = JSON.stringify(props).replace(/&/g, '&amp;').replace(/'/g, '&#39;');

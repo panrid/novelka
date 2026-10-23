@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Листи зі сповіщеннями — пошта</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&amp;family=Golos+Text:wght@400;500;600;700&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;0,7..72,700;1,7..72,400&amp;family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&amp;family=Spectral:ital,wght@0,400;0,500;0,600;1,400&amp;family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&amp;family=Unbounded:wght@500;600;700;800&amp;family=Manrope:wght@400;500;600;700;800&amp;family=Lora:ital,wght@0,400;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+.th-slanets{--bg:#1C1F25;--s0:#17191E;--s1:#22262D;--s2:#2A303A;--line:#333842;--tx:#D6DAE1;--strong:#EEF0F4;--read:#D9DCE2;--dim:#8D95A4;--faint:#636A77;--acc:#F2B35B;--onacc:#1D1404;--acc2:#5CCFBF;--onacc2:#0A1F1C;--term:rgba(92,207,191,.16);--selw:rgba(242,179,91,.30);--del:#F39479;--delbg:rgba(243,148,121,.13);--ins:#F5C27A;--insbg:rgba(242,179,91,.16);--skel:#2B3038;--scrim:rgba(8,9,12,.62);--warn:#F2B35B}
+.th-slanets.lt{--bg:#F3F4F6;--s0:#E8EAEE;--s1:#FFFFFF;--s2:#EEF1F5;--line:#D5D9E0;--tx:#1B1F27;--strong:#0B0E14;--read:#1E222A;--dim:#596070;--faint:#8C93A0;--acc:#A86200;--onacc:#FFFFFF;--acc2:#0B786B;--onacc2:#FFFFFF;--term:#D7F1EC;--selw:#F7D9A6;--del:#B23A17;--delbg:#FBE4DC;--ins:#7A4600;--insbg:#FCEBCF;--skel:#E3E6EB;--scrim:rgba(20,24,32,.35);--warn:#8A5200}
+.th-graphite{--bg:#0F1115;--s0:#0B0D10;--s1:#171A20;--s2:#1F232B;--line:#2A2F39;--tx:#E8EAEE;--strong:#F1F2F5;--read:#DADDE3;--dim:#A3A9B6;--faint:#6F7584;--acc:#8EA6FF;--onacc:#0B0D12;--acc2:#F2C46B;--onacc2:#1A1405;--term:rgba(255,196,64,.20);--selw:rgba(142,166,255,.28);--del:#FFB48A;--delbg:rgba(255,140,80,.18);--ins:#D3DCFF;--insbg:rgba(142,166,255,.22);--skel:#23272F;--scrim:rgba(5,6,9,.62);--warn:#F2C46B}
+.th-graphite.lt{--bg:#F3F4F6;--s0:#E9EBEF;--s1:#FFFFFF;--s2:#F1F2F5;--line:#E3E5EA;--tx:#15171C;--strong:#0B0D12;--read:#1B1D22;--dim:#5B6170;--faint:#8A909C;--acc:#2A4BD7;--onacc:#FFFFFF;--acc2:#7A4B00;--onacc2:#FFFFFF;--term:#FFF1C2;--selw:#DCE6FF;--del:#7A3410;--delbg:#FDE6D3;--ins:#102A8C;--insbg:#DCE6FF;--skel:#E6E8EC;--scrim:rgba(15,17,21,.35);--warn:#7A4B00}
+.th-sukno{--bg:#0E1613;--s0:#0A110E;--s1:#131E1A;--s2:#1A2722;--line:#2A3A33;--tx:#E9E2CC;--strong:#F4EEDC;--read:#DCD5BE;--dim:#A9A58F;--faint:#767B6C;--acc:#D2A84E;--onacc:#17120A;--acc2:#9CC7A4;--onacc2:#0E1613;--term:rgba(210,168,78,.17);--selw:rgba(210,168,78,.34);--del:#E59072;--delbg:rgba(229,144,114,.14);--ins:#EBCB7C;--insbg:rgba(210,168,78,.14);--skel:#22302A;--scrim:rgba(4,8,6,.62);--warn:#D2A84E}
+.th-sukno.lt{--bg:#E6E9E1;--s0:#DCE1D6;--s1:#F7F8F2;--s2:#EDEFE6;--line:#C9D0C2;--tx:#18221D;--strong:#0C130F;--read:#1E2621;--dim:#535E4F;--faint:#7F877A;--acc:#85601A;--onacc:#FFFFFF;--acc2:#2F6B45;--onacc2:#FFFFFF;--term:#F1E2B7;--selw:#E6CB82;--del:#A4431E;--delbg:#F6DDD2;--ins:#6A4A0C;--insbg:#F1E2B7;--skel:#DDE2D6;--scrim:rgba(14,22,19,.35);--warn:#85601A}
+.th-slyva{--bg:#191120;--s0:#140D1A;--s1:#241830;--s2:#2F2140;--line:#3F2E50;--tx:#F7ECF4;--strong:#FFF6FB;--read:#EEE1EA;--dim:#BCA7BE;--faint:#8E7A94;--acc:#FF7EA4;--onacc:#2B0716;--acc2:#F4E27C;--onacc2:#2A2306;--term:rgba(255,126,164,.2);--selw:rgba(255,126,164,.36);--del:#FFB08F;--delbg:rgba(255,140,100,.16);--ins:#F4E27C;--insbg:rgba(244,226,124,.15);--skel:#2E2240;--scrim:rgba(10,4,14,.62);--warn:#F4E27C}
+.th-slyva.lt{--bg:#FFF4F7;--s0:#FBE9EF;--s1:#FFFFFF;--s2:#FCE7EF;--line:#F1D2DE;--tx:#2A1430;--strong:#1A0A1F;--read:#2A1430;--dim:#6D5370;--faint:#9F89A1;--acc:#CF2E66;--onacc:#FFFFFF;--acc2:#7C6300;--onacc2:#FFFFFF;--term:#FFD9E5;--selw:#FFC2D5;--del:#A93A12;--delbg:#FFE3D6;--ins:#6B5400;--insbg:#FFF1B8;--skel:#F6DCE6;--scrim:rgba(42,20,48,.35);--warn:#7C6300}
+
+.k-pult{--f-ui:'IBM Plex Sans','Segoe UI',sans-serif;--f-rd:'IBM Plex Serif',Georgia,serif;--f-h:'IBM Plex Sans','Segoe UI',sans-serif;--f-num:'IBM Plex Mono',ui-monospace,monospace;--fs:14px;--wh:600;
+  --hb:34px;--hbs:28px;--pb:12px;--rb:0px;--wb:500;--fsb:13.5px;--hc:26px;--pc:8px;--rc:0px;--fsc:12.5px;--rcard:0px;--rsheet:0px;--rsk:0px;--rin:0px;--hp:2px;--rp:0px;--gap:12px}
+.k-zv{--f-ui:'Golos Text',-apple-system,'Segoe UI',sans-serif;--f-rd:'Literata',Georgia,serif;--f-h:'Literata',Georgia,serif;--f-num:'Golos Text',sans-serif;--fs:15px;--wh:700;
+  --hb:40px;--hbs:32px;--pb:16px;--rb:10px;--wb:600;--fsb:14.5px;--hc:30px;--pc:12px;--rc:999px;--fsc:13px;--rcard:14px;--rsheet:20px;--rsk:6px;--rin:10px;--hp:4px;--rp:2px;--gap:14px}
+.k-pal{--f-ui:'Alegreya Sans','Segoe UI',sans-serif;--f-rd:'Spectral',Georgia,serif;--f-h:'Cormorant Garamond',Georgia,serif;--f-num:'Cormorant Garamond',Georgia,serif;--fs:16px;--wh:600;
+  --hb:40px;--hbs:32px;--pb:16px;--rb:2px;--wb:700;--fsb:15px;--hc:28px;--pc:10px;--rc:2px;--fsc:14px;--rcard:0px;--rsheet:0px;--rsk:2px;--rin:2px;--hp:2px;--rp:0px;--gap:16px}
+.k-obl{--f-ui:'Manrope','Segoe UI',sans-serif;--f-rd:'Lora',Georgia,serif;--f-h:'Unbounded','Arial Black',sans-serif;--f-num:'Unbounded','Arial Black',sans-serif;--fs:15px;--wh:700;
+  --hb:44px;--hbs:34px;--pb:18px;--rb:999px;--wb:700;--fsb:14px;--hc:32px;--pc:14px;--rc:999px;--fsc:13px;--rcard:22px;--rsheet:28px;--rsk:10px;--rin:16px;--hp:8px;--rp:4px;--gap:12px}
+.ph.k-pult{--hb:44px;--hbs:36px} .ph.k-zv{--hb:46px;--hbs:38px} .ph.k-pal{--hb:44px;--hbs:38px} .ph.k-obl{--hb:50px;--hbs:40px}
+
+body{margin:0;background:#101114}
+.nv{position:relative;overflow:hidden;box-sizing:border-box;background:var(--bg);color:var(--tx);font:var(--fs)/1.45 var(--f-ui);-webkit-font-smoothing:antialiased}
+.nv *,.nv *::before,.nv *::after{box-sizing:border-box}
+.nv :where(button){font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+.nv :where(a){color:inherit;text-decoration:none}
+.nv :where(p,h1,h2,h3,h4,ul,ol,figure){margin:0;padding:0}
+.nv :where(ul,ol){list-style:none}
+.nv :where(input,textarea,select){font:inherit;color:inherit}
+.nv :where(button,a,input,textarea,select):focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.nv svg.i{display:block;flex:none}
+.sk{display:block;background:var(--skel);border-radius:var(--rsk);animation:nvP 1.6s ease-in-out infinite}
+@keyframes nvP{50%{opacity:.45}}
+@keyframes nvB{50%{opacity:0}}
+@keyframes nvS{to{transform:rotate(360deg)}}
+.spin{animation:nvS .9s linear infinite}
+.caret{display:inline-block;width:2px;height:1.1em;vertical-align:-.18em;background:currentColor;margin-left:1px;animation:nvB 1s steps(1) infinite}
+@media (prefers-reduced-motion:reduce){.sk,.caret,.spin{animation:none}}
+.term{background:var(--term);border-radius:3px}
+.k-pal .term{box-shadow:0 1px 0 var(--acc);border-radius:2px}
+.k-obl .term{border-radius:6px;padding:0 2px}
+.selw{background:var(--selw);border-radius:3px}
+.mono{font-family:var(--f-num)}
+.dim{color:var(--dim)} .faint{color:var(--faint)} .strong{color:var(--strong)} .acc{color:var(--acc)} .acc2{color:var(--acc2)}
+.grow{flex:1;min-width:0}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.col{display:flex;flex-direction:column;min-width:0}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.num{font-variant-numeric:tabular-nums}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:var(--hb);padding:0 var(--pb);border-radius:var(--rb);background:var(--s2);color:var(--tx);font-weight:var(--wb);font-size:var(--fsb);white-space:nowrap;flex:none}
+.btn.pri{background:var(--acc);color:var(--onacc)}
+.btn.sec{background:var(--acc2);color:var(--onacc2)}
+.btn.out{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
+.btn.sm{height:var(--hbs);padding:0 calc(var(--pb) * .75);font-size:calc(var(--fsb) - 1px)}
+.btn.wide{width:100%}
+.btn.dis{opacity:.45;cursor:default}
+.k-pal .btn{background:transparent;box-shadow:inset 0 0 0 1px var(--line);font-variant:all-small-caps;letter-spacing:.06em;font-size:calc(var(--fsb) + 2px)}
+.k-pal .btn.pri{background:var(--acc);box-shadow:none}
+.k-pal .btn.sec{background:transparent;box-shadow:inset 0 0 0 1px var(--acc2);color:var(--acc2)}
+.k-pult .btn.out,.k-pult .btn{box-shadow:inset 0 0 0 1px var(--line)}
+.k-pult .btn.pri,.k-pult .btn.sec{box-shadow:none}
+.ib{width:var(--hb);height:var(--hb);display:grid;place-items:center;border-radius:var(--rb);color:var(--dim);flex:none;position:relative}
+.ib.on{color:var(--acc)}
+.k-zv .ib.on{background:var(--s2)}
+.k-obl .ib.on{background:var(--acc);color:var(--onacc)}
+.ib .dot{position:absolute;top:4px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--acc);color:var(--onacc);font:700 10px/16px var(--f-ui);text-align:center}
+.k-pult .ib .dot{border-radius:0;font-family:var(--f-num);font-weight:500}
+.chip{display:inline-flex;align-items:center;gap:6px;height:var(--hc);padding:0 var(--pc);border-radius:var(--rc);background:var(--s2);color:var(--dim);font-size:var(--fsc);white-space:nowrap;flex:none}
+.chip.on{background:var(--acc);color:var(--onacc)}
+.k-pult .chip{background:transparent;box-shadow:inset 0 0 0 1px var(--line);font-family:var(--f-num);font-size:12px}
+.k-pult .chip.on{background:var(--acc);box-shadow:none}
+.k-pal .chip{background:transparent;padding:0 2px;height:auto;color:var(--dim);border-bottom:1px dotted var(--dim);border-radius:0}
+.k-pal .chip.on{color:var(--acc);border-bottom:1px solid var(--acc);background:transparent}
+.lab{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-weight:600}
+.k-pult .lab{font:500 11px/1.3 var(--f-num);letter-spacing:.08em}
+.k-pal .lab{text-transform:none;font-variant:all-small-caps;letter-spacing:.1em;font-size:15px;font-weight:500;color:var(--acc)}
+.k-obl .lab{font:700 11px/1.3 var(--f-h);letter-spacing:.04em}
+.h1{font:var(--wh) 26px/1.2 var(--f-h);color:var(--strong);text-wrap:balance}
+.h2{font:var(--wh) 20px/1.25 var(--f-h);color:var(--strong);text-wrap:balance}
+.h3{font:600 16px/1.3 var(--f-ui);color:var(--strong)}
+.k-pal .h1{font-size:32px;font-weight:600}
+.k-pal .h2{font-size:25px}
+.k-obl .h1{font-size:24px;font-weight:700;letter-spacing:-.01em}
+.k-obl .h2{font-size:18px;letter-spacing:-.01em}
+.k-pult .h1{font-size:22px}
+.k-pult .h2{font-size:17px}
+.card{background:var(--s1);border-radius:var(--rcard)}
+.k-pult .card{box-shadow:inset 0 0 0 1px var(--line)}
+.k-zv .card{box-shadow:inset 0 0 0 1px var(--line)}
+.k-pal .card{background:transparent;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.prog{height:var(--hp);background:var(--s2);border-radius:var(--rp);overflow:hidden;flex:none}
+.prog>i{display:block;height:100%;background:var(--acc);border-radius:var(--rp)}
+.field{display:flex;align-items:center;gap:8px;height:var(--hb);padding:0 12px;border-radius:var(--rin);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);color:var(--faint);width:100%}
+.k-pal .field{background:transparent;box-shadow:none;border-bottom:1px solid var(--dim);border-radius:0;padding:0 2px}
+.sw{width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);flex:none}
+.tog{width:40px;height:24px;border-radius:12px;background:var(--s2);box-shadow:inset 0 0 0 1px var(--line);position:relative;flex:none}
+.tog::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--dim)}
+.tog.on{background:var(--acc);box-shadow:none}
+.tog.on::after{left:19px;background:var(--onacc)}
+.k-pult .tog,.k-pult .tog::after{border-radius:0}
+.k-pal .tog,.k-pal .tog::after{border-radius:2px}
+.seg{display:flex;padding:3px;gap:2px;border-radius:calc(var(--rb) + 3px);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line)}
+.seg>*{flex:1;height:calc(var(--hb) - 8px);display:grid;place-items:center;border-radius:var(--rb);color:var(--dim);font-size:var(--fsc);padding:0 8px;white-space:nowrap}
+.seg>.on{background:var(--s2);color:var(--strong);font-weight:600}
+.k-pult .seg{padding:0;gap:0;border-radius:0}
+.k-pult .seg>*{height:var(--hbs);border-radius:0;box-shadow:inset -1px 0 0 var(--line)}
+.k-pult .seg>.on{background:var(--acc);color:var(--onacc)}
+.k-pal .seg{background:transparent;box-shadow:none;padding:0;gap:14px}
+.k-pal .seg>*{flex:none;height:auto;padding:2px 0;border-radius:0;font-variant:all-small-caps;letter-spacing:.08em;font-size:16px}
+.k-pal .seg>.on{background:transparent;color:var(--acc);border-bottom:1.5px solid var(--acc)}
+.k-obl .seg>.on{background:var(--acc);color:var(--onacc)}
+.av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--s2);color:var(--strong);font-weight:700;font-size:14px;flex:none}
+.k-pult .av{border-radius:0;font-family:var(--f-num);font-weight:500}
+.k-obl .av{background:var(--acc);color:var(--onacc);font-family:var(--f-h)}
+.k-pal .av{font-family:var(--f-h);font-size:18px;background:transparent;box-shadow:inset 0 0 0 1px var(--acc);color:var(--acc)}
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:20}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:21;background:var(--s1);border-radius:var(--rsheet) var(--rsheet) 0 0;display:flex;flex-direction:column;max-height:86%;box-shadow:0 -10px 40px rgba(0,0,0,.35)}
+.k-pult .sheet{border-top:1px solid var(--line)}
+.k-pal .sheet{background:var(--bg);border-top:1px solid var(--acc)}
+.k-obl .sheet{left:8px;right:8px;bottom:8px;border-radius:var(--rsheet)}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:8px auto 2px;flex:none}
+.k-pult .sheet .grab,.k-pal .sheet .grab{display:none}
+.sheet .sh-h{display:flex;align-items:center;gap:8px;padding:10px 16px 10px 20px;flex:none}
+.sheet .sh-b{overflow:auto;padding:4px 20px 22px;display:flex;flex-direction:column;gap:18px}
+.k-pult .sheet .sh-h{border-bottom:1px solid var(--line);padding:8px 8px 8px 16px}
+.pop{position:absolute;z-index:21;background:var(--s1);border-radius:calc(var(--rcard) * .8);box-shadow:0 14px 40px rgba(0,0,0,.4),inset 0 0 0 1px var(--line)}
+.k-pal .pop{background:var(--bg);box-shadow:0 14px 40px rgba(0,0,0,.4),inset 0 0 0 1px var(--acc)}
+.hr{height:1px;background:var(--line);flex:none}
+.k-pal .hr{background:none;border-top:1px dotted var(--line)}
+.state{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--dim);white-space:nowrap}
+.state i{width:8px;height:8px;border-radius:50%;background:var(--dim);flex:none}
+.state.pub i{background:var(--acc2)} .state.dr i{background:var(--acc)} .state.q i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--dim)}
+.k-pult .state{font-family:var(--f-num);font-size:11.5px}
+.cover{position:relative;overflow:hidden;background:var(--s2);border-radius:calc(var(--rcard) * .5);display:flex;flex-direction:column;justify-content:flex-end;padding:10px;color:var(--strong);font:700 13px/1.15 var(--f-h);flex:none}
+.cover::before{content:"";position:absolute;left:-20%;right:-20%;top:18%;height:46%;border-radius:50%;background:var(--acc);opacity:.22}
+.cover::after{content:"";position:absolute;left:46%;top:10%;width:6%;height:52%;background:var(--strong);opacity:.5;border-radius:2px 2px 0 0}
+.cover b{position:relative;z-index:1}
+.k-pult .cover{border-radius:0}
+.k-pal .cover{border-radius:2px;box-shadow:inset 0 0 0 1px var(--acc)}
+.k-pal .cover b{font-weight:600;font-size:15px}
+.k-obl .cover{border-radius:14px}
+.cover.c1{background:#1D3B44;color:#F4EBD8}.cover.c1::before{background:#E9B65C;opacity:.35}
+.cover.c2{background:#5A2A1E;color:#FBE7D3}.cover.c2::before{background:#F08A4B;opacity:.4}
+.cover.c3{background:#1E2A5A;color:#E5ECFF}.cover.c3::before{background:#5FB6E8;opacity:.4}
+.cover.c4{background:#3B3F22;color:#F1EED7}.cover.c4::before{background:#C9C26A;opacity:.35}
+.cover.c5{background:#2B1830;color:#F6E7F1}.cover.c5::before{background:#C7C9D8;opacity:.3}
+.cover.c6{background:#18363A;color:#E3F4F1}.cover.c6::before{background:#E47CA0;opacity:.35}
+.cover.c1::after,.cover.c2::after,.cover.c3::after,.cover.c4::after,.cover.c5::after,.cover.c6::after{background:currentColor}
+
+.mf{position:relative;overflow:hidden;box-sizing:border-box;background:#15171B;color:#C9CDD5;font:14px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.mf *,.mf *::before,.mf *::after{box-sizing:border-box}
+.mf :where(p,h1,h2,h3,ul,ol,dl,dd){margin:0;padding:0}
+.mf :where(ul,ol){list-style:none}
+.mf :where(a){color:inherit}
+.mf :where(button){font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+.mf-g{display:grid;grid-template-columns:680px 390px minmax(0,1fr);gap:32px;padding:24px 32px;height:100%}
+.mf-c{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
+.mf-cap{display:flex;align-items:center;gap:8px;height:18px;font:600 11.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#8A909C}
+/* світла пошта на комп'ютері — нейтральний клієнт */
+.cl{flex:1;min-height:0;display:flex;flex-direction:column;background:#FFFFFF;border-radius:10px;overflow:hidden;color:#1F2329}
+.cl-bar{height:44px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid #E6E8EC;background:#F7F8FA;color:#5F6670}
+.cl-subj{padding:18px 24px 4px;font:600 20px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#111418}
+.cl-from{display:flex;align-items:center;gap:10px;padding:8px 24px 14px;font-size:13px;color:#5F6670;flex:none}
+.cl-from b{color:#1F2329;font-weight:600}
+.cl-body{flex:1;min-height:0;overflow:hidden}
+/* темна пошта на телефоні */
+.phn{width:390px;height:844px;flex:none;display:flex;flex-direction:column;background:#0D0E10;border-radius:34px;box-shadow:0 0 0 1px #2B2E35;overflow:hidden;color:#E4E6EA}
+.phn-st{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font:600 14px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
+.phn-nav{height:40px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 10px;color:#9AA3B2}
+.phn-nav span{display:flex;align-items:center;gap:2px;font-size:15px}
+.phn-subj{padding:4px 16px 2px;font:600 18px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#F2F3F5}
+.phn-from{display:flex;align-items:center;gap:10px;padding:8px 16px 12px;font-size:12.5px;color:#8D95A4;flex:none}
+.phn-from b{color:#E4E6EA;font-weight:600}
+.phn-body{flex:1;min-height:0;overflow:hidden;position:relative}
+.mav{width:32px;height:32px;flex:none;border-radius:8px;background:#F2B35B;color:#1D1404;display:grid;place-items:center;font:700 16px/1 Georgia,'Times New Roman',serif}
+.grow{flex:1;min-width:0}
+/* сам лист: кольори «Сланцю» — світлий і темний */
+.ml-lt{--m-bg:#F3F4F6;--m-card:#FFFFFF;--m-s2:#EEF1F5;--m-line:#D5D9E0;--m-tx:#1B1F27;--m-strong:#0B0E14;--m-read:#1E222A;--m-dim:#596070;--m-acc:#A86200;--m-onacc:#FFFFFF;--m-acc2:#0B786B}
+.ml-dk{--m-bg:#1C1F25;--m-card:#22262D;--m-s2:#2A303A;--m-line:#333842;--m-tx:#D6DAE1;--m-strong:#EEF0F4;--m-read:#D9DCE2;--m-dim:#8D95A4;--m-acc:#F2B35B;--m-onacc:#1D1404;--m-acc2:#5CCFBF}
+.ml{background:var(--m-bg);color:var(--m-tx);padding:28px 40px 32px;font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;min-height:100%}
+.ml-dk{padding:18px 12px 40px}
+.ml-w{max-width:600px;margin:0 auto}
+.ml-hd{display:flex;align-items:center;gap:10px;padding:0 4px 16px;font:700 18px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--m-strong);letter-spacing:-.01em}
+.ml-mk{width:28px;height:28px;border-radius:7px;background:var(--m-acc);color:var(--m-onacc);display:grid;place-items:center;font:700 16px/1 Georgia,'Times New Roman',serif}
+.ml-card{background:var(--m-card);border:1px solid var(--m-line);border-radius:10px;padding:28px 32px;display:flex;flex-direction:column;gap:16px}
+.ml-dk .ml-card{padding:22px 18px}
+.ml-lab{font:700 11.5px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:var(--m-acc)}
+.ml-h{font:700 22px/1.25 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--m-strong)}
+.ml-dk .ml-h{font-size:20px}
+.ml-h3{font:600 16px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--m-strong)}
+.ml b{color:var(--m-strong);font-weight:600}
+.ml-btn{display:inline-block;align-self:flex-start;height:46px;line-height:46px;padding:0 24px;border-radius:8px;background:var(--m-acc);color:var(--m-onacc);font-weight:600;font-size:15px;text-decoration:none;white-space:nowrap}
+.ml-dk .ml-btn{align-self:stretch;text-align:center}
+.ml-a{color:var(--m-acc);text-decoration:underline;text-underline-offset:2px}
+.ml-sm{font-size:13.5px;line-height:1.5;color:var(--m-dim)}
+.ml-hr{height:1px;background:var(--m-line)}
+.ml-nov{display:flex;gap:14px;align-items:flex-start}
+.ml-cov{position:relative;overflow:hidden;width:56px;height:80px;flex:none;border-radius:4px;display:flex;align-items:flex-end;padding:5px;font:700 9px/1.1 Georgia,'Times New Roman',serif}
+.ml-cov.sm{width:40px;height:57px;font-size:7px}
+.ml-cov::before{content:"";position:absolute;left:-20%;right:-20%;top:18%;height:46%;border-radius:50%;background:var(--cc);opacity:.4}
+.ml-cov b{position:relative;color:inherit;font-weight:700}
+.ml-meta{font-size:13px;line-height:1.45;color:var(--m-dim)}
+.ml-ex{font:16px/1.65 Georgia,'Times New Roman',serif;color:var(--m-read)}
+.ml-q{border-left:3px solid var(--m-acc);background:var(--m-s2);border-radius:0 6px 6px 0;padding:10px 14px;font:15px/1.6 Georgia,'Times New Roman',serif;color:var(--m-read)}
+.ml-grp{display:flex;gap:12px;padding-top:14px;border-top:1px solid var(--m-line)}
+.ml-grp:first-of-type{border-top:0;padding-top:0}
+.ml-chs{display:flex;flex-direction:column;gap:3px;font-size:14px;margin:4px 0 6px}
+.ml-chs span{color:var(--m-dim);font-variant-numeric:tabular-nums}
+.ml-tag{display:inline-block;font-size:11.5px;line-height:18px;padding:0 7px;border-radius:9px;background:var(--m-s2);color:var(--m-acc2);font-weight:600;margin-left:6px;vertical-align:1px}
+.ml-link{font:12px/1.45 ui-monospace,Menlo,Consolas,monospace;color:var(--m-dim);word-break:break-all;background:var(--m-s2);border-radius:6px;padding:10px 12px}
+.ml-code{font:600 30px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.3em;text-indent:.3em;text-align:center;background:var(--m-s2);border-radius:8px;padding:16px 0;color:var(--m-strong)}
+.ml-kv{display:grid;grid-template-columns:128px minmax(0,1fr);gap:6px 12px;font-size:14px}
+.ml-kv span{color:var(--m-dim)}
+.ml-kv i{font-style:normal;color:var(--m-tx)}
+.ml-lt{--m-del:#B23A17;--m-delbg:#FBE4DC;--m-ins:#7A4600;--m-insbg:#FCEBCF}
+.ml-dk{--m-del:#F39479;--m-delbg:rgba(243,148,121,.13);--m-ins:#F5C27A;--m-insbg:rgba(242,179,91,.16)}
+.ml-del{color:var(--m-del);background:var(--m-delbg);text-decoration:line-through;border-radius:3px;padding:0 2px}
+.ml-ins{color:var(--m-ins);background:var(--m-insbg);border-radius:3px;padding:0 2px}
+.ml-who{font-size:13px;color:var(--m-dim);margin-bottom:4px}
+.ml-mine{border-left:3px solid var(--m-line);padding:2px 0 2px 12px;font-size:14px;color:var(--m-dim)}
+.ml-at{color:var(--m-acc2);font-weight:600}
+.ml-msgs{display:flex;flex-direction:column;gap:10px}
+.ml-msg{background:var(--m-s2);border-radius:10px;padding:10px 14px;font-size:14.5px}
+.ml-msg .t{display:block;font-size:12px;color:var(--m-dim);margin-top:2px}
+.ml-medal{width:72px;height:72px;flex:none;border-radius:50%;display:grid;place-items:center;background:#C9CED6;color:#2A2F38;box-shadow:inset 0 0 0 5px #A9B0BB;font:700 26px/1 Georgia,'Times New Roman',serif}
+.ml-bar{display:block;height:6px;border-radius:3px;background:var(--m-s2);overflow:hidden}
+.ml-bar i{display:block;height:100%;background:var(--m-acc);border-radius:3px}
+.ml-big{font:700 34px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--m-strong);font-variant-numeric:tabular-nums}
+.ml-big small{font-size:15px;font-weight:500;color:var(--m-dim);margin-left:6px}
+.ml-warn{border-radius:8px;padding:12px 14px;background:var(--m-delbg);font-size:14px}
+.ml-st{display:flex;flex-direction:column;gap:6px}
+.ml-ft{padding:18px 6px 0;display:flex;flex-direction:column;gap:8px;font-size:12.5px;line-height:1.55;color:var(--m-dim)}
+.ml-ft a{color:var(--m-dim);text-decoration:underline;text-underline-offset:2px}
+.ml-ft .lnk{display:flex;flex-wrap:wrap;gap:4px 14px}
+/* збоку: у вхідних, нотатки, усі листи */
+.sd{display:flex;flex-direction:column;gap:20px;min-width:0}
+.inb{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;padding:10px 12px;border-radius:8px;font-size:13px;line-height:1.35}
+.inb.lt{background:#FFFFFF;color:#1F2329}
+.inb.dk{background:#1E2025;color:#D6DAE1;box-shadow:inset 0 0 0 1px #2B2E35}
+.inb .t{font-size:12px;color:#8A909C}
+.inb .s{grid-column:1/-1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inb .p{grid-column:1/-1;color:#8A909C;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.nts{display:flex;flex-direction:column;gap:12px}
+.nts dt{font:600 11px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#8A909C}
+.nts dd{margin-top:3px;font-size:13px;line-height:1.5;color:#C9CDD5}
+.lst{display:flex;flex-direction:column;gap:2px}
+.lst button{display:block;width:100%;padding:4px 10px;border-radius:6px;font-size:13px;color:#A9AFBA}
+.lst button.on{background:#2A2D33;color:#F2B35B;font-weight:600}
+.lst button:hover{background:#22252A}
+</style>
+</helmet>
+<div class="mf" style="width:1440px;height:1100px"><sc-if value="{{ is.ch1 }}" hint-placeholder-val="{{ true }}"><div class="mf-g">
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg> Пошта на комп’ютері · світла · лист 600 px</span><div class="cl">
+<div class="cl-bar"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="grow"></span><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+<div class="cl-subj">«Доглядач маяка» — глава 41 «Друга лампа»</div>
+<div class="cl-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b> &lt;sp@novelka.in.ua&gt;<br>кому: marta.k@ukr.net</span><span>18:04</span></div>
+<div class="cl-body"><div class="ml ml-lt"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Нова глава</span>
+<div class="ml-nov"><span class="ml-cov" style="background:#1D3B44;color:#F4EBD8;--cc:#E9B65C"><b>Доглядач маяка</b></span><div><p class="ml-h">Глава 41 · Друга лампа</p><p class="ml-meta" style="margin-top:6px">Доглядач маяка · переклад «Солона вода» · ~12 хв читання</p></div></div>
+<p class="ml-ex">Ліна знайшла другу лампу випадково: шукала в коморі під сходами мотузку, а натрапила на щось холодне й важке, загорнуте в мішковину. Скло в лампи було таке саме, як у великій лінзи, — зеленкувате, з тонкими кільцями.</p>
+<a href="#" class="ml-btn">Читати главу 41</a>
+<p class="ml-sm">Ви зупинилися на главі 38. <a href="#" class="ml-a">Продовжити з глави 38</a></p></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо підписані на новелу «Доглядач маяка».</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про нові глави цієї новели</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg> Пошта на телефоні · темна</span><div class="phn">
+<div class="phn-st"><span>9:41</span><span>●●● 5G</span></div>
+<div class="phn-nav"><span><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Вхідні</span><span style="gap:18px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg></span></div>
+<div class="phn-subj">«Доглядач маяка» — глава 41 «Друга лампа»</div>
+<div class="phn-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b><br>кому: мені</span><span>18:04</span></div>
+<div class="phn-body"><div class="ml ml-dk"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Нова глава</span>
+<div class="ml-nov"><span class="ml-cov" style="background:#1D3B44;color:#F4EBD8;--cc:#E9B65C"><b>Доглядач маяка</b></span><div><p class="ml-h">Глава 41 · Друга лампа</p><p class="ml-meta" style="margin-top:6px">Доглядач маяка · переклад «Солона вода» · ~12 хв читання</p></div></div>
+<p class="ml-ex">Ліна знайшла другу лампу випадково: шукала в коморі під сходами мотузку, а натрапила на щось холодне й важке, загорнуте в мішковину. Скло в лампи було таке саме, як у великій лінзи, — зеленкувате, з тонкими кільцями.</p>
+<a href="#" class="ml-btn">Читати главу 41</a>
+<p class="ml-sm">Ви зупинилися на главі 38. <a href="#" class="ml-a">Продовжити з глави 38</a></p></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо підписані на новелу «Доглядач маяка».</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про нові глави цієї новели</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="sd">
+<div class="mf-c"><span class="mf-cap">У вхідних</span>
+<div class="inb lt"><b>Новелка</b><span class="t">18:04</span><span class="s">«Доглядач маяка» — глава 41 «Друга лампа»</span><span class="p">Ліна шукала в коморі мотузку, а натрапила на щось холодне й важке, загорнуте в мішковину.</span></div>
+<div class="inb dk"><b>Новелка</b><span class="t">18:04</span><span class="s">«Доглядач маяка» — глава 41 «Друга лампа»</span><span class="p">Ліна шукала в коморі мотузку, а натрапила на щось холодне й важке, загорнуте в мішковину.</span></div></div>
+<dl class="nts"><div><dt>Коли</dt><dd>Щойно главу опубліковано. Якщо за годину вийдуть ще глави з підписок — усі прийдуть одним листом (наступний стан).</dd></div><div><dt>Кнопка</dt><dd>Читалка, глава 41. «Продовжити» — лише коли читач відстав більше ніж на главу; веде туди, де зупинився.</dd></div><div><dt>Відписка</dt><dd>Одним натиском, без входу: лише нові глави цієї новели. Заголовок List-Unsubscribe — те саме в меню пошти.</dd></div><div><dt>Зміст</dt><dd>Перші 2–3 речення глави. Обкладинка — картинкою; якщо картинки вимкнено, лишається підпис.</dd></div></dl>
+<div class="mf-c"><span class="mf-cap">Листи</span><div class="lst"><button type="button" class="on" onClick="{{ go.ch1 }}">Нова глава</button><button type="button" class="" onClick="{{ go.chN }}">Нові глави — кілька</button><button type="button" class="" onClick="{{ go.rep }}">Відповідь на коментар</button><button type="button" class="" onClick="{{ go.ment }}">Згадка</button><button type="button" class="" onClick="{{ go.sug }}">Правки прийнято</button><button type="button" class="" onClick="{{ go.msg }}">Нове повідомлення</button><button type="button" class="" onClick="{{ go.run }}">Студія: запуск завершено</button><button type="button" class="" onClick="{{ go.runErr }}">Студія: запуск зупинився</button><button type="button" class="" onClick="{{ go.rev }}">Студія: правки на перевірку</button><button type="button" class="" onClick="{{ go.relay }}">Естафета</button><button type="button" class="" onClick="{{ go.ach }}">Досягнення</button><button type="button" class="" onClick="{{ go.shahs }}">Шаги нараховано</button><button type="button" class="" onClick="{{ go.shahsLow }}">Шаги закінчуються</button></div></div>
+</div></div></sc-if>
+<sc-if value="{{ is.chN }}" hint-placeholder-val="{{ false }}"><div class="mf-g">
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg> Пошта на комп’ютері · світла · лист 600 px</span><div class="cl">
+<div class="cl-bar"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="grow"></span><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+<div class="cl-subj">5 нових глав у трьох новелах</div>
+<div class="cl-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b> &lt;sp@novelka.in.ua&gt;<br>кому: marta.k@ukr.net</span><span>19:12</span></div>
+<div class="cl-body"><div class="ml ml-lt"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Нові глави</span>
+<p class="ml-h">5 нових глав у ваших новелах</p>
+<div class="ml-grp"><span class="ml-cov sm" style="background:#1E2A5A;color:#E5ECFF;--cc:#5FB6E8"><b>Маг води</b></span><div class="grow"><p class="ml-h3">Маг води <span class="ml-tag">ШІ з правками</span></p><p class="ml-chs"><span>71 · <a href="#" class="ml-a">Острів трьох течій</a></span><span>72 · <a href="#" class="ml-a">Відплив</a></span></p><p class="ml-meta">переклад «Тиха гавань»</p></div></div>
+<div class="ml-grp"><span class="ml-cov sm" style="background:#1D3B44;color:#F4EBD8;--cc:#E9B65C"><b>Доглядач маяка</b></span><div class="grow"><p class="ml-h3">Доглядач маяка</p><p class="ml-chs"><span>41 · <a href="#" class="ml-a">Друга лампа</a></span></p><p class="ml-meta">переклад «Солона вода»</p></div></div>
+<div class="ml-grp"><span class="ml-cov sm" style="background:#3B3F22;color:#F1EED7;--cc:#C9C26A"><b>Останній картограф</b></span><div class="grow"><p class="ml-h3">Останній картограф</p><p class="ml-chs"><span>22 · <a href="#" class="ml-a">Мапа без півночі</a></span><span>23 · <a href="#" class="ml-a">Перевал</a></span></p><p class="ml-meta">переклад «Компас»</p></div></div>
+<a href="#" class="ml-btn">Відкрити бібліотеку</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо підписані на ці новели. Глави, що виходять протягом години, збираємо в один лист.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про нові глави</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg> Пошта на телефоні · темна</span><div class="phn">
+<div class="phn-st"><span>9:41</span><span>●●● 5G</span></div>
+<div class="phn-nav"><span><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Вхідні</span><span style="gap:18px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg></span></div>
+<div class="phn-subj">5 нових глав у трьох новелах</div>
+<div class="phn-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b><br>кому: мені</span><span>19:12</span></div>
+<div class="phn-body"><div class="ml ml-dk"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Нові глави</span>
+<p class="ml-h">5 нових глав у ваших новелах</p>
+<div class="ml-grp"><span class="ml-cov sm" style="background:#1E2A5A;color:#E5ECFF;--cc:#5FB6E8"><b>Маг води</b></span><div class="grow"><p class="ml-h3">Маг води <span class="ml-tag">ШІ з правками</span></p><p class="ml-chs"><span>71 · <a href="#" class="ml-a">Острів трьох течій</a></span><span>72 · <a href="#" class="ml-a">Відплив</a></span></p><p class="ml-meta">переклад «Тиха гавань»</p></div></div>
+<div class="ml-grp"><span class="ml-cov sm" style="background:#1D3B44;color:#F4EBD8;--cc:#E9B65C"><b>Доглядач маяка</b></span><div class="grow"><p class="ml-h3">Доглядач маяка</p><p class="ml-chs"><span>41 · <a href="#" class="ml-a">Друга лампа</a></span></p><p class="ml-meta">переклад «Солона вода»</p></div></div>
+<div class="ml-grp"><span class="ml-cov sm" style="background:#3B3F22;color:#F1EED7;--cc:#C9C26A"><b>Останній картограф</b></span><div class="grow"><p class="ml-h3">Останній картограф</p><p class="ml-chs"><span>22 · <a href="#" class="ml-a">Мапа без півночі</a></span><span>23 · <a href="#" class="ml-a">Перевал</a></span></p><p class="ml-meta">переклад «Компас»</p></div></div>
+<a href="#" class="ml-btn">Відкрити бібліотеку</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо підписані на ці новели. Глави, що виходять протягом години, збираємо в один лист.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про нові глави</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="sd">
+<div class="mf-c"><span class="mf-cap">У вхідних</span>
+<div class="inb lt"><b>Новелка</b><span class="t">19:12</span><span class="s">5 нових глав у трьох новелах</span><span class="p">Маг води 71–72 · Доглядач маяка 41 · Останній картограф 22–23</span></div>
+<div class="inb dk"><b>Новелка</b><span class="t">19:12</span><span class="s">5 нових глав у трьох новелах</span><span class="p">Маг води 71–72 · Доглядач маяка 41 · Останній картограф 22–23</span></div></div>
+<dl class="nts"><div><dt>Коли</dt><dd>Через годину після першої нової глави з підписок — усе, що вийшло за цю годину. Одна глава — попередній стан.</dd></div><div><dt>Порядок</dt><dd>Як у бібліотеці: що читали останнім — вище. Понад 5 новел — «і ще N новел» посиланням на бібліотеку.</dd></div><div><dt>Посилання</dt><dd>Назва глави — читалка на цій главі. Кнопка — бібліотека, вкладка «Читаю».</dd></div><div><dt>Відписка</dt><dd>Від листів про нові глави взагалі (на сайті й у Telegram сповіщення лишаються).</dd></div></dl>
+<div class="mf-c"><span class="mf-cap">Листи</span><div class="lst"><button type="button" class="" onClick="{{ go.ch1 }}">Нова глава</button><button type="button" class="on" onClick="{{ go.chN }}">Нові глави — кілька</button><button type="button" class="" onClick="{{ go.rep }}">Відповідь на коментар</button><button type="button" class="" onClick="{{ go.ment }}">Згадка</button><button type="button" class="" onClick="{{ go.sug }}">Правки прийнято</button><button type="button" class="" onClick="{{ go.msg }}">Нове повідомлення</button><button type="button" class="" onClick="{{ go.run }}">Студія: запуск завершено</button><button type="button" class="" onClick="{{ go.runErr }}">Студія: запуск зупинився</button><button type="button" class="" onClick="{{ go.rev }}">Студія: правки на перевірку</button><button type="button" class="" onClick="{{ go.relay }}">Естафета</button><button type="button" class="" onClick="{{ go.ach }}">Досягнення</button><button type="button" class="" onClick="{{ go.shahs }}">Шаги нараховано</button><button type="button" class="" onClick="{{ go.shahsLow }}">Шаги закінчуються</button></div></div>
+</div></div></sc-if>
+<sc-if value="{{ is.rep }}" hint-placeholder-val="{{ false }}"><div class="mf-g">
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg> Пошта на комп’ютері · світла · лист 600 px</span><div class="cl">
+<div class="cl-bar"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="grow"></span><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+<div class="cl-subj">oleh.reads відповів на ваш коментар у «Доглядачі маяка»</div>
+<div class="cl-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b> &lt;sp@novelka.in.ua&gt;<br>кому: marta.k@ukr.net</span><span>15:47</span></div>
+<div class="cl-body"><div class="ml ml-lt"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Відповідь</span>
+<p class="ml-h">oleh.reads відповів вам</p>
+<p class="ml-meta">Доглядач маяка · глава 12 · обговорення абзацу</p>
+<p class="ml-mine">Ви: Дзвін у гавані — це той самий, що на початку книжки?</p>
+<div><p class="ml-who"><b>oleh.reads</b> · 15:46</p><p class="ml-q">Так, дзвін той самий — у главі 3 він теж бив один раз. Схоже, він б’є, коли хтось приїжджає на острів.</p></div>
+<a href="#" class="ml-btn">Відповісти</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо на ваш коментар відповіли.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про відповіді й згадки</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg> Пошта на телефоні · темна</span><div class="phn">
+<div class="phn-st"><span>9:41</span><span>●●● 5G</span></div>
+<div class="phn-nav"><span><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Вхідні</span><span style="gap:18px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg></span></div>
+<div class="phn-subj">oleh.reads відповів на ваш коментар у «Доглядачі маяка»</div>
+<div class="phn-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b><br>кому: мені</span><span>15:47</span></div>
+<div class="phn-body"><div class="ml ml-dk"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Відповідь</span>
+<p class="ml-h">oleh.reads відповів вам</p>
+<p class="ml-meta">Доглядач маяка · глава 12 · обговорення абзацу</p>
+<p class="ml-mine">Ви: Дзвін у гавані — це той самий, що на початку книжки?</p>
+<div><p class="ml-who"><b>oleh.reads</b> · 15:46</p><p class="ml-q">Так, дзвін той самий — у главі 3 він теж бив один раз. Схоже, він б’є, коли хтось приїжджає на острів.</p></div>
+<a href="#" class="ml-btn">Відповісти</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо на ваш коментар відповіли.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про відповіді й згадки</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="sd">
+<div class="mf-c"><span class="mf-cap">У вхідних</span>
+<div class="inb lt"><b>Новелка</b><span class="t">15:47</span><span class="s">oleh.reads відповів на ваш коментар у «Доглядачі маяка»</span><span class="p">«Так, дзвін той самий — у главі 3 він теж бив один раз».</span></div>
+<div class="inb dk"><b>Новелка</b><span class="t">15:47</span><span class="s">oleh.reads відповів на ваш коментар у «Доглядачі маяка»</span><span class="p">«Так, дзвін той самий — у главі 3 він теж бив один раз».</span></div></div>
+<dl class="nts"><div><dt>Коли</dt><dd>Одразу. Кілька відповідей в одному обговоренні за годину — один лист «3 нові відповіді».</dd></div><div><dt>Кнопка</dt><dd>Читалка на цьому абзаці з відкритим обговоренням і полем відповіді.</dd></div><div><dt>Зміст</dt><dd>Ваш коментар — одним рядком, відповідь — до 600 знаків, далі «…».</dd></div><div><dt>Відписка</dt><dd>Від відповідей і згадок разом — як рядок у налаштуваннях сповіщень.</dd></div></dl>
+<div class="mf-c"><span class="mf-cap">Листи</span><div class="lst"><button type="button" class="" onClick="{{ go.ch1 }}">Нова глава</button><button type="button" class="" onClick="{{ go.chN }}">Нові глави — кілька</button><button type="button" class="on" onClick="{{ go.rep }}">Відповідь на коментар</button><button type="button" class="" onClick="{{ go.ment }}">Згадка</button><button type="button" class="" onClick="{{ go.sug }}">Правки прийнято</button><button type="button" class="" onClick="{{ go.msg }}">Нове повідомлення</button><button type="button" class="" onClick="{{ go.run }}">Студія: запуск завершено</button><button type="button" class="" onClick="{{ go.runErr }}">Студія: запуск зупинився</button><button type="button" class="" onClick="{{ go.rev }}">Студія: правки на перевірку</button><button type="button" class="" onClick="{{ go.relay }}">Естафета</button><button type="button" class="" onClick="{{ go.ach }}">Досягнення</button><button type="button" class="" onClick="{{ go.shahs }}">Шаги нараховано</button><button type="button" class="" onClick="{{ go.shahsLow }}">Шаги закінчуються</button></div></div>
+</div></div></sc-if>
+<sc-if value="{{ is.ment }}" hint-placeholder-val="{{ false }}"><div class="mf-g">
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg> Пошта на комп’ютері · світла · лист 600 px</span><div class="cl">
+<div class="cl-bar"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="grow"></span><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+<div class="cl-subj">orysia згадала вас у коментарі</div>
+<div class="cl-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b> &lt;sp@novelka.in.ua&gt;<br>кому: marta.k@ukr.net</span><span>11:20</span></div>
+<div class="cl-body"><div class="ml ml-lt"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Згадка</span>
+<p class="ml-h">orysia згадала вас</p>
+<p class="ml-meta">Доглядач маяка · глава 30 · обговорення абзацу</p>
+<div><p class="ml-who"><b>orysia</b> · 11:19</p><p class="ml-q"><span class="ml-at">@marta_k</span>, глянь, як ви переклали «велику лінзу» в 12-й главі — у 30-й вона стала «великим склом». Може, внести в словник?</p></div>
+<a href="#" class="ml-btn">Відкрити обговорення</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо вас згадали. Згадка команди ($solona-voda) приходить кожному в команді.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про відповіді й згадки</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg> Пошта на телефоні · темна</span><div class="phn">
+<div class="phn-st"><span>9:41</span><span>●●● 5G</span></div>
+<div class="phn-nav"><span><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Вхідні</span><span style="gap:18px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg></span></div>
+<div class="phn-subj">orysia згадала вас у коментарі</div>
+<div class="phn-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b><br>кому: мені</span><span>11:20</span></div>
+<div class="phn-body"><div class="ml ml-dk"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Згадка</span>
+<p class="ml-h">orysia згадала вас</p>
+<p class="ml-meta">Доглядач маяка · глава 30 · обговорення абзацу</p>
+<div><p class="ml-who"><b>orysia</b> · 11:19</p><p class="ml-q"><span class="ml-at">@marta_k</span>, глянь, як ви переклали «велику лінзу» в 12-й главі — у 30-й вона стала «великим склом». Може, внести в словник?</p></div>
+<a href="#" class="ml-btn">Відкрити обговорення</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо вас згадали. Згадка команди ($solona-voda) приходить кожному в команді.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про відповіді й згадки</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="sd">
+<div class="mf-c"><span class="mf-cap">У вхідних</span>
+<div class="inb lt"><b>Новелка</b><span class="t">11:20</span><span class="s">orysia згадала вас у коментарі</span><span class="p">@marta_k, глянь, як ви переклали «велику лінзу» в 12-й главі — у 30-й інакше.</span></div>
+<div class="inb dk"><b>Новелка</b><span class="t">11:20</span><span class="s">orysia згадала вас у коментарі</span><span class="p">@marta_k, глянь, як ви переклали «велику лінзу» в 12-й главі — у 30-й інакше.</span></div></div>
+<dl class="nts"><div><dt>Коли</dt><dd>Одразу після згадки @нік чи $команда — у коментарі, обговоренні абзацу або загальному чаті.</dd></div><div><dt>Кнопка</dt><dd>Туди, де згадали: абзац з обговоренням або повідомлення в чаті.</dd></div><div><dt>Не надсилаємо</dt><dd>Якщо людина вже прочитала згадку на сайті, поки лист чекав у черзі (до 2 хвилин). Те саме для відповідей.</dd></div></dl>
+<div class="mf-c"><span class="mf-cap">Листи</span><div class="lst"><button type="button" class="" onClick="{{ go.ch1 }}">Нова глава</button><button type="button" class="" onClick="{{ go.chN }}">Нові глави — кілька</button><button type="button" class="" onClick="{{ go.rep }}">Відповідь на коментар</button><button type="button" class="on" onClick="{{ go.ment }}">Згадка</button><button type="button" class="" onClick="{{ go.sug }}">Правки прийнято</button><button type="button" class="" onClick="{{ go.msg }}">Нове повідомлення</button><button type="button" class="" onClick="{{ go.run }}">Студія: запуск завершено</button><button type="button" class="" onClick="{{ go.runErr }}">Студія: запуск зупинився</button><button type="button" class="" onClick="{{ go.rev }}">Студія: правки на перевірку</button><button type="button" class="" onClick="{{ go.relay }}">Естафета</button><button type="button" class="" onClick="{{ go.ach }}">Досягнення</button><button type="button" class="" onClick="{{ go.shahs }}">Шаги нараховано</button><button type="button" class="" onClick="{{ go.shahsLow }}">Шаги закінчуються</button></div></div>
+</div></div></sc-if>
+<sc-if value="{{ is.sug }}" hint-placeholder-val="{{ false }}"><div class="mf-g">
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg> Пошта на комп’ютері · світла · лист 600 px</span><div class="cl">
+<div class="cl-bar"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="grow"></span><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+<div class="cl-subj">Команда «Солона вода» прийняла 2 ваші правки</div>
+<div class="cl-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b> &lt;sp@novelka.in.ua&gt;<br>кому: marta.k@ukr.net</span><span>вчора</span></div>
+<div class="cl-body"><div class="ml ml-lt"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Правки прийнято</span>
+<p class="ml-h">2 ваші правки тепер у тексті</p>
+<p class="ml-meta">Доглядач маяка · глава 12 · команда «Солона вода»</p>
+<p class="ml-ex">— Ти запізнилася, — не обертаючись, <span class="ml-del">сказав</span> <span class="ml-ins">мовив</span> майстер Орест. Він натирав велику лінзу ганчіркою, <span class="ml-del">що</span> <span class="ml-ins">яка</span> колись була сорочкою.</p>
+<p class="ml-sm">«Дякуємо, так звучить краще» — <b>solona_voda</b></p>
+<a href="#" class="ml-btn">Подивитися в главі</a>
+<p class="ml-sm">Усього прийнято 37 ваших правок. До золотої «Вичитувачки» — ще 63.</p></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо запропонували правки до цієї глави.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про прийняті правки</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg> Пошта на телефоні · темна</span><div class="phn">
+<div class="phn-st"><span>9:41</span><span>●●● 5G</span></div>
+<div class="phn-nav"><span><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Вхідні</span><span style="gap:18px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg></span></div>
+<div class="phn-subj">Команда «Солона вода» прийняла 2 ваші правки</div>
+<div class="phn-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b><br>кому: мені</span><span>вчора</span></div>
+<div class="phn-body"><div class="ml ml-dk"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Правки прийнято</span>
+<p class="ml-h">2 ваші правки тепер у тексті</p>
+<p class="ml-meta">Доглядач маяка · глава 12 · команда «Солона вода»</p>
+<p class="ml-ex">— Ти запізнилася, — не обертаючись, <span class="ml-del">сказав</span> <span class="ml-ins">мовив</span> майстер Орест. Він натирав велику лінзу ганчіркою, <span class="ml-del">що</span> <span class="ml-ins">яка</span> колись була сорочкою.</p>
+<p class="ml-sm">«Дякуємо, так звучить краще» — <b>solona_voda</b></p>
+<a href="#" class="ml-btn">Подивитися в главі</a>
+<p class="ml-sm">Усього прийнято 37 ваших правок. До золотої «Вичитувачки» — ще 63.</p></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо запропонували правки до цієї глави.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про прийняті правки</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="sd">
+<div class="mf-c"><span class="mf-cap">У вхідних</span>
+<div class="inb lt"><b>Новелка</b><span class="t">вчора</span><span class="s">Команда «Солона вода» прийняла 2 ваші правки</span><span class="p">Доглядач маяка, глава 12 — дякуємо за вичитку!</span></div>
+<div class="inb dk"><b>Новелка</b><span class="t">вчора</span><span class="s">Команда «Солона вода» прийняла 2 ваші правки</span><span class="p">Доглядач маяка, глава 12 — дякуємо за вичитку!</span></div></div>
+<dl class="nts"><div><dt>Коли</dt><dd>Раз на добу добіркою: усі правки, прийняті за день. Відхилені — лише на сайті.</dd></div><div><dt>Зміст</dt><dd>Перший абзац із правками — видалене й додане виділено; решта — «і ще N у главах 12, 14». Слово команди — якщо залишили.</dd></div><div><dt>Кнопка</dt><dd>Читалка на першому абзаці з правкою.</dd></div></dl>
+<div class="mf-c"><span class="mf-cap">Листи</span><div class="lst"><button type="button" class="" onClick="{{ go.ch1 }}">Нова глава</button><button type="button" class="" onClick="{{ go.chN }}">Нові глави — кілька</button><button type="button" class="" onClick="{{ go.rep }}">Відповідь на коментар</button><button type="button" class="" onClick="{{ go.ment }}">Згадка</button><button type="button" class="on" onClick="{{ go.sug }}">Правки прийнято</button><button type="button" class="" onClick="{{ go.msg }}">Нове повідомлення</button><button type="button" class="" onClick="{{ go.run }}">Студія: запуск завершено</button><button type="button" class="" onClick="{{ go.runErr }}">Студія: запуск зупинився</button><button type="button" class="" onClick="{{ go.rev }}">Студія: правки на перевірку</button><button type="button" class="" onClick="{{ go.relay }}">Естафета</button><button type="button" class="" onClick="{{ go.ach }}">Досягнення</button><button type="button" class="" onClick="{{ go.shahs }}">Шаги нараховано</button><button type="button" class="" onClick="{{ go.shahsLow }}">Шаги закінчуються</button></div></div>
+</div></div></sc-if>
+<sc-if value="{{ is.msg }}" hint-placeholder-val="{{ false }}"><div class="mf-g">
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg> Пошта на комп’ютері · світла · лист 600 px</span><div class="cl">
+<div class="cl-bar"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="grow"></span><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+<div class="cl-subj">3 нові повідомлення від oleh.reads</div>
+<div class="cl-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b> &lt;sp@novelka.in.ua&gt;<br>кому: marta.k@ukr.net</span><span>21:03</span></div>
+<div class="cl-body"><div class="ml ml-lt"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Повідомлення</span>
+<p class="ml-h">oleh.reads пише вам</p>
+<div class="ml-msgs"><p class="ml-msg">Привіт! Бачив, ви берете «Останнього картографа».<span class="t">20:58</span></p><p class="ml-msg">Можу допомогти з вичиткою — маю вільні вечори.<span class="t">20:59</span></p><p class="ml-msg">Якщо треба, додайте мене в команду.<span class="t">21:01</span></p></div>
+<a href="#" class="ml-btn">Відповісти</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо маєте непрочитані повідомлення. Наступний прийде, лише коли прочитаєте ці.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про повідомлення</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg> Пошта на телефоні · темна</span><div class="phn">
+<div class="phn-st"><span>9:41</span><span>●●● 5G</span></div>
+<div class="phn-nav"><span><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Вхідні</span><span style="gap:18px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg></span></div>
+<div class="phn-subj">3 нові повідомлення від oleh.reads</div>
+<div class="phn-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b><br>кому: мені</span><span>21:03</span></div>
+<div class="phn-body"><div class="ml ml-dk"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Повідомлення</span>
+<p class="ml-h">oleh.reads пише вам</p>
+<div class="ml-msgs"><p class="ml-msg">Привіт! Бачив, ви берете «Останнього картографа».<span class="t">20:58</span></p><p class="ml-msg">Можу допомогти з вичиткою — маю вільні вечори.<span class="t">20:59</span></p><p class="ml-msg">Якщо треба, додайте мене в команду.<span class="t">21:01</span></p></div>
+<a href="#" class="ml-btn">Відповісти</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо маєте непрочитані повідомлення. Наступний прийде, лише коли прочитаєте ці.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про повідомлення</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="sd">
+<div class="mf-c"><span class="mf-cap">У вхідних</span>
+<div class="inb lt"><b>Новелка</b><span class="t">21:03</span><span class="s">3 нові повідомлення від oleh.reads</span><span class="p">Привіт! Бачив, ви берете «Останнього картографа».</span></div>
+<div class="inb dk"><b>Новелка</b><span class="t">21:03</span><span class="s">3 нові повідомлення від oleh.reads</span><span class="p">Привіт! Бачив, ви берете «Останнього картографа».</span></div></div>
+<dl class="nts"><div><dt>Коли</dt><dd>Раз на непрочитану серію, як у Telegram: перше повідомлення + 10 хвилин тиші. Поки серія не прочитана — нових листів немає.</dd></div><div><dt>Зміст</dt><dd>Останні 3 повідомлення серії. Групова розмова — її назва й хто писав. Картинка — «[картинка]».</dd></div><div><dt>Кнопка</dt><dd>Розмова на сайті з полем відповіді. Відповідь листом не приймаємо.</dd></div></dl>
+<div class="mf-c"><span class="mf-cap">Листи</span><div class="lst"><button type="button" class="" onClick="{{ go.ch1 }}">Нова глава</button><button type="button" class="" onClick="{{ go.chN }}">Нові глави — кілька</button><button type="button" class="" onClick="{{ go.rep }}">Відповідь на коментар</button><button type="button" class="" onClick="{{ go.ment }}">Згадка</button><button type="button" class="" onClick="{{ go.sug }}">Правки прийнято</button><button type="button" class="on" onClick="{{ go.msg }}">Нове повідомлення</button><button type="button" class="" onClick="{{ go.run }}">Студія: запуск завершено</button><button type="button" class="" onClick="{{ go.runErr }}">Студія: запуск зупинився</button><button type="button" class="" onClick="{{ go.rev }}">Студія: правки на перевірку</button><button type="button" class="" onClick="{{ go.relay }}">Естафета</button><button type="button" class="" onClick="{{ go.ach }}">Досягнення</button><button type="button" class="" onClick="{{ go.shahs }}">Шаги нараховано</button><button type="button" class="" onClick="{{ go.shahsLow }}">Шаги закінчуються</button></div></div>
+</div></div></sc-if>
+<sc-if value="{{ is.run }}" hint-placeholder-val="{{ false }}"><div class="mf-g">
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg> Пошта на комп’ютері · світла · лист 600 px</span><div class="cl">
+<div class="cl-bar"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="grow"></span><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+<div class="cl-subj">Переклад глав 41–45 завершено</div>
+<div class="cl-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b> &lt;sp@novelka.in.ua&gt;<br>кому: marta.k@ukr.net</span><span>02:14</span></div>
+<div class="cl-body"><div class="ml ml-lt"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Студія · хід перекладу</span>
+<p class="ml-h">Глави 41–45 перекладено</p>
+<div class="ml-kv"><span>Переклад</span><b>Доглядач маяка</b><span>Глави</span><i>41–45 · у чернетках</i><span>Як</span><i>Перекласти з ШІ · ваш словник, 64 слова</i><span>Тривало</span><i>18 хв</i><span>Витрачено</span><i>14 шагів · лишилось 72</i></div>
+<p>Глави чекають у чернетках: перегляньте й опублікуйте, коли будете готові.</p>
+<a href="#" class="ml-btn">Відкрити в Студії</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо запустили переклад у Студії.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про Студію</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg> Пошта на телефоні · темна</span><div class="phn">
+<div class="phn-st"><span>9:41</span><span>●●● 5G</span></div>
+<div class="phn-nav"><span><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Вхідні</span><span style="gap:18px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg></span></div>
+<div class="phn-subj">Переклад глав 41–45 завершено</div>
+<div class="phn-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b><br>кому: мені</span><span>02:14</span></div>
+<div class="phn-body"><div class="ml ml-dk"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Студія · хід перекладу</span>
+<p class="ml-h">Глави 41–45 перекладено</p>
+<div class="ml-kv"><span>Переклад</span><b>Доглядач маяка</b><span>Глави</span><i>41–45 · у чернетках</i><span>Як</span><i>Перекласти з ШІ · ваш словник, 64 слова</i><span>Тривало</span><i>18 хв</i><span>Витрачено</span><i>14 шагів · лишилось 72</i></div>
+<p>Глави чекають у чернетках: перегляньте й опублікуйте, коли будете готові.</p>
+<a href="#" class="ml-btn">Відкрити в Студії</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо запустили переклад у Студії.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про Студію</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="sd">
+<div class="mf-c"><span class="mf-cap">У вхідних</span>
+<div class="inb lt"><b>Новелка</b><span class="t">02:14</span><span class="s">Переклад глав 41–45 завершено</span><span class="p">«Доглядач маяка» · 5 глав у чернетках · витрачено 14 шагів</span></div>
+<div class="inb dk"><b>Новелка</b><span class="t">02:14</span><span class="s">Переклад глав 41–45 завершено</span><span class="p">«Доглядач маяка» · 5 глав у чернетках · витрачено 14 шагів</span></div></div>
+<dl class="nts"><div><dt>Коли</dt><dd>Коли запуск скінчився, а людини немає на сторінці «Хід перекладу» (інакше вона й так бачить).</dd></div><div><dt>Кнопка</dt><dd>Переклад у Студії, глави 41–45. Якщо запуск публікує сам — «опубліковано» й посилання в читалку.</dd></div><div><dt>Відписка</dt><dd>Від усіх листів Студії: запуски, правки на перевірку.</dd></div></dl>
+<div class="mf-c"><span class="mf-cap">Листи</span><div class="lst"><button type="button" class="" onClick="{{ go.ch1 }}">Нова глава</button><button type="button" class="" onClick="{{ go.chN }}">Нові глави — кілька</button><button type="button" class="" onClick="{{ go.rep }}">Відповідь на коментар</button><button type="button" class="" onClick="{{ go.ment }}">Згадка</button><button type="button" class="" onClick="{{ go.sug }}">Правки прийнято</button><button type="button" class="" onClick="{{ go.msg }}">Нове повідомлення</button><button type="button" class="on" onClick="{{ go.run }}">Студія: запуск завершено</button><button type="button" class="" onClick="{{ go.runErr }}">Студія: запуск зупинився</button><button type="button" class="" onClick="{{ go.rev }}">Студія: правки на перевірку</button><button type="button" class="" onClick="{{ go.relay }}">Естафета</button><button type="button" class="" onClick="{{ go.ach }}">Досягнення</button><button type="button" class="" onClick="{{ go.shahs }}">Шаги нараховано</button><button type="button" class="" onClick="{{ go.shahsLow }}">Шаги закінчуються</button></div></div>
+</div></div></sc-if>
+<sc-if value="{{ is.runErr }}" hint-placeholder-val="{{ false }}"><div class="mf-g">
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg> Пошта на комп’ютері · світла · лист 600 px</span><div class="cl">
+<div class="cl-bar"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="grow"></span><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+<div class="cl-subj">Автопереклад зупинився на главі 64</div>
+<div class="cl-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b> &lt;sp@novelka.in.ua&gt;<br>кому: marta.k@ukr.net</span><span>02:31</span></div>
+<div class="cl-body"><div class="ml ml-lt"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Студія · хід перекладу</span>
+<p class="ml-h">Автопереклад зупинився на главі 64</p>
+<p class="ml-warn"><b>Сайт оригіналу не відповідає.</b> Ми пробували тричі за 20 хвилин. Так буває, коли сайт перевантажений або змінився.</p>
+<div class="ml-kv"><span>Переклад</span><b>Маг води</b><span>Готово</span><i>61–63 · у чернетках</i><span>Не зроблено</span><i>64–65 · шаги не списано</i></div>
+<a href="#" class="ml-btn">Продовжити з глави 64</a>
+<p class="ml-sm">Або <a href="#" class="ml-a">вставте оригінал глави 64 вручну</a> — далі автопереклад піде сам.</p></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо запустили автопереклад у Студії.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про Студію</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg> Пошта на телефоні · темна</span><div class="phn">
+<div class="phn-st"><span>9:41</span><span>●●● 5G</span></div>
+<div class="phn-nav"><span><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Вхідні</span><span style="gap:18px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg></span></div>
+<div class="phn-subj">Автопереклад зупинився на главі 64</div>
+<div class="phn-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b><br>кому: мені</span><span>02:31</span></div>
+<div class="phn-body"><div class="ml ml-dk"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Студія · хід перекладу</span>
+<p class="ml-h">Автопереклад зупинився на главі 64</p>
+<p class="ml-warn"><b>Сайт оригіналу не відповідає.</b> Ми пробували тричі за 20 хвилин. Так буває, коли сайт перевантажений або змінився.</p>
+<div class="ml-kv"><span>Переклад</span><b>Маг води</b><span>Готово</span><i>61–63 · у чернетках</i><span>Не зроблено</span><i>64–65 · шаги не списано</i></div>
+<a href="#" class="ml-btn">Продовжити з глави 64</a>
+<p class="ml-sm">Або <a href="#" class="ml-a">вставте оригінал глави 64 вручну</a> — далі автопереклад піде сам.</p></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо запустили автопереклад у Студії.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про Студію</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="sd">
+<div class="mf-c"><span class="mf-cap">У вхідних</span>
+<div class="inb lt"><b>Новелка</b><span class="t">02:31</span><span class="s">Автопереклад зупинився на главі 64</span><span class="p">Сайт оригіналу не відповідає. Глави 61–63 готові, за 64–65 шаги не списано.</span></div>
+<div class="inb dk"><b>Новелка</b><span class="t">02:31</span><span class="s">Автопереклад зупинився на главі 64</span><span class="p">Сайт оригіналу не відповідає. Глави 61–63 готові, за 64–65 шаги не списано.</span></div></div>
+<dl class="nts"><div><dt>Коли</dt><dd>Одразу, коли запуск зупинився з помилкою, — навіть якщо людина на сайті (помилку легко проґавити).</dd></div><div><dt>Причина</dt><dd>Людськими словами, як на сайті: сайт не відповідає, бракує шагів, ШІ відмовився перекладати главу.</dd></div><div><dt>Кнопка</dt><dd>Хід перекладу цього запуску з кнопкою «Продовжити».</dd></div></dl>
+<div class="mf-c"><span class="mf-cap">Листи</span><div class="lst"><button type="button" class="" onClick="{{ go.ch1 }}">Нова глава</button><button type="button" class="" onClick="{{ go.chN }}">Нові глави — кілька</button><button type="button" class="" onClick="{{ go.rep }}">Відповідь на коментар</button><button type="button" class="" onClick="{{ go.ment }}">Згадка</button><button type="button" class="" onClick="{{ go.sug }}">Правки прийнято</button><button type="button" class="" onClick="{{ go.msg }}">Нове повідомлення</button><button type="button" class="" onClick="{{ go.run }}">Студія: запуск завершено</button><button type="button" class="on" onClick="{{ go.runErr }}">Студія: запуск зупинився</button><button type="button" class="" onClick="{{ go.rev }}">Студія: правки на перевірку</button><button type="button" class="" onClick="{{ go.relay }}">Естафета</button><button type="button" class="" onClick="{{ go.ach }}">Досягнення</button><button type="button" class="" onClick="{{ go.shahs }}">Шаги нараховано</button><button type="button" class="" onClick="{{ go.shahsLow }}">Шаги закінчуються</button></div></div>
+</div></div></sc-if>
+<sc-if value="{{ is.rev }}" hint-placeholder-val="{{ false }}"><div class="mf-g">
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg> Пошта на комп’ютері · світла · лист 600 px</span><div class="cl">
+<div class="cl-bar"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="grow"></span><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+<div class="cl-subj">7 нових правок на перевірку в «Доглядачі маяка»</div>
+<div class="cl-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b> &lt;sp@novelka.in.ua&gt;<br>кому: marta.k@ukr.net</span><span>09:00</span></div>
+<div class="cl-body"><div class="ml ml-lt"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Студія · правки читачів</span>
+<p class="ml-h">7 нових правок на перевірку</p>
+<p class="ml-meta">Доглядач маяка · команда «Солона вода» · за добу</p>
+<div class="ml-kv"><span>Глава 12</span><i>3 правки · oleh.reads</i><span>Глава 14</span><i>2 правки · orysia</i><span>Глава 20</span><i>2 правки · lisova_m</i></div>
+<p class="ml-ex" style="font-size:15px">Унизу під тонкою ковдрою туману <span class="ml-del">спала</span> <span class="ml-ins">дрімала</span> гавань, і десь у ній один раз ударив дзвін.</p>
+<a href="#" class="ml-btn">Перевірити правки</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо ви в команді «Солона вода».</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про Студію</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg> Пошта на телефоні · темна</span><div class="phn">
+<div class="phn-st"><span>9:41</span><span>●●● 5G</span></div>
+<div class="phn-nav"><span><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Вхідні</span><span style="gap:18px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg></span></div>
+<div class="phn-subj">7 нових правок на перевірку в «Доглядачі маяка»</div>
+<div class="phn-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b><br>кому: мені</span><span>09:00</span></div>
+<div class="phn-body"><div class="ml ml-dk"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Студія · правки читачів</span>
+<p class="ml-h">7 нових правок на перевірку</p>
+<p class="ml-meta">Доглядач маяка · команда «Солона вода» · за добу</p>
+<div class="ml-kv"><span>Глава 12</span><i>3 правки · oleh.reads</i><span>Глава 14</span><i>2 правки · orysia</i><span>Глава 20</span><i>2 правки · lisova_m</i></div>
+<p class="ml-ex" style="font-size:15px">Унизу під тонкою ковдрою туману <span class="ml-del">спала</span> <span class="ml-ins">дрімала</span> гавань, і десь у ній один раз ударив дзвін.</p>
+<a href="#" class="ml-btn">Перевірити правки</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо ви в команді «Солона вода».</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про Студію</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="sd">
+<div class="mf-c"><span class="mf-cap">У вхідних</span>
+<div class="inb lt"><b>Новелка</b><span class="t">09:00</span><span class="s">7 нових правок на перевірку в «Доглядачі маяка»</span><span class="p">Глава 12 — 3, глава 14 — 2, глава 20 — 2.</span></div>
+<div class="inb dk"><b>Новелка</b><span class="t">09:00</span><span class="s">7 нових правок на перевірку в «Доглядачі маяка»</span><span class="p">Глава 12 — 3, глава 14 — 2, глава 20 — 2.</span></div></div>
+<dl class="nts"><div><dt>Коли</dt><dd>Раз на добу о 9:00 за Києвом, якщо є нові правки. Кожному в команді, хто може їх приймати.</dd></div><div><dt>Зміст</dt><dd>Скільки й де, одна правка для прикладу. Понад 5 глав — «і ще в N главах».</dd></div><div><dt>Кнопка</dt><dd>Студія → «Правки на перевірку» цього перекладу.</dd></div></dl>
+<div class="mf-c"><span class="mf-cap">Листи</span><div class="lst"><button type="button" class="" onClick="{{ go.ch1 }}">Нова глава</button><button type="button" class="" onClick="{{ go.chN }}">Нові глави — кілька</button><button type="button" class="" onClick="{{ go.rep }}">Відповідь на коментар</button><button type="button" class="" onClick="{{ go.ment }}">Згадка</button><button type="button" class="" onClick="{{ go.sug }}">Правки прийнято</button><button type="button" class="" onClick="{{ go.msg }}">Нове повідомлення</button><button type="button" class="" onClick="{{ go.run }}">Студія: запуск завершено</button><button type="button" class="" onClick="{{ go.runErr }}">Студія: запуск зупинився</button><button type="button" class="on" onClick="{{ go.rev }}">Студія: правки на перевірку</button><button type="button" class="" onClick="{{ go.relay }}">Естафета</button><button type="button" class="" onClick="{{ go.ach }}">Досягнення</button><button type="button" class="" onClick="{{ go.shahs }}">Шаги нараховано</button><button type="button" class="" onClick="{{ go.shahsLow }}">Шаги закінчуються</button></div></div>
+</div></div></sc-if>
+<sc-if value="{{ is.relay }}" hint-placeholder-val="{{ false }}"><div class="mf-g">
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg> Пошта на комп’ютері · світла · лист 600 px</span><div class="cl">
+<div class="cl-bar"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="grow"></span><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+<div class="cl-subj">Хочуть продовжити ваш переклад «Академія під дощем»</div>
+<div class="cl-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b> &lt;sp@novelka.in.ua&gt;<br>кому: marta.k@ukr.net</span><span>16:22</span></div>
+<div class="cl-body"><div class="ml ml-lt"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Естафета</span>
+<p class="ml-h">Команда «Компас» хоче продовжити ваш переклад</p>
+<div class="ml-nov"><span class="ml-cov" style="background:#5A2A1E;color:#FBE7D3;--cc:#F08A4B"><b>Академія під дощем</b></span><div><p class="ml-h3">Академія під дощем</p><p class="ml-meta" style="margin-top:4px">54 з 120 глав · остання — 5 місяців тому</p></div></div>
+<div><p class="ml-who"><b>Компас</b> пишуть:</p><p class="ml-q">Дуже любимо цю історію, перекладемо до кінця. Ваш словник і назви залишимо, а вас — в авторах перших 54 глав.</p></div>
+<a href="#" class="ml-btn">Відповісти</a>
+<p class="ml-sm">Якщо не відповісти за 14 днів, а нових глав і далі не буде, переклад стане вільним для продовження.</p></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо ви власник перекладу «Академія під дощем».</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про естафету</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg> Пошта на телефоні · темна</span><div class="phn">
+<div class="phn-st"><span>9:41</span><span>●●● 5G</span></div>
+<div class="phn-nav"><span><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Вхідні</span><span style="gap:18px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg></span></div>
+<div class="phn-subj">Хочуть продовжити ваш переклад «Академія під дощем»</div>
+<div class="phn-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b><br>кому: мені</span><span>16:22</span></div>
+<div class="phn-body"><div class="ml ml-dk"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Естафета</span>
+<p class="ml-h">Команда «Компас» хоче продовжити ваш переклад</p>
+<div class="ml-nov"><span class="ml-cov" style="background:#5A2A1E;color:#FBE7D3;--cc:#F08A4B"><b>Академія під дощем</b></span><div><p class="ml-h3">Академія під дощем</p><p class="ml-meta" style="margin-top:4px">54 з 120 глав · остання — 5 місяців тому</p></div></div>
+<div><p class="ml-who"><b>Компас</b> пишуть:</p><p class="ml-q">Дуже любимо цю історію, перекладемо до кінця. Ваш словник і назви залишимо, а вас — в авторах перших 54 глав.</p></div>
+<a href="#" class="ml-btn">Відповісти</a>
+<p class="ml-sm">Якщо не відповісти за 14 днів, а нових глав і далі не буде, переклад стане вільним для продовження.</p></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо ви власник перекладу «Академія під дощем».</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про естафету</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="sd">
+<div class="mf-c"><span class="mf-cap">У вхідних</span>
+<div class="inb lt"><b>Новелка</b><span class="t">16:22</span><span class="s">Хочуть продовжити ваш переклад «Академія під дощем»</span><span class="p">Команда «Компас»: «Дуже любимо цю історію, перекладемо до кінця».</span></div>
+<div class="inb dk"><b>Новелка</b><span class="t">16:22</span><span class="s">Хочуть продовжити ваш переклад «Академія під дощем»</span><span class="p">Команда «Компас»: «Дуже любимо цю історію, перекладемо до кінця».</span></div></div>
+<dl class="nts"><div><dt>Коли</dt><dd>Одразу після запиту. Через 10 днів без відповіді — нагадування «лишилось 4 дні».</dd></div><div><dt>Кнопка</dt><dd>Студія → переклад → «Естафета»: передати, працювати разом або відмовити.</dd></div><div><dt>Той, хто просив</dt><dd>Отримує лист із відповіддю — той самий вигляд, кнопка «Відкрити переклад».</dd></div></dl>
+<div class="mf-c"><span class="mf-cap">Листи</span><div class="lst"><button type="button" class="" onClick="{{ go.ch1 }}">Нова глава</button><button type="button" class="" onClick="{{ go.chN }}">Нові глави — кілька</button><button type="button" class="" onClick="{{ go.rep }}">Відповідь на коментар</button><button type="button" class="" onClick="{{ go.ment }}">Згадка</button><button type="button" class="" onClick="{{ go.sug }}">Правки прийнято</button><button type="button" class="" onClick="{{ go.msg }}">Нове повідомлення</button><button type="button" class="" onClick="{{ go.run }}">Студія: запуск завершено</button><button type="button" class="" onClick="{{ go.runErr }}">Студія: запуск зупинився</button><button type="button" class="" onClick="{{ go.rev }}">Студія: правки на перевірку</button><button type="button" class="on" onClick="{{ go.relay }}">Естафета</button><button type="button" class="" onClick="{{ go.ach }}">Досягнення</button><button type="button" class="" onClick="{{ go.shahs }}">Шаги нараховано</button><button type="button" class="" onClick="{{ go.shahsLow }}">Шаги закінчуються</button></div></div>
+</div></div></sc-if>
+<sc-if value="{{ is.ach }}" hint-placeholder-val="{{ false }}"><div class="mf-g">
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg> Пошта на комп’ютері · світла · лист 600 px</span><div class="cl">
+<div class="cl-bar"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="grow"></span><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+<div class="cl-subj">Нове досягнення — «Вичитувачка», срібна медаль</div>
+<div class="cl-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b> &lt;sp@novelka.in.ua&gt;<br>кому: marta.k@ukr.net</span><span>14:10</span></div>
+<div class="cl-body"><div class="ml ml-lt"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Досягнення</span>
+<div class="ml-nov" style="align-items:center"><span class="ml-medal">25</span><div><p class="ml-h">Вичитувачка</p><p class="ml-meta" style="margin-top:4px">срібна медаль · 25 прийнятих правок</p></div></div>
+<p>Команди прийняли 25 ваших правок — тексти на Новелці стали чистішими. Дякуємо!</p>
+<div class="ml-st"><p class="ml-sm">До золотої — 100 правок · у вас 25</p><span class="ml-bar"><i style="width:25%"></i></span></div>
+<a href="#" class="ml-btn">Подивитися в профілі</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо отримали нове досягнення.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про досягнення</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg> Пошта на телефоні · темна</span><div class="phn">
+<div class="phn-st"><span>9:41</span><span>●●● 5G</span></div>
+<div class="phn-nav"><span><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Вхідні</span><span style="gap:18px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg></span></div>
+<div class="phn-subj">Нове досягнення — «Вичитувачка», срібна медаль</div>
+<div class="phn-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b><br>кому: мені</span><span>14:10</span></div>
+<div class="phn-body"><div class="ml ml-dk"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Досягнення</span>
+<div class="ml-nov" style="align-items:center"><span class="ml-medal">25</span><div><p class="ml-h">Вичитувачка</p><p class="ml-meta" style="margin-top:4px">срібна медаль · 25 прийнятих правок</p></div></div>
+<p>Команди прийняли 25 ваших правок — тексти на Новелці стали чистішими. Дякуємо!</p>
+<div class="ml-st"><p class="ml-sm">До золотої — 100 правок · у вас 25</p><span class="ml-bar"><i style="width:25%"></i></span></div>
+<a href="#" class="ml-btn">Подивитися в профілі</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо отримали нове досягнення.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про досягнення</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="sd">
+<div class="mf-c"><span class="mf-cap">У вхідних</span>
+<div class="inb lt"><b>Новелка</b><span class="t">14:10</span><span class="s">Нове досягнення — «Вичитувачка», срібна медаль</span><span class="p">25 прийнятих правок. До золотої — 100.</span></div>
+<div class="inb dk"><b>Новелка</b><span class="t">14:10</span><span class="s">Нове досягнення — «Вичитувачка», срібна медаль</span><span class="p">25 прийнятих правок. До золотої — 100.</span></div></div>
+<dl class="nts"><div><dt>Коли</dt><dd>Одразу. Кілька досягнень за день — одним листом.</dd></div><div><dt>Медаль</dt><dd>Картинкою, як на сайті; якщо картинки вимкнено — підпис «срібна медаль».</dd></div><div><dt>Типово</dt><dd>Пошта для досягнень вимкнена (налаштування сповіщень); лист — для тих, хто ввімкнув.</dd></div></dl>
+<div class="mf-c"><span class="mf-cap">Листи</span><div class="lst"><button type="button" class="" onClick="{{ go.ch1 }}">Нова глава</button><button type="button" class="" onClick="{{ go.chN }}">Нові глави — кілька</button><button type="button" class="" onClick="{{ go.rep }}">Відповідь на коментар</button><button type="button" class="" onClick="{{ go.ment }}">Згадка</button><button type="button" class="" onClick="{{ go.sug }}">Правки прийнято</button><button type="button" class="" onClick="{{ go.msg }}">Нове повідомлення</button><button type="button" class="" onClick="{{ go.run }}">Студія: запуск завершено</button><button type="button" class="" onClick="{{ go.runErr }}">Студія: запуск зупинився</button><button type="button" class="" onClick="{{ go.rev }}">Студія: правки на перевірку</button><button type="button" class="" onClick="{{ go.relay }}">Естафета</button><button type="button" class="on" onClick="{{ go.ach }}">Досягнення</button><button type="button" class="" onClick="{{ go.shahs }}">Шаги нараховано</button><button type="button" class="" onClick="{{ go.shahsLow }}">Шаги закінчуються</button></div></div>
+</div></div></sc-if>
+<sc-if value="{{ is.shahs }}" hint-placeholder-val="{{ false }}"><div class="mf-g">
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg> Пошта на комп’ютері · світла · лист 600 px</span><div class="cl">
+<div class="cl-bar"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="grow"></span><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+<div class="cl-subj">Вам нараховано 50 шагів</div>
+<div class="cl-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b> &lt;sp@novelka.in.ua&gt;<br>кому: marta.k@ukr.net</span><span>10:05</span></div>
+<div class="cl-body"><div class="ml ml-lt"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Шаги</span>
+<p class="ml-big">+50<small>шагів</small></p>
+<p>Власник сайту нарахував вам 50 шагів <b>«за вичитку тому 1»</b>.</p>
+<div class="ml-kv"><span>На рахунку</span><b>136 шагів</b><span>У резерві</span><i>12 — за запуск, що ще йде</i></div>
+<a href="#" class="ml-btn">Історія шагів</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо змінився ваш рахунок шагів.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про шаги</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg> Пошта на телефоні · темна</span><div class="phn">
+<div class="phn-st"><span>9:41</span><span>●●● 5G</span></div>
+<div class="phn-nav"><span><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Вхідні</span><span style="gap:18px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg></span></div>
+<div class="phn-subj">Вам нараховано 50 шагів</div>
+<div class="phn-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b><br>кому: мені</span><span>10:05</span></div>
+<div class="phn-body"><div class="ml ml-dk"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Шаги</span>
+<p class="ml-big">+50<small>шагів</small></p>
+<p>Власник сайту нарахував вам 50 шагів <b>«за вичитку тому 1»</b>.</p>
+<div class="ml-kv"><span>На рахунку</span><b>136 шагів</b><span>У резерві</span><i>12 — за запуск, що ще йде</i></div>
+<a href="#" class="ml-btn">Історія шагів</a></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо змінився ваш рахунок шагів.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про шаги</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="sd">
+<div class="mf-c"><span class="mf-cap">У вхідних</span>
+<div class="inb lt"><b>Новелка</b><span class="t">10:05</span><span class="s">Вам нараховано 50 шагів</span><span class="p">Від власника сайту — «за вичитку тому 1».</span></div>
+<div class="inb dk"><b>Новелка</b><span class="t">10:05</span><span class="s">Вам нараховано 50 шагів</span><span class="p">Від власника сайту — «за вичитку тому 1».</span></div></div>
+<dl class="nts"><div><dt>Коли</dt><dd>Одразу після нарахування. Списання за запуски — лише в листі про запуск, окремих листів немає.</dd></div><div><dt>Кнопка</dt><dd>Налаштування → Шаги, історія.</dd></div></dl>
+<div class="mf-c"><span class="mf-cap">Листи</span><div class="lst"><button type="button" class="" onClick="{{ go.ch1 }}">Нова глава</button><button type="button" class="" onClick="{{ go.chN }}">Нові глави — кілька</button><button type="button" class="" onClick="{{ go.rep }}">Відповідь на коментар</button><button type="button" class="" onClick="{{ go.ment }}">Згадка</button><button type="button" class="" onClick="{{ go.sug }}">Правки прийнято</button><button type="button" class="" onClick="{{ go.msg }}">Нове повідомлення</button><button type="button" class="" onClick="{{ go.run }}">Студія: запуск завершено</button><button type="button" class="" onClick="{{ go.runErr }}">Студія: запуск зупинився</button><button type="button" class="" onClick="{{ go.rev }}">Студія: правки на перевірку</button><button type="button" class="" onClick="{{ go.relay }}">Естафета</button><button type="button" class="" onClick="{{ go.ach }}">Досягнення</button><button type="button" class="on" onClick="{{ go.shahs }}">Шаги нараховано</button><button type="button" class="" onClick="{{ go.shahsLow }}">Шаги закінчуються</button></div></div>
+</div></div></sc-if>
+<sc-if value="{{ is.shahsLow }}" hint-placeholder-val="{{ false }}"><div class="mf-g">
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg> Пошта на комп’ютері · світла · лист 600 px</span><div class="cl">
+<div class="cl-bar"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="grow"></span><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+<div class="cl-subj">Лишилося 18 шагів</div>
+<div class="cl-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b> &lt;sp@novelka.in.ua&gt;<br>кому: marta.k@ukr.net</span><span>23:40</span></div>
+<div class="cl-body"><div class="ml ml-lt"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Шаги</span>
+<p class="ml-big">18<small>шагів лишилось</small></p>
+<p>Цього вистачить приблизно на 6 глав «Перекласти з ШІ». Ви просили попередити, коли лишиться менше 20.</p>
+<a href="#" class="ml-btn">Як отримати шаги</a>
+<p class="ml-sm">Межу можна змінити в <a href="#" class="ml-a">налаштуваннях шагів</a>.</p></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо рахунок шагів опустився нижче вашої межі.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про шаги</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="mf-c"><span class="mf-cap"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg> Пошта на телефоні · темна</span><div class="phn">
+<div class="phn-st"><span>9:41</span><span>●●● 5G</span></div>
+<div class="phn-nav"><span><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Вхідні</span><span style="gap:18px"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8L4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/></svg></span></div>
+<div class="phn-subj">Лишилося 18 шагів</div>
+<div class="phn-from"><span class="mav">Н</span><span class="grow"><b>Новелка</b><br>кому: мені</span><span>23:40</span></div>
+<div class="phn-body"><div class="ml ml-dk"><div class="ml-w">
+<div class="ml-hd"><span class="ml-mk">Н</span>Новелка</div>
+<div class="ml-card"><span class="ml-lab">Шаги</span>
+<p class="ml-big">18<small>шагів лишилось</small></p>
+<p>Цього вистачить приблизно на 6 глав «Перекласти з ШІ». Ви просили попередити, коли лишиться менше 20.</p>
+<a href="#" class="ml-btn">Як отримати шаги</a>
+<p class="ml-sm">Межу можна змінити в <a href="#" class="ml-a">налаштуваннях шагів</a>.</p></div>
+<div class="ml-ft"><p>Ви отримали цей лист, бо рахунок шагів опустився нижче вашої межі.</p><p class="lnk"><a href="#">Налаштувати сповіщення</a><a href="#">Не надсилати листів про шаги</a></p><p>Новелка — переклади новел українською · <a href="#">novelka.in.ua</a></p></div>
+</div></div></div></div></div>
+<div class="sd">
+<div class="mf-c"><span class="mf-cap">У вхідних</span>
+<div class="inb lt"><b>Новелка</b><span class="t">23:40</span><span class="s">Лишилося 18 шагів</span><span class="p">Цього вистачить приблизно на 6 глав «Перекласти з ШІ».</span></div>
+<div class="inb dk"><b>Новелка</b><span class="t">23:40</span><span class="s">Лишилося 18 шагів</span><span class="p">Цього вистачить приблизно на 6 глав «Перекласти з ШІ».</span></div></div>
+<dl class="nts"><div><dt>Коли</dt><dd>Раз, коли рахунок перейшов межу з налаштувань (типово 20). Знову — лише після поповнення вище межі.</dd></div><div><dt>Кнопка</dt><dd>Сторінка «Шаги» з поясненням, як їх отримати (поповнення — після запуску оплати).</dd></div></dl>
+<div class="mf-c"><span class="mf-cap">Листи</span><div class="lst"><button type="button" class="" onClick="{{ go.ch1 }}">Нова глава</button><button type="button" class="" onClick="{{ go.chN }}">Нові глави — кілька</button><button type="button" class="" onClick="{{ go.rep }}">Відповідь на коментар</button><button type="button" class="" onClick="{{ go.ment }}">Згадка</button><button type="button" class="" onClick="{{ go.sug }}">Правки прийнято</button><button type="button" class="" onClick="{{ go.msg }}">Нове повідомлення</button><button type="button" class="" onClick="{{ go.run }}">Студія: запуск завершено</button><button type="button" class="" onClick="{{ go.runErr }}">Студія: запуск зупинився</button><button type="button" class="" onClick="{{ go.rev }}">Студія: правки на перевірку</button><button type="button" class="" onClick="{{ go.relay }}">Естафета</button><button type="button" class="" onClick="{{ go.ach }}">Досягнення</button><button type="button" class="" onClick="{{ go.shahs }}">Шаги нараховано</button><button type="button" class="on" onClick="{{ go.shahsLow }}">Шаги закінчуються</button></div></div>
+</div></div></sc-if></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"stan":{"editor":"enum","options":["Нова глава","Нові глави — кілька","Відповідь на коментар","Згадка","Правки прийнято","Нове повідомлення","Студія: запуск завершено","Студія: запуск зупинився","Студія: правки на перевірку","Естафета","Досягнення","Шаги нараховано","Шаги закінчуються"],"default":"Нова глава"},"$preview":{"width":1440,"height":1100}}'>
+function baseVals(props, state, ui, opt) {
+  const K = { 'Пульт': 'pult', 'Звичний': 'zv', 'Палітурка': 'pal', 'Обкладинка': 'obl' };
+  const T = { 'Сланець': 'slanets', 'Графіт': 'graphite', 'Сукно': 'sukno', 'Слива': 'slyva' };
+  const kid = K[props.karkas] || 'pult';
+  const tid = T[props.tema] || 'slanets';
+  const light = state.light !== undefined ? state.light : !!props.svitla;
+  const stan = state.stan || props.stan || opt.stany[0];
+  const is = {}, not = {};
+  opt.stany.forEach((s, i) => { is[opt.ids[i]] = s === stan; not[opt.ids[i]] = s !== stan; });
+  const k = { pult: kid === 'pult', zv: kid === 'zv', pal: kid === 'pal', obl: kid === 'obl' };
+  const alias = {};
+  Object.entries(opt.alias || {}).forEach(([a, ids]) => { alias[a] = ids.some(id => is[id]); });
+  const curId = opt.ids[opt.stany.indexOf(stan)];
+  return {
+    ...alias,
+    scls: (opt.scls || {})[curId] || '',
+    cls: 'nv ' + opt.dev + ' k-' + kid + ' th-' + tid + (light && opt.dev !== 'ph' ? ' lt' : ''),
+    k, is, not, light, dark: !light,
+    toggleLight: () => ui.setState({ light: !light }),
+    go: Object.fromEntries(opt.ids.map((id, i) => [id, () => ui.setState({ stan: opt.stany[i] })]))
+  };
+}
+class Component extends DCLogic {
+  renderVals() {
+    return baseVals(this.props, this.state || {}, this, {"dev":"dk","stany":["Нова глава","Нові глави — кілька","Відповідь на коментар","Згадка","Правки прийнято","Нове повідомлення","Студія: запуск завершено","Студія: запуск зупинився","Студія: правки на перевірку","Естафета","Досягнення","Шаги нараховано","Шаги закінчуються"],"ids":["ch1","chN","rep","ment","sug","msg","run","runErr","rev","relay","ach","shahs","shahsLow"]});
+  }
+}
+</script>
+</body>
+</html>
