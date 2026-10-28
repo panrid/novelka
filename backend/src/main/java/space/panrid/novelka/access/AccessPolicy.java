@@ -68,6 +68,52 @@ public class AccessPolicy implements AiVisibility {
                 .fetchOptional(EDITION.ID).orElseThrow(() -> UserFacingException.notFound("Такого перекладу немає."));
     }
 
+    // ---- private publications (етап 24.1) -------------------------------------------------
+
+    /** Publications the current person reads (a guest — public ones only), as a condition over {@code edition}. */
+    public org.jooq.Condition readable() {
+        return Visibility.readableBy(currentUser.accountId().orElse(null), tokenEdition());
+    }
+
+    /** {@link #readable()} for an edition named by an id column of another table. */
+    public org.jooq.Condition readable(org.jooq.Field<Long> editionId) {
+        return Visibility.readableBy(editionId, currentUser.accountId().orElse(null), tokenEdition());
+    }
+
+    /** Whether the current person may read the publication: public, or private and theirs or invited to. */
+    public boolean mayRead(long editionId) {
+        return db.fetchExists(EDITION, EDITION.ID.eq(editionId).and(readable()));
+    }
+
+    /** Whether the person may read the publication, outside a request (notifications, webhooks, deliveries). */
+    public boolean mayRead(long editionId, long accountId) {
+        return db.fetchExists(EDITION, EDITION.ID.eq(editionId).and(Visibility.readableBy(accountId, null)));
+    }
+
+    /** Whether the publication is private. */
+    public boolean isPrivate(long editionId) {
+        return db.fetchExists(EDITION, EDITION.ID.eq(editionId).and(EDITION.VISIBILITY.eq(Visibility.PRIVATE)));
+    }
+
+    /** The publication the current person may read, or 404 — a private one is not there for others. */
+    public void requireReadable(long editionId) {
+        if (!mayRead(editionId)) {
+            throw UserFacingException.notFound("Такої новели немає.");
+        }
+    }
+
+    /**
+     * The working materials of a publication (етап 24.2): its team alone, by the team's roles.
+     * Invited readers and everyone else get 404 for a private publication.
+     */
+    public EditionAccess requireWorkspace(long editionId) {
+        return requireTextEditor(editionId);
+    }
+
+    private static Long tokenEdition() {
+        return Visibility.tokenEdition();
+    }
+
     /** The viewer's role in the edition's team, without failing. */
     public Optional<EditionAccess> editionRole(long editionId) {
         Optional<Viewer> viewer = currentUser.viewer();
@@ -95,7 +141,12 @@ public class AccessPolicy implements AiVisibility {
         if (db.fetchExists(EDITION, EDITION.ID.eq(editionId), EDITION.DELETED_AT.isNotNull())) {
             throw UserFacingException.notFound("Цей переклад у кошику. Відновіть його в Студії → «Кошик».");
         }
-        return editionRole(editionId).filter(access -> allowed.test(access.role()))
+        Optional<EditionAccess> role = editionRole(editionId);
+        if (role.isEmpty() && isPrivate(editionId)) {
+            // Outside the team a private publication is not there at all (етап 24.1).
+            throw UserFacingException.notFound("Такої новели немає.");
+        }
+        return role.filter(access -> allowed.test(access.role()))
                 .orElseThrow(() -> new UserFacingException(HttpStatus.FORBIDDEN, "Це вам недоступно."));
     }
 

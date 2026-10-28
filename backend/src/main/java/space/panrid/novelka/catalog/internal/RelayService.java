@@ -79,7 +79,8 @@ class RelayService implements Relay {
         }
         List<RelayState.Continuation> continuations = db.select(EDITION.ID, TEAM.HANDLE, DSL.coalesce(TEAM.NAME, ACCOUNT.NICK), EDITION.FIRST_NUMBER)
                 .from(EDITION).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID)).join(ACCOUNT).on(ACCOUNT.ID.eq(TEAM.OWNER_ID))
-                .where(EDITION.CONTINUES_EDITION_ID.eq(editionId).and(EDITION.HIDDEN_AT.isNull()).and(EDITION.CHAPTER_COUNT.gt(0)))
+                .where(EDITION.CONTINUES_EDITION_ID.eq(editionId).and(EDITION.HIDDEN_AT.isNull()).and(EDITION.CHAPTER_COUNT.gt(0))
+                        .and(EDITION.VISIBILITY.eq("public")))
                 .orderBy(EDITION.CREATED_AT)
                 .fetch(r -> new RelayState.Continuation(r.value1(), r.value2(), r.value3(), r.value4()));
         return new RelayState(reason != null, reason, last, continuations);

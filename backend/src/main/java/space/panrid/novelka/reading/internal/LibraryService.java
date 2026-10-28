@@ -157,7 +157,7 @@ class LibraryService {
     }
 
     private void requireVisible(Viewer viewer, long editionId) {
-        if (!db.fetchExists(EDITION, EDITION.ID.eq(editionId).and(ReadingQueries.visible(viewer.adultConfirmed())))) {
+        if (!db.fetchExists(EDITION, EDITION.ID.eq(editionId).and(ReadingQueries.visibleTo(viewer.adultConfirmed(), viewer.accountId())))) {
             throw UserFacingException.notFound("Такої новели немає.");
         }
     }

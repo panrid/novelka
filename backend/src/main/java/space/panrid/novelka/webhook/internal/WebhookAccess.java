@@ -3,6 +3,7 @@ package space.panrid.novelka.webhook.internal;
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.EDITION;
+import static space.panrid.novelka.jooq.Tables.EDITION_READER;
 
 import org.jooq.DSLContext;
 import org.jooq.Record;
@@ -31,7 +32,7 @@ class WebhookAccess {
     }
 
     boolean allowed(long accountId, long editionId, boolean teamOnly) {
-        Record edition = db.select(EDITION.TEAM_ID, EDITION.DELETED_AT, EDITION.HIDDEN_AT, EDITION.ADULT, EDITION.CHAPTER_COUNT)
+        Record edition = db.select(EDITION.TEAM_ID, EDITION.DELETED_AT, EDITION.HIDDEN_AT, EDITION.ADULT, EDITION.CHAPTER_COUNT, EDITION.VISIBILITY)
                 .from(EDITION).where(EDITION.ID.eq(editionId)).fetchOne();
         if (edition == null || edition.get(EDITION.DELETED_AT) != null) {
             return false;
@@ -41,6 +42,12 @@ class WebhookAccess {
         }
         if (teamOnly || edition.get(EDITION.HIDDEN_AT) != null || edition.get(EDITION.CHAPTER_COUNT) == 0) {
             return false;
+        }
+        if ("private".equals(edition.get(EDITION.VISIBILITY))) {
+            boolean invited = db.fetchExists(EDITION_READER, EDITION_READER.EDITION_ID.eq(editionId).and(EDITION_READER.ACCOUNT_ID.eq(accountId)));
+            if (!invited) {
+                return false;
+            }
         }
         return !edition.get(EDITION.ADULT)
                 || db.fetchExists(ACCOUNT, ACCOUNT.ID.eq(accountId).and(ACCOUNT.ADULT_CONFIRMED_AT.isNotNull()));

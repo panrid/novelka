@@ -218,12 +218,18 @@ class CommentService {
     }
 
     private CommentRecord existing(long commentId) {
-        return db.selectFrom(COMMENT).where(COMMENT.ID.eq(commentId), COMMENT.DELETED_AT.isNull(), COMMENT.HIDDEN_AT.isNull())
+        // A comment of a private publication is there only for those who read it (етап 24.1).
+        return db.selectFrom(COMMENT).where(COMMENT.ID.eq(commentId), COMMENT.DELETED_AT.isNull(), COMMENT.HIDDEN_AT.isNull(),
+                        space.panrid.novelka.access.Visibility.readableBy(COMMENT.EDITION_ID,
+                                space.panrid.novelka.account.CurrentUser.signedInPrincipalId().orElse(null),
+                                space.panrid.novelka.access.Visibility.tokenEdition()))
                 .fetchOptional().orElseThrow(() -> UserFacingException.notFound("Такого коментаря немає."));
     }
 
     private void requireEdition(long editionId) {
-        if (!db.fetchExists(EDITION, EDITION.ID.eq(editionId).and(EDITION.HIDDEN_AT.isNull()))) {
+        if (!db.fetchExists(EDITION, EDITION.ID.eq(editionId).and(EDITION.HIDDEN_AT.isNull())
+                .and(space.panrid.novelka.access.Visibility.readableNow(
+                        space.panrid.novelka.account.CurrentUser.signedInPrincipalId().orElse(null))))) {
             throw UserFacingException.notFound("Такої новели немає.");
         }
     }

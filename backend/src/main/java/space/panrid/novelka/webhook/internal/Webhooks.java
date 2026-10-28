@@ -9,6 +9,8 @@ import static space.panrid.novelka.jooq.Tables.TEAM_MEMBER;
 import static space.panrid.novelka.jooq.Tables.WEBHOOK_DELIVERY;
 import static space.panrid.novelka.jooq.Tables.WEBHOOK_ENDPOINT;
 
+import space.panrid.novelka.access.Visibility;
+
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -338,7 +340,8 @@ class Webhooks {
         db.select(EDITION.ID, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), NOVEL.SLUG, TEAM.HANDLE)
                 .from(EDITION_SUBSCRIPTION).join(EDITION).on(EDITION.ID.eq(EDITION_SUBSCRIPTION.EDITION_ID))
                 .join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
-                .where(EDITION_SUBSCRIPTION.ACCOUNT_ID.eq(accountId), EDITION.DELETED_AT.isNull(), EDITION.HIDDEN_AT.isNull())
+                .where(EDITION_SUBSCRIPTION.ACCOUNT_ID.eq(accountId), EDITION.DELETED_AT.isNull(), EDITION.HIDDEN_AT.isNull(),
+                        Visibility.readableBy(EDITION.ID, accountId, null))
                 .orderBy(EDITION_SUBSCRIPTION.CREATED_AT.desc()).limit(200)
                 .fetch(r -> new TranslationOption(r.value1(), r.value2(), r.value3(), r.value4(), false))
                 .forEach(option -> {

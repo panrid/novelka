@@ -45,6 +45,14 @@ export type Overview = {
     facts: NovelFacts;
     /** Readers may download the translation as EPUB. */
     downloadAllowed: boolean;
+    /** public or private (етап 24.1). */
+    visibility: 'public' | 'private';
+};
+
+export type InvitedReader = {
+    nick: string;
+    avatarUrl: string | null;
+    grantedAt: string;
 };
 
 export type StudioChapter = {
@@ -130,11 +138,18 @@ export const studioApi = {
         api<{ editionId: number; novelSlug: string }>('/api/studio/editions', json('POST', body)),
     overview: (id: number) => api<Overview>(edition(id)),
     update: (id: number, patch: Partial<{ title: string; author: string; description: StudioBlock[]; tags: string[]; status: string; adult: boolean; downloadAllowed: boolean;
+        visibility: 'public' | 'private';
         pausedUntil: string; facts: Partial<{ titleOriginal: string; titleEnglish: string; altTitles: string[]; sourceStatus: string; sourceChapterCount: number }> }>) =>
         api<Overview>(edition(id), json('PATCH', patch)),
     /** The novel's address (/n/…); the old one keeps working. */
     setSlug: (id: number, slug: string) => api<{ slug: string }>(`${edition(id)}/slug`, json('PUT', { slug })),
     setCover: (id: number, imageId: number | null) => api<Overview>(`${edition(id)}/cover`, json('PUT', { imageId })),
+    setVisibility: (id: number, visibility: 'public' | 'private') =>
+        api<Overview>(`${edition(id)}/visibility`, json('PUT', { visibility })),
+    readers: (id: number) => api<InvitedReader[]>(`${edition(id)}/readers`),
+    addReader: (id: number, nick: string) => api<void>(`${edition(id)}/readers`, json('POST', { nick })),
+    removeReader: (id: number, nick: string) =>
+        api<void>(`${edition(id)}/readers/${encodeURIComponent(nick)}`, { method: 'DELETE' }),
     chapters: (id: number, filter: { filter?: ChapterFilter; order?: 'asc' | 'desc'; page: number }) =>
         api<{ items: StudioChapter[]; total: number; page: number; hasMore: boolean }>(
             `${edition(id)}/chapters?${new URLSearchParams({ page: String(filter.page), order: filter.order ?? 'desc', filter: filter.filter ?? '' })}`),
