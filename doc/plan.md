@@ -662,7 +662,9 @@ SonarQube сюди не вміщається (сам ≈ 2 ГБ і вбудов�
 9. **Пошта зі свого сервера — #224** (перехід виконано; рішення власника 2026-10-19:
    залишкові перевірки винести в **#284**). Сайт надсилає листи через Postfix з DKIM від
    `Новелка <no-reply@novelka.in.ua>`; контейнер доступний лише всередині Compose, ключ —
-   у томі `novelka_dkim`. SPF, DKIM, DMARC (`p=none`) і PTR/HELO `novelka.in.ua` пройшли
+   у томі `novelka_dkim`. Цю Compose-реалізацію замінено SMTP у k3s (#325): внутрішній
+   Service `mail`, PVC `mail-data` для черги й DKIM, новий селектор `novelka202610`.
+   SPF, DKIM, DMARC (`p=none`) і PTR/HELO `novelka.in.ua` раніше пройшли
    перевірку справжнім листом. Resend — запасний шлях через блок змінних у `.env.production`
    (див. `doc/deployment.md`, «Пошта»).
    - **#284: MX, повернення листів і перевірка доставки.** Станом на 2026-10-19 mail-tester
