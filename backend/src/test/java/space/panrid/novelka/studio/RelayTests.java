@@ -172,6 +172,7 @@ class RelayTests {
         owner.browser().post("/api/studio/editions/" + work + "/chapters/1/publish", """
                 {"title":"Початок","blocks":[{"id":"b1","type":"paragraph","content":[{"text":"Текст.","marks":[]}]}]}""");
         owner.browser().patch("/api/studio/editions/" + work, json("status", "abandoned"));
+        assertThat(owner.browser().put("/api/studio/editions/" + work + "/visibility", json("visibility", "public")).status()).isEqualTo(200);
         String workSlug = read(owner.browser().get("/api/studio/editions/" + work)).path("novelSlug").asString();
 
         assertThat(read(new Browser(port).get("/api/novels/" + workSlug)).path("relay").path("free").asBoolean()).isFalse();

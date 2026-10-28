@@ -300,9 +300,11 @@ class PrivatePublicationsTests {
     }
 
     private long createPublicNovel(Person person, String title) {
-        return read(person.browser().post("/api/studio/editions", """
+        long edition = read(person.browser().post("/api/studio/editions", """
                 {"kind":"original","title":"%s","description":[{"id":"d1","type":"paragraph","content":[{"text":"Опис.","marks":[]}]}],
                  "tags":["Фентезі"]}""".formatted(title))).path("editionId").asLong();
+        assertThat(person.browser().put("/api/studio/editions/" + edition + "/visibility", json("visibility", "public")).status()).isEqualTo(200);
+        return edition;
     }
 
     private long createPrivateNovel(Person person, String title) {

@@ -86,7 +86,7 @@ class CatalogService implements Catalog {
                 .set(EDITION.TEAM_ID, novel.teamId())
                 .set(EDITION.KIND, novel.kind())
                 .set(EDITION.ADULT, novel.adult())
-                .set(EDITION.VISIBILITY, "public")
+                .set(EDITION.VISIBILITY, novel.kind().equals("original") ? "private" : "public")
                 .returning(EDITION.ID)
                 .fetchOne(EDITION.ID);
         return new EditionRef(novelId, editionId, slug);

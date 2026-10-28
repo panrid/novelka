@@ -51,6 +51,7 @@ class ChapterService implements Chapters {
 
     private static final TypeReference<List<Block>> BLOCKS = new TypeReference<>() { };
 
+    private final space.panrid.novelka.media.Images images;
     private final DSLContext db;
     private final JsonMapper json;
     private final Catalog catalog;
@@ -59,7 +60,8 @@ class ChapterService implements Chapters {
     private final VolumeService volumes;
 
     ChapterService(DSLContext db, JsonMapper json, Catalog catalog, Clock clock, ApplicationEventPublisher events,
-            VolumeService volumes) {
+            VolumeService volumes, space.panrid.novelka.media.Images images) {
+        this.images = images;
         this.volumes = volumes;
         this.events = events;
         this.db = db;
@@ -320,6 +322,9 @@ class ChapterService implements Chapters {
         ChapterRecord chapter = chapter(editionId, number);
         // A draft may be half-written: only sizes and structure are checked, not emptiness.
         List<Block> kept = blocks == null ? List.of() : blocks.stream().limit(BlockRules.MAX_BLOCKS).toList();
+        for (Long imageId : BlockRules.images(kept)) {
+            images.requireUsable(imageId, editionId, accountId);
+        }
         String json = this.json.writeValueAsString(kept);
         if (json.length() > 2 * BlockRules.MAX_CHAPTER_CHARS + 200_000) {
             throw UserFacingException.badRequest("Чернетка завелика.");
@@ -594,6 +599,10 @@ class ChapterService implements Chapters {
 
     private long insertRevision(long chapterId, Long parentId, String title, List<Block> blocks, String origin,
             Long authorId, OffsetDateTime at) {
+        Long editionId = db.select(CHAPTER.EDITION_ID).from(CHAPTER).where(CHAPTER.ID.eq(chapterId)).fetchSingle(CHAPTER.EDITION_ID);
+        for (Long imageId : BlockRules.images(blocks)) {
+            images.requireUsable(imageId, editionId, authorId);
+        }
         return db.insertInto(REVISION)
                 .set(REVISION.CHAPTER_ID, chapterId)
                 .set(REVISION.PARENT_ID, parentId)

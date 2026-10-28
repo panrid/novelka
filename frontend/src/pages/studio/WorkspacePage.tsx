@@ -1,5 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link, useBlocker, useNavigate } from '@tanstack/react-router';
+import { WorkspaceMarkdown } from './WorkspaceMarkdown';
+import { download, saveFile } from '../../api/client';
 import { relativeTime } from '../../lib/dates';
 import {
     studioApi,
@@ -37,6 +40,7 @@ const KIND_NAMES: Record<string, string> = {
 
 export function WorkspacePage() {
     const editionId = useEditionId();
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
 
     const [selectedKind, setSelectedKind] = useState<string>('all');
@@ -53,12 +57,32 @@ export function WorkspacePage() {
     const [isPreview, setIsPreview] = useState<boolean>(false);
     const [conflictError, setConflictError] = useState<string | null>(null);
     const [showHistory, setShowHistory] = useState<boolean>(false);
+    const [loadingDocument, setLoadingDocument] = useState(false);
+    const [attachmentError, setAttachmentError] = useState<string | null>(null);
+    const [savedForm, setSavedForm] = useState(JSON.stringify(['', 'canon', '', '']));
+    const requestSerial = useRef(0);
+    const formSnapshot = JSON.stringify([title, kind, slug, content]);
+    const dirty = savedForm !== '' && savedForm !== formSnapshot;
+
+    useEffect(() => {
+        const beforeUnload = (event: BeforeUnloadEvent) => {
+            if (dirty) { event.preventDefault(); }
+        };
+        window.addEventListener('beforeunload', beforeUnload);
+        return () => window.removeEventListener('beforeunload', beforeUnload);
+    }, [dirty]);
+
+    const allowSwitch = () => !dirty || window.confirm('Є незбережені зміни. Перейти й відкинути їх?');
+    useBlocker({ shouldBlockFn: () => dirty && !window.confirm('Є незбережені зміни. Залишити сторінку й відкинути їх?') });
 
     // Queries
-    const docsQuery = useQuery({
+    const docsQuery = useInfiniteQuery({
         queryKey: ['workspace-docs', editionId, selectedKind, searchQuery],
-        queryFn: () => studioApi.workspaceDocuments(editionId, selectedKind, searchQuery),
+        initialPageParam: 0,
+        queryFn: ({ pageParam }) => studioApi.workspaceDocuments(editionId, selectedKind, searchQuery, pageParam),
+        getNextPageParam: (last, pages) => last.length === 20 ? pages.length * 20 : undefined,
     });
+    const documents = docsQuery.data?.pages.flat() ?? [];
 
     const activeDocQuery = useQuery({
         queryKey: ['workspace-doc', editionId, activeSlug],
@@ -77,7 +101,7 @@ export function WorkspacePage() {
         queryFn: () => studioApi.workspaceAttachments(editionId),
     });
 
-    const filteredDocs = (docsQuery.data ?? []).filter((doc: DocumentSummary) => {
+    const filteredDocs = documents.filter((doc: DocumentSummary) => {
         if (selectedKind !== 'all' && doc.kind !== selectedKind) return false;
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
@@ -87,20 +111,62 @@ export function WorkspacePage() {
     });
 
     // When an active document loads, populate the editor form
-    const selectDocument = (doc: DocumentSummary) => {
-        setActiveSlug(doc.slug);
+    const selectDocument = async (doc: Pick<DocumentSummary, 'slug'>, discardApproved = false) => {
+        if (saveMutation.isPending || restoreMutation.isPending || (!discardApproved && !allowSwitch())) return;
+        const serial = ++requestSerial.current;
+        setLoadingDocument(true);
         setConflictError(null);
-        setIsPreview(false);
-        studioApi.workspaceDocument(editionId, doc.slug).then((details) => {
+        try {
+            const details = await studioApi.workspaceDocument(editionId, doc.slug);
+            if (serial !== requestSerial.current) return;
+            setActiveSlug(details.slug);
+            setIsPreview(false);
             setTitle(details.title);
             setKind(details.kind);
             setSlug(details.slug);
             setContent(details.content);
             setVersion(details.version);
-        });
+            setSavedForm(JSON.stringify([details.title, details.kind, details.slug, details.content]));
+        } catch (error) {
+            if (serial === requestSerial.current) setConflictError((error as Error).message);
+        } finally {
+            if (serial === requestSerial.current) setLoadingDocument(false);
+        }
+    };
+
+    const openWiki = async (target: string) => {
+        const [path, anchor] = target.split('#');
+        if (!path && anchor) {
+            document.getElementById(`workspace-heading-${anchor}`)?.scrollIntoView();
+            return;
+        }
+        const chapter = /(?:розділ|глава)\s*(\d+)/iu.exec(path ?? '');
+        if (chapter) {
+            void navigate({ to: '/studio/$editionId/chapters/$number', params: { editionId: String(editionId), number: chapter[1]! } });
+            return;
+        }
+        if (saveMutation.isPending || restoreMutation.isPending || !allowSwitch()) return;
+        const serial = ++requestSerial.current;
+        setLoadingDocument(true);
+        const name = (path ?? '').split('/').pop()!.replace(/\.md$/, '').normalize('NFC');
+        try {
+            const matches = await studioApi.workspaceDocuments(editionId, undefined, name);
+            if (serial !== requestSerial.current) return;
+            const doc = matches.find((item) => item.slug === name || item.title.normalize('NFC') === name);
+            if (doc) await selectDocument(doc, true);
+            else setConflictError('Документ не знайдено. Знайдіть його за назвою у списку матеріалів.');
+        } catch (error) {
+            if (serial === requestSerial.current) setConflictError((error as Error).message);
+        } finally {
+            if (serial === requestSerial.current) setLoadingDocument(false);
+        }
     };
 
     const startNewDocument = () => {
+        if (saveMutation.isPending || restoreMutation.isPending || !allowSwitch()) return;
+        ++requestSerial.current;
+        setLoadingDocument(false);
+        setSavedForm(JSON.stringify(['', selectedKind !== 'all' ? selectedKind : 'canon', '', '']));
         setActiveSlug(null);
         setTitle('');
         setKind(selectedKind !== 'all' ? selectedKind : 'canon');
@@ -124,6 +190,10 @@ export function WorkspacePage() {
         },
         onSuccess: (savedDoc: DocumentDetails) => {
             setConflictError(null);
+            setSavedForm(JSON.stringify([savedDoc.title, savedDoc.kind, savedDoc.slug, savedDoc.content]));
+            setTitle(savedDoc.title);
+            setKind(savedDoc.kind);
+            setContent(savedDoc.content);
             setVersion(savedDoc.version);
             setActiveSlug(savedDoc.slug);
             setSlug(savedDoc.slug);
@@ -138,14 +208,17 @@ export function WorkspacePage() {
     const deleteMutation = useMutation({
         mutationFn: (docSlug: string) => studioApi.deleteWorkspaceDocument(editionId, docSlug),
         onSuccess: () => {
+            setSavedForm('');
             startNewDocument();
             queryClient.invalidateQueries({ queryKey: ['workspace-docs', editionId] });
         },
     });
 
     const restoreMutation = useMutation({
-        mutationFn: (revId: number) => studioApi.restoreWorkspaceRevision(editionId, activeSlug!, revId),
+        mutationFn: (revId: number) => studioApi.restoreWorkspaceRevision(editionId, activeSlug!, revId, version!),
         onSuccess: (restored: DocumentDetails) => {
+            setSavedForm(JSON.stringify([restored.title, restored.kind, restored.slug, restored.content]));
+            setKind(restored.kind);
             setShowHistory(false);
             setTitle(restored.title);
             setContent(restored.content);
@@ -155,31 +228,40 @@ export function WorkspacePage() {
         },
     });
 
+    const uploadAttachments = useMutation({
+        mutationFn: async (files: File[]) => {
+            setAttachmentError(null);
+            for (const file of files) {
+                const uploaded = await studioApi.uploadImage(file, 'illustration');
+                await studioApi.addWorkspaceAttachment(editionId, { imageId: uploaded.id, name: file.name,
+                    ...(activeSlug ? { documentSlug: activeSlug } : {}) });
+            }
+        },
+        onSettled: () => { void queryClient.invalidateQueries({ queryKey: ['workspace-attachments', editionId] }); },
+        onError: (error: Error) => setAttachmentError(error.message),
+    });
+    const removeAttachment = useMutation({
+        mutationFn: (id: number) => studioApi.deleteWorkspaceAttachment(editionId, id),
+        onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['workspace-attachments', editionId] }); },
+        onError: (error: Error) => setAttachmentError(error.message),
+    });
+
     const handleSave = (e: FormEvent) => {
         e.preventDefault();
         saveMutation.mutate();
     };
 
     const handleReloadFromServer = () => {
-        if (!activeSlug) return;
-        studioApi.workspaceDocument(editionId, activeSlug).then((details) => {
-            setTitle(details.title);
-            setKind(details.kind);
-            setContent(details.content);
-            setVersion(details.version);
-            setConflictError(null);
-        });
+        if (activeSlug) void selectDocument({ slug: activeSlug });
     };
 
     const handleExport = async () => {
-        const exported = await studioApi.exportWorkspace(editionId);
-        const blob = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `workspace-${editionId}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+        try {
+            const file = await download(`/api/studio/editions/${editionId}/workspace/export.zip`);
+            saveFile(file.blob, file.name);
+        } catch (error) {
+            setConflictError((error as Error).message);
+        }
     };
 
     return (
@@ -187,9 +269,9 @@ export function WorkspacePage() {
             <div className={styles.page}>
                 <header className={styles.header}>
                     <h2 className={styles.title}>Матеріали авторського простору</h2>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                         <Button onClick={handleExport} variant="secondary">
-                            Експортувати
+                            Завантажити архів
                         </Button>
                         <Button onClick={startNewDocument} variant="primary">
                             + Новий матеріал
@@ -231,12 +313,11 @@ export function WorkspacePage() {
                             </div>
                         )}
                         {filteredDocs.map((doc: DocumentSummary) => (
-                            <div
+                            <button type="button"
                                 key={doc.slug}
                                 className={`${styles.docItem} ${activeSlug === doc.slug ? styles.docItemActive : ''}`}
                                 onClick={() => selectDocument(doc)}
-                                role="button"
-                                tabIndex={0}
+                                disabled={saveMutation.isPending || restoreMutation.isPending}
                             >
                                 <div className={styles.docItemHead}>
                                     <span className={styles.docTitle}>{doc.title}</span>
@@ -244,15 +325,17 @@ export function WorkspacePage() {
                                 </div>
                                 {doc.snippet && <div className={styles.docSnippet}>{doc.snippet}</div>}
                                 <div className={styles.docMeta}>
-                                    v{doc.version} · {relativeTime(new Date(doc.updatedAt))}
+                                    Версія {doc.version} · {relativeTime(new Date(doc.updatedAt))}
                                     {doc.updatedByNick ? ` (${doc.updatedByNick})` : ''}
                                 </div>
-                            </div>
+                            </button>
                         ))}
+                    {docsQuery.hasNextPage && <Button type="button" onClick={() => { void docsQuery.fetchNextPage(); }} isDisabled={docsQuery.isFetchingNextPage}>Ще матеріали</Button>}
                     </aside>
 
                     <main className={styles.editorPanel}>
                         <form onSubmit={handleSave} className={styles.editorHeader}>
+                            <fieldset disabled={loadingDocument || saveMutation.isPending} style={{ display: 'contents' }}>
                             <TextInput
                                 label="Назва матеріалу"
                                 value={title}
@@ -288,14 +371,7 @@ export function WorkspacePage() {
                                         <option value="note">Нотатки</option>
                                     </select>
                                 </div>
-                                <div style={{ flex: 1, minWidth: '150px' }}>
-                                    <TextInput
-                                        label="Адреса (slug)"
-                                        value={slug}
-                                        onChange={setSlug}
-                                        placeholder="автоматично з назви"
-                                    />
-                                </div>
+
                             </div>
 
                             {conflictError && (
@@ -308,19 +384,18 @@ export function WorkspacePage() {
                                         <Button
                                             type="button"
                                             onClick={() => {
-                                                setVersion(null);
-                                                saveMutation.mutate();
+                                                saveFile(new Blob([content], { type: 'text/markdown;charset=utf-8' }), `${slug || 'document'}-моя-версія.md`);
                                             }}
                                             variant="secondary"
                                         >
-                                            Перезаписати своєю версією
+                                            Завантажити мій текст
                                         </Button>
                                     </div>
                                 </div>
                             )}
 
                             <div className={styles.editorControls}>
-                                <div style={{ display: 'flex', gap: '8px' }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                                     <Button
                                         type="button"
                                         variant={!isPreview ? 'primary' : 'secondary'}
@@ -336,7 +411,7 @@ export function WorkspacePage() {
                                         Попередній перегляд
                                     </Button>
                                 </div>
-                                <div style={{ display: 'flex', gap: '8px' }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                                     {activeSlug && (
                                         <Button
                                             type="button"
@@ -346,7 +421,7 @@ export function WorkspacePage() {
                                             Історія змін
                                         </Button>
                                     )}
-                                    <Button type="submit" variant="primary" isDisabled={saveMutation.isPending}>
+                                    <Button type="submit" variant="primary" isDisabled={saveMutation.isPending || loadingDocument}>
                                         {saveMutation.isPending ? 'Збереження...' : 'Зберегти'}
                                     </Button>
                                     {activeSlug && (
@@ -375,9 +450,7 @@ export function WorkspacePage() {
                                 />
                             ) : (
                                 <div className={styles.preview}>
-                                    {content.split('\n\n').map((paragraph, i) => (
-                                        <p key={i}>{paragraph}</p>
-                                    ))}
+                                    <WorkspaceMarkdown text={content} open={(target) => { void openWiki(target); }} image={(target) => attachmentsQuery.data?.find((item) => item.name === target.split('/').pop())?.url} />
                                 </div>
                             )}
 
@@ -386,13 +459,15 @@ export function WorkspacePage() {
                                     <span style={{ fontSize: '13px', fontWeight: 600 }}>Посилання:</span>
                                     <div className={styles.linksList}>
                                         {activeDocQuery.data.links.map((link, i) => (
-                                            <span key={i} className={styles.linkTag}>
-                                                {link}
-                                            </span>
+                                            /(?:розділ|глава)\s*(\d+)/iu.test(link) ? <Link key={i}
+                                                to="/studio/$editionId/chapters/$number"
+                                                params={{ editionId: String(editionId), number: /(?:розділ|глава)\s*(\d+)/iu.exec(link)![1]! }}
+                                                className={styles.linkTag}>{link}</Link> : <button type="button" key={i} className={styles.linkTag} onClick={() => { void openWiki(link); }}>{link}</button>
                                         ))}
                                     </div>
                                 </div>
                             )}
+                            </fieldset>
                         </form>
 
                         {/* Attachments section */}
@@ -400,6 +475,18 @@ export function WorkspacePage() {
                             <h3 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>
                                 Вкладення авторського простору
                             </h3>
+                            <label>
+                                Додати ілюстрації
+                                <input type="file" accept="image/jpeg,image/png,image/webp" multiple
+                                    disabled={uploadAttachments.isPending} aria-label="Додати ілюстрації"
+                                    onChange={(event) => {
+                                        const files = Array.from(event.target.files ?? []);
+                                        if (files.length) uploadAttachments.mutate(files);
+                                        event.target.value = '';
+                                    }} />
+                            </label>
+                            {uploadAttachments.isPending && <p role="status">Завантажуємо ілюстрації…</p>}
+                            {attachmentError && <p role="alert">{attachmentError}</p>}
                             <div className={styles.attachmentsGrid}>
                                 {attachmentsQuery.data?.map((att) => (
                                     <div key={att.id} className={styles.attachmentCard}>
@@ -407,6 +494,8 @@ export function WorkspacePage() {
                                         <div className={styles.attachmentInfo}>
                                             <span className={styles.attachmentName}>{att.name}</span>
                                             {att.description && <span style={{ color: 'var(--muted)' }}>{att.description}</span>}
+                                            <Button type="button" variant="secondary" isDisabled={removeAttachment.isPending}
+                                                onClick={() => removeAttachment.mutate(att.id)} aria-label={`Вилучити ${att.name}`}>Вилучити</Button>
                                         </div>
                                     </div>
                                 ))}

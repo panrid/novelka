@@ -71,16 +71,16 @@ public class MediaGate extends OncePerRequestFilter {
             throws ServletException, IOException {
         String key = java.net.URLDecoder.decode(request.getRequestURI().substring(PREFIX.length()), java.nio.charset.StandardCharsets.UTF_8);
         Optional<Decision> decision = decide(key, currentUser.accountId().orElse(null));
-        if (decision.isEmpty() || decision.get() == Decision.OPEN) {
+        if (decision.isPresent() && decision.get() == Decision.OPEN) {
             chain.doFilter(request, response);
             return;
         }
-        if (decision.get() == Decision.REFUSED) {
+        if (decision.isEmpty() || decision.get() == Decision.REFUSED) {
             response.setHeader(HttpHeaders.CACHE_CONTROL, "private, no-store");
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
-        response.setHeader(HttpHeaders.CACHE_CONTROL, "private, no-cache");
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "private, no-store");
         chain.doFilter(request, new PrivateCaching(response));
     }
 
@@ -91,22 +91,38 @@ public class MediaGate extends OncePerRequestFilter {
 
     /** @return empty when the key is no picture's (the static handler answers 404 itself) */
     Optional<Decision> decide(String key, Long accountId) {
-        var image = db.select(IMAGE.ID, IMAGE.KIND).from(IMAGE_FILE).join(IMAGE).on(IMAGE.ID.eq(IMAGE_FILE.IMAGE_ID))
+        var image = db.select(IMAGE.ID, IMAGE.KIND, IMAGE.RESTRICTED, IMAGE.WORKSPACE_EDITION_ID, IMAGE.OWNER_ACCOUNT_ID, IMAGE.ORIGINAL_KEY, IMAGE.HIDDEN_AT).from(IMAGE_FILE).join(IMAGE).on(IMAGE.ID.eq(IMAGE_FILE.IMAGE_ID))
                 .where(IMAGE_FILE.KEY.eq(key)).fetchOptional();
         if (image.isEmpty()) {
             return Optional.empty();
         }
         long imageId = image.get().value1();
-        if (PERSONAL.contains(image.get().value2())) {
+        if (image.get().value7() != null) {
+            return Optional.of(Decision.REFUSED);
+        }
+        boolean original = key.equals(image.get().value6());
+        if (!original && PERSONAL.contains(image.get().value2())) {
             return Optional.of(Decision.OPEN);
         }
-        if (!db.fetchExists(EDITION, EDITION.VISIBILITY.eq(Visibility.PRIVATE).and(tied(imageId)))) {
+        Long bound = image.get().value4();
+        if (bound != null) {
+            boolean team = accountId != null && db.fetchExists(EDITION, EDITION.ID.eq(bound),
+                    Visibility.inTeam(accountId), Visibility.tokenEdition() == null ? DSL.noCondition() : EDITION.ID.eq(Visibility.tokenEdition()));
+            boolean reader = !original && db.fetchExists(EDITION, EDITION.ID.eq(bound), shownToReaders(imageId),
+                    EDITION.HIDDEN_AT.isNull(), EDITION.DELETED_AT.isNull(), Visibility.readableNow(accountId));
+            return Optional.of(team || reader ? Decision.PRIVATE : Decision.REFUSED);
+        }
+        boolean protectedFile = original || image.get().value3()
+                || db.fetchExists(EDITION, EDITION.VISIBILITY.eq(Visibility.PRIVATE).and(tied(imageId)));
+        if (!protectedFile) {
             return Optional.of(Decision.OPEN);
         }
-        boolean team = accountId != null && db.fetchExists(EDITION, tied(imageId).and(Visibility.inTeam(accountId)));
-        boolean reader = team || db.fetchExists(EDITION, shownToReaders(imageId).and(EDITION.HIDDEN_AT.isNull())
-                .and(EDITION.DELETED_AT.isNull()).and(Visibility.readableBy(accountId, null)));
-        return Optional.of(reader ? Decision.PRIVATE : Decision.REFUSED);
+        boolean owner = accountId != null && accountId.equals(image.get().value5()) && Visibility.tokenEdition() == null;
+        boolean team = accountId != null && db.fetchExists(EDITION, tied(imageId), Visibility.inTeam(accountId),
+                Visibility.tokenEdition() == null ? DSL.noCondition() : EDITION.ID.eq(Visibility.tokenEdition()));
+        boolean reader = !original && db.fetchExists(EDITION, shownToReaders(imageId), EDITION.HIDDEN_AT.isNull(),
+                EDITION.DELETED_AT.isNull(), Visibility.readableNow(accountId));
+        return Optional.of(owner || team || reader ? Decision.PRIVATE : Decision.REFUSED);
     }
 
     /** The picture belongs to the edition in any way: cover, its team's, any revision, a draft, a portrait. */

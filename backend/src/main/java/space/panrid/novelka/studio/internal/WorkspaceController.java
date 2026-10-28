@@ -32,10 +32,12 @@ class WorkspaceController {
     record AddAttachmentRequest(String documentSlug, long imageId, String name, String description) {
     }
 
+    private final WorkspaceArchive archive;
     private final AccessPolicy access;
     private final WorkspaceService workspace;
 
-    WorkspaceController(AccessPolicy access, WorkspaceService workspace) {
+    WorkspaceController(AccessPolicy access, WorkspaceService workspace, WorkspaceArchive archive) {
+        this.archive = archive;
         this.access = access;
         this.workspace = workspace;
     }
@@ -43,9 +45,9 @@ class WorkspaceController {
     @GetMapping("/documents")
     List<WorkspaceService.DocumentSummary> list(@PathVariable long editionId,
             @RequestParam(required = false) String kind,
-            @RequestParam(required = false) String q) {
+            @RequestParam(required = false) String q, @RequestParam(defaultValue = "0") int offset) {
         access.requireTextEditor(editionId);
-        return workspace.list(editionId, kind, q);
+        return workspace.list(editionId, kind, q, offset);
     }
 
     @GetMapping("/documents/{slug}")
@@ -78,9 +80,9 @@ class WorkspaceController {
 
     @PostMapping("/documents/{slug}/revisions/{revisionId}/restore")
     WorkspaceService.DocumentDetails restore(@PathVariable long editionId, @PathVariable String slug,
-            @PathVariable long revisionId) {
+            @PathVariable long revisionId, @RequestParam Long version) {
         EditionAccess who = access.requireTextEditor(editionId);
-        return workspace.restoreRevision(editionId, slug, revisionId, who.viewer().accountId());
+        return workspace.restoreRevision(editionId, slug, revisionId, who.viewer().accountId(), version);
     }
 
     @GetMapping("/attachments")
@@ -114,6 +116,14 @@ class WorkspaceController {
             @RequestBody StudioApiV1.WorkspaceImportRequest body) {
         EditionAccess who = access.requireTextEditor(editionId);
         return workspace.importBatch(editionId, who.viewer().accountId(), body);
+    }
+
+    @GetMapping("/export.zip")
+    org.springframework.http.ResponseEntity<byte[]> archive(@PathVariable long editionId) {
+        access.requireTextEditor(editionId);
+        return org.springframework.http.ResponseEntity.ok().header("Cache-Control", "private, no-store")
+                .header("Content-Disposition", "attachment; filename=workspace.zip")
+                .contentType(org.springframework.http.MediaType.parseMediaType("application/zip")).body(archive.export(editionId));
     }
 
     @GetMapping("/export")

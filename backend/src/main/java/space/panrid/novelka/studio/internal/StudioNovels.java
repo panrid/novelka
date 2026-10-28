@@ -194,6 +194,9 @@ class StudioNovels {
     }
 
     private void cover(EditionAccess who, Long imageId) {
+        if (imageId != null) {
+            images.requireUsable(imageId, who.editionId(), who.viewer().accountId());
+        }
         catalog.setCover(who.editionId(), imageId);
         Map<String, Object> changed = new LinkedHashMap<>();
         changed.put("cover", imageId);

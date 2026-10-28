@@ -336,9 +336,13 @@ class StudioFlowTests {
     }
 
     private long createPublication(Person person, String title, String kind) {
-        return read(person.browser().post("/api/studio/editions", """
+        long edition = read(person.browser().post("/api/studio/editions", """
                 {"kind":"%s","title":"%s","description":[{"id":"d1","type":"paragraph","content":[{"text":"Опис.","marks":[]}]}],
                  "tags":["Фентезі"]}""".formatted(kind, title))).path("editionId").asLong();
+        if (kind.equals("original")) {
+            assertThat(person.browser().put("/api/studio/editions/" + edition + "/visibility", json("visibility", "public")).status()).isEqualTo(200);
+        }
+        return edition;
     }
 
     private static String chapter(long edition, int number) {

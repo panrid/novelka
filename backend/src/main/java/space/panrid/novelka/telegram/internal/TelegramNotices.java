@@ -16,6 +16,7 @@ import space.panrid.novelka.telegram.TelegramApi;
 @Component
 class TelegramNotices implements AccountMessenger {
 
+    private final space.panrid.novelka.access.PublicationNotices publicationNotices;
     private final TelegramApi telegram;
     private final TelegramLinks links;
     private final Texts texts;
@@ -23,7 +24,8 @@ class TelegramNotices implements AccountMessenger {
     /** Account news is told from the request that changed it; the request does not wait for Telegram. */
     private final ExecutorService background = Executors.newVirtualThreadPerTaskExecutor();
 
-    TelegramNotices(TelegramApi telegram, TelegramLinks links, Texts texts, NotificationChoices choices) {
+    TelegramNotices(TelegramApi telegram, TelegramLinks links, Texts texts, NotificationChoices choices, space.panrid.novelka.access.PublicationNotices publicationNotices) {
+        this.publicationNotices = publicationNotices;
         this.telegram = telegram;
         this.links = links;
         this.texts = texts;
@@ -32,7 +34,7 @@ class TelegramNotices implements AccountMessenger {
 
     @ApplicationModuleListener
     void on(NotificationAdded added) {
-        if (!telegram.configured() || !choices.inTelegram(added.recipientId(), NotificationChoices.Topic.of(added.kind()))) {
+        if (!publicationNotices.allowed(added.recipientId(), added.payload()) || !telegram.configured() || !choices.inTelegram(added.recipientId(), NotificationChoices.Topic.of(added.kind()))) {
             return;
         }
         links.of(added.recipientId())

@@ -383,6 +383,10 @@ class StudioApiController {
     StudioApiV1.Page<StudioApiV1.Picture> pictures(@RequestParam(required = false) String after,
             @RequestParam(defaultValue = "" + PAGE) int limit) {
         Viewer viewer = access.requireSignedIn();
+        Long only = space.panrid.novelka.access.Visibility.tokenEdition();
+        if (only != null) {
+            access.requireTextEditor(only);
+        }
         int size = size(limit, 100);
         List<PictureLibrary.Picture> found = library.after(viewer.accountId(), id(after), size);
         return new StudioApiV1.Page<>(found.stream().map(StudioApiV1::picture).toList(),
@@ -398,10 +402,17 @@ class StudioApiController {
     @ResponseStatus(HttpStatus.CREATED)
     StudioApiV1.Picture upload(@RequestParam("file") MultipartFile file) {
         Viewer viewer = access.requireSignedIn();
+        Long only = space.panrid.novelka.access.Visibility.tokenEdition();
+        if (only != null) {
+            access.requireTextEditor(only);
+        }
         if (file == null || file.isEmpty()) {
             throw UserFacingException.badRequest("Виберіть файл картинки.");
         }
         StoredImage stored = images.store(viewer.accountId(), ImageKind.ILLUSTRATION, bytes(file), file.getOriginalFilename());
+        if (only != null) {
+            images.bindWorkspace(stored.id(), only, viewer.accountId());
+        }
         return library.after(viewer.accountId(), stored.id() + 1, 1).stream().filter(picture -> picture.id() == stored.id())
                 .findFirst().map(StudioApiV1::picture)
                 .orElseThrow(() -> UserFacingException.notFound("Такої картинки у вас немає."));

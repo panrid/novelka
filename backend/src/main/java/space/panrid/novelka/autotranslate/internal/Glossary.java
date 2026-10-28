@@ -241,6 +241,9 @@ class Glossary implements space.panrid.novelka.autotranslate.GlossaryCards {
                 IMAGE.KIND.eq("illustration"), IMAGE.REMOVED_AT.isNull(), IMAGE.HIDDEN_AT.isNull())) {
             throw UserFacingException.badRequest("Портрет береться з «Моїх картинок»: такої картинки там немає.");
         }
+        if (imageId != null) {
+            images.requireUsable(imageId, editionId, accountId);
+        }
         int changed = db.update(GLOSSARY_ENTRY).set(GLOSSARY_ENTRY.PORTRAIT_IMAGE_ID, imageId)
                 .set(GLOSSARY_ENTRY.UPDATED_AT, DSL.currentOffsetDateTime())
                 .where(GLOSSARY_ENTRY.ID.eq(entryId), GLOSSARY_ENTRY.NOVEL_ID.eq(scope(editionId).novelId())).execute();

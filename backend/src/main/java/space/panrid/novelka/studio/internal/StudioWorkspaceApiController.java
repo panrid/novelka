@@ -39,12 +39,14 @@ import tools.jackson.databind.json.JsonMapper;
 @Tag(name = "Студія: Авторський простір", description = "Матеріали твору: канон, плани, рішення, реткони, стан роботи, вкладення та історія змін. Право токена — `studio`.")
 class StudioWorkspaceApiController {
 
+    private final WorkspaceArchive archive;
     private final AccessPolicy access;
     private final WorkspaceService workspace;
     private final Idempotency idempotency;
     private final JsonMapper json;
 
-    StudioWorkspaceApiController(AccessPolicy access, WorkspaceService workspace, Idempotency idempotency, JsonMapper json) {
+    StudioWorkspaceApiController(AccessPolicy access, WorkspaceService workspace, Idempotency idempotency, JsonMapper json, WorkspaceArchive archive) {
+        this.archive = archive;
         this.access = access;
         this.workspace = workspace;
         this.idempotency = idempotency;
@@ -147,15 +149,17 @@ class StudioWorkspaceApiController {
             @PathVariable String novel, @PathVariable String team,
             @PathVariable String slug,
             @PathVariable long revisionId,
+            @Parameter(description = "Очікувана поточна версія документа; без неї або при конфлікті — 409")
+            @RequestParam(required = false) Long version,
             @Parameter(description = "Будь-який унікальний рядок до 255 знаків (напр. UUID); повтор із ним не зробить нічого вдруге",
                     example = "3f1c9a6e-0d4b-4a57-9a8e-2b6f1c0d7e21")
             @RequestHeader(name = Idempotency.HEADER, required = false) String key) {
         long editionId = access.editionAt(novel, team);
         EditionAccess who = access.requireTextEditor(editionId);
         long accountId = who.viewer().accountId();
-        String request = "POST restore workspace " + editionId + " " + slug + " " + revisionId;
+        String request = "POST restore workspace " + editionId + " " + slug + " " + revisionId + " " + version;
         return idempotency.once(accountId, key, request, () -> {
-            StudioApiV1.WorkspaceDocument doc = workspace.restoreRevisionApi(editionId, slug, revisionId, accountId);
+            StudioApiV1.WorkspaceDocument doc = workspace.restoreRevisionApi(editionId, slug, revisionId, accountId, version);
             return new Idempotency.Answer(HttpStatus.OK, doc);
         });
     }
@@ -196,6 +200,16 @@ class StudioWorkspaceApiController {
         long editionId = access.editionAt(novel, team);
         access.requireTextEditor(editionId);
         workspace.deleteAttachment(editionId, id);
+    }
+
+    @GetMapping("/export.zip")
+    @Operation(operationId = "exportWorkspaceArchive", summary = "Завантажити рукопис, документи та файли одним архівом")
+    ResponseEntity<byte[]> archive(@PathVariable String novel, @PathVariable String team) {
+        long editionId = access.editionAt(novel, team);
+        access.requireTextEditor(editionId);
+        return ResponseEntity.ok().header("Cache-Control", "private, no-store")
+                .header("Content-Disposition", "attachment; filename=workspace.zip")
+                .contentType(org.springframework.http.MediaType.parseMediaType("application/zip")).body(archive.export(editionId));
     }
 
     @GetMapping("/export")

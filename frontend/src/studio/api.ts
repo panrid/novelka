@@ -281,10 +281,11 @@ export const studioApi = {
     takeoverRequests: (id: number) => api<TakeoverRequest[]>(`${edition(id)}/takeover-requests`),
     answerTakeover: (id: number, requestId: number, grant: boolean) =>
         api<void>(`${edition(id)}/takeover-requests/${requestId}`, json('POST', { grant })),
-    workspaceDocuments: (id: number, kind?: string, q?: string) => {
+    workspaceDocuments: (id: number, kind?: string, q?: string, offset = 0) => {
         const params = new URLSearchParams();
         if (kind && kind !== 'all') params.set('kind', kind);
         if (q) params.set('q', q);
+        if (offset) params.set('offset', String(offset));
         const query = params.toString();
         return api<DocumentSummary[]>(`${edition(id)}/workspace/documents${query ? `?${query}` : ''}`);
     },
@@ -296,8 +297,8 @@ export const studioApi = {
         api<void>(`${edition(id)}/workspace/documents/${encodeURIComponent(slug)}`, { method: 'DELETE' }),
     workspaceRevisions: (id: number, slug: string) =>
         api<WorkspaceRevision[]>(`${edition(id)}/workspace/documents/${encodeURIComponent(slug)}/revisions`),
-    restoreWorkspaceRevision: (id: number, slug: string, revisionId: number) =>
-        api<DocumentDetails>(`${edition(id)}/workspace/documents/${encodeURIComponent(slug)}/revisions/${revisionId}/restore`, json('POST', {})),
+    restoreWorkspaceRevision: (id: number, slug: string, revisionId: number, version: number) =>
+        api<DocumentDetails>(`${edition(id)}/workspace/documents/${encodeURIComponent(slug)}/revisions/${revisionId}/restore?version=${version}`, json('POST', {})),
     workspaceAttachments: (id: number, documentSlug?: string) =>
         api<WorkspaceAttachment[]>(`${edition(id)}/workspace/attachments${documentSlug ? `?documentSlug=${encodeURIComponent(documentSlug)}` : ''}`),
     addWorkspaceAttachment: (id: number, body: { documentSlug?: string; imageId: number; name: string; description?: string }) =>
@@ -306,7 +307,7 @@ export const studioApi = {
         api<void>(`${edition(id)}/workspace/attachments/${attachmentId}`, { method: 'DELETE' }),
     importWorkspace: (id: number, body: {
         dryRun: boolean;
-        documents?: { slug?: string; title: string; kind: string; content: string; comment?: string }[];
+        documents?: { slug?: string; title: string; kind: string; content: string; comment?: string; version?: number }[];
         attachments?: { imageId: number; name: string; description?: string; documentSlug?: string }[];
     }) => api<WorkspaceImportReport>(`${edition(id)}/workspace/import`, json('POST', body)),
     exportWorkspace: (id: number) => api<WorkspaceExport>(`${edition(id)}/workspace/export`),
