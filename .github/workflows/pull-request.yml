@@ -47,7 +47,7 @@ jobs:
         timeout-minutes: 25
         steps:
             - uses: actions/checkout@v5
-            - uses: actions/setup-java@v5
+            - uses: actions/setup-java@v6
               with:
                   distribution: temurin
                   java-version: '25'
@@ -90,7 +90,7 @@ jobs:
             - name: Tree hash of the merged code
               id: tree
               run: echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
-            - uses: actions/setup-java@v5
+            - uses: actions/setup-java@v6
               with:
                   distribution: temurin
                   java-version: '25'
