@@ -320,6 +320,78 @@ final class StudioApiV1 {
             @Schema(description = "Вкладення авторського простору") List<WorkspaceAttachment> attachments) {
     }
 
+    /**
+     * Batch import request for workspace materials (етап 24.4, issue #332).
+     */
+    @Schema(name = "StudioWorkspaceImportRequest", description = "Запит на пакетний або пробний імпорт матеріалів авторського простору.")
+    record WorkspaceImportRequest(
+            @Schema(description = "Пробний імпорт (true — лише попередній перегляд відповідності та посилань без збереження; false — фактичне збереження)", example = "true") boolean dryRun,
+            @Schema(description = "Документи для імпорту") List<WorkspaceImportDocInput> documents,
+            @Schema(description = "Вкладення для імпорту") List<WorkspaceAttachmentInput> attachments) {
+    }
+
+    /**
+     * Document item inside a batch import request.
+     */
+    @Schema(name = "StudioWorkspaceImportDocInput", description = "Документ для пакетного імпорту авторських матеріалів.")
+    record WorkspaceImportDocInput(
+            @Schema(description = "Адреса документа (slug); без неї — генерується з назви", example = "zakony-mahii") String slug,
+            @Schema(description = "Назва документа", example = "Мана та Закони Магії") String title,
+            @Schema(description = "Вид: canon, timeline, plan, decision, status, meta, note", example = "canon") String kind,
+            @Schema(description = "Вміст документа у форматі Markdown") String content,
+            @Schema(description = "Коментар до ревізії", example = "Імпорт із репозиторію") String comment) {
+    }
+
+    /**
+     * Resolved or unresolved wikilink inside a workspace document during import.
+     */
+    @Schema(name = "StudioWorkspaceLinkMatch", description = "Зіставлення внутрішнього посилання [[...]] у документі при імпорті.")
+    record WorkspaceLinkMatch(
+            @Schema(description = "Початковий текст посилання [[...]]", example = "01_Канон_та_Світобудова/Мана та Закони Магії") String rawTarget,
+            @Schema(description = "Адреса (slug) знайденого цільового документа, якщо розпізнано", example = "mana-ta-zakony-mahii") String resolvedDocumentSlug,
+            @Schema(description = "Номер знайденої глави рукопису, якщо посилання веде на главу", example = "1") Integer resolvedChapterNumber,
+            @Schema(description = "Чи успішно зіставлено посилання з документом, главою, якорем чи вкладенням") boolean resolved) {
+    }
+
+    /**
+     * Result for a single document in a workspace import or dry-run preview.
+     */
+    @Schema(name = "StudioWorkspaceImportDocResult", description = "Результат перевірки або імпорту одного документа.")
+    record WorkspaceImportDocResult(
+            @Schema(description = "Адреса документа (slug)", example = "mana-ta-zakony-mahii") String slug,
+            @Schema(description = "Назва документа", example = "Мана та Закони Магії") String title,
+            @Schema(description = "Вид документа", example = "canon") String kind,
+            @Schema(description = "Дія: create (новий), update (оновлено), unchanged (без змін — повтор без дубля)", example = "create") String action,
+            @Schema(description = "Версія документа після імпорту", example = "1") long version,
+            @Schema(description = "Зіставлені внутрішні посилання документа") List<WorkspaceLinkMatch> links) {
+    }
+
+    /**
+     * Result for a single attachment in a workspace import or dry-run preview.
+     */
+    @Schema(name = "StudioWorkspaceImportAttachmentResult", description = "Результат перевірки або імпорту одного вкладення.")
+    record WorkspaceImportAttachmentResult(
+            @Schema(description = "Назва вкладення", example = "00a_Лукас_13_років_концепт.jpg") String name,
+            @Schema(description = "Ідентифікатор зображення", example = "123") long imageId,
+            @Schema(description = "Адреса документа (slug), до якого прив'язано вкладення", example = "lukas-tvorets-mahii") String documentSlug,
+            @Schema(description = "Дія: create (нове) або unchanged (уже прикріплено — без дубля)", example = "create") String action) {
+    }
+
+    /**
+     * Summary report of a workspace batch import or dry-run preview.
+     */
+    @Schema(name = "StudioWorkspaceImportReport", description = "Звіт про пробний або фактичний пакетний імпорт авторських матеріалів.")
+    record WorkspaceImportReport(
+            @Schema(description = "Чи був це пробний запуск без збереження (dryRun)") boolean dryRun,
+            @Schema(description = "Кількість створених нових документів") int created,
+            @Schema(description = "Кількість оновлених документів") int updated,
+            @Schema(description = "Кількість документів без змін (пропущено для уникнення дублів)") int unchanged,
+            @Schema(description = "Кількість нових прикріплених вкладень") int attachmentsCreated,
+            @Schema(description = "Кількість вкладень, які вже існували (без дублів)") int attachmentsUnchanged,
+            @Schema(description = "Детальний результат щодо кожного документа та його посилань") List<WorkspaceImportDocResult> documents,
+            @Schema(description = "Детальний результат щодо кожного вкладення") List<WorkspaceImportAttachmentResult> attachments) {
+    }
+
     // ---- conversions ------------------------------------------------------------------------------
 
     static List<TextBlock> blocks(List<Block> blocks, Map<Long, StoredImage> pictures) {

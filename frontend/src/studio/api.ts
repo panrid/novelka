@@ -100,6 +100,41 @@ export interface WorkspaceAttachment {
     createdAt: string;
 }
 
+export interface WorkspaceLinkMatch {
+    rawTarget: string;
+    resolvedDocumentSlug: string | null;
+    resolvedChapterNumber: number | null;
+    resolved: boolean;
+}
+
+export interface WorkspaceImportDocResult {
+    slug: string;
+    title: string;
+    kind: string;
+    action: 'create' | 'update' | 'unchanged';
+    version: number;
+    links: WorkspaceLinkMatch[];
+}
+
+export interface WorkspaceImportReport {
+    dryRun: boolean;
+    created: number;
+    updated: number;
+    unchanged: number;
+    attachmentsCreated: number;
+    attachmentsUnchanged: number;
+    documents: WorkspaceImportDocResult[];
+    attachments: { name: string; imageId: number; documentSlug: string | null; action: string }[];
+}
+
+export interface WorkspaceExport {
+    novel: string;
+    team: string;
+    exportedAt: string;
+    documents: DocumentDetails[];
+    attachments: WorkspaceAttachment[];
+}
+
 export type StudioChapter = {
     number: number; title: string; published: boolean; hasMyDraft: boolean; updatedAt: string; label: string | null;
     /** Readers' suggestions waiting. */
@@ -269,6 +304,12 @@ export const studioApi = {
         api<WorkspaceAttachment>(`${edition(id)}/workspace/attachments`, json('POST', body)),
     deleteWorkspaceAttachment: (id: number, attachmentId: number) =>
         api<void>(`${edition(id)}/workspace/attachments/${attachmentId}`, { method: 'DELETE' }),
+    importWorkspace: (id: number, body: {
+        dryRun: boolean;
+        documents?: { slug?: string; title: string; kind: string; content: string; comment?: string }[];
+        attachments?: { imageId: number; name: string; description?: string; documentSlug?: string }[];
+    }) => api<WorkspaceImportReport>(`${edition(id)}/workspace/import`, json('POST', body)),
+    exportWorkspace: (id: number) => api<WorkspaceExport>(`${edition(id)}/workspace/export`),
 };
 
 export const teamApi = {

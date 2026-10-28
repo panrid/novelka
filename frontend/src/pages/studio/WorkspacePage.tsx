@@ -171,14 +171,30 @@ export function WorkspacePage() {
         });
     };
 
+    const handleExport = async () => {
+        const exported = await studioApi.exportWorkspace(editionId);
+        const blob = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `workspace-${editionId}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <EditionShell tab="workspace">
             <div className={styles.page}>
                 <header className={styles.header}>
                     <h2 className={styles.title}>Матеріали авторського простору</h2>
-                    <Button onClick={startNewDocument} variant="primary">
-                        + Новий матеріал
-                    </Button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <Button onClick={handleExport} variant="secondary">
+                            Експортувати
+                        </Button>
+                        <Button onClick={startNewDocument} variant="primary">
+                            + Новий матеріал
+                        </Button>
+                    </div>
                 </header>
 
                 <div className={styles.filters} role="tablist" aria-label="Види матеріалів">

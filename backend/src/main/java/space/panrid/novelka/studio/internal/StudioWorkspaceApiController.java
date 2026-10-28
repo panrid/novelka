@@ -207,4 +207,35 @@ class StudioWorkspaceApiController {
         access.requireTextEditor(editionId);
         return workspace.exportApi(editionId, novel, team);
     }
+
+    @PostMapping("/import")
+    @Operation(operationId = "importWorkspace", summary = "Пакетний або пробний імпорт матеріалів",
+            description = "Перенесення документів та вкладень до авторського простору. "
+                    + "З `dryRun: true` виконує лише пробний імпорт із попереднім переглядом відповідності матеріалів та посилань без збереження в базу. "
+                    + "Повторний запуск з `dryRun: false` ідемпотентний: незмінені документи та вкладення не створюють дублів.")
+    @ApiResponse(responseCode = "200", description = "Звіт про пробний або фактичний імпорт",
+            content = @Content(schema = @Schema(implementation = StudioApiV1.WorkspaceImportReport.class)),
+            headers = @Header(name = Idempotency.REPLAYED, description = "З `Idempotency-Key`: `true` — це збережена відповідь першого такого запиту, нічого не змінено", schema = @Schema(type = "string", example = "true")))
+    ResponseEntity<String> importWorkspace(
+            @PathVariable String novel, @PathVariable String team,
+            @Parameter(description = "Будь-який унікальний рядок до 255 знаків (напр. UUID); повтор із ним не зробить нічого вдруге",
+                    example = "3f1c9a6e-0d4b-4a57-9a8e-2b6f1c0d7e21")
+            @RequestHeader(name = Idempotency.HEADER, required = false) String key,
+            @RequestBody StudioApiV1.WorkspaceImportRequest body) {
+        if (body == null) {
+            throw UserFacingException.badRequest("Вкажіть матеріали для імпорту.");
+        }
+        long editionId = access.editionAt(novel, team);
+        EditionAccess who = access.requireTextEditor(editionId);
+        long accountId = who.viewer().accountId();
+        if (body.dryRun()) {
+            StudioApiV1.WorkspaceImportReport preview = workspace.importBatch(editionId, accountId, body);
+            return ResponseEntity.ok(json.writeValueAsString(preview));
+        }
+        String request = "POST import workspace " + editionId + " " + json.writeValueAsString(body);
+        return idempotency.once(accountId, key, request, () -> {
+            StudioApiV1.WorkspaceImportReport report = workspace.importBatch(editionId, accountId, body);
+            return new Idempotency.Answer(HttpStatus.OK, report);
+        });
+    }
 }

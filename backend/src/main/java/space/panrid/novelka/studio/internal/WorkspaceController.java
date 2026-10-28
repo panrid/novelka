@@ -108,4 +108,17 @@ class WorkspaceController {
         access.requireTextEditor(editionId);
         workspace.deleteAttachment(editionId, id);
     }
+
+    @PostMapping("/import")
+    StudioApiV1.WorkspaceImportReport importWorkspace(@PathVariable long editionId,
+            @RequestBody StudioApiV1.WorkspaceImportRequest body) {
+        EditionAccess who = access.requireTextEditor(editionId);
+        return workspace.importBatch(editionId, who.viewer().accountId(), body);
+    }
+
+    @GetMapping("/export")
+    StudioApiV1.WorkspaceExport exportWorkspace(@PathVariable long editionId) {
+        access.requireTextEditor(editionId);
+        return workspace.exportApi(editionId, String.valueOf(editionId), "");
+    }
 }
