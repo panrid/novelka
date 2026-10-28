@@ -25,7 +25,8 @@ if name=='kubectl':
         print('{"metadata":{"annotations":{"deployment.kubernetes.io/revision":"2"}}}')
     elif args[:2]==['get','pvc']: print('{"status":{"phase":"Bound"}}')
     elif args[:1]==['patch'] and '--dry-run=server' not in args and scenario=='patch-failure': sys.exit(1)
-    elif args[:2]==['rollout','status'] and scenario=='rollout-failure':
+    elif args[:2]==['rollout','status'] and 'deployment/mail' in args and scenario=='smtp-failure': sys.exit(1)
+    elif args[:2]==['rollout','status'] and 'deployment/novelka' in args and scenario=='rollout-failure':
         marker=Path(os.environ['STATE_DIR'])/'rollout-failed'
         if not marker.exists(): marker.touch(); sys.exit(1)
     elif args[:1]==['exec']:
@@ -43,14 +44,14 @@ elif name=='curl':
     if '-o' not in args: print('{"status":"ok"}')
 '''
 
-for scenario in ['success','cached','build-failure','rollout-failure','public-failure','patch-failure','check','build-only']:
+for scenario in ['success','cached','smtp-failure','build-failure','rollout-failure','public-failure','patch-failure','check','build-only']:
     with tempfile.TemporaryDirectory() as directory:
         root=Path(directory)
         binaries=root/'bin'; binaries.mkdir()
         for name in ['kubectl','k3s','curl']:
             path=binaries/name; path.write_text(STUB); path.chmod(0o755)
         release=root/'release'; (release/'infra/k8s').mkdir(parents=True)
-        for file in ['novelka.jar','Dockerfile','infra/k8s/buildkit.yaml','infra/k8s/deployment.patch.yaml']:
+        for file in ['novelka.jar','Dockerfile','infra/k8s/buildkit.yaml','infra/k8s/deployment.patch.yaml','infra/k8s/mail.yaml']:
             (release/file).write_text('fixture')
         log=root/'commands.jsonl'
         env=dict(os.environ,PATH=f'{binaries}:'+os.environ['PATH'],SCENARIO=scenario,
@@ -68,7 +69,7 @@ for scenario in ['success','cached','build-failure','rollout-failure','public-fa
             assert not rollback,scenario
         else:
             assert result.returncode!=0,scenario
-        if scenario in ['build-failure','check','build-only']: assert not mutated,scenario
+        if scenario in ['smtp-failure','build-failure','check','build-only']: assert not mutated,scenario
         if scenario in ['rollout-failure','public-failure','patch-failure']:
             assert rollback,scenario
             assert any('--to-revision=2' in c for c in commands),scenario
@@ -76,4 +77,7 @@ for scenario in ['success','cached','build-failure','rollout-failure','public-fa
         if scenario=='cached': assert not built,scenario
         if scenario=='success': assert built and deleted and mutated,scenario
         if scenario=='check': assert not built and not deleted,scenario
+        if scenario=='smtp-failure': assert not built and not rollback,scenario
+        if scenario in ['check','build-only']:
+            assert not any(c[0]=='kubectl' and 'apply' in c and '--dry-run=server' not in c for c in commands),scenario
         print('PASS',scenario)

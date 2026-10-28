@@ -36,7 +36,8 @@ Push у `main` запускає `.github/workflows/deploy-production.yml`; са�
 1. Перевірений `novelka.jar`, `backend/Dockerfile`, `infra/deploy.sh` і `infra/k8s/`
    доставляються через SSH у `/srv/novelka-releases/<повний SHA коміту>/`.
 2. На сервері `infra/deploy.sh` перевіряє готовність ноди, наявність базових ресурсів
-   і коректність маніфестів через server-side dry-run.
+   і коректність маніфестів через server-side dry-run, застосовує маніфест пошти й чекає
+   готовності SMTP перед оновленням застосунку. Режими `--check` і `--build-only` пошту не змінюють.
 3. Тимчасовий pod BuildKit збирає образ **локально**, лише з JAR і Dockerfile.
    Йому потрібен `privileged` для роботи BuildKit; токена service account і томів сайту в нього немає.
    Ліміти — 1 CPU і 2 GiB RAM, час життя — до 10 хвилин.
@@ -104,7 +105,7 @@ Secrets середовища `production` оновлено для акаунта
 ## Ручна перевірка й запуск
 
 У підготовленому каталозі релізу мають бути `novelka.jar`, `Dockerfile`,
-`infra/deploy.sh`, `infra/k8s/buildkit.yaml`, `infra/k8s/deployment.patch.yaml`.
+`infra/deploy.sh`, `infra/k8s/buildkit.yaml`, `infra/k8s/deployment.patch.yaml`, `infra/k8s/mail.yaml`.
 Замість `<SHA>` — повний 40-символьний SHA коміту.
 
 ```sh
@@ -141,15 +142,48 @@ sudo python3 infra/tests/deploy.py
 ```
 
 Остання команда перевіряє сценарії успіху, повторного використання образу, помилок
-збірки, оновлення й публічної перевірки, а також обидва режими без оновлення сайту.
+збірки, оновлення й публічної перевірки, помилки SMTP, а також обидва режими без оновлення сайту.
 У ній усі звернення до Kubernetes, containerd і HTTP підмінені; справжній кластер
 не використовується. Реальну збірку окремо перевіряють через `--build-only`.
+
+## Пошта
+
+SMTP працює як Deployment і внутрішній Service `mail` у `novelka-prod`
+(`infra/k8s/mail.yaml`, #325). Публічного SMTP-порту немає; NetworkPolicy дозволяє
+порт 587 лише pod застосунку. Postfix також приймає пошту лише з мережі pod
+`10.42.0.0/16` і від домену `novelka.in.ua`, доставляє через IPv4.
+
+Налаштування застосунку залишаються в Secret `novelka-config`:
+`MAIL_HOST=mail`, `MAIL_PORT=587`, `MAIL_AUTH=false`, `MAIL_STARTTLS=false`,
+відправник `Новелка <no-reply@novelka.in.ua>`. Пароль для внутрішнього SMTP не потрібен.
+Якщо змінюється CIDR кластера, оновіть `POSTFIX_mynetworks` у маніфесті пошти.
+
+Ліміт SMTP — 256 MiB і 0,5 CPU; запит — 64 MiB і 0,025 CPU. PVC `mail-data` (1 GiB,
+`local-path-retain`) зберігає чергу `/var/spool/postfix` і ключі `/etc/opendkim/keys`.
+При перевстановленні pod цей том не видаляють: інакше зміниться DKIM-ключ.
+Init-контейнер готує каталог ключа з власником `opendkim` і правами `0700`.
+
+Новий селектор DKIM — `novelka202610`; DNS TXT —
+`novelka202610._domainkey.novelka.in.ua`. Публічний запис можна отримати так:
+
+```sh
+sudo kubectl -n novelka-prod exec deployment/mail -- cat /etc/opendkim/keys/novelka.in.ua.txt
+sudo kubectl -n novelka-prod exec deployment/mail -- opendkim-testkey -d novelka.in.ua -s novelka202610 -vvv
+sudo kubectl -n novelka-prod exec deployment/mail -- postqueue -p
+```
+
+Публікуйте лише TXT із `.txt`, ніколи приватний `.private`. SPF уже дозволяє
+`62.72.33.247`, PTR веде на `novelka.in.ua`; DMARC — `p=none`. MX і подальша
+перевірка доставлення різним провайдерам залишаються окремою задачею #284.
+
+Перевірено 2026-10-28: DNS TXT збігається з ключем, OpenDKIM підтвердив `key OK`;
+один погоджений тестовий лист із pod сайту підписаний DKIM і прийнятий Gmail (`250`),
+черга спорожніла. Після перезапуску ключ зберігається; сторонній pod не має доступу до SMTP.
 
 ## Що лишилося після перенесення
 
 - **Резервне копіювання** відкладено власником 2026-10-28; у цій задачі його не налаштовуємо.
-- Переадресації `www` і старого домену, поштовий сервіс
-  та моніторинг потребують окремої перевірки після перенесення. Поточний Ingress містить
+- Переадресації `www` і старого домену та моніторинг залишаються окремими задачами. Поточний Ingress містить
   лише `novelka.in.ua`; наявність цих можливостей зі старого Compose не припускаємо.
 - Окреме dev-оточення скасовано власником 2026-10-28 через обмежені ресурси. Його
   Compose-файл, сценарій деплою й маршрут видалені; локальна розробка й тести залишаються.

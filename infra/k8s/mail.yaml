@@ -1,0 +1,133 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mail-data
+  namespace: novelka-prod
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path-retain
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mail
+  namespace: novelka-prod
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: novelka-mail
+  template:
+    metadata:
+      labels:
+        app: novelka-mail
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      initContainers:
+        - name: prepare-storage
+          image: boky/postfix:5.1.0-alpine
+          command:
+            - sh
+            - -ec
+            - |
+              mkdir -p /data/queue /data/dkim
+              chown opendkim:opendkim /data/dkim
+              chmod 0700 /data/dkim
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+      containers:
+        - name: mail
+          image: boky/postfix:5.1.0-alpine
+          ports:
+            - name: smtp
+              containerPort: 587
+          env:
+            - name: ALLOWED_SENDER_DOMAINS
+              value: novelka.in.ua
+            - name: POSTFIX_myhostname
+              value: novelka.in.ua
+            - name: POSTFIX_mynetworks
+              value: 127.0.0.0/8,10.42.0.0/16
+            - name: POSTFIX_inet_protocols
+              value: ipv4
+            - name: DKIM_AUTOGENERATE
+              value: "true"
+            - name: DKIM_SELECTOR
+              value: novelka202610
+          volumeMounts:
+            - name: data
+              mountPath: /var/spool/postfix
+              subPath: queue
+            - name: data
+              mountPath: /etc/opendkim/keys
+              subPath: dkim
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          startupProbe:
+            exec:
+              command: [/scripts/healthcheck.sh]
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 18
+          readinessProbe:
+            exec:
+              command: [/scripts/healthcheck.sh]
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 2
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mail-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mail
+  namespace: novelka-prod
+spec:
+  type: ClusterIP
+  selector:
+    app: novelka-mail
+  ports:
+    - name: smtp
+      port: 587
+      targetPort: smtp
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mail-from-application
+  namespace: novelka-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: novelka-mail
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: novelka
+      ports:
+        - protocol: TCP
+          port: 587

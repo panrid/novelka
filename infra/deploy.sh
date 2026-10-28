@@ -15,7 +15,7 @@ mode=${3:-deploy}
 [[ $mode == deploy || $mode == --check || $mode == --build-only ]] || usage
 [[ $EUID == 0 ]] || { echo 'Run as root (or through sudo -n).' >&2; exit 1; }
 for executable in k3s kubectl python3 curl flock tar; do command -v "$executable" >/dev/null; done
-for file in novelka.jar Dockerfile infra/k8s/buildkit.yaml infra/k8s/deployment.patch.yaml; do
+for file in novelka.jar Dockerfile infra/k8s/buildkit.yaml infra/k8s/deployment.patch.yaml infra/k8s/mail.yaml; do
     [[ -s "$release/$file" ]] || { echo "Missing release file: $file" >&2; exit 1; }
 done
 
@@ -53,9 +53,17 @@ sed "s|@BUILDER@|$builder|g" "$release/infra/k8s/buildkit.yaml" > "$work/builder
 kubectl -n "$namespace" patch deployment novelka --type=strategic --patch-file "$work/patch.yaml" \
     --dry-run=server -o name
 kubectl create --dry-run=server -f "$work/builder.yaml" -o name
+kubectl apply --dry-run=server -f "$release/infra/k8s/mail.yaml" -o name
 if [[ $mode == --check ]]; then
     echo 'Preflight passed; no resources changed.'
     exit 0
+fi
+
+# Provision SMTP before touching the application. The PVC keeps both queue and DKIM keys.
+# A build-only check must not change any running service.
+if [[ $mode == deploy ]]; then
+    kubectl apply -f "$release/infra/k8s/mail.yaml"
+    kubectl -n "$namespace" rollout status deployment/mail --timeout=240s
 fi
 
 # A rerun of the same commit reuses its image instead of changing an existing tag.
