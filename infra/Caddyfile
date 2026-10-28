@@ -15,12 +15,3 @@ novelka.in.ua {
 www.novelka.in.ua, novelka.panrid.space {
     redir https://novelka.in.ua{uri} permanent
 }
-
-# Test environment beside production: noindex, live updates without buffering.
-dev.novelka.in.ua {
-    header X-Robots-Tag "noindex, nofollow"
-    encode gzip
-    reverse_proxy dev-app:8080 {
-        flush_interval -1
-    }
-}
