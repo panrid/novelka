@@ -56,6 +56,7 @@ import { NotificationsPage } from '../pages/inbox/NotificationsPage';
 import { RelayPage } from '../pages/studio/RelayPage';
 import { StudioHome } from '../pages/studio/StudioHome';
 import { StructurePage } from '../pages/studio/StructurePage';
+import { WorkspacePage } from '../pages/studio/WorkspacePage';
 import { MyTeamsPage } from '../pages/team/MyTeamsPage';
 import { TeamPage } from '../pages/team/TeamPage';
 import { Shell } from './Shell';
@@ -190,6 +191,7 @@ const routeTree = rootRoute.addChildren([
     studio('/studio/$editionId/translate/jobs/$jobId', TranslateLivePage, 'Хід перекладу'),
     studio('/studio/$editionId/translate/jobs/$jobId/log', JobLogPage, 'Хід перекладу: подробиці'),
     studio('/studio/$editionId/glossary', GlossaryPage, 'Словник'),
+    studio('/studio/$editionId/workspace', WorkspacePage, 'Матеріали'),
     studio('/studio/$editionId/originals', OriginalsPage, 'Оригінал'),
     studio('/studio/$editionId/titles', TitlesPage, 'Назви глав'),
     studio('/studio/processes', ProcessesPage, 'Хід перекладу'),

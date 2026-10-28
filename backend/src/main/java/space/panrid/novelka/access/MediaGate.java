@@ -7,6 +7,7 @@ import static space.panrid.novelka.jooq.Tables.GLOSSARY_ENTRY;
 import static space.panrid.novelka.jooq.Tables.IMAGE;
 import static space.panrid.novelka.jooq.Tables.IMAGE_FILE;
 import static space.panrid.novelka.jooq.Tables.REVISION;
+import static space.panrid.novelka.jooq.Tables.WORKSPACE_ATTACHMENT;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -116,6 +117,8 @@ public class MediaGate extends OncePerRequestFilter {
                         .where(CHAPTER.EDITION_ID.eq(EDITION.ID), containsRevision(imageId))))
                 .or(DSL.exists(DSL.selectOne().from(EDITOR_DRAFT).join(CHAPTER).on(CHAPTER.ID.eq(EDITOR_DRAFT.CHAPTER_ID))
                         .where(CHAPTER.EDITION_ID.eq(EDITION.ID), containsDraft(imageId))))
+                .or(DSL.exists(DSL.selectOne().from(WORKSPACE_ATTACHMENT)
+                        .where(WORKSPACE_ATTACHMENT.EDITION_ID.eq(EDITION.ID), WORKSPACE_ATTACHMENT.IMAGE_ID.eq(imageId))))
                 .or(portrait(imageId));
     }
 

@@ -55,6 +55,51 @@ export type InvitedReader = {
     grantedAt: string;
 };
 
+export interface DocumentSummary {
+    id: number;
+    slug: string;
+    title: string;
+    kind: string;
+    version: number;
+    updatedAt: string;
+    updatedByNick: string | null;
+    snippet: string;
+}
+
+export interface DocumentDetails {
+    id: number;
+    slug: string;
+    title: string;
+    kind: string;
+    content: string;
+    version: number;
+    createdAt: string;
+    updatedAt: string;
+    updatedByNick: string | null;
+    revisionsCount: number;
+    links: string[];
+    attachments: WorkspaceAttachment[];
+}
+
+export interface WorkspaceRevision {
+    id: number;
+    version: number;
+    title: string;
+    content: string;
+    authorNick: string | null;
+    createdAt: string;
+    comment: string | null;
+}
+
+export interface WorkspaceAttachment {
+    id: number;
+    imageId: number;
+    url: string;
+    name: string;
+    description: string | null;
+    createdAt: string;
+}
+
 export type StudioChapter = {
     number: number; title: string; published: boolean; hasMyDraft: boolean; updatedAt: string; label: string | null;
     /** Readers' suggestions waiting. */
@@ -201,6 +246,29 @@ export const studioApi = {
     takeoverRequests: (id: number) => api<TakeoverRequest[]>(`${edition(id)}/takeover-requests`),
     answerTakeover: (id: number, requestId: number, grant: boolean) =>
         api<void>(`${edition(id)}/takeover-requests/${requestId}`, json('POST', { grant })),
+    workspaceDocuments: (id: number, kind?: string, q?: string) => {
+        const params = new URLSearchParams();
+        if (kind && kind !== 'all') params.set('kind', kind);
+        if (q) params.set('q', q);
+        const query = params.toString();
+        return api<DocumentSummary[]>(`${edition(id)}/workspace/documents${query ? `?${query}` : ''}`);
+    },
+    workspaceDocument: (id: number, slug: string) =>
+        api<DocumentDetails>(`${edition(id)}/workspace/documents/${encodeURIComponent(slug)}`),
+    saveWorkspaceDocument: (id: number, slug: string, body: { title: string; kind: string; content: string; version?: number | null; comment?: string }) =>
+        api<DocumentDetails>(`${edition(id)}/workspace/documents/${encodeURIComponent(slug)}`, json('PUT', body)),
+    deleteWorkspaceDocument: (id: number, slug: string) =>
+        api<void>(`${edition(id)}/workspace/documents/${encodeURIComponent(slug)}`, { method: 'DELETE' }),
+    workspaceRevisions: (id: number, slug: string) =>
+        api<WorkspaceRevision[]>(`${edition(id)}/workspace/documents/${encodeURIComponent(slug)}/revisions`),
+    restoreWorkspaceRevision: (id: number, slug: string, revisionId: number) =>
+        api<DocumentDetails>(`${edition(id)}/workspace/documents/${encodeURIComponent(slug)}/revisions/${revisionId}/restore`, json('POST', {})),
+    workspaceAttachments: (id: number, documentSlug?: string) =>
+        api<WorkspaceAttachment[]>(`${edition(id)}/workspace/attachments${documentSlug ? `?documentSlug=${encodeURIComponent(documentSlug)}` : ''}`),
+    addWorkspaceAttachment: (id: number, body: { documentSlug?: string; imageId: number; name: string; description?: string }) =>
+        api<WorkspaceAttachment>(`${edition(id)}/workspace/attachments`, json('POST', body)),
+    deleteWorkspaceAttachment: (id: number, attachmentId: number) =>
+        api<void>(`${edition(id)}/workspace/attachments/${attachmentId}`, { method: 'DELETE' }),
 };
 
 export const teamApi = {
