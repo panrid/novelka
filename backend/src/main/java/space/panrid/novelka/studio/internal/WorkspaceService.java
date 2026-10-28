@@ -1,6 +1,7 @@
 package space.panrid.novelka.studio.internal;
 
 import static space.panrid.novelka.jooq.Tables.ACCOUNT;
+import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.IMAGE;
 import static space.panrid.novelka.jooq.Tables.WORKSPACE_ATTACHMENT;
 import static space.panrid.novelka.jooq.Tables.WORKSPACE_DOCUMENT;
@@ -9,9 +10,12 @@ import static space.panrid.novelka.jooq.Tables.WORKSPACE_REVISION;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -36,7 +40,7 @@ public class WorkspaceService {
 
     public static final Set<String> KINDS = Set.of("canon", "timeline", "plan", "decision", "status", "meta", "note");
     private static final Pattern WIKILINK = Pattern.compile("\\[\\[([^\\]|]+)(?:\\|[^\\]]+)?\\]\\]");
-    private static final Pattern CHAPTER_NUM = Pattern.compile("(?:розділ|глава|chapter)\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern CHAPTER_NUM = Pattern.compile("(?:розділ|глава|chapter)\\s*(\\d+)", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
     private final DSLContext db;
     private final Images images;
@@ -135,7 +139,8 @@ public class WorkspaceService {
 
         String docSlug = slug == null || slug.isBlank() ? Slugs.slug(cleanTitle, 80) : slug.strip().toLowerCase();
 
-        var existing = db.select(WORKSPACE_DOCUMENT.ID, WORKSPACE_DOCUMENT.VERSION)
+        var existing = db.select(WORKSPACE_DOCUMENT.ID, WORKSPACE_DOCUMENT.VERSION,
+                        WORKSPACE_DOCUMENT.TITLE, WORKSPACE_DOCUMENT.KIND, WORKSPACE_DOCUMENT.CONTENT)
                 .from(WORKSPACE_DOCUMENT)
                 .where(WORKSPACE_DOCUMENT.EDITION_ID.eq(editionId), WORKSPACE_DOCUMENT.SLUG.eq(docSlug))
                 .fetchOptional();
@@ -160,8 +165,15 @@ public class WorkspaceService {
                 throw UserFacingException.conflict("Цей документ уже змінено іншим учасником (поточна версія: "
                         + currentVersion + "). Збережіть свій текст, щоб розв'язати конфлікт.");
             }
-            newVersion = currentVersion + 1;
             docId = existing.get().value1();
+            if (Objects.equals(existing.get().value3(), cleanTitle)
+                    && Objects.equals(existing.get().value4(), docKind)
+                    && Objects.equals(existing.get().value5(), safeContent)
+                    && (comment == null || !comment.startsWith("Відновлено з версії"))) {
+                syncLinks(editionId, docId, safeContent);
+                return get(editionId, docSlug).orElseThrow();
+            }
+            newVersion = currentVersion + 1;
             db.update(WORKSPACE_DOCUMENT)
                     .set(WORKSPACE_DOCUMENT.TITLE, cleanTitle)
                     .set(WORKSPACE_DOCUMENT.KIND, docKind)
@@ -269,6 +281,17 @@ public class WorkspaceService {
         }
 
         String safeName = name == null || name.isBlank() ? "attachment" : name.strip();
+        var existingAtt = db.select(WORKSPACE_ATTACHMENT.ID, WORKSPACE_ATTACHMENT.CREATED_AT)
+                .from(WORKSPACE_ATTACHMENT)
+                .where(WORKSPACE_ATTACHMENT.EDITION_ID.eq(editionId),
+                        WORKSPACE_ATTACHMENT.IMAGE_ID.eq(imageId),
+                        WORKSPACE_ATTACHMENT.NAME.equalIgnoreCase(safeName))
+                .fetchOptional();
+        if (existingAtt.isPresent()) {
+            StoredImage stored = images.find(imageId).orElse(null);
+            String url = stored != null ? stored.url(480) : "";
+            return new AttachmentItem(existingAtt.get().value1(), imageId, url, safeName, description, existingAtt.get().value2());
+        }
         long id = db.insertInto(WORKSPACE_ATTACHMENT)
                 .set(WORKSPACE_ATTACHMENT.EDITION_ID, editionId)
                 .set(WORKSPACE_ATTACHMENT.DOCUMENT_ID, docId)
@@ -424,6 +447,263 @@ public class WorkspaceService {
         return new StudioApiV1.WorkspaceExport(novel, team, OffsetDateTime.now(), docs, atts);
     }
 
+    // ---- Batch import / dry-run preview (етап 24.4, issue #332) --------------------------------
+
+    @Transactional
+    public StudioApiV1.WorkspaceImportReport importBatch(long editionId, Long accountId, StudioApiV1.WorkspaceImportRequest request) {
+        boolean dryRun = request != null && request.dryRun();
+        List<StudioApiV1.WorkspaceImportDocInput> docInputs = request == null || request.documents() == null
+                ? List.of() : request.documents();
+        List<StudioApiV1.WorkspaceAttachmentInput> attInputs = request == null || request.attachments() == null
+                ? List.of() : request.attachments();
+
+        // Collect known documents (existing in DB + incoming in this batch) for link resolution
+        Map<String, String> titleToSlug = new HashMap<>();
+        Set<String> knownSlugs = new LinkedHashSet<>();
+
+        db.select(WORKSPACE_DOCUMENT.SLUG, WORKSPACE_DOCUMENT.TITLE)
+                .from(WORKSPACE_DOCUMENT)
+                .where(WORKSPACE_DOCUMENT.EDITION_ID.eq(editionId))
+                .forEach(r -> {
+                    knownSlugs.add(r.value1().toLowerCase());
+                    titleToSlug.put(r.value2().toLowerCase(), r.value1());
+                    titleToSlug.put(normalizeTargetTitle(r.value2()).toLowerCase(), r.value1());
+                });
+
+        Set<Integer> existingChapters = new LinkedHashSet<>(
+                db.select(CHAPTER.NUMBER).from(CHAPTER)
+                        .where(CHAPTER.EDITION_ID.eq(editionId), CHAPTER.DELETED_AT.isNull())
+                        .fetch(CHAPTER.NUMBER)
+        );
+
+        Set<String> knownAttachments = new LinkedHashSet<>();
+        db.select(WORKSPACE_ATTACHMENT.NAME)
+                .from(WORKSPACE_ATTACHMENT)
+                .where(WORKSPACE_ATTACHMENT.EDITION_ID.eq(editionId))
+                .forEach(r -> knownAttachments.add(r.value1().toLowerCase()));
+        for (var att : attInputs) {
+            if (att != null && att.name() != null && !att.name().isBlank()) {
+                knownAttachments.add(att.name().strip().toLowerCase());
+            }
+        }
+
+        // Prepare normalized batch docs
+        record PreparedDoc(String slug, String title, String kind, String content, String comment) {
+        }
+        List<PreparedDoc> prepared = new ArrayList<>();
+        for (var in : docInputs) {
+            if (in == null || in.title() == null || in.title().isBlank()) {
+                throw UserFacingException.badRequest("Кожен документ імпорту повинен мати назву.");
+            }
+            String cleanTitle = in.title().strip();
+            String docSlug = in.slug() == null || in.slug().isBlank()
+                    ? Slugs.slug(cleanTitle, 80) : in.slug().strip().toLowerCase();
+            String docKind = in.kind() == null || !KINDS.contains(in.kind().toLowerCase())
+                    ? "note" : in.kind().toLowerCase();
+            String safeContent = in.content() == null ? "" : in.content();
+            prepared.add(new PreparedDoc(docSlug, cleanTitle, docKind, safeContent, in.comment()));
+            knownSlugs.add(docSlug);
+            titleToSlug.put(cleanTitle.toLowerCase(), docSlug);
+            titleToSlug.put(normalizeTargetTitle(cleanTitle).toLowerCase(), docSlug);
+        }
+
+        int created = 0;
+        int updated = 0;
+        int unchanged = 0;
+        List<StudioApiV1.WorkspaceImportDocResult> docResults = new ArrayList<>();
+        List<Long> touchedDocIds = new ArrayList<>();
+        Map<Long, String> touchedDocContents = new LinkedHashMap<>();
+
+        for (PreparedDoc doc : prepared) {
+            var existing = db.select(WORKSPACE_DOCUMENT.ID, WORKSPACE_DOCUMENT.VERSION,
+                            WORKSPACE_DOCUMENT.TITLE, WORKSPACE_DOCUMENT.KIND, WORKSPACE_DOCUMENT.CONTENT)
+                    .from(WORKSPACE_DOCUMENT)
+                    .where(WORKSPACE_DOCUMENT.EDITION_ID.eq(editionId), WORKSPACE_DOCUMENT.SLUG.eq(doc.slug()))
+                    .fetchOptional();
+
+            String action;
+            long resultVersion;
+            if (existing.isEmpty()) {
+                action = "create";
+                resultVersion = 1;
+                created++;
+                if (!dryRun) {
+                    long docId = db.insertInto(WORKSPACE_DOCUMENT)
+                            .set(WORKSPACE_DOCUMENT.EDITION_ID, editionId)
+                            .set(WORKSPACE_DOCUMENT.SLUG, doc.slug())
+                            .set(WORKSPACE_DOCUMENT.TITLE, doc.title())
+                            .set(WORKSPACE_DOCUMENT.KIND, doc.kind())
+                            .set(WORKSPACE_DOCUMENT.CONTENT, doc.content())
+                            .set(WORKSPACE_DOCUMENT.VERSION, 1L)
+                            .set(WORKSPACE_DOCUMENT.UPDATED_BY, accountId)
+                            .returning(WORKSPACE_DOCUMENT.ID)
+                            .fetchSingle(WORKSPACE_DOCUMENT.ID);
+                    db.insertInto(WORKSPACE_REVISION)
+                            .set(WORKSPACE_REVISION.DOCUMENT_ID, docId)
+                            .set(WORKSPACE_REVISION.EDITION_ID, editionId)
+                            .set(WORKSPACE_REVISION.VERSION, 1L)
+                            .set(WORKSPACE_REVISION.TITLE, doc.title())
+                            .set(WORKSPACE_REVISION.CONTENT, doc.content())
+                            .set(WORKSPACE_REVISION.AUTHOR_ID, accountId)
+                            .set(WORKSPACE_REVISION.COMMENT, doc.comment() != null ? doc.comment() : "Імпорт")
+                            .execute();
+                    touchedDocIds.add(docId);
+                    touchedDocContents.put(docId, doc.content());
+                }
+            } else {
+                long docId = existing.get().value1();
+                long currentVer = existing.get().value2();
+                boolean same = Objects.equals(existing.get().value3(), doc.title())
+                        && Objects.equals(existing.get().value4(), doc.kind())
+                        && Objects.equals(existing.get().value5(), doc.content());
+                if (same) {
+                    action = "unchanged";
+                    resultVersion = currentVer;
+                    unchanged++;
+                    if (!dryRun) {
+                        touchedDocIds.add(docId);
+                        touchedDocContents.put(docId, doc.content());
+                    }
+                } else {
+                    action = "update";
+                    resultVersion = currentVer + 1;
+                    updated++;
+                    if (!dryRun) {
+                        db.update(WORKSPACE_DOCUMENT)
+                                .set(WORKSPACE_DOCUMENT.TITLE, doc.title())
+                                .set(WORKSPACE_DOCUMENT.KIND, doc.kind())
+                                .set(WORKSPACE_DOCUMENT.CONTENT, doc.content())
+                                .set(WORKSPACE_DOCUMENT.VERSION, resultVersion)
+                                .set(WORKSPACE_DOCUMENT.UPDATED_AT, DSL.currentOffsetDateTime())
+                                .set(WORKSPACE_DOCUMENT.UPDATED_BY, accountId)
+                                .where(WORKSPACE_DOCUMENT.ID.eq(docId))
+                                .execute();
+                        db.insertInto(WORKSPACE_REVISION)
+                                .set(WORKSPACE_REVISION.DOCUMENT_ID, docId)
+                                .set(WORKSPACE_REVISION.EDITION_ID, editionId)
+                                .set(WORKSPACE_REVISION.VERSION, resultVersion)
+                                .set(WORKSPACE_REVISION.TITLE, doc.title())
+                                .set(WORKSPACE_REVISION.CONTENT, doc.content())
+                                .set(WORKSPACE_REVISION.AUTHOR_ID, accountId)
+                                .set(WORKSPACE_REVISION.COMMENT, doc.comment() != null ? doc.comment() : "Оновлення при імпорті")
+                                .execute();
+                        touchedDocIds.add(docId);
+                        touchedDocContents.put(docId, doc.content());
+                    }
+                }
+            }
+
+            List<StudioApiV1.WorkspaceLinkMatch> linkMatches = analyzeLinks(
+                    doc.slug(), doc.content(), knownSlugs, titleToSlug, existingChapters, knownAttachments);
+            docResults.add(new StudioApiV1.WorkspaceImportDocResult(
+                    doc.slug(), doc.title(), doc.kind(), action, resultVersion, linkMatches));
+        }
+
+        if (!dryRun) {
+            // Second pass: sync all links now that all batch documents exist in DB
+            for (var entry : touchedDocContents.entrySet()) {
+                syncLinks(editionId, entry.getKey(), entry.getValue());
+            }
+        }
+
+        int attCreated = 0;
+        int attUnchanged = 0;
+        List<StudioApiV1.WorkspaceImportAttachmentResult> attResults = new ArrayList<>();
+        for (var att : attInputs) {
+            if (att == null || att.imageId() <= 0) {
+                continue;
+            }
+            String safeName = att.name() == null || att.name().isBlank() ? "attachment" : att.name().strip();
+            boolean exists = db.fetchExists(WORKSPACE_ATTACHMENT,
+                    WORKSPACE_ATTACHMENT.EDITION_ID.eq(editionId)
+                            .and(WORKSPACE_ATTACHMENT.IMAGE_ID.eq(att.imageId()))
+                            .and(WORKSPACE_ATTACHMENT.NAME.equalIgnoreCase(safeName)));
+            if (exists) {
+                attUnchanged++;
+                attResults.add(new StudioApiV1.WorkspaceImportAttachmentResult(
+                        safeName, att.imageId(), att.documentSlug(), "unchanged"));
+            } else {
+                attCreated++;
+                if (!dryRun) {
+                    addAttachment(editionId, att.documentSlug(), att.imageId(), safeName, att.description());
+                }
+                attResults.add(new StudioApiV1.WorkspaceImportAttachmentResult(
+                        safeName, att.imageId(), att.documentSlug(), "create"));
+            }
+        }
+
+        return new StudioApiV1.WorkspaceImportReport(
+                dryRun, created, updated, unchanged, attCreated, attUnchanged, docResults, attResults);
+    }
+
+    private List<StudioApiV1.WorkspaceLinkMatch> analyzeLinks(
+            String selfSlug, String content, Set<String> knownSlugs, Map<String, String> titleToSlug,
+            Set<Integer> existingChapters, Set<String> knownAttachments) {
+        Set<String> targets = new LinkedHashSet<>();
+        Matcher m = WIKILINK.matcher(content);
+        while (m.find()) {
+            targets.add(m.group(1).strip());
+        }
+        List<StudioApiV1.WorkspaceLinkMatch> out = new ArrayList<>();
+        for (String raw : targets) {
+            if (raw.startsWith("#")) {
+                out.add(new StudioApiV1.WorkspaceLinkMatch(raw, selfSlug, null, true));
+                continue;
+            }
+            Integer chapterNum = extractChapterNumber(raw);
+            if (chapterNum != null && (existingChapters.isEmpty() || existingChapters.contains(chapterNum))) {
+                out.add(new StudioApiV1.WorkspaceLinkMatch(raw, null, chapterNum, true));
+                continue;
+            }
+            String baseName = normalizeTargetTitle(raw);
+            String candidateSlug = Slugs.slug(baseName, 80);
+            String resolvedSlug = null;
+            if (knownSlugs.contains(raw.toLowerCase())) {
+                resolvedSlug = raw.toLowerCase();
+            } else if (knownSlugs.contains(baseName.toLowerCase())) {
+                resolvedSlug = baseName.toLowerCase();
+            } else if (titleToSlug.containsKey(raw.toLowerCase())) {
+                resolvedSlug = titleToSlug.get(raw.toLowerCase());
+            } else if (titleToSlug.containsKey(baseName.toLowerCase())) {
+                resolvedSlug = titleToSlug.get(baseName.toLowerCase());
+            } else if (knownSlugs.contains(candidateSlug)) {
+                resolvedSlug = candidateSlug;
+            }
+            boolean isAttachment = knownAttachments.contains(raw.toLowerCase())
+                    || knownAttachments.contains(baseName.toLowerCase());
+            boolean resolved = resolvedSlug != null || chapterNum != null || isAttachment;
+            out.add(new StudioApiV1.WorkspaceLinkMatch(raw, resolvedSlug, chapterNum, resolved));
+        }
+        return out;
+    }
+
+    private static String normalizeTargetTitle(String raw) {
+        String s = raw == null ? "" : raw.strip();
+        int hashIdx = s.indexOf('#');
+        if (hashIdx > 0) {
+            s = s.substring(0, hashIdx).strip();
+        }
+        int slashIdx = s.lastIndexOf('/');
+        if (slashIdx >= 0 && slashIdx + 1 < s.length()) {
+            s = s.substring(slashIdx + 1).strip();
+        }
+        if (s.toLowerCase().endsWith(".md")) {
+            s = s.substring(0, s.length() - 3).strip();
+        }
+        return s;
+    }
+
+    private static Integer extractChapterNumber(String target) {
+        Matcher cm = CHAPTER_NUM.matcher(target);
+        if (cm.find()) {
+            try {
+                return Integer.parseInt(cm.group(1));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return null;
+    }
+
     private void syncLinks(long editionId, long docId, String content) {
         db.deleteFrom(WORKSPACE_LINK).where(WORKSPACE_LINK.SOURCE_DOCUMENT_ID.eq(docId)).execute();
         Set<String> targets = new LinkedHashSet<>();
@@ -433,20 +713,19 @@ public class WorkspaceService {
         }
 
         for (String target : targets) {
-            Long targetDocId = db.select(WORKSPACE_DOCUMENT.ID).from(WORKSPACE_DOCUMENT)
+            String baseName = normalizeTargetTitle(target);
+            String candidateSlug = Slugs.slug(baseName, 80);
+            Long targetDocId = target.startsWith("#") ? docId : db.select(WORKSPACE_DOCUMENT.ID).from(WORKSPACE_DOCUMENT)
                     .where(WORKSPACE_DOCUMENT.EDITION_ID.eq(editionId),
                             WORKSPACE_DOCUMENT.SLUG.eq(target.toLowerCase())
-                                    .or(WORKSPACE_DOCUMENT.TITLE.equalIgnoreCase(target)))
+                                    .or(WORKSPACE_DOCUMENT.SLUG.eq(baseName.toLowerCase()))
+                                    .or(WORKSPACE_DOCUMENT.SLUG.eq(candidateSlug))
+                                    .or(WORKSPACE_DOCUMENT.TITLE.equalIgnoreCase(target))
+                                    .or(WORKSPACE_DOCUMENT.TITLE.equalIgnoreCase(baseName)))
+                    .limit(1)
                     .fetchOne(WORKSPACE_DOCUMENT.ID);
 
-            Integer chapterNum = null;
-            Matcher cm = CHAPTER_NUM.matcher(target);
-            if (cm.find()) {
-                try {
-                    chapterNum = Integer.parseInt(cm.group(1));
-                } catch (NumberFormatException ignored) {
-                }
-            }
+            Integer chapterNum = extractChapterNumber(target);
 
             db.insertInto(WORKSPACE_LINK)
                     .set(WORKSPACE_LINK.SOURCE_DOCUMENT_ID, docId)

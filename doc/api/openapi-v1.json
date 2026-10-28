@@ -1884,6 +1884,202 @@
         },
         "type" : "object"
       },
+      "StudioWorkspaceImportAttachmentResult" : {
+        "description" : "Результат перевірки або імпорту одного вкладення.",
+        "properties" : {
+          "action" : {
+            "description" : "Дія: create (нове) або unchanged (уже прикріплено — без дубля)",
+            "example" : "create",
+            "type" : "string"
+          },
+          "documentSlug" : {
+            "description" : "Адреса документа (slug), до якого прив'язано вкладення",
+            "example" : "lukas-tvorets-mahii",
+            "type" : "string"
+          },
+          "imageId" : {
+            "description" : "Ідентифікатор зображення",
+            "example" : 123,
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "description" : "Назва вкладення",
+            "example" : "00a_Лукас_13_років_концепт.jpg",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioWorkspaceImportDocInput" : {
+        "description" : "Документ для пакетного імпорту авторських матеріалів.",
+        "properties" : {
+          "comment" : {
+            "description" : "Коментар до ревізії",
+            "example" : "Імпорт із репозиторію",
+            "type" : "string"
+          },
+          "content" : {
+            "description" : "Вміст документа у форматі Markdown",
+            "type" : "string"
+          },
+          "kind" : {
+            "description" : "Вид: canon, timeline, plan, decision, status, meta, note",
+            "example" : "canon",
+            "type" : "string"
+          },
+          "slug" : {
+            "description" : "Адреса документа (slug); без неї — генерується з назви",
+            "example" : "zakony-mahii",
+            "type" : "string"
+          },
+          "title" : {
+            "description" : "Назва документа",
+            "example" : "Мана та Закони Магії",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioWorkspaceImportDocResult" : {
+        "description" : "Результат перевірки або імпорту одного документа.",
+        "properties" : {
+          "action" : {
+            "description" : "Дія: create (новий), update (оновлено), unchanged (без змін — повтор без дубля)",
+            "example" : "create",
+            "type" : "string"
+          },
+          "kind" : {
+            "description" : "Вид документа",
+            "example" : "canon",
+            "type" : "string"
+          },
+          "links" : {
+            "description" : "Зіставлені внутрішні посилання документа",
+            "items" : {
+              "$ref" : "#/components/schemas/StudioWorkspaceLinkMatch"
+            },
+            "type" : "array"
+          },
+          "slug" : {
+            "description" : "Адреса документа (slug)",
+            "example" : "mana-ta-zakony-mahii",
+            "type" : "string"
+          },
+          "title" : {
+            "description" : "Назва документа",
+            "example" : "Мана та Закони Магії",
+            "type" : "string"
+          },
+          "version" : {
+            "description" : "Версія документа після імпорту",
+            "example" : 1,
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioWorkspaceImportReport" : {
+        "description" : "Звіт про пробний або фактичний пакетний імпорт авторських матеріалів.",
+        "properties" : {
+          "attachments" : {
+            "description" : "Детальний результат щодо кожного вкладення",
+            "items" : {
+              "$ref" : "#/components/schemas/StudioWorkspaceImportAttachmentResult"
+            },
+            "type" : "array"
+          },
+          "attachmentsCreated" : {
+            "description" : "Кількість нових прикріплених вкладень",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "attachmentsUnchanged" : {
+            "description" : "Кількість вкладень, які вже існували (без дублів)",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "created" : {
+            "description" : "Кількість створених нових документів",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "documents" : {
+            "description" : "Детальний результат щодо кожного документа та його посилань",
+            "items" : {
+              "$ref" : "#/components/schemas/StudioWorkspaceImportDocResult"
+            },
+            "type" : "array"
+          },
+          "dryRun" : {
+            "description" : "Чи був це пробний запуск без збереження (dryRun)",
+            "type" : "boolean"
+          },
+          "unchanged" : {
+            "description" : "Кількість документів без змін (пропущено для уникнення дублів)",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "updated" : {
+            "description" : "Кількість оновлених документів",
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioWorkspaceImportRequest" : {
+        "description" : "Запит на пакетний або пробний імпорт матеріалів авторського простору.",
+        "properties" : {
+          "attachments" : {
+            "description" : "Вкладення для імпорту",
+            "items" : {
+              "$ref" : "#/components/schemas/StudioWorkspaceAttachmentInput"
+            },
+            "type" : "array"
+          },
+          "documents" : {
+            "description" : "Документи для імпорту",
+            "items" : {
+              "$ref" : "#/components/schemas/StudioWorkspaceImportDocInput"
+            },
+            "type" : "array"
+          },
+          "dryRun" : {
+            "description" : "Пробний імпорт (true — лише попередній перегляд відповідності та посилань без збереження; false — фактичне збереження)",
+            "example" : true,
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioWorkspaceLinkMatch" : {
+        "description" : "Зіставлення внутрішнього посилання [[...]] у документі при імпорті.",
+        "properties" : {
+          "rawTarget" : {
+            "description" : "Початковий текст посилання [[...]]",
+            "example" : "01_Канон_та_Світобудова/Мана та Закони Магії",
+            "type" : "string"
+          },
+          "resolved" : {
+            "description" : "Чи успішно зіставлено посилання з документом, главою, якорем чи вкладенням",
+            "type" : "boolean"
+          },
+          "resolvedChapterNumber" : {
+            "description" : "Номер знайденої глави рукопису, якщо посилання веде на главу",
+            "example" : 1,
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "resolvedDocumentSlug" : {
+            "description" : "Адреса (slug) знайденого цільового документа, якщо розпізнано",
+            "example" : "mana-ta-zakony-mahii",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "StudioWorkspaceRevision" : {
         "description" : "Збережена ревізія в історії документа авторського простору.",
         "properties" : {
@@ -8418,6 +8614,132 @@
           "token" : [ "studio" ]
         } ],
         "summary" : "Експорт матеріалів",
+        "tags" : [ "Студія: Авторський простір" ]
+      }
+    },
+    "/api/v1/studio/novels/{novel}/translations/{team}/workspace/import" : {
+      "post" : {
+        "description" : "Перенесення документів та вкладень до авторського простору. З `dryRun: true` виконує лише пробний імпорт із попереднім переглядом відповідності матеріалів та посилань без збереження в базу. Повторний запуск з `dryRun: false` ідемпотентний: незмінені документи та вкладення не створюють дублів.",
+        "operationId" : "importWorkspace",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Будь-який унікальний рядок до 255 знаків (напр. UUID); повтор із ним не зробить нічого вдруге",
+          "example" : "3f1c9a6e-0d4b-4a57-9a8e-2b6f1c0d7e21",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StudioWorkspaceImportRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudioWorkspaceImportReport"
+                }
+              }
+            },
+            "description" : "Готово",
+            "headers" : {
+              "Idempotent-Replayed" : {
+                "description" : "З `Idempotency-Key`: `true` — це збережена відповідь першого такого запиту, нічого не змінено",
+                "schema" : {
+                  "example" : "true",
+                  "type" : "string"
+                },
+                "style" : "simple"
+              }
+            }
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Пакетний або пробний імпорт матеріалів",
         "tags" : [ "Студія: Авторський простір" ]
       }
     },
