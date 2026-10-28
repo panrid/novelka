@@ -756,6 +756,34 @@
         },
         "type" : "object"
       },
+      "PageStudioWorkspaceDocumentSummary" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/StudioWorkspaceDocumentSummary"
+            },
+            "type" : "array"
+          },
+          "next" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PageStudioWorkspaceRevision" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/StudioWorkspaceRevision"
+            },
+            "type" : "array"
+          },
+          "next" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "PageTranslation" : {
         "description" : "Сторінка списку. Щоб отримати наступну, передайте `next` як `after`; на останній сторінці `next` — null.",
         "properties" : {
@@ -1611,6 +1639,289 @@
           },
           "title" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioWorkspaceAttachment" : {
+        "description" : "Прикріплена ілюстрація чи файл авторського простору.",
+        "properties" : {
+          "createdAt" : {
+            "description" : "Час прикріплення",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "description" : {
+            "description" : "Опис або підпис",
+            "example" : "Головний материк",
+            "type" : "string"
+          },
+          "id" : {
+            "description" : "Ідентифікатор вкладення",
+            "example" : 10,
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "imageId" : {
+            "description" : "Ідентифікатор картинки в системі",
+            "example" : 123,
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "description" : "Назва вкладення",
+            "example" : "Мапа світу",
+            "type" : "string"
+          },
+          "url" : {
+            "description" : "Адреса для перегляду картинки",
+            "example" : "/api/media/images/123/original.webp",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioWorkspaceAttachmentInput" : {
+        "description" : "Прикріплення ілюстрації до авторського простору.",
+        "properties" : {
+          "description" : {
+            "description" : "Опис або підпис",
+            "example" : "Головний материк",
+            "type" : "string"
+          },
+          "documentSlug" : {
+            "description" : "Адреса документа (slug), якщо вкладення стосується окремого документа",
+            "example" : "karta-svitu",
+            "type" : "string"
+          },
+          "imageId" : {
+            "description" : "Ідентифікатор зображення (з «Мої картинки»)",
+            "example" : 123,
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "description" : "Назва вкладення",
+            "example" : "Мапа світу",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioWorkspaceDocument" : {
+        "description" : "Повний документ авторського простору: зміст у Markdown, посилання та вкладення.",
+        "properties" : {
+          "attachments" : {
+            "description" : "Прикріплені ілюстрації та файли",
+            "items" : {
+              "$ref" : "#/components/schemas/StudioWorkspaceAttachment"
+            },
+            "type" : "array"
+          },
+          "content" : {
+            "description" : "Вміст документа у форматі Markdown",
+            "example" : "Мана Лукаса відчувається прохолодною...",
+            "type" : "string"
+          },
+          "createdAt" : {
+            "description" : "Коли створено",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "kind" : {
+            "description" : "Вид: canon, timeline, plan, decision, status, meta, note",
+            "example" : "canon",
+            "type" : "string"
+          },
+          "links" : {
+            "description" : "Внутрішні посилання [[...]] на інші матеріали чи глави",
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "revisionsCount" : {
+            "description" : "Кількість ревізій в історії змін",
+            "example" : 3,
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "slug" : {
+            "description" : "Адреса документа (slug)",
+            "example" : "zakony-mahii",
+            "type" : "string"
+          },
+          "title" : {
+            "description" : "Назва документа",
+            "example" : "Закони Магії",
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "description" : "Коли востаннє змінено",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "updatedByNick" : {
+            "description" : "Хто з команди зберіг останню зміну",
+            "example" : "автор",
+            "type" : "string"
+          },
+          "version" : {
+            "description" : "Поточна версія документа",
+            "example" : 1,
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioWorkspaceDocumentInput" : {
+        "description" : "Створення чи редагування документа авторського простору з версією.",
+        "properties" : {
+          "comment" : {
+            "description" : "Коментар до ревізії",
+            "example" : "Уточнення канону",
+            "type" : "string"
+          },
+          "content" : {
+            "description" : "Вміст документа у форматі Markdown",
+            "example" : "Опис правил магії...",
+            "type" : "string"
+          },
+          "kind" : {
+            "description" : "Вид: canon, timeline, plan, decision, status, meta, note",
+            "example" : "canon",
+            "type" : "string"
+          },
+          "title" : {
+            "description" : "Назва документа",
+            "example" : "Закони Магії",
+            "type" : "string"
+          },
+          "version" : {
+            "description" : "Поточна версія (обов'язкова для збереження змін; null при створенні). Захист від затирання (409 Conflict).",
+            "example" : 1,
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioWorkspaceDocumentSummary" : {
+        "description" : "Короткий опис документа авторського простору для списків та результатів пошуку.",
+        "properties" : {
+          "kind" : {
+            "description" : "Вид: canon, timeline, plan, decision, status, meta, note",
+            "example" : "canon",
+            "type" : "string"
+          },
+          "slug" : {
+            "description" : "Адреса документа (slug)",
+            "example" : "zakony-mahii",
+            "type" : "string"
+          },
+          "snippet" : {
+            "description" : "Короткий фрагмент тексту (сніпет) для швидкого огляду без завантаження всього документа",
+            "example" : "Мана Лукаса відчувається прохолодною...",
+            "type" : "string"
+          },
+          "title" : {
+            "description" : "Назва документа",
+            "example" : "Закони Магії",
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "description" : "Коли востаннє змінено",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "updatedByNick" : {
+            "description" : "Хто з команди зберіг останню зміну",
+            "example" : "автор",
+            "type" : "string"
+          },
+          "version" : {
+            "description" : "Поточна версія документа",
+            "example" : 1,
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioWorkspaceExport" : {
+        "description" : "Повний експорт матеріалів авторського простору.",
+        "properties" : {
+          "attachments" : {
+            "description" : "Вкладення авторського простору",
+            "items" : {
+              "$ref" : "#/components/schemas/StudioWorkspaceAttachment"
+            },
+            "type" : "array"
+          },
+          "documents" : {
+            "description" : "Документи авторського простору",
+            "items" : {
+              "$ref" : "#/components/schemas/StudioWorkspaceDocument"
+            },
+            "type" : "array"
+          },
+          "exportedAt" : {
+            "description" : "Час створення експорту",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "novel" : {
+            "description" : "Адреса новели",
+            "example" : "tvorets-mahii",
+            "type" : "string"
+          },
+          "team" : {
+            "description" : "Команда твору",
+            "example" : "avtor",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "StudioWorkspaceRevision" : {
+        "description" : "Збережена ревізія в історії документа авторського простору.",
+        "properties" : {
+          "authorNick" : {
+            "description" : "Хто зберіг ревізію",
+            "example" : "автор",
+            "type" : "string"
+          },
+          "comment" : {
+            "description" : "Коментар до ревізії",
+            "example" : "Початковий текст",
+            "type" : "string"
+          },
+          "content" : {
+            "description" : "Вміст документа на момент ревізії у форматі Markdown",
+            "type" : "string"
+          },
+          "createdAt" : {
+            "description" : "Час створення ревізії",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "description" : "Ідентифікатор ревізії",
+            "example" : 42,
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "title" : {
+            "description" : "Назва документа на момент ревізії",
+            "example" : "Закони Магії",
+            "type" : "string"
+          },
+          "version" : {
+            "description" : "Номер версії документа в цій ревізії",
+            "example" : 1,
+            "format" : "int64",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -6988,6 +7299,1128 @@
         "tags" : [ "Правки" ]
       }
     },
+    "/api/v1/studio/novels/{novel}/translations/{team}/workspace/attachments" : {
+      "get" : {
+        "description" : "Список ілюстрацій та вкладень авторського простору.",
+        "operationId" : "listWorkspaceAttachments",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Адреса документа (slug) для фільтрації вкладень",
+          "in" : "query",
+          "name" : "documentSlug",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/StudioWorkspaceAttachment"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Готово"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Список вкладень",
+        "tags" : [ "Студія: Авторський простір" ]
+      },
+      "post" : {
+        "description" : "Прикріплює зображення з «Мої картинки» до авторського простору чи окремого документа.",
+        "operationId" : "addWorkspaceAttachment",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StudioWorkspaceAttachmentInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudioWorkspaceAttachment"
+                }
+              }
+            },
+            "description" : "Готово"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Прикріпити ілюстрацію",
+        "tags" : [ "Студія: Авторський простір" ]
+      }
+    },
+    "/api/v1/studio/novels/{novel}/translations/{team}/workspace/attachments/{id}" : {
+      "delete" : {
+        "description" : "Вилучає прив'язку вкладення до авторського простору.",
+        "operationId" : "deleteWorkspaceAttachment",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Готово"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Вилучити вкладення",
+        "tags" : [ "Студія: Авторський простір" ]
+      }
+    },
+    "/api/v1/studio/novels/{novel}/translations/{team}/workspace/documents" : {
+      "get" : {
+        "description" : "Список матеріалів авторського простору сторінками або пошук за текстом і назвою. Повертає короткі сніпети для економії контексту.",
+        "operationId" : "listWorkspaceDocuments",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Вид: canon, timeline, plan, decision, status, meta, note",
+          "in" : "query",
+          "name" : "kind",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Пошуковий запит",
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Ключ наступної сторінки з попередньої відповіді (`next`)",
+          "in" : "query",
+          "name" : "after",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Скільки записів на сторінці (до 100)",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageStudioWorkspaceDocumentSummary"
+                }
+              }
+            },
+            "description" : "Готово"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Список документів та пошук",
+        "tags" : [ "Студія: Авторський простір" ]
+      }
+    },
+    "/api/v1/studio/novels/{novel}/translations/{team}/workspace/documents/{slug}" : {
+      "delete" : {
+        "description" : "Вилучає документ, його історію змін та внутрішні посилання.",
+        "operationId" : "deleteWorkspaceDocument",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Готово"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Вилучити документ",
+        "tags" : [ "Студія: Авторський простір" ]
+      },
+      "get" : {
+        "description" : "Повний текст документа у форматі Markdown, його метадані, посилання та прикріплені ілюстрації.",
+        "operationId" : "getWorkspaceDocument",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Документ авторського простору",
+        "tags" : [ "Студія: Авторський простір" ]
+      },
+      "put" : {
+        "description" : "Створення нового або збереження змін чинного документа. При збереженні обов'язково вказуйте `version` (номер поточної версії): якщо документ уже змінено іншим учасником, повертається 409 Conflict. Підтримує `Idempotency-Key` для безпечного повтору запиту після збою.",
+        "operationId" : "saveWorkspaceDocument",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Будь-який унікальний рядок до 255 знаків (напр. UUID); повтор із ним не зробить нічого вдруге",
+          "example" : "3f1c9a6e-0d4b-4a57-9a8e-2b6f1c0d7e21",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StudioWorkspaceDocumentInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudioWorkspaceDocument"
+                }
+              }
+            },
+            "description" : "Готово",
+            "headers" : {
+              "Idempotent-Replayed" : {
+                "description" : "З `Idempotency-Key`: `true` — це збережена відповідь першого такого запиту, нічого не змінено",
+                "schema" : {
+                  "example" : "true",
+                  "type" : "string"
+                },
+                "style" : "simple"
+              }
+            }
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Конфлікт паралельного редагування: документ уже змінено іншим учасником"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Створити або оновити документ",
+        "tags" : [ "Студія: Авторський простір" ]
+      }
+    },
+    "/api/v1/studio/novels/{novel}/translations/{team}/workspace/documents/{slug}/revisions" : {
+      "get" : {
+        "description" : "Список збережених ревізій документа сторінками.",
+        "operationId" : "listWorkspaceRevisions",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Ключ наступної сторінки з попередньої відповіді (`next`)",
+          "in" : "query",
+          "name" : "after",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Скільки записів на сторінці (до 100)",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageStudioWorkspaceRevision"
+                }
+              }
+            },
+            "description" : "Готово"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Історія змін документа",
+        "tags" : [ "Студія: Авторський простір" ]
+      }
+    },
+    "/api/v1/studio/novels/{novel}/translations/{team}/workspace/documents/{slug}/revisions/{revisionId}/restore" : {
+      "post" : {
+        "description" : "Повертає текст і назву документа до вказаної ревізії, створюючи нову версію.",
+        "operationId" : "restoreWorkspaceRevision",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revisionId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Будь-який унікальний рядок до 255 знаків (напр. UUID); повтор із ним не зробить нічого вдруге",
+          "example" : "3f1c9a6e-0d4b-4a57-9a8e-2b6f1c0d7e21",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudioWorkspaceDocument"
+                }
+              }
+            },
+            "description" : "Готово",
+            "headers" : {
+              "Idempotent-Replayed" : {
+                "description" : "З `Idempotency-Key`: `true` — це збережена відповідь першого такого запиту, нічого не змінено",
+                "schema" : {
+                  "example" : "true",
+                  "type" : "string"
+                },
+                "style" : "simple"
+              }
+            }
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Відновити версію документа",
+        "tags" : [ "Студія: Авторський простір" ]
+      }
+    },
+    "/api/v1/studio/novels/{novel}/translations/{team}/workspace/export" : {
+      "get" : {
+        "description" : "Повний знімок матеріалів авторського простору: усі документи з вмістом, посиланнями, метаданими та список вкладень.",
+        "operationId" : "exportWorkspace",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "novel",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "team",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudioWorkspaceExport"
+                }
+              }
+            },
+            "description" : "Готово"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Хибний запит: параметр поза межами чи застарілий ключ сторінки"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Токен недійсний: відкликаний, строк минув або хибний"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Недоступно: токену бракує потрібного права або це не дозволяє ваша роль у команді"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Немає такої новели, перекладу чи глави — або вона прихована від того, хто питає"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Забагато запитів; зачекайте стільки секунд, скільки в `Retry-After`",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Через скільки секунд можна знову",
+                "example" : "12",
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "token" : [ "studio" ]
+        } ],
+        "summary" : "Експорт матеріалів",
+        "tags" : [ "Студія: Авторський простір" ]
+      }
+    },
     "/api/v1/studio/pictures" : {
       "get" : {
         "description" : "Ваші картинки — найновіші першими.",
@@ -7397,6 +8830,9 @@
   }, {
     "description" : "Переклади, де ви в команді: глави, чернетки, публікація, «Мої картинки». Право токена — `studio`.",
     "name" : "Студія"
+  }, {
+    "description" : "Матеріали твору: канон, плани, рішення, реткони, стан роботи, вкладення та історія змін. Право токена — `studio`.",
+    "name" : "Студія: Авторський простір"
   }, {
     "description" : "Оригінал бачить лише команда; запуски автоперекладу — право токена `translate` і ваші шаги; решта — `studio`.",
     "name" : "Оригінал, автопереклад і словник"

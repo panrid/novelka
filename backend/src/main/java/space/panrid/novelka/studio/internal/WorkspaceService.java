@@ -290,6 +290,140 @@ public class WorkspaceService {
                 .execute();
     }
 
+    // ---- API v1 methods (етап 24.3, issue #331) ------------------------------------------------
+
+    public StudioApiV1.Page<StudioApiV1.WorkspaceDocumentSummary> listApiPaged(
+            long editionId, String kind, String query, String after, int limit) {
+        Condition cond = WORKSPACE_DOCUMENT.EDITION_ID.eq(editionId);
+        if (kind != null && !kind.isBlank() && !kind.equalsIgnoreCase("all")) {
+            cond = cond.and(WORKSPACE_DOCUMENT.KIND.eq(kind.toLowerCase()));
+        }
+        if (query != null && !query.isBlank()) {
+            String q = "%" + query.strip().toLowerCase() + "%";
+            cond = cond.and(DSL.lower(WORKSPACE_DOCUMENT.TITLE).like(q)
+                    .or(DSL.lower(WORKSPACE_DOCUMENT.CONTENT).like(q)));
+        }
+        Long cursorId = null;
+        if (after != null && !after.isBlank()) {
+            try {
+                cursorId = Long.parseLong(after.strip());
+            } catch (NumberFormatException e) {
+                cursorId = db.select(WORKSPACE_DOCUMENT.ID).from(WORKSPACE_DOCUMENT)
+                        .where(WORKSPACE_DOCUMENT.EDITION_ID.eq(editionId), WORKSPACE_DOCUMENT.SLUG.eq(after.strip().toLowerCase()))
+                        .fetchOne(WORKSPACE_DOCUMENT.ID);
+            }
+        }
+        if (cursorId != null) {
+            cond = cond.and(WORKSPACE_DOCUMENT.ID.lt(cursorId));
+        }
+
+        var rows = db.select(WORKSPACE_DOCUMENT.ID, WORKSPACE_DOCUMENT.SLUG, WORKSPACE_DOCUMENT.TITLE,
+                        WORKSPACE_DOCUMENT.KIND, WORKSPACE_DOCUMENT.VERSION, WORKSPACE_DOCUMENT.UPDATED_AT,
+                        ACCOUNT.NICK, WORKSPACE_DOCUMENT.CONTENT)
+                .from(WORKSPACE_DOCUMENT)
+                .leftJoin(ACCOUNT).on(ACCOUNT.ID.eq(WORKSPACE_DOCUMENT.UPDATED_BY))
+                .where(cond)
+                .orderBy(WORKSPACE_DOCUMENT.ID.desc())
+                .limit(limit)
+                .fetch();
+
+        List<StudioApiV1.WorkspaceDocumentSummary> items = rows.map(r -> new StudioApiV1.WorkspaceDocumentSummary(
+                r.value2(), r.value3(), r.value4(), r.value5(), snippet(r.value8(), query), r.value6(), r.value7()
+        ));
+        String next = rows.size() == limit ? String.valueOf(rows.getLast().value1()) : null;
+        return new StudioApiV1.Page<>(items, next);
+    }
+
+    public Optional<StudioApiV1.WorkspaceDocument> getApi(long editionId, String slug) {
+        return get(editionId, slug).map(d -> new StudioApiV1.WorkspaceDocument(
+                d.slug(), d.title(), d.kind(), d.content(), d.version(),
+                d.createdAt(), d.updatedAt(), d.updatedByNick(), d.revisionsCount(),
+                d.links(), d.attachments().stream().map(a -> new StudioApiV1.WorkspaceAttachment(
+                        a.id(), a.imageId(), a.url(), a.name(), a.description(), a.createdAt()
+                )).toList()
+        ));
+    }
+
+    @Transactional
+    public StudioApiV1.WorkspaceDocument saveApi(long editionId, String slug, String title, String kind, String content,
+            Long expectedVersion, Long accountId, String comment) {
+        DocumentDetails saved = save(editionId, slug, title, kind, content, expectedVersion, accountId, comment);
+        return getApi(editionId, saved.slug()).orElseThrow();
+    }
+
+    public StudioApiV1.Page<StudioApiV1.WorkspaceRevision> revisionsApiPaged(
+            long editionId, String slug, String after, int limit) {
+        Long docId = db.select(WORKSPACE_DOCUMENT.ID).from(WORKSPACE_DOCUMENT)
+                .where(WORKSPACE_DOCUMENT.EDITION_ID.eq(editionId), WORKSPACE_DOCUMENT.SLUG.eq(slug))
+                .fetchOne(WORKSPACE_DOCUMENT.ID);
+        if (docId == null) {
+            throw UserFacingException.notFound("Документа не знайдено.");
+        }
+        Condition cond = WORKSPACE_REVISION.DOCUMENT_ID.eq(docId);
+        if (after != null && !after.isBlank()) {
+            try {
+                long afterId = Long.parseLong(after.strip());
+                cond = cond.and(WORKSPACE_REVISION.ID.lt(afterId));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        var rows = db.select(WORKSPACE_REVISION.ID, WORKSPACE_REVISION.VERSION, WORKSPACE_REVISION.TITLE,
+                        WORKSPACE_REVISION.CONTENT, ACCOUNT.NICK, WORKSPACE_REVISION.CREATED_AT,
+                        WORKSPACE_REVISION.COMMENT)
+                .from(WORKSPACE_REVISION)
+                .leftJoin(ACCOUNT).on(ACCOUNT.ID.eq(WORKSPACE_REVISION.AUTHOR_ID))
+                .where(cond)
+                .orderBy(WORKSPACE_REVISION.ID.desc())
+                .limit(limit)
+                .fetch();
+
+        List<StudioApiV1.WorkspaceRevision> items = rows.map(r -> new StudioApiV1.WorkspaceRevision(
+                r.value1(), r.value2(), r.value3(), r.value4(), r.value5(), r.value6(), r.value7()
+        ));
+        String next = rows.size() == limit ? String.valueOf(rows.getLast().value1()) : null;
+        return new StudioApiV1.Page<>(items, next);
+    }
+
+    @Transactional
+    public StudioApiV1.WorkspaceDocument restoreRevisionApi(long editionId, String slug, long revisionId, Long accountId) {
+        DocumentDetails doc = restoreRevision(editionId, slug, revisionId, accountId);
+        return getApi(editionId, doc.slug()).orElseThrow();
+    }
+
+    public List<StudioApiV1.WorkspaceAttachment> attachmentsApi(long editionId, String documentSlug) {
+        Long docId = null;
+        if (documentSlug != null && !documentSlug.isBlank()) {
+            docId = db.select(WORKSPACE_DOCUMENT.ID).from(WORKSPACE_DOCUMENT)
+                    .where(WORKSPACE_DOCUMENT.EDITION_ID.eq(editionId), WORKSPACE_DOCUMENT.SLUG.eq(documentSlug))
+                    .fetchOne(WORKSPACE_DOCUMENT.ID);
+        }
+        return loadAttachments(editionId, docId).stream().map(a -> new StudioApiV1.WorkspaceAttachment(
+                a.id(), a.imageId(), a.url(), a.name(), a.description(), a.createdAt()
+        )).toList();
+    }
+
+    @Transactional
+    public StudioApiV1.WorkspaceAttachment addAttachmentApi(long editionId, String documentSlug, long imageId, String name, String description) {
+        if (imageId <= 0) {
+            throw UserFacingException.badRequest("Вкажіть ілюстрацію для вкладення.");
+        }
+        AttachmentItem item = addAttachment(editionId, documentSlug, imageId, name, description);
+        return new StudioApiV1.WorkspaceAttachment(item.id(), item.imageId(), item.url(), item.name(), item.description(), item.createdAt());
+    }
+
+    public StudioApiV1.WorkspaceExport exportApi(long editionId, String novel, String team) {
+        var slugs = db.select(WORKSPACE_DOCUMENT.SLUG).from(WORKSPACE_DOCUMENT)
+                .where(WORKSPACE_DOCUMENT.EDITION_ID.eq(editionId))
+                .orderBy(WORKSPACE_DOCUMENT.ID)
+                .fetch(WORKSPACE_DOCUMENT.SLUG);
+        List<StudioApiV1.WorkspaceDocument> docs = new ArrayList<>();
+        for (String slug : slugs) {
+            getApi(editionId, slug).ifPresent(docs::add);
+        }
+        List<StudioApiV1.WorkspaceAttachment> atts = attachmentsApi(editionId, null);
+        return new StudioApiV1.WorkspaceExport(novel, team, OffsetDateTime.now(), docs, atts);
+    }
+
     private void syncLinks(long editionId, long docId, String content) {
         db.deleteFrom(WORKSPACE_LINK).where(WORKSPACE_LINK.SOURCE_DOCUMENT_ID.eq(docId)).execute();
         Set<String> targets = new LinkedHashSet<>();

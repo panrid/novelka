@@ -224,6 +224,102 @@ final class StudioApiV1 {
             String language, String titleOriginal, int chapters, String role) {
     }
 
+    // ---- workspace (етап 24.3, issue #331) -----------------------------------------------------
+
+    /**
+     * A short summary of a workspace document for lists and search results.
+     */
+    @Schema(name = "StudioWorkspaceDocumentSummary", description = "Короткий опис документа авторського простору для списків та результатів пошуку.")
+    record WorkspaceDocumentSummary(
+            @Schema(description = "Адреса документа (slug)", example = "zakony-mahii") String slug,
+            @Schema(description = "Назва документа", example = "Закони Магії") String title,
+            @Schema(description = "Вид: canon, timeline, plan, decision, status, meta, note", example = "canon") String kind,
+            @Schema(description = "Поточна версія документа", example = "1") long version,
+            @Schema(description = "Короткий фрагмент тексту (сніпет) для швидкого огляду без завантаження всього документа", example = "Мана Лукаса відчувається прохолодною...") String snippet,
+            @Schema(description = "Коли востаннє змінено") OffsetDateTime updatedAt,
+            @Schema(description = "Хто з команди зберіг останню зміну", example = "автор") String updatedByNick) {
+    }
+
+    /**
+     * A complete workspace document with text, links, and attachments.
+     */
+    @Schema(name = "StudioWorkspaceDocument", description = "Повний документ авторського простору: зміст у Markdown, посилання та вкладення.")
+    record WorkspaceDocument(
+            @Schema(description = "Адреса документа (slug)", example = "zakony-mahii") String slug,
+            @Schema(description = "Назва документа", example = "Закони Магії") String title,
+            @Schema(description = "Вид: canon, timeline, plan, decision, status, meta, note", example = "canon") String kind,
+            @Schema(description = "Вміст документа у форматі Markdown", example = "Мана Лукаса відчувається прохолодною...") String content,
+            @Schema(description = "Поточна версія документа", example = "1") long version,
+            @Schema(description = "Коли створено") OffsetDateTime createdAt,
+            @Schema(description = "Коли востаннє змінено") OffsetDateTime updatedAt,
+            @Schema(description = "Хто з команди зберіг останню зміну", example = "автор") String updatedByNick,
+            @Schema(description = "Кількість ревізій в історії змін", example = "3") int revisionsCount,
+            @Schema(description = "Внутрішні посилання [[...]] на інші матеріали чи глави") List<String> links,
+            @Schema(description = "Прикріплені ілюстрації та файли") List<WorkspaceAttachment> attachments) {
+    }
+
+    /**
+     * Data to create or update a workspace document.
+     */
+    @Schema(name = "StudioWorkspaceDocumentInput", description = "Створення чи редагування документа авторського простору з версією.")
+    record WorkspaceDocumentInput(
+            @Schema(description = "Назва документа", example = "Закони Магії") String title,
+            @Schema(description = "Вид: canon, timeline, plan, decision, status, meta, note", example = "canon") String kind,
+            @Schema(description = "Вміст документа у форматі Markdown", example = "Опис правил магії...") String content,
+            @Schema(description = "Поточна версія (обов'язкова для збереження змін; null при створенні). Захист від затирання (409 Conflict).", example = "1") Long version,
+            @Schema(description = "Коментар до ревізії", example = "Уточнення канону") String comment) {
+    }
+
+    /**
+     * A saved revision of a workspace document.
+     */
+    @Schema(name = "StudioWorkspaceRevision", description = "Збережена ревізія в історії документа авторського простору.")
+    record WorkspaceRevision(
+            @Schema(description = "Ідентифікатор ревізії", example = "42") long id,
+            @Schema(description = "Номер версії документа в цій ревізії", example = "1") long version,
+            @Schema(description = "Назва документа на момент ревізії", example = "Закони Магії") String title,
+            @Schema(description = "Вміст документа на момент ревізії у форматі Markdown") String content,
+            @Schema(description = "Хто зберіг ревізію", example = "автор") String authorNick,
+            @Schema(description = "Час створення ревізії") OffsetDateTime createdAt,
+            @Schema(description = "Коментар до ревізії", example = "Початковий текст") String comment) {
+    }
+
+    /**
+     * An attachment in the workspace.
+     */
+    @Schema(name = "StudioWorkspaceAttachment", description = "Прикріплена ілюстрація чи файл авторського простору.")
+    record WorkspaceAttachment(
+            @Schema(description = "Ідентифікатор вкладення", example = "10") long id,
+            @Schema(description = "Ідентифікатор картинки в системі", example = "123") long imageId,
+            @Schema(description = "Адреса для перегляду картинки", example = "/api/media/images/123/original.webp") String url,
+            @Schema(description = "Назва вкладення", example = "Мапа світу") String name,
+            @Schema(description = "Опис або підпис", example = "Головний материк") String description,
+            @Schema(description = "Час прикріплення") OffsetDateTime createdAt) {
+    }
+
+    /**
+     * Input to add an attachment.
+     */
+    @Schema(name = "StudioWorkspaceAttachmentInput", description = "Прикріплення ілюстрації до авторського простору.")
+    record WorkspaceAttachmentInput(
+            @Schema(description = "Ідентифікатор зображення (з «Мої картинки»)", example = "123") long imageId,
+            @Schema(description = "Назва вкладення", example = "Мапа світу") String name,
+            @Schema(description = "Опис або підпис", example = "Головний материк") String description,
+            @Schema(description = "Адреса документа (slug), якщо вкладення стосується окремого документа", example = "karta-svitu") String documentSlug) {
+    }
+
+    /**
+     * Full export of workspace materials.
+     */
+    @Schema(name = "StudioWorkspaceExport", description = "Повний експорт матеріалів авторського простору.")
+    record WorkspaceExport(
+            @Schema(description = "Адреса новели", example = "tvorets-mahii") String novel,
+            @Schema(description = "Команда твору", example = "avtor") String team,
+            @Schema(description = "Час створення експорту") OffsetDateTime exportedAt,
+            @Schema(description = "Документи авторського простору") List<WorkspaceDocument> documents,
+            @Schema(description = "Вкладення авторського простору") List<WorkspaceAttachment> attachments) {
+    }
+
     // ---- conversions ------------------------------------------------------------------------------
 
     static List<TextBlock> blocks(List<Block> blocks, Map<Long, StoredImage> pictures) {
