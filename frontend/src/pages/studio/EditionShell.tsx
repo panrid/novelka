@@ -9,7 +9,7 @@ import { useEditionId } from './EditionPage';
 import styles from './editionShell.module.css';
 import { Loading } from '../../ui/Loading';
 
-export type EditionTab = 'overview' | 'chapters' | 'originals' | 'translate' | 'words' | 'suggestions' | 'settings';
+export type EditionTab = 'overview' | 'chapters' | 'workspace' | 'originals' | 'translate' | 'words' | 'suggestions' | 'settings';
 
 const KIND_LABELS: Record<string, string> = {
     machine: 'машинний переклад', mixed: 'машинний з правками', human: 'переклад', original: 'власний твір',
@@ -73,6 +73,7 @@ export function EditionShell({ tab, children }: { tab: EditionTab; children: Rea
             <nav className={styles.tabs} aria-label="Розділи перекладу">
                 {item('overview', 'Огляд', '/studio/$editionId')}
                 {item('chapters', 'Глави', '/studio/$editionId/chapters')}
+                {item('workspace', 'Матеріали', '/studio/$editionId/workspace')}
                 {shown.originals && item('originals', 'Оригінал', '/studio/$editionId/originals')}
                 {shown.translate && item('translate', 'Автопереклад', '/studio/$editionId/translate')}
                 {shown.words && item('words', <>Словник{edition.newWords > 0 && <span className={styles.count}>{edition.newWords}</span>}</>, '/studio/$editionId/glossary')}
