@@ -339,7 +339,8 @@ final class StudioApiV1 {
             @Schema(description = "Назва документа", example = "Мана та Закони Магії") String title,
             @Schema(description = "Вид: canon, timeline, plan, decision, status, meta, note", example = "canon") String kind,
             @Schema(description = "Вміст документа у форматі Markdown") String content,
-            @Schema(description = "Коментар до ревізії", example = "Імпорт із репозиторію") String comment) {
+            @Schema(description = "Коментар до ревізії", example = "Імпорт із репозиторію") String comment,
+            @Schema(description = "Поточна версія документа, обов’язкова для заміни наявного тексту") Long version) {
     }
 
     /**

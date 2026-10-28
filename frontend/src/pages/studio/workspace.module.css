@@ -71,6 +71,13 @@
 }
 
 .docItem {
+    display: block;
+    width: 100%;
+    color: inherit;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    font: inherit;
     padding: 10px 14px;
     border-bottom: 1px solid var(--line);
     cursor: pointer;

@@ -247,7 +247,7 @@ class WorkspaceApiTests {
         long rev1Id = revisions.path("items").get(2).path("id").asLong();
 
         // Restore to Rev 1
-        Reply restored = post(work.base() + "/documents/hronika/revisions/" + rev1Id + "/restore", studioToken, null);
+        Reply restored = post(work.base() + "/documents/hronika/revisions/" + rev1Id + "/restore?version=3", studioToken, null);
         assertThat(restored.status()).isEqualTo(200);
 
         JsonNode current = read(get(work.base() + "/documents/hronika", studioToken));

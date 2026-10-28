@@ -19,7 +19,7 @@
 
 const SHELL_CACHE = 'novelka-shell-v1';
 const ASSET_CACHE = 'novelka-assets-v1';
-const API_CACHE = 'novelka-api-v1';
+const API_CACHE = 'novelka-api-v2';
 const KEPT = [SHELL_CACHE, ASSET_CACHE, API_CACHE];
 const SHELL_URL = '/index.html';
 const STATIC_FILES = ['/appearance-boot.js', '/favicon.svg', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png',
@@ -100,12 +100,21 @@ function refreshShell() {
     return keepShell().catch(() => undefined);
 }
 
+function mayKeepApi(response) {
+    return response.ok && response.type === 'basic' && response.headers.get('X-Novelka-Private') !== 'true';
+}
+
 async function fromNetworkOrCache(event) {
     const { request } = event;
     const cache = await caches.open(API_CACHE);
     const network = fetch(request).then(async (response) => {
+        // Private text is never retained offline. Access refusals invalidate older public copies too.
+        if (response.headers.get('X-Novelka-Private') === 'true' || [401, 403, 404].includes(response.status)) {
+            await cache.delete(request);
+            return response;
+        }
         // Only a full, successful answer is kept; an error page never replaces a good copy.
-        if (response.ok && response.type === 'basic') {
+        if (mayKeepApi(response)) {
             const pathname = new URL(request.url).pathname;
             const chapter = apiRule(pathname) === 'chapter';
             await cache.put(request, response.clone());

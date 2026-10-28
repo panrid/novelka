@@ -296,8 +296,16 @@ class PictureLibrary {
     }
 
     private static Condition mine(long accountId) {
-        return IMAGE.OWNER_ACCOUNT_ID.eq(accountId).and(IMAGE.KIND.eq("illustration"))
+        Condition mine = IMAGE.OWNER_ACCOUNT_ID.eq(accountId).and(IMAGE.KIND.eq("illustration"))
                 .and(IMAGE.REMOVED_AT.isNull()).and(IMAGE.HIDDEN_AT.isNull());
+        Long only = space.panrid.novelka.access.Visibility.tokenEdition();
+        if (only == null) {
+            return mine;
+        }
+        return mine.and(IMAGE.WORKSPACE_EDITION_ID.eq(only).or(DSL.exists(DSL.selectOne().from(REVISION)
+                .join(CHAPTER).on(CHAPTER.ID.eq(REVISION.CHAPTER_ID))
+                .where(CHAPTER.EDITION_ID.eq(only), DSL.condition("{0} @> jsonb_build_array(jsonb_build_object('imageId', {1}))",
+                        REVISION.BLOCKS, IMAGE.ID)))));
     }
 
     /** Ids of pictures in any published chapter. */
@@ -321,7 +329,9 @@ class PictureLibrary {
                         .join(EDITION).on(EDITION.ID.eq(CHAPTER.EDITION_ID))
                         .join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)),
                         DSL.table("jsonb_array_elements({0}) b", REVISION.BLOCKS))
-                .where(DSL.condition("b->>'type' = 'image'").and(DSL.field("b->>'imageId'", String.class).in(wanted)))
+                .where(DSL.condition("b->>'type' = 'image'").and(DSL.field("b->>'imageId'", String.class).in(wanted)),
+                        space.panrid.novelka.access.Visibility.tokenEdition() == null ? DSL.noCondition()
+                                : CHAPTER.EDITION_ID.eq(space.panrid.novelka.access.Visibility.tokenEdition()))
                 .orderBy(CHAPTER.EDITION_ID, CHAPTER.NUMBER)
                 .fetchGroups(r -> r.value1(), r -> new Use(r.value2(), r.value3(), r.value4(), r.value5()));
     }

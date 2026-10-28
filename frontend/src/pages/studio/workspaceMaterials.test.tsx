@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { studioApi, type DocumentDetails } from '../../studio/api';
 import { renderAt } from '../../test/render';
 
 const ME = {
@@ -125,13 +126,48 @@ describe('Workspace materials in Studio', () => {
         expect(await screen.findByRole('alert')).toBeInTheDocument();
         expect(screen.getByText(/Конфлікт версій/)).toBeInTheDocument();
 
-        // Resolve by forcing overwrite
-        const overwriteBtn = screen.getByRole('button', { name: 'Перезаписати своєю версією' });
-        await userEvent.click(overwriteBtn);
+        // Keep the user's text; never bypass the server version check by sending null.
+        expect(screen.getByRole('button', { name: 'Завантажити мій текст' })).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Закони Магії та Світла')).toBeInTheDocument();
+        expect(savedTitle).toBe('');
+    });
 
-        await waitFor(() => {
-            expect(savedTitle).toBe('Закони Магії та Світла');
+    it('ignores a late response from the previously selected document', async () => {
+        await renderAt('/studio/10/workspace', {
+            'GET /api/me': { body: ME },
+            'GET /api/studio/editions/10': { body: OVERVIEW },
+            'GET /api/studio/editions/10/workspace/documents': { body: DOCS },
+            'GET /api/studio/editions/10/workspace/attachments': { body: [] },
         });
+        let release!: (doc: DocumentDetails) => void;
+        const pending = new Promise<DocumentDetails>((resolve) => { release = resolve; });
+        const spy = vi.spyOn(studioApi, 'workspaceDocument').mockImplementation(async (_id, slug) =>
+            slug === 'stan-roboty' ? pending : DOC_DETAILS);
+        try {
+            await userEvent.click(await screen.findByText('00_Стан роботи'));
+            await userEvent.click(screen.getByText('Мана та Закони Магії'));
+            expect(await screen.findByDisplayValue(DOC_DETAILS.content)).toBeInTheDocument();
+            release({ ...DOC_DETAILS, slug: 'stan-roboty', title: '00_Стан роботи', content: 'Застаріла відповідь' });
+            await waitFor(() => expect(screen.queryByDisplayValue('Застаріла відповідь')).not.toBeInTheDocument());
+            expect(screen.getByDisplayValue(DOC_DETAILS.content)).toBeInTheDocument();
+        } finally { spy.mockRestore(); }
+    });
+
+    it('uploads an illustration into the private workspace from the site', async () => {
+        let attachment: unknown;
+        await renderAt('/studio/10/workspace', {
+            'GET /api/me': { body: ME },
+            'GET /api/studio/editions/10': { body: OVERVIEW },
+            'GET /api/studio/editions/10/workspace/documents': { body: DOCS },
+            'GET /api/studio/editions/10/workspace/attachments': { body: [] },
+            'POST /api/media/images': { body: { id: 77, url: '/media/private.jpg' } },
+            'POST /api/studio/editions/10/workspace/attachments': (body) => {
+                attachment = body;
+                return { body: { id: 9, imageId: 77, name: 'map.png', url: '/media/private.jpg' } };
+            },
+        });
+        await userEvent.upload(await screen.findByLabelText('Додати ілюстрації'), new File(['test'], 'map.png', { type: 'image/png' }));
+        await waitFor(() => expect(attachment).toEqual({ imageId: 77, name: 'map.png' }));
     });
 
     it('shows revision history and allows restoring an earlier version', async () => {

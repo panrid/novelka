@@ -84,6 +84,65 @@ class ImageService implements Images {
     }
 
     @Override
+    public void requireUsable(long imageId, long editionId, Long accountId) {
+        var image = db.select(IMAGE.OWNER_ACCOUNT_ID, IMAGE.WORKSPACE_EDITION_ID, IMAGE.KIND)
+                .from(IMAGE).where(IMAGE.ID.eq(imageId), IMAGE.HIDDEN_AT.isNull()).fetchOptional();
+        if (image.isEmpty() || !java.util.Set.of("illustration", "cover").contains(image.get().value3())) {
+            throw UserFacingException.notFound("Такої картинки немає.");
+        }
+        Long bound = image.get().value2();
+        if (bound != null && bound != editionId) {
+            throw UserFacingException.badRequest("Ця картинка належить іншому авторському простору. Завантажте окрему копію.");
+        }
+        Long only = tokenEdition();
+        if (only != null) {
+            var revision = space.panrid.novelka.jooq.Tables.REVISION;
+            var chapter = space.panrid.novelka.jooq.Tables.CHAPTER;
+            var edition = space.panrid.novelka.jooq.Tables.EDITION;
+            boolean elsewhere = db.fetchExists(org.jooq.impl.DSL.selectOne().from(revision)
+                    .join(chapter).on(chapter.ID.eq(revision.CHAPTER_ID)).join(edition).on(edition.ID.eq(chapter.EDITION_ID))
+                    .where(edition.ID.ne(only), edition.VISIBILITY.eq("private"),
+                            org.jooq.impl.DSL.condition("{0} @> {1}::jsonb", revision.BLOCKS,
+                                    org.jooq.impl.DSL.val("[{\"imageId\":" + imageId + "}]"))));
+            if (only != editionId || elsewhere) {
+                throw UserFacingException.notFound("Ця картинка недоступна цьому токену.");
+            }
+        }
+        boolean owner = java.util.Objects.equals(image.get().value1(), accountId);
+        // Team editors may retain illustrations already in this edition, not claim an arbitrary id.
+        boolean existing = db.fetchExists(org.jooq.impl.DSL.selectOne()
+                .from(space.panrid.novelka.jooq.Tables.REVISION)
+                .join(space.panrid.novelka.jooq.Tables.CHAPTER).on(space.panrid.novelka.jooq.Tables.CHAPTER.ID
+                        .eq(space.panrid.novelka.jooq.Tables.REVISION.CHAPTER_ID))
+                .where(space.panrid.novelka.jooq.Tables.CHAPTER.EDITION_ID.eq(editionId),
+                        org.jooq.impl.DSL.condition("{0} @> {1}::jsonb", space.panrid.novelka.jooq.Tables.REVISION.BLOCKS,
+                                org.jooq.impl.DSL.val("[{\"imageId\":" + imageId + "}]"))));
+        if (!owner && !java.util.Objects.equals(bound, editionId) && !existing) {
+            throw UserFacingException.notFound("Ця картинка вам недоступна.");
+        }
+    }
+
+    private static Long tokenEdition() {
+        if (org.springframework.web.context.request.RequestContextHolder.getRequestAttributes()
+                instanceof org.springframework.web.context.request.ServletRequestAttributes request) {
+            return space.panrid.novelka.platform.security.TokenGrant.edition(request.getRequest());
+        }
+        return null;
+    }
+
+    @Override
+    @Transactional
+    public void bindWorkspace(long imageId, long editionId, long accountId) {
+        requireUsable(imageId, editionId, accountId);
+        int changed = db.update(IMAGE).set(IMAGE.RESTRICTED, true).set(IMAGE.WORKSPACE_EDITION_ID, editionId)
+                .where(IMAGE.ID.eq(imageId), IMAGE.WORKSPACE_EDITION_ID.isNull().or(IMAGE.WORKSPACE_EDITION_ID.eq(editionId)))
+                .execute();
+        if (changed != 1) {
+            throw UserFacingException.conflict("Картинку вже прикріпили до іншого авторського простору.");
+        }
+    }
+
+    @Override
     public void hide(long imageId, long moderatorId, String reason) {
         db.update(IMAGE).set(IMAGE.HIDDEN_AT, org.jooq.impl.DSL.currentOffsetDateTime()).set(IMAGE.HIDDEN_BY, moderatorId)
                 .set(IMAGE.HIDDEN_REASON, reason).where(IMAGE.ID.eq(imageId), IMAGE.HIDDEN_AT.isNull()).execute();
@@ -106,10 +165,14 @@ class ImageService implements Images {
             storage.write(key, variant.bytes());
             keys.put(variant.width(), key);
         }
+        String originalKey = base + "-original.bin";
+        storage.write(originalKey, content);
         long id = db.insertInto(IMAGE)
                 .set(IMAGE.OWNER_ACCOUNT_ID, ownerAccountId)
                 .set(IMAGE.KIND, kind.code())
+                .set(IMAGE.RESTRICTED, kind == ImageKind.ILLUSTRATION || kind == ImageKind.COVER)
                 .set(IMAGE.VARIANTS, JSONB.valueOf(json.writeValueAsString(keys)))
+                .set(IMAGE.ORIGINAL_KEY, originalKey)
                 .set(IMAGE.MIME, processed.mime())
                 .set(IMAGE.WIDTH, processed.width())
                 .set(IMAGE.HEIGHT, processed.height())
@@ -117,7 +180,7 @@ class ImageService implements Images {
                 .returning(IMAGE.ID)
                 .fetchOne(IMAGE.ID);
         // Every file's key leads back to its picture: /media/ checks private ones (етап 24.1).
-        for (String key : keys.values()) {
+        for (String key : java.util.stream.Stream.concat(keys.values().stream(), java.util.stream.Stream.of(originalKey)).toList()) {
             db.insertInto(space.panrid.novelka.jooq.Tables.IMAGE_FILE)
                     .set(space.panrid.novelka.jooq.Tables.IMAGE_FILE.KEY, key)
                     .set(space.panrid.novelka.jooq.Tables.IMAGE_FILE.IMAGE_ID, id)
@@ -156,6 +219,13 @@ class ImageService implements Images {
                     return storage.read(key).map(bytes -> new space.panrid.novelka.media.ImageFile(bytes,
                             png ? "image/png" : "image/jpeg", png ? "png" : "jpg"));
                 });
+    }
+
+    @Override
+    public Optional<byte[]> original(long imageId) {
+        String key = db.select(IMAGE.ORIGINAL_KEY).from(IMAGE).where(IMAGE.ID.eq(imageId), IMAGE.HIDDEN_AT.isNull())
+                .fetchOne(IMAGE.ORIGINAL_KEY);
+        return key == null ? file(imageId, Integer.MAX_VALUE).map(space.panrid.novelka.media.ImageFile::content) : storage.read(key);
     }
 
     @Override

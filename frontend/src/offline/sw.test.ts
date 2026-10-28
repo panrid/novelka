@@ -1,19 +1,25 @@
 import source from '../../public/sw.js?raw';
 
 type Rules = {
+    mayKeepApi: (response: { ok: boolean; type: string; headers: Headers }) => boolean;
     apiRule: (pathname: string) => 'chapter' | 'other' | null;
     route: (request: { method: string; url: string; mode?: string; headers: Headers }, origin: string) => string | null;
     shellAssets: (html: string) => string[];
 };
 
 /** The service worker's own functions, without a service worker around them. */
-const rules = new Function('self', `${source}\nreturn { apiRule, route, shellAssets };`)({ addEventListener: () => {} }) as Rules;
+const rules = new Function('self', `${source}\nreturn { apiRule, route, shellAssets, mayKeepApi };`)({ addEventListener: () => {} }) as Rules;
 
 const ORIGIN = 'https://novelka.in.ua';
 const request = (path: string, method = 'GET', mode = 'cors', headers: Record<string, string> = {}) =>
     ({ method, url: ORIGIN + path, mode, headers: new Headers(headers) });
 
 describe('the service worker', () => {
+    it('never caches a private response even when it is successful', () => {
+        expect(rules.mayKeepApi({ ok: true, type: 'basic', headers: new Headers() })).toBe(true);
+        expect(rules.mayKeepApi({ ok: true, type: 'basic', headers: new Headers({ 'X-Novelka-Private': 'true' }) })).toBe(false);
+    });
+
     it('keeps what the reader needs offline', () => {
         expect(rules.apiRule('/api/novels/mah-vody/chapters/12')).toBe('chapter');
         for (const path of ['/api/novels/mah-vody', '/api/novels/mah-vody/hints', '/api/novels/mah-vody/terms', '/api/library', '/api/home', '/api/me']) {

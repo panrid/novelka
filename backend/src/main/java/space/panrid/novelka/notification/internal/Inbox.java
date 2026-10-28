@@ -29,13 +29,15 @@ class Inbox {
     private static final int PAGE = 20;
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() { };
 
+    private final space.panrid.novelka.access.PublicationNotices publicationNotices;
     private final DSLContext db;
     private final JsonMapper json;
     private final LiveEvents live;
     private final ApplicationEventPublisher events;
     private final NotificationChoices choices;
 
-    Inbox(DSLContext db, JsonMapper json, LiveEvents live, ApplicationEventPublisher events, NotificationChoices choices) {
+    Inbox(DSLContext db, JsonMapper json, LiveEvents live, ApplicationEventPublisher events, NotificationChoices choices, space.panrid.novelka.access.PublicationNotices publicationNotices) {
+        this.publicationNotices = publicationNotices;
         this.db = db;
         this.json = json;
         this.live = live;
@@ -61,6 +63,9 @@ class Inbox {
     }
 
     void add(long recipientId, String kind, Map<String, Object> payload) {
+        if (!publicationNotices.allowed(recipientId, payload)) {
+            return;
+        }
         if (offSite(recipientId, kind)) {
             events.publishEvent(new NotificationAdded(recipientId, kind, new java.util.HashMap<>(payload)));
             return;
@@ -76,6 +81,9 @@ class Inbox {
      * the reader has not seen yet instead of piling up.
      */
     void addGrouped(long recipientId, String kind, String groupKey, Map<String, Object> payload, int first, int last) {
+        if (!publicationNotices.allowed(recipientId, payload)) {
+            return;
+        }
         Map<String, Object> fresh = new java.util.HashMap<>(payload);
         fresh.put("first", first);
         fresh.put("last", last);
@@ -98,7 +106,7 @@ class Inbox {
      */
     void addGroupedToMany(List<Long> recipientIds, String kind, String groupKey, Map<String, Object> payload) {
         Set<Long> off = choices.offSite(recipientIds, NotificationChoices.Topic.of(kind));
-        List<Long> told = recipientIds.stream().filter(id -> !off.contains(id)).toList();
+        List<Long> told = recipientIds.stream().filter(id -> !off.contains(id) && publicationNotices.allowed(id, payload)).toList();
         if (told.isEmpty()) {
             return;
         }
@@ -132,6 +140,9 @@ class Inbox {
 
     /** One unread row per group whose «count» grows: suggestions sent to a team one batch after another. */
     void addCounted(long recipientId, String kind, String groupKey, Map<String, Object> payload, int count) {
+        if (!publicationNotices.allowed(recipientId, payload)) {
+            return;
+        }
         Map<String, Object> fresh = new java.util.HashMap<>(payload);
         fresh.put("count", count);
         if (offSite(recipientId, kind)) {
@@ -175,7 +186,8 @@ class Inbox {
      */
     Page page(long recipientId, int page, boolean archived, String group) {
         int at = Math.max(1, page);
-        Condition mine = NOTIFICATION.RECIPIENT_ID.eq(recipientId);
+        Condition mine = NOTIFICATION.RECIPIENT_ID.eq(recipientId)
+                .and(space.panrid.novelka.access.PublicationNotices.visible(NOTIFICATION.PAYLOAD, NOTIFICATION.RECIPIENT_ID));
         Condition shelf = archived ? NOTIFICATION.ARCHIVED_AT.isNotNull() : NOTIFICATION.ARCHIVED_AT.isNull();
         List<String> kinds = group == null ? null : GROUPS.get(group);
         Condition filter = kinds == null ? DSL.noCondition() : NOTIFICATION.KIND.in(kinds);
@@ -204,7 +216,8 @@ class Inbox {
 
     int unread(long recipientId) {
         return db.fetchCount(NOTIFICATION, NOTIFICATION.RECIPIENT_ID.eq(recipientId)
-                .and(NOTIFICATION.READ_AT.isNull()).and(NOTIFICATION.ARCHIVED_AT.isNull()));
+                .and(NOTIFICATION.READ_AT.isNull()).and(NOTIFICATION.ARCHIVED_AT.isNull())
+                .and(space.panrid.novelka.access.PublicationNotices.visible(NOTIFICATION.PAYLOAD, NOTIFICATION.RECIPIENT_ID)));
     }
 
     /** Everything up to {@code upTo} (or everything) counts as seen. */

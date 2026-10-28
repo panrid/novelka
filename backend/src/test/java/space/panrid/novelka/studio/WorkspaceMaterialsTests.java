@@ -196,7 +196,7 @@ class WorkspaceMaterialsTests {
         long rev1Id = revisions.get(2).path("id").asLong();
 
         // Restore version 1
-        JsonNode restored = read(author.browser().post(base + "/retkony/revisions/" + rev1Id + "/restore", "{}"));
+        JsonNode restored = read(author.browser().post(base + "/retkony/revisions/" + rev1Id + "/restore?version=3", "{}"));
         assertThat(restored.path("version").asLong()).isEqualTo(4);
         assertThat(restored.path("content").asString()).isEqualTo("Версія 1: початкові правила.");
     }
