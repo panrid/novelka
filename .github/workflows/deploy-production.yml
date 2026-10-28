@@ -134,6 +134,10 @@ jobs:
                   cache-dependency-path: frontend/package-lock.json
             - run: npm ci --no-audit --no-fund
               working-directory: frontend
+            - name: Check local k3s deployment scripts
+              run: |
+                  bash -n infra/deploy.sh infra/deploy-entrypoint.sh infra/setup-deploy.sh
+                  sudo python3 infra/tests/deploy.py
             - name: Build JAR with the site inside
               run: ./gradlew :backend:bootJar --no-daemon
             # The server puts each page's title and text into these two places (SearchPages); backend tests use a stand-in.
@@ -147,7 +151,7 @@ jobs:
                   retention-days: 14
 
     deploy:
-        name: Deploy to VPS
+        name: Deploy to local k3s
         needs: [find, backend, frontend, package]
         # Either the JAR checked in a pull request, or the build of this run with each check green
         # or skipped on purpose (nothing of its part changed); red, cancelled or skipped otherwise stops it.
@@ -158,12 +162,12 @@ jobs:
                     && (needs.backend.result == 'success' || (needs.backend.result == 'skipped' && needs.find.outputs.backend == 'false'))
                     && (needs.frontend.result == 'success' || (needs.frontend.result == 'skipped' && needs.find.outputs.frontend == 'false')))) }}
         runs-on: ubuntu-latest
-        timeout-minutes: 15
+        timeout-minutes: 30
         environment: production
         permissions:
             contents: read
             actions: read
-        # A newer push waits for the running deploy instead of interrupting Docker Compose midway.
+        # A newer push waits for the running deploy instead of interrupting the local k3s rollout midway.
         concurrency:
             group: production
             cancel-in-progress: false
@@ -199,19 +203,22 @@ jobs:
                       echo '::warning::DEPLOY_KNOWN_HOSTS is not set; trusting the host key offered right now.'
                       ssh-keyscan -4 -T 15 -H "$DEPLOY_HOST" > ~/.ssh/known_hosts
                   fi
-            - name: Upload release
+            - name: Upload release to the k3s server
               env:
                   TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
               run: |
-                  ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p /opt/novelka/app /opt/novelka/infra'
-                  scp -i ~/.ssh/deploy release/novelka.jar backend/Dockerfile "$TARGET:/opt/novelka/app/"
-                  scp -i ~/.ssh/deploy infra/production.compose.yaml infra/dev.compose.yaml infra/Caddyfile infra/deploy.sh infra/deploy-dev.sh "$TARGET:/opt/novelka/infra/"
-            - name: Restart
+                  # Each commit has its own directory; no running JAR or Compose files are overwritten.
+                  release="/srv/novelka-releases/$GITHUB_SHA"
+                  ssh -n -o BatchMode=yes -o ConnectTimeout=15 -i ~/.ssh/deploy "$TARGET" "mkdir -p '$release/infra'"
+                  scp -o BatchMode=yes -o ConnectTimeout=15 -i ~/.ssh/deploy release/novelka.jar backend/Dockerfile "$TARGET:$release/"
+                  scp -o BatchMode=yes -o ConnectTimeout=15 -i ~/.ssh/deploy infra/deploy.sh "$TARGET:$release/infra/"
+                  scp -r -o BatchMode=yes -o ConnectTimeout=15 -i ~/.ssh/deploy infra/k8s "$TARGET:$release/infra/"
+            - name: Build locally, import into k3s and roll out
               env:
                   TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
               run: |
-                  # The new version starts beside the old one; the old stops once the new answers (infra/deploy.sh).
-                  ssh -i ~/.ssh/deploy "$TARGET" 'sh /opt/novelka/infra/deploy.sh'
+                  # Dedicated deployment account; no password is stored in CI.
+                  ssh -n -o BatchMode=yes -o ConnectTimeout=15 -i ~/.ssh/deploy "$TARGET" "sudo -n /usr/local/sbin/novelka-deploy '$GITHUB_SHA'"
             - name: Check the app and its database
               run: |
                   curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors \

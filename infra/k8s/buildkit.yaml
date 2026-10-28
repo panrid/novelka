@@ -1,0 +1,25 @@
+# Temporary image builder; removed after import into the local k3s containerd.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "@BUILDER@"
+  namespace: novelka-prod
+  labels:
+    app: novelka-image-builder
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  activeDeadlineSeconds: 600
+  containers:
+    - name: buildkit
+      image: moby/buildkit:v0.24.0
+      command: [sh, -c, "sleep infinity"]
+      securityContext:
+        privileged: true
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: "1"
+          memory: 2Gi

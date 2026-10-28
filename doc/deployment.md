@@ -1,279 +1,156 @@
 # Деплой
 
-Прод — VPS `62.72.33.247`, адреса `https://novelka.in.ua`. На сервері в
-`/opt/novelka`: `.env.production` (секрети, лише на сервері), `app/` (JAR і Dockerfile),
-`infra/` (`production.compose.yaml`, `Caddyfile`). Compose-проєкт `novelka`: PostgreSQL,
-застосунок і Caddy (HTTPS, сертифікати сам).
+## Робочий сервер
 
-## Адреси
+З 2026-10-28 сайт працює в однонодовому **k3s** на `62.72.33.247`
+(`srv1581547`), на тому самому сервері, де розміщене оточення розробки.
+Адреса — `https://novelka.in.ua`, Студія — `/studio`.
 
-DNS (у реєстратора `novelka.in.ua`): A-записи `@`, `www`, `dev` → `62.72.33.247`. Caddy
-(`infra/Caddyfile`):
+У просторі імен `novelka-prod`:
 
-| Адреса | Що робить |
+| Ресурс | Призначення |
 |---|---|
-| `novelka.in.ua` | сайт; Студія — `/studio` |
-| `www.novelka.in.ua`, `novelka.panrid.space` | 301 на `https://novelka.in.ua` з тим самим шляхом і параметрами |
-| `dev.novelka.in.ua` | тестовий сайт із `X-Robots-Tag: noindex, nofollow`, власна база `dev_novelka` |
+| Deployment і Service `novelka` | застосунок на порту 8080 |
+| StatefulSet і Service `postgres` | PostgreSQL 17 |
+| PVC `postgres-data-postgres-0` | робоча база, 10 GiB |
+| PVC `novelka-media` | картинки й інші завантаження, 5 GiB |
+| Secret `postgres-auth` | пароль бази, ключ `NOVELKA_DB_PASSWORD` |
+| Secret `novelka-config` | ключі ШІ, Google, Telegram і налаштування пошти |
+| Ingress `novelka` | Traefik, HTTPS і Let's Encrypt |
 
-Усі посилання, які будує застосунок (листи, `sitemap.xml`, `robots.txt`, canonical і превʼю,
-EPUB, Telegram, адреса повернення Google), беруться з `NOVELKA_PUBLIC_URL`; за замовчуванням у
-`production.compose.yaml` — `https://novelka.in.ua`, у `.env.production` її не задаємо. Вебхук
-Telegram застосунок ставить сам на `<адреса>/api/telegram/webhook` під час запуску.
+Дані вже перенесені. Звичайний деплой **не створює й не перевстановлює** PostgreSQL,
+PVC, Secret або Traefik. Маніфести початкового перенесення лежать на сервері в
+`/srv/novelka/k8s/`; секрети в репозиторій не потрапляють.
 
-Google Cloud Console, OAuth-клієнт: «Authorized JavaScript origins» — `https://novelka.in.ua`,
-«Authorized redirect URIs» — `https://novelka.in.ua/login/oauth2/code/google`; у «OAuth consent
-screen» серед дозволених доменів — `novelka.in.ua`.
-
-Змінюючи адресу ще раз: спершу Caddy має отримати сертифікат нової (тимчасово обслуговувати
-обидві, `caddy reload`), і лише потім вмикати 301 — інакше за старими посиланнями кілька секунд
-буде помилка TLS. Сесії й те, що гості зберегли в браузері (місце читання, вигляд), прив'язані
-до адреси: після переїзду всі входять знову.
+Образи імпортуються без реєстру в локальний containerd k3s. Тому сценарій навмисно
+відмовляється працювати, якщо в кластері більше однієї ноди. Перед розширенням кластера
+потрібно окремо спроєктувати доставку образів і спільне сховище медіа.
 
 ## Як іде деплой
 
-Push у `main` → `.github/workflows/deploy-production.yml`. Коміт лише з документами (`doc/**`,
-`*.md`) конвеєра не запускає.
+Push у `main` запускає `.github/workflows/deploy-production.yml`; самі документи — ні.
+Тести й збірка JAR залишаються на GitHub-hosted runner. Вибір перевірок від останнього
+успішного деплою (`.github/scripts/changes.sh`) і повторне використання перевіреного JAR
+із pull request збережені. Червоні перевірки блокують деплой.
 
-1. Паралельно тести бекенду (з PostgreSQL через Testcontainers), фронтенду (`npm run check`)
-   і збірка `novelka.jar` із сайтом усередині. Перевіряється лише змінене від останнього
-   успішного деплою (`.github/scripts/changes.sh`), а не від попереднього push: зміна, чиї тести
-   впали, на сервер не потрапила й перевіряється знову.
-   - Лише `frontend/` — без тестів бекенду (у журналі «Лише інтерфейс: тести бекенду пропущено»).
-   - Лише `backend/` — без `npm run check` («Лише бекенд: перевірки інтерфейсу пропущено»).
-   - Решта — обидві перевірки: зміни в обох, `frontend/index.html` (його заповнює сервер для
-     пошуковиків і превʼю, `SearchPages`), `backend/build.gradle` (збирає сайт у JAR), `build.gradle`,
-     `settings.gradle`, `gradle/`, `infra/`, `.github/`, корінь, а також запуск вручну, перший
-     деплой і коли порівняти не вдалося. Документи в рахунок не йдуть.
-   - Збірка JAR перевіряє, що в зібраному `index.html` є `<title>Новелка</title>` і
-     `<div id="root"></div>`, куди сервер вставляє заголовок і текст сторінки.
-2. Лише коли збірка й потрібні перевірки зелені (непотрібні — пропущені), цей JAR копіюється на сервер, і `infra/deploy.sh` міняє версії
-   без перерви: нова запускається поруч зі старою, а стара зупиняється, лише коли нова відповідає на
-   `/api/health`. Перед зупинкою стара дочікується відповіді моделі, яка вже йде (до 180 с),
-   і автопереклад продовжує нова. Якщо нова так і не запрацювала, її прибирають, а сайт
-   лишається на старій. Потім перевірка `/api/health` і головної.
+1. Перевірений `novelka.jar`, `backend/Dockerfile`, `infra/deploy.sh` і `infra/k8s/`
+   доставляються через SSH у `/srv/novelka-releases/<повний SHA коміту>/`.
+2. На сервері `infra/deploy.sh` перевіряє готовність ноди, наявність базових ресурсів
+   і коректність маніфестів через server-side dry-run.
+3. Тимчасовий pod BuildKit збирає образ **локально**, лише з JAR і Dockerfile.
+   Йому потрібен `privileged` для роботи BuildKit; токена service account і томів сайту в нього немає.
+   Ліміти — 1 CPU і 2 GiB RAM, час життя — до 10 хвилин.
+4. Образ `docker.io/library/novelka:<SHA>` імпортується в namespace `k8s.io` containerd.
+   BuildKit видаляється. Образ не публікується в Docker Hub; `imagePullPolicy: Never`.
+5. Стратегічний патч `infra/k8s/deployment.patch.yaml` змінює образ і параметри оновлення,
+   зберігаючи чинні змінні, посилання на секрети й том медіа.
+6. `RollingUpdate` з `maxUnavailable: 0`, `maxSurge: 1` залишає стару копію,
+   доки нова не пройде `/api/health` і не буде готовою 10 секунд.
+   Startup probe дає запуску близько 180 секунд. Readiness перевіряє також доступ до бази.
+   Завершення старої копії має бюджет 180 секунд на поточні відповіді моделей.
+7. Після `rollout status` перевіряються публічні `/api/health` і головна сторінка.
+   Помилка оновлення або перевірки запускає відкат до попередньої ревізії Deployment,
+   а сценарій завершується помилкою. GitHub також повторно перевіряє публічний сайт.
 
-Після злиття pull request тести й збірка не повторюються. `pull-request.yml` збирає JAR
-паралельно з тестами (з тим самим вибором перевірок: від останнього деплою до коду, злитого з
-`main`) й, коли все потрібне зелене, зберігає його на 7 днів як `novelka-<хеш дерева>` — дерева
-вже злитого з `main` коду. Деплой спершу рахує хеш дерева нового `main` і шукає такий артефакт
-з успішної перевірки pull request з гілки самого репозиторію (не форку); знайшов — одразу викладає
-його (у журналі «Готовий JAR з PR #N»). Повний прогін — коли `main` змінився після перевірки,
-за прямого push, pull request з форку й запуску вручну.
+Паралельні деплої обмежені і GitHub concurrency, і локальним `flock`.
+Збій збірки не змінює робочий Deployment. Повторний запуск того самого коміту використовує вже імпортований образ, не змінюючи тег.
+Образи попередніх версій автоматично не
+видаляються: вони потрібні для відкату; місце на диску слід контролювати.
 
-Обидві версії якийсь час працюють з однією базою, тож міграція не має ламати попередню
-версію: додавати колонки й таблиці можна, а прибирати чи перейменовувати — у два деплої
-(спершу код перестає ними користуватися, потім міграція їх прибирає).
+Обидві копії короткий час працюють з однією базою. Міграції мають бути сумісними
+з попередньою версією; видалення й перейменування — у два деплої. Відкат образу
+**не відкочує міграцій бази**.
 
-Новий push чекає, поки закінчиться попередній деплой. Відкат — «Re-run» workflow зі старого
-коміту. Міграції вниз немає: перед ризиковими міграціями зробіть копію бази.
+## Доступ GitHub Actions
 
-GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, за бажання `DEPLOY_KNOWN_HOSTS`.
+Використовуються secrets середовища `production`: `DEPLOY_HOST`, `DEPLOY_USER`,
+`DEPLOY_SSH_KEY`, рекомендовано `DEPLOY_KNOWN_HOSTS`.
 
-## Змінні в `.env.production`
+`DEPLOY_HOST=62.72.33.247`, `DEPLOY_USER=novelka-deploy`. Окремий акаунт має каталог
+`/srv/novelka-releases` і право `sudo -n /usr/local/sbin/novelka-deploy <SHA>`.
+Root-вхідний сценарій приймає лише повний SHA і відомий режим запуску.
+Це привілейований доступ: акаунт доставляє код деплою й маніфести BuildKit, тому
+йому довіряють як production. Іншим користувачам це право не надається.
 
-Назви лишилися від v1; `production.compose.yaml` переводить їх у назви застосунку.
-
-| Змінна | Для чого |
-|---|---|
-| `NOVELKA_DB_PASSWORD` | пароль PostgreSQL |
-| `OPENROUTER_API_KEY` | автопереклад |
-| `OPENROUTER_MANAGEMENT_KEY` | залишок на OpenRouter («Шаги» власника) |
-| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_AUTH`, `MAIL_STARTTLS`, `MAIL_FROM` | листи: свій сервер `mail` або запасний Resend (див. «Пошта») |
-| `NOVELKA_OWNER_NICK`, `NOVELKA_OWNER_EMAIL`, `NOVELKA_OWNER_PASSWORD` | створити власника при першому запуску; після — прибрати |
-
-Змінні `NOVELKA_*_MODEL` і `*_USD_M` від v1 новий сайт не читає: моделі й ціни власник
-задає на сторінці «Шаги».
-
-## Тестовий сайт (`dev.novelka.in.ua`)
-
-Тестове середовище працює поруч із робочим на тому самому VPS:
-- **Compose-проєкт**: `novelka-dev` (`infra/dev.compose.yaml`), сервіс `dev-app`;
-- **Мережа**: спільна мережа `novelka_default` проєкту `novelka`, щоб Caddy міг проксувати запити на `dev-app:8080`, а `dev-app` міг звертатися до PostgreSQL за адресою `postgres:5432`;
-- **Маршрутизація Caddy**: `dev.novelka.in.ua` проксується на `dev-app:8080` із обов'язковим заголовком `X-Robots-Tag: noindex, nofollow`, щоб тестовий сайт не індексувався пошуковиками;
-- **База даних**: власна база `dev_novelka` та власний користувач `dev_novelka` у тому самому контейнері PostgreSQL; доступ користувача `dev_novelka` до робочої бази `novelka` повністю заборонено;
-- **Обмеження ресурсів**: максимум 1 ГБ оперативної пам'яті (`1024M`) та 0.5 ядра CPU (`0.50`), щоб dev ні за яких умов не перевантажував сервер;
-- **Томи**: ізольований том `novelka-dev_media` для завантажень dev-середовища.
-
-### Змінні в `.env.dev`
-
-Файл `/opt/novelka/.env.dev` (права `600`, лише на сервері) містить окремі налаштування:
-
-| Змінна | Для чого |
-|---|---|
-| `NOVELKA_DB_PASSWORD` | пароль користувача `dev_novelka` до бази `dev_novelka` |
-| `NOVELKA_PUBLIC_URL` | адреса тестового сайту (`https://dev.novelka.in.ua`) |
-| `OPENROUTER_API_KEY`, `OPENROUTER_MANAGEMENT_KEY` | тестовий ключ ШІ (або порожньо для безпечного режиму без викликів моделей) |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` | окремий тестовий бот (не вказувати токен основного бота, щоб не перехопити вебхук!) |
-| `MAIL_*` | налаштування тестової пошти (відправник `no-reply@dev.novelka.in.ua`) |
-| `NOVELKA_OWNER_*` | початковий адміністратор dev-сайту |
-
-### Запуск та оновлення dev
+Разове налаштування сервера (публічний ключ відповідного секрету CI):
 
 ```sh
-ssh novelka@62.72.33.247 'sh /opt/novelka/infra/deploy-dev.sh'
+sudo bash infra/setup-deploy.sh /шлях/до/ключа.pub
 ```
 
-Сценарій `infra/deploy-dev.sh` збирає актуальний образ `dev-app`, перезапускає сервіс, чекає успішної відповіді `/api/health` та оновлює конфігурацію Caddy.
+Сценарій встановлює root-owned `/usr/local/sbin/novelka-deploy` і окреме правило sudoers;
+перевіряє правило через `visudo`. Ключ акаунта має SSH-обмеження `restrict`:
+без тунелів, пересилання агента й PTY; команди та SFTP залишаються доступними.
+Повторний запуск замінює дозволений ключ цього акаунта на переданий.
+Пароль sudo в CI не передається. Локальний пароль розробника не замінює SSH-ключа Actions.
+Перед першим запуском власник перевіряє ці налаштування; сам сценарій їх не змінює.
+Окремий self-hosted runner, Docker daemon чи реєстр образів не потрібні.
 
-## Від v1
-
-Контейнери v1 (Compose-проєкт `infra`) перший деплой видаляє. Том з базою v1
-(`infra_novelka-data`) лишається на сервері як копія; видалити, коли вже не потрібен:
-`docker volume rm infra_novelka-data infra_caddy-data infra_caddy-config`.
-
-## Резервні копії
-
-Сервіс `backup` раз на добу кладе в том `novelka_backups` копію бази
-(`novelka-РРРР-ММ-ДД.dump`, 14 днів) і картинок (`media-РРРР-ММ-ДД.tgz`, 7 днів).
-Копії лежать на тому самому сервері: від помилки чи поганої міграції вони рятують,
-від утрати сервера — ні. Час від часу забирайте свіжу копію собі:
+Під час налаштування 2026-10-28 створено окремий ключ у
+`/home/panrid/.local/share/novelka-ci/id_ed25519`; він не в репозиторії.
+З авторизованим GitHub CLI на цьому сервері secrets можна записати без виведення ключа:
 
 ```sh
-ssh novelka@62.72.33.247 'docker run --rm -v novelka_backups:/b alpine ls -l /b'
-ssh novelka@62.72.33.247 'docker run --rm -v novelka_backups:/b alpine cat /b/novelka-РРРР-ММ-ДД.dump' > novelka.dump
+gh secret set DEPLOY_HOST --repo panrid/novelka --env production --body 62.72.33.247
+gh secret set DEPLOY_USER --repo panrid/novelka --env production --body novelka-deploy
+gh secret set DEPLOY_SSH_KEY --repo panrid/novelka --env production < /home/panrid/.local/share/novelka-ci/id_ed25519
+gh secret set DEPLOY_KNOWN_HOSTS --repo panrid/novelka --env production < /home/panrid/.local/share/novelka-ci/known_hosts
 ```
 
-Відновлення бази (сайт на цей час зупиняється):
+GitHub CLI встановлений і авторизований окремо від ChatGPT GitHub App.
+Secrets середовища `production` оновлено для акаунта `novelka-deploy`; задача — #322.
+
+
+## Ручна перевірка й запуск
+
+У підготовленому каталозі релізу мають бути `novelka.jar`, `Dockerfile`,
+`infra/deploy.sh`, `infra/k8s/buildkit.yaml`, `infra/k8s/deployment.patch.yaml`.
+Замість `<SHA>` — повний 40-символьний SHA коміту.
 
 ```sh
-cd /opt/novelka
-docker compose --env-file .env.production -f infra/production.compose.yaml stop app
-docker compose --env-file .env.production -f infra/production.compose.yaml exec -T postgres \
-    pg_restore -U novelka -d novelka --clean --if-exists < novelka.dump
-docker compose --env-file .env.production -f infra/production.compose.yaml start app
+# Лише перевірка передумов і server-side dry-run; ресурси не змінюються.
+sudo bash /srv/novelka-releases/<SHA>/infra/deploy.sh /srv/novelka-releases/<SHA> <SHA> --check
+
+# Справжня локальна збірка та імпорт образу, без оновлення сайту.
+sudo bash /srv/novelka-releases/<SHA>/infra/deploy.sh /srv/novelka-releases/<SHA> <SHA> --build-only
+
+# Збірка, імпорт, оновлення й перевірка сайту.
+sudo bash /srv/novelka-releases/<SHA>/infra/deploy.sh /srv/novelka-releases/<SHA> <SHA>
 ```
 
-Картинки: `docker run --rm -v novelka_media:/m -v novelka_backups:/b alpine tar xzf /b/media-РРРР-ММ-ДД.tgz -C /m`.
+Статус і ручний відкат (попередній образ має залишатися в containerd):
 
-## Пошта
-
-Листи сайт надсилає сам, від `Новелка <no-reply@novelka.in.ua>` (з 2026-10-18; до того — через
-Resend). Шлях листа: застосунок → сервіс `mail` (Postfix з OpenDKIM, образ `boky/postfix`) на
-порту 587 усередині мережі Compose, без пароля → Postfix підписує лист ключем DKIM і сам
-доставляє його на поштовий сервер одержувача (порт 25, TLS, коли той його має; лише IPv4).
-Назовні в `mail` порту немає, листи він приймає тільки з приватних мереж (Compose). Пошту на
-домен ми не приймаємо. Розсилок листами поки немає — усі листи разові; коли з'являться, вони йдуть
-із `List-Unsubscribe` і відпискою в один клік (`doc/plan.md`, етап 23, п. 9).
-
-У `.env.production` для свого сервера:
-
-```
-MAIL_HOST=mail
-MAIL_PORT=587
-MAIL_USERNAME=
-MAIL_PASSWORD=
-MAIL_AUTH=false
-MAIL_STARTTLS=false
-MAIL_FROM=Новелка <no-reply@novelka.in.ua>
+```sh
+sudo kubectl -n novelka-prod get pods
+sudo kubectl -n novelka-prod rollout history deployment/novelka
+sudo kubectl -n novelka-prod rollout undo deployment/novelka --to-revision=<номер>
+sudo kubectl -n novelka-prod rollout status deployment/novelka --timeout=480s
+curl --fail https://novelka.in.ua/api/health
 ```
 
-### Назад на Resend
+`NOVELKA_PUBLIC_URL` залишається `https://novelka.in.ua`. Google OAuth і Telegram
+використовують цей домен; налаштування інтеграцій зберігаються в чинному Deployment і Secrets.
 
-Якщо поштовики почнуть різати листи з нашого IP, повертаємось на Resend — лише змінними, без
-зміни коду. У `.env.production` замінити блок вище на
+## Перевірка змін інфраструктури
 
-```
-MAIL_HOST=smtp.resend.com
-MAIL_PORT=587
-MAIL_USERNAME=resend
-MAIL_PASSWORD=<ключ API Resend>
-MAIL_AUTH=true
-MAIL_STARTTLS=true
-MAIL_FROM=Новелка <no-reply@novelka.panrid.space>
+```sh
+bash -n infra/deploy.sh infra/deploy-entrypoint.sh infra/setup-deploy.sh
+shellcheck infra/deploy.sh infra/deploy-entrypoint.sh infra/setup-deploy.sh
+actionlint .github/workflows/deploy-production.yml
+sudo python3 infra/tests/deploy.py
 ```
 
-і виконати погоджений деплой через `sh infra/deploy.sh` на сервері. Адреса відправника — на
-`novelka.panrid.space`, бо в Resend підтверджено саме цей домен; щоб слати з `novelka.in.ua`,
-його спершу треба додати в Resend і внести його записи в DNS. Ключ — у кабінеті Resend (у
-`.env.production` його зараз немає). Сервіс `mail` при цьому може працювати далі — він нікому
-не заважає. Назад на свій сервер — той самий блок, що вище.
+Остання команда перевіряє сценарії успіху, повторного використання образу, помилок
+збірки, оновлення й публічної перевірки, а також обидва режими без оновлення сайту.
+У ній усі звернення до Kubernetes, containerd і HTTP підмінені; справжній кластер
+не використовується. Реальну збірку окремо перевіряють через `--build-only`.
 
-### DNS і PTR
+## Що лишилося після перенесення
 
-DNS домену `novelka.in.ua` (NIC.UA):
-
-| Ім'я | Тип | Значення |
-|---|---|---|
-| `@` | TXT | `v=spf1 ip4:62.72.33.247 -all` |
-| `novelka._domainkey` | TXT | публічний ключ DKIM (нижче, як його взяти) |
-| `_dmarc` | TXT | `v=DMARC1; p=none; rua=mailto:<пошта власника>` → згодом `p=quarantine` |
-
-Станом на 2026-10-19 MX відсутній: після спроби додати `0 .` у NIC.UA запис не з’явився
-на авторитетних NS. Причину ще потрібно з’ясувати з підтримкою. Коректний MX і шлях повернень
-листів, зокрема придатність Null MX для домену відправника, перевіряємо в #284. Запис `_dmarc` має бути один — два
-записи поштовики вважають помилкою й не зважають на обидва.
-
-Зворотний запис IP (PTR) у панелі Hostinger (VPS → Налаштування → IP-адреса) — `novelka.in.ua`
-для IPv4; так само звуть себе й Postfix (`POSTFIX_myhostname`). IPv6 мережа Compose не має, тож
-його PTR не потрібен.
-
-Ключ DKIM створюється сам при першому запуску й лежить у томі `novelka_dkim`; приватна частина
-не виходить із сервера. Публічна частина:
-
-```
-ssh novelka@62.72.33.247 'docker exec novelka-mail-1 cat /etc/opendkim/keys/novelka.in.ua.txt'
-```
-
-Якщо том пропаде, ключ створиться новий — його публічну частину треба знову внести в DNS, інакше
-листи не пройдуть DKIM.
-
-### Перевірка
-
-Записи: `dig +short TXT novelka.in.ua`, `dig +short TXT novelka._domainkey.novelka.in.ua`,
-`dig +short TXT _dmarc.novelka.in.ua`, `dig +short -x 62.72.33.247`. Лист: адресу з
-https://www.mail-tester.com (має бути 10/10) вписати як нову пошту в налаштуваннях акаунта —
-сайт надішле справжній лист «підтвердіть пошту», а сама пошта не зміниться, доки не підтвердити;
-так само — на Gmail, Outlook, ukr.net. Журнал — `docker logs novelka-mail-1`: `status=sent` —
-прийнято наступним поштовим сервером (це не гарантує потрапляння у вхідні), `deferred` —
-відкладено, `bounced` — остаточна відмова; причина в тому ж рядку.
-
-Перевірено 2026-10-19: справжній лист сайту отримав **7/10**, SPF, DKIM, DMARC і PTR/HELO
-успішні; −3 за відсутній MX. Досягнення 10/10 і перевірки скриньок перенесено в #284 за
-рішенням власника; #224 завершує перехід на власну відправку. Для DMARC-звітів на зовнішній
-домен потрібна його авторизація; наявність `rua` ще не гарантує отримання звітів. Перехід
-на `p=quarantine` — після аналізу накопичених звітів, окремим рішенням власника (#284).
-
-## Моніторинг
-
-`.github/workflows/uptime.yml` кожні 5 хвилин (поза сервером) перевіряє `/api/health` (застосунок
-і база) і головну; логіка — `.github/scripts/uptime.sh`. Кожен запит — з повторами (3 × по 20 с),
-тож одиничний збій мережі тривоги не дає.
-
-**Тривога в Telegram — лише при зміні стану.** Сайт перестав відповідати — одне повідомлення
-(«🔴 Новелка не відповідає з 14:05 (Київ): /api/health — 502 (застосунок за проксі не відповідає)»
-і посилання на запуск); поки лежить — тиша; піднявся — одне повідомлення («🟢 Новелка знову
-працює, не відповідала ≈ 25 хв»). Час «з 14:05» — коли перевірка помітила, сайт міг лягти до 5 хв
-раніше.
-
-- **Запуск лишається зеленим, коли сайт лежить** — GitHub не шле лист щоп'ять хвилин. Стан сайту
-  видно в підсумку запуску й у попередженні («Сайт не відповідає: …»). Червоний запуск означає, що
-  зламалась сама перевірка: не прочитався збережений стан або Telegram не прийняв повідомлення
-  (наприклад, немає секретів чи боту не натиснули «Start») — тоді лист від GitHub і є запасною
-  тривогою.
-- **Стан між запусками** — найновіший артефакт `uptime-state` (рядки `status=up|down`, `since=` —
-  час переходу, `reason=`), живе 90 днів. Новий артефакт з'являється лише при зміні стану й лише
-  після того, як Telegram відповів `ok`; не вдалося надіслати — стан старий, наступний запуск
-  спробує ще раз. Артефакту немає (перший запуск чи 90 днів без змін) — вважається, що сайт
-  працював. Запуски йдуть по одному в черзі (`concurrency: uptime`): пропущені, скасовані в черзі
-  й ручні стан не ламають. Якщо запуск скасувати точно між надсиланням і збереженням, повідомлення
-  прийде двічі — краще так, ніж жодного.
-- **Бот** — окремий від бота сайту: `@novelka_watch_bot` («Новелка · нагляд»), лише `sendMessage`.
-  Бот сайту тут не потрібен: у нього вебхук на сервері, а `getUpdates`, `deleteWebhook` чи
-  `setWebhook` зламали б сповіщення на сайті.
-- **Секрети** (GitHub → Settings → Secrets and variables → Actions):
-  `UPTIME_TELEGRAM_TOKEN` — токен бота з @BotFather; `UPTIME_TELEGRAM_CHAT_ID` — id власника
-  (з @userinfobot). Власник має один раз натиснути боту «Start», інакше бот не може йому писати.
-
-**Як перевірити тривогу.** Actions → Uptime → Run workflow, у полі адреси — недоступна адреса
-(наприклад, `https://127.0.0.1:9`); повідомлення з такою адресою позначені «🧪 Перевірка тривоги»,
-а стан спільний зі справжнім. Перший такий запуск — одне «не відповідає», другий — тиша, потім
-запуск із порожнім полем — одне «знову працює». Запускати одне за одним: якщо між ними встигне
-запуск за розкладом, прийде зайва пара повідомлень. Локально, без надсилання:
-
-```
-STATE=/tmp/uptime-state DRY_RUN=1 ADDRESS=https://127.0.0.1:9 bash .github/scripts/uptime.sh
-```
-
-GitHub може затримувати чи пропускати запуски за розкладом, коли перевантажений, — тоді тривога
-приходить на кілька хвилин пізніше.
+- **Резервне копіювання** відкладено власником 2026-10-28; у цій задачі його не налаштовуємо.
+- Тестовий `dev.novelka.in.ua`, переадресації `www` і старого домену, поштовий сервіс
+  та моніторинг потребують окремої перевірки після перенесення. Поточний Ingress містить
+  лише `novelka.in.ua`; наявність цих можливостей зі старого Compose не припускаємо.
+- `infra/production.compose.yaml`, `infra/dev.compose.yaml`, `infra/deploy-dev.sh` і
+  `infra/Caddyfile` залишені як опис старого середовища. Production workflow їх не запускає.
+  `infra/compose.yaml` і далі використовується для локальної розробки.
