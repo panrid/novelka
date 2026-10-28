@@ -1,8 +1,10 @@
 package space.panrid.novelka.studio.internal;
 
+import static space.panrid.novelka.jooq.Tables.ACCOUNT;
 import static space.panrid.novelka.jooq.Tables.CHAPTER;
 import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.EDITION_ORIGINAL;
+import static space.panrid.novelka.jooq.Tables.EDITION_READER;
 import static space.panrid.novelka.jooq.Tables.EDITOR_DRAFT;
 import static space.panrid.novelka.jooq.Tables.JOB;
 import static space.panrid.novelka.jooq.Tables.JOB_STEP;
@@ -79,7 +81,8 @@ class StudioController {
      */
     record MyEdition(long editionId, String novelSlug, String title, String coverUrl, String kind, String status,
             int chapterCount, String teamHandle, String teamName, String role, int drafts, int pendingSuggestions,
-            int newWords, String jobState, Integer jobChapter, int originals, String sourceLanguage, Integer lastChapter) {
+            int newWords, String jobState, Integer jobChapter, int originals, String sourceLanguage, Integer lastChapter,
+            String visibility) {
     }
 
     /**
@@ -105,12 +108,13 @@ class StudioController {
             List<String> tags, String kind, String status, boolean adult, String coverUrl, int chapterCount,
             boolean ownNovel, String teamHandle, String teamName, String role, Integer sourceChapters, int pendingSuggestions,
             int drafts, int newWords, String originalUrl, java.time.LocalDate pausedUntil, String source,
-            space.panrid.novelka.catalog.NovelFacts facts, boolean downloadAllowed, int originals) {
+            space.panrid.novelka.catalog.NovelFacts facts, boolean downloadAllowed, int originals, String visibility) {
     }
 
     /** {@code facts}: the novel's other names and the original's state, shared by all its translations. */
     record UpdateRequest(String title, String author, List<Block> description, List<String> tags, String status,
-            Boolean adult, String pausedUntil, space.panrid.novelka.catalog.NovelFacts facts, Boolean downloadAllowed) {
+            Boolean adult, String pausedUntil, space.panrid.novelka.catalog.NovelFacts facts, Boolean downloadAllowed,
+            String visibility) {
     }
 
     record CoverRequest(Long imageId) {
@@ -204,7 +208,7 @@ class StudioController {
                 .where(CHAPTER.EDITION_ID.eq(EDITION.ID), CHAPTER.DELETED_AT.isNull()).<Integer>asField("last_chapter");
         var rows = db.select(EDITION.ID, NOVEL.SLUG, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), EDITION.COVER_IMAGE_ID,
                         EDITION.KIND, EDITION.STATUS, EDITION.CHAPTER_COUNT, TEAM.ID, drafts, pending, words, pasted, listed,
-                        NOVEL.SOURCE_LANGUAGE, last)
+                        NOVEL.SOURCE_LANGUAGE, last, EDITION.VISIBILITY)
                 .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID)).join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
                 .where(TEAM.OWNER_ID.eq(viewer.accountId()).or(TEAM.ID.in(member)), EDITION.DELETED_AT.isNull())
                 .orderBy(DSL.greatest(EDITION.CREATED_AT, DSL.coalesce(EDITION.LAST_PUBLISHED_AT, EDITION.CREATED_AT)).desc())
@@ -232,7 +236,8 @@ class StudioController {
             var job = jobs.get(r.value1());
             return new MyEdition(r.value1(), r.value2(), r.value3(), cover(covers, r.value4()), r.value5(), r.value6(),
                     r.value7(), team.handle(), team.name(), role.code(), r.value9(), r.value10(), r.value11(),
-                    job == null ? null : job.state(), at.get(r.value1()), Math.max(r.value12(), r.value13()), r.value14(), r.value15());
+                    job == null ? null : job.state(), at.get(r.value1()), Math.max(r.value12(), r.value13()), r.value14(), r.value15(),
+                    r.get(EDITION.VISIBILITY));
         });
     }
 
@@ -263,14 +268,14 @@ class StudioController {
                 data.coverImageId() == null ? null : images.find(data.coverImageId()).map(image -> image.url(480)).orElse(null),
                 data.chapterCount(), data.ownNovel(), team.handle(), team.name(), who.role().code(), sources == 0 ? null : sources,
                 pending, drafts, words, novel.value2(), data.pausedUntil(), data.source(), data.facts(), data.downloadAllowed(),
-                db.fetchCount(EDITION_ORIGINAL, EDITION_ORIGINAL.EDITION_ID.eq(editionId)));
+                db.fetchCount(EDITION_ORIGINAL, EDITION_ORIGINAL.EDITION_ID.eq(editionId)), data.visibility());
     }
 
     @PatchMapping("/editions/{editionId}")
     Overview update(@PathVariable long editionId, @RequestBody UpdateRequest body) {
         novels.update(editionId, new EditionChanges(body.title(), body.author(),
                 body.description() == null ? null : StudioNovels.description(body.description()), body.tags(), body.status(), body.adult(),
-                body.pausedUntil(), body.facts(), body.downloadAllowed()), null);
+                body.pausedUntil(), body.facts(), body.downloadAllowed(), body.visibility()), null);
         return overview(editionId);
     }
 
@@ -290,6 +295,71 @@ class StudioController {
     Overview setCover(@PathVariable long editionId, @RequestBody CoverRequest body) {
         novels.setCover(editionId, body.imageId());
         return overview(editionId);
+    }
+
+    // ---- visibility and invited readers (етап 24.1) ------------------------------------------
+
+    record VisibilityRequest(String visibility) {
+    }
+
+    record InvitedReader(String nick, String avatarUrl, OffsetDateTime grantedAt) {
+    }
+
+    record AddReaderRequest(String nick) {
+    }
+
+    @PutMapping("/editions/{editionId}/visibility")
+    Overview setVisibility(@PathVariable long editionId, @RequestBody VisibilityRequest body) {
+        novels.update(editionId, new EditionChanges(null, null, null, null, null, null, null, null, null, body.visibility()), null);
+        return overview(editionId);
+    }
+
+    @GetMapping("/editions/{editionId}/readers")
+    List<InvitedReader> readers(@PathVariable long editionId) {
+        access.requireEditionOwner(editionId);
+        var rows = db.select(ACCOUNT.NICK, ACCOUNT.AVATAR_IMAGE_ID, EDITION_READER.GRANTED_AT)
+                .from(EDITION_READER)
+                .join(ACCOUNT).on(ACCOUNT.ID.eq(EDITION_READER.ACCOUNT_ID))
+                .where(EDITION_READER.EDITION_ID.eq(editionId))
+                .orderBy(EDITION_READER.GRANTED_AT.desc(), ACCOUNT.NICK)
+                .fetch();
+        Map<Long, StoredImage> avatars = images.findAll(rows.map(r -> r.value2()));
+        return rows.map(r -> new InvitedReader(r.value1(),
+                r.value2() == null || !avatars.containsKey(r.value2()) ? null : avatars.get(r.value2()).url(96),
+                r.value3()));
+    }
+
+    @PostMapping("/editions/{editionId}/readers")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void addReader(@PathVariable long editionId, @RequestBody AddReaderRequest body) {
+        EditionAccess who = access.requireEditionOwner(editionId);
+        if (body.nick() == null || body.nick().isBlank()) {
+            throw UserFacingException.badRequest("Вкажіть нік читача.");
+        }
+        Long accountId = db.select(ACCOUNT.ID).from(ACCOUNT)
+                .where(ACCOUNT.NICK_KEY.eq(space.panrid.novelka.platform.text.Handles.key(body.nick())))
+                .fetchOptional(ACCOUNT.ID)
+                .orElseThrow(() -> UserFacingException.notFound("Користувача з таким ніком немає."));
+        db.insertInto(EDITION_READER)
+                .set(EDITION_READER.EDITION_ID, editionId)
+                .set(EDITION_READER.ACCOUNT_ID, accountId)
+                .set(EDITION_READER.GRANTED_BY, who.viewer().accountId())
+                .set(EDITION_READER.GRANTED_AT, DSL.currentOffsetDateTime())
+                .onConflictDoNothing()
+                .execute();
+    }
+
+    @DeleteMapping("/editions/{editionId}/readers/{nick}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void removeReader(@PathVariable long editionId, @PathVariable String nick) {
+        access.requireEditionOwner(editionId);
+        Long accountId = db.select(ACCOUNT.ID).from(ACCOUNT)
+                .where(ACCOUNT.NICK_KEY.eq(space.panrid.novelka.platform.text.Handles.key(nick)))
+                .fetchOptional(ACCOUNT.ID)
+                .orElseThrow(() -> UserFacingException.notFound("Користувача з таким ніком немає."));
+        db.deleteFrom(EDITION_READER)
+                .where(EDITION_READER.EDITION_ID.eq(editionId), EDITION_READER.ACCOUNT_ID.eq(accountId))
+                .execute();
     }
 
     // ---- chapters and the editor -------------------------------------------------------------

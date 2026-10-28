@@ -1,12 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
+import { relativeTime } from '../../lib/dates';
 import { changes, characters, paragraphs } from '../../lib/plural';
 import { STATUS_LABELS, type Status } from '../../reading/api';
-import { studioApi } from '../../studio/api';
+import { studioApi, type Overview } from '../../studio/api';
+import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
 import { Collapsible } from '../../ui/Collapsible';
 import { Notice } from '../../ui/Notice';
+import { Segmented } from '../../ui/Segmented';
 import { Sheet } from '../../ui/Sheet';
 import { TextInput } from '../../ui/TextInput';
 import { useEditionId } from './EditionPage';
@@ -66,6 +69,9 @@ function SettingsTab() {
                     </Link>
                 )}
             </nav>
+
+            {owner && <VisibilityChoice edition={edition} />}
+            {owner && <InvitedReaders editionId={id} />}
 
             {(contributions.data?.length ?? 0) > 0 && (
                 <Collapsible id="studio-contributions" title="Внесок" count={contributions.data!.length}>
@@ -147,5 +153,125 @@ function DeleteEdition({ editionId, title }: { editionId: number; title: string 
                 </Sheet>
             )}
         </>
+    );
+}
+
+function VisibilityChoice({ edition }: { edition: Overview }) {
+    const client = useQueryClient();
+    const mutation = useMutation({
+        mutationFn: (visibility: 'public' | 'private') => studioApi.setVisibility(edition.editionId, visibility),
+        onSuccess: (updated) => {
+            client.setQueryData(['studio-edition', edition.editionId], updated);
+            void client.invalidateQueries({ queryKey: ['studio'] });
+        },
+    });
+    const isPrivate = edition.visibility === 'private';
+    return (
+        <div style={{ marginTop: 20 }}>
+            <h2 className={styles.sectionTitle} style={{ margin: '8px 0' }}>Видимість</h2>
+            <div style={{ display: 'grid', gap: 8 }}>
+                <Segmented
+                    label="Видимість"
+                    value={isPrivate ? 'private' : 'public'}
+                    onChange={(val) => mutation.mutate(val as 'public' | 'private')}
+                    options={[
+                        { value: 'public', label: 'Публічна' },
+                        { value: 'private', label: 'Приватна' },
+                    ]}
+                />
+                <p className={styles.muted} style={{ marginTop: 0 }}>
+                    {isPrivate
+                        ? 'Приватна: бачать лише команда твору та запрошені читачі. Сторонні читачі та пошуковики її не бачать.'
+                        : 'Публічна: відкрита всім читачам у каталозі й пошуку.'}
+                </p>
+                {mutation.isError && <Notice tone="error">{mutation.error.message}</Notice>}
+            </div>
+        </div>
+    );
+}
+
+function InvitedReaders({ editionId }: { editionId: number }) {
+    const client = useQueryClient();
+    const [nick, setNick] = useState('');
+    const readers = useQuery({
+        queryKey: ['studio-readers', editionId],
+        queryFn: () => studioApi.readers(editionId),
+    });
+    const add = useMutation({
+        mutationFn: () => studioApi.addReader(editionId, nick.trim()),
+        onSuccess: () => {
+            setNick('');
+            void client.invalidateQueries({ queryKey: ['studio-readers', editionId] });
+        },
+    });
+    const remove = useMutation({
+        mutationFn: (readerNick: string) => studioApi.removeReader(editionId, readerNick),
+        onSuccess: () => {
+            void client.invalidateQueries({ queryKey: ['studio-readers', editionId] });
+        },
+    });
+
+    return (
+        <div style={{ marginTop: 20 }}>
+            <h2 className={styles.sectionTitle} style={{ margin: '8px 0' }}>Запрошені читачі</h2>
+            <p className={styles.muted} style={{ marginTop: 0 }}>
+                Читають опубліковані глави приватної публікації. Робочі матеріали й канон їм недоступні.
+            </p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12 }}>
+                <div style={{ flex: 1 }}>
+                    <TextInput
+                        label="Нік читача"
+                        value={nick}
+                        onChange={setNick}
+                        placeholder="reader_nick"
+                    />
+                </div>
+                <Button onPress={() => add.mutate()} pending={add.isPending} isDisabled={!nick.trim()}>
+                    Запросити
+                </Button>
+            </div>
+            {(add.error ?? remove.error) && (
+                <Notice tone="error">{(add.error ?? remove.error)!.message}</Notice>
+            )}
+
+            {readers.isLoading && <p className={styles.muted}>Завантажуємо читачів…</p>}
+            {readers.data && readers.data.length === 0 && (
+                <p className={styles.muted}>Запрошених читачів поки немає.</p>
+            )}
+            {readers.data && readers.data.length > 0 && (
+                <div style={{ display: 'grid', gap: 8 }}>
+                    {readers.data.map((r) => (
+                        <div
+                            key={r.nick}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '8px 12px',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: 'var(--radius-m)',
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <Avatar url={r.avatarUrl} nick={r.nick} size={32} />
+                                <div>
+                                    <strong>{r.nick}</strong>
+                                    <div className={styles.muted} style={{ fontSize: '0.85em' }}>
+                                        {relativeTime(new Date(r.grantedAt))}
+                                    </div>
+                                </div>
+                            </div>
+                            <Button
+                                variant="secondary"
+                                onPress={() => remove.mutate(r.nick)}
+                                pending={remove.isPending && remove.variables === r.nick}
+                            >
+                                Відкликати
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
     );
 }

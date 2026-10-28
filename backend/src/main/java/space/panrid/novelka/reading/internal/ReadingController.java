@@ -332,7 +332,7 @@ class ReadingController {
 
     /** The same rule for the public API (етап 22.2): what readers see, the API gives, no more. */
     static List<EditionRow> visibleEditions(ReadingQueries queries, NovelRow novel, Optional<Viewer> viewer) {
-        List<EditionRow> alive = queries.editions(novel.id()).stream()
+        List<EditionRow> alive = queries.editions(novel.id(), viewer.map(Viewer::accountId).orElse(null)).stream()
                 .filter(edition -> !edition.hidden() && edition.chapterCount() > 0).toList();
         if (alive.isEmpty()) {
             throw noNovel();

@@ -5,6 +5,8 @@ import static space.panrid.novelka.jooq.Tables.EDITION;
 import static space.panrid.novelka.jooq.Tables.TELEGRAM_LINK;
 import static space.panrid.novelka.jooq.Tables.TELEGRAM_OUTBOX;
 
+import space.panrid.novelka.access.Visibility;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -222,7 +224,8 @@ class TelegramOutbox implements TelegramQueue {
                 .where(CHAPTER.EDITION_ID.eq(row.getEditionId()),
                         CHAPTER.NUMBER.between(row.getFirstNumber(), row.getLastNumber()),
                         CHAPTER.PUBLISHED_REVISION_ID.isNotNull(), CHAPTER.DELETED_AT.isNull(),
-                        EDITION.DELETED_AT.isNull(), EDITION.HIDDEN_AT.isNull()));
+                        EDITION.DELETED_AT.isNull(), EDITION.HIDDEN_AT.isNull(),
+                        Visibility.readableBy(row.getAccountId(), null)));
     }
 
     private void finish(TelegramOutboxRecord row, String state) {

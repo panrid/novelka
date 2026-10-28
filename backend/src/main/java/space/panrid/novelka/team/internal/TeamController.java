@@ -99,6 +99,11 @@ class TeamController {
         rows.forEach(r -> members.add(new Person(r.value1(), avatar(avatars, r.value2()), r.value3())));
 
         var visible = EDITION.TEAM_ID.eq(team.id()).and(EDITION.HIDDEN_AT.isNull()).and(EDITION.CHAPTER_COUNT.gt(0));
+        boolean inTeam = viewer.isPresent() && (owner.value1().equals(viewer.get().nick())
+                || rows.stream().anyMatch(r -> r.value1().equals(viewer.get().nick())));
+        if (!inTeam) {
+            visible = visible.and(EDITION.VISIBILITY.eq("public"));
+        }
         var editionRows = db.select(NOVEL.SLUG, DSL.coalesce(EDITION.TITLE, NOVEL.TITLE), EDITION.COVER_IMAGE_ID,
                         EDITION.CHAPTER_COUNT, EDITION.KIND, EDITION.STATUS)
                 .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))

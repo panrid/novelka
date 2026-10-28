@@ -35,6 +35,15 @@ public class Browser {
         return send(HttpRequest.newBuilder(URI.create(base + path)).GET());
     }
 
+    public HttpResponse<byte[]> fetch(String path) {
+        try {
+            return http.send(HttpRequest.newBuilder(URI.create(base + path)).GET().build(),
+                    HttpResponse.BodyHandlers.ofByteArray());
+        } catch (IOException | InterruptedException error) {
+            throw new IllegalStateException(error);
+        }
+    }
+
     /** Where a GET sends the browser: the Location of the redirect, or null if it does not redirect. */
     public String redirectOf(String path) {
         try {

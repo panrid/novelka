@@ -137,6 +137,7 @@ class StudioNovels {
         put(changed, "adult", changes.adult());
         put(changed, "facts", changes.facts());
         put(changed, "downloadAllowed", changes.downloadAllowed());
+        put(changed, "visibility", changes.visibility());
         if (!changed.isEmpty()) {
             events.publishEvent(new NovelChanged(editionId, who.viewer().accountId(), NovelChanged.Action.UPDATED, changed));
         }

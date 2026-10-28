@@ -47,6 +47,7 @@ import org.jooq.impl.DSL;
 import org.springframework.stereotype.Component;
 
 import space.panrid.novelka.catalog.NovelFacts;
+import space.panrid.novelka.access.Visibility;
 import space.panrid.novelka.media.Images;
 import space.panrid.novelka.media.StoredImage;
 import space.panrid.novelka.platform.db.Keyset;
@@ -80,9 +81,18 @@ class ReadingQueries {
         this.clock = clock;
     }
 
-    /** Editions a viewer may see: not hidden, and 18+ only after confirming the age. */
+    /**
+     * Editions everyone may see in global lists: not hidden, public (етап 24.1), and 18+ only after
+     * confirming the age.
+     */
     static Condition visible(boolean adultConfirmed) {
-        Condition condition = EDITION.HIDDEN_AT.isNull();
+        Condition condition = EDITION.HIDDEN_AT.isNull().and(Visibility.isPublic());
+        return adultConfirmed ? condition : condition.and(EDITION.ADULT.isFalse());
+    }
+
+    /** For the person's own lists (library, «Продовжити»): also the private publications they read. */
+    static Condition visibleTo(boolean adultConfirmed, long accountId) {
+        Condition condition = EDITION.HIDDEN_AT.isNull().and(Visibility.readableBy(accountId, null));
         return adultConfirmed ? condition : condition.and(EDITION.ADULT.isFalse());
     }
 
@@ -233,7 +243,7 @@ class ReadingQueries {
         List<Record> rows = cards(READING_PROGRESS.CHAPTER_NUMBER, READING_PROGRESS.POSITION, READING_PROGRESS.UPDATED_AT, CHAPTER.LABEL)
                 .join(READING_PROGRESS).on(READING_PROGRESS.EDITION_ID.eq(EDITION.ID))
                 .leftJoin(CHAPTER).on(CHAPTER.EDITION_ID.eq(EDITION.ID), CHAPTER.NUMBER.eq(READING_PROGRESS.CHAPTER_NUMBER))
-                .where(READING_PROGRESS.ACCOUNT_ID.eq(accountId).and(visible(adult)))
+                .where(READING_PROGRESS.ACCOUNT_ID.eq(accountId).and(visibleTo(adult, accountId)))
                 .orderBy(READING_PROGRESS.UPDATED_AT.desc())
                 .limit(limit)
                 .fetch();
@@ -487,8 +497,11 @@ class ReadingQueries {
             int popularity, boolean hidden, java.time.LocalDate pausedUntil, boolean downloadAllowed) {
     }
 
-    /** All editions of a novel, the most popular first. */
-    List<EditionRow> editions(long novelId) {
+    /**
+     * The editions of a novel the person may read (етап 24.1: a private one only for its team and
+     * invited readers; a guest — public ones), the most popular first.
+     */
+    List<EditionRow> editions(long novelId, Long accountId) {
         Field<Integer> popularity = popularity().as("popularity");
         return db.select(EDITION.ID, TEAM.HANDLE, teamName(), EDITION.TITLE, EDITION.KIND, EDITION.STATUS,
                         EDITION.ADULT, EDITION.CHAPTER_COUNT, EDITION.COVER_IMAGE_ID, EDITION.DESCRIPTION,
@@ -497,7 +510,7 @@ class ReadingQueries {
                 .from(EDITION)
                 .join(TEAM).on(TEAM.ID.eq(EDITION.TEAM_ID))
                 .join(ACCOUNT).on(ACCOUNT.ID.eq(TEAM.OWNER_ID))
-                .where(EDITION.NOVEL_ID.eq(novelId))
+                .where(EDITION.NOVEL_ID.eq(novelId), Visibility.readableNow(accountId))
                 .orderBy(popularity.desc(), EDITION.CHAPTER_COUNT.desc(), EDITION.ID)
                 .fetch(r -> new EditionRow(r.get(EDITION.ID), r.get(TEAM.HANDLE), r.get("team_name", String.class),
                         r.get(EDITION.TITLE), r.get(EDITION.KIND), r.get(EDITION.STATUS), r.get(EDITION.ADULT),
@@ -739,12 +752,12 @@ class ReadingQueries {
             counts.put(name, 0);
         }
         db.select(LIBRARY_ENTRY.LIST, DSL.count()).from(LIBRARY_ENTRY).join(EDITION).on(EDITION.ID.eq(LIBRARY_ENTRY.EDITION_ID))
-                .where(mine.and(visible(adult))).groupBy(LIBRARY_ENTRY.LIST)
+                .where(mine.and(visibleTo(adult, accountId))).groupBy(LIBRARY_ENTRY.LIST)
                 .forEach(r -> counts.put(r.value1(), r.value2()));
         List<Record> rows = cards(READING_PROGRESS.CHAPTER_NUMBER, READING_PROGRESS.POSITION, READING_PROGRESS.UPDATED_AT, CHAPTER.LABEL).join(LIBRARY_ENTRY).on(LIBRARY_ENTRY.EDITION_ID.eq(EDITION.ID))
                 .leftJoin(READING_PROGRESS).on(READING_PROGRESS.EDITION_ID.eq(EDITION.ID).and(READING_PROGRESS.ACCOUNT_ID.eq(accountId)))
                 .leftJoin(CHAPTER).on(CHAPTER.EDITION_ID.eq(EDITION.ID), CHAPTER.NUMBER.eq(READING_PROGRESS.CHAPTER_NUMBER))
-                .where(mine.and(LIBRARY_ENTRY.LIST.eq(list)).and(visible(adult)))
+                .where(mine.and(LIBRARY_ENTRY.LIST.eq(list)).and(visibleTo(adult, accountId)))
                 .orderBy(DSL.greatest(LIBRARY_ENTRY.UPDATED_AT, DSL.coalesce(READING_PROGRESS.UPDATED_AT, LIBRARY_ENTRY.UPDATED_AT)).desc(),
                         EDITION.ID)
                 .limit(LIBRARY_PAGE).offset((at - 1) * LIBRARY_PAGE)

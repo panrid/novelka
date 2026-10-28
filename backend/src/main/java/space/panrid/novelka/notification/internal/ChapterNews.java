@@ -31,6 +31,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import space.panrid.novelka.access.Visibility;
 import space.panrid.novelka.jooq.tables.records.ChapterNewsRecord;
 import space.panrid.novelka.jooq.tables.records.ChapterNewsRecipientRecord;
 import space.panrid.novelka.notification.ChapterNewsBatch;
@@ -127,7 +128,8 @@ class ChapterNews implements ChapterNewsQueue {
         }
         List<Long> readers = db.select(EDITION_SUBSCRIPTION.ACCOUNT_ID).from(EDITION_SUBSCRIPTION)
                 .where(EDITION_SUBSCRIPTION.EDITION_ID.eq(news.getEditionId()),
-                        EDITION_SUBSCRIPTION.ACCOUNT_ID.gt(news.getAfterAccountId()))
+                        EDITION_SUBSCRIPTION.ACCOUNT_ID.gt(news.getAfterAccountId()),
+                        Visibility.readableByAccount(EDITION_SUBSCRIPTION.EDITION_ID, EDITION_SUBSCRIPTION.ACCOUNT_ID))
                 .orderBy(EDITION_SUBSCRIPTION.ACCOUNT_ID)
                 .limit(BATCH)
                 .fetch(EDITION_SUBSCRIPTION.ACCOUNT_ID);

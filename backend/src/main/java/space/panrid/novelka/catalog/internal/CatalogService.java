@@ -86,6 +86,7 @@ class CatalogService implements Catalog {
                 .set(EDITION.TEAM_ID, novel.teamId())
                 .set(EDITION.KIND, novel.kind())
                 .set(EDITION.ADULT, novel.adult())
+                .set(EDITION.VISIBILITY, "public")
                 .returning(EDITION.ID)
                 .fetchOne(EDITION.ID);
         return new EditionRef(novelId, editionId, slug);
@@ -163,7 +164,7 @@ class CatalogService implements Catalog {
                         NOVEL.AUTHOR, DSL.coalesce(EDITION.DESCRIPTION, NOVEL.DESCRIPTION), EDITION.KIND, EDITION.STATUS,
                         EDITION.ADULT, EDITION.COVER_IMAGE_ID, EDITION.CHAPTER_COUNT, NOVEL.SOURCE, EDITION.PAUSED_UNTIL,
                         NOVEL.TITLE_ORIGINAL, NOVEL.TITLE_ENGLISH, NOVEL.ALT_TITLES, NOVEL.SOURCE_STATUS, NOVEL.SOURCE_CHAPTER_COUNT,
-                        EDITION.DOWNLOAD_ALLOWED)
+                        EDITION.DOWNLOAD_ALLOWED, EDITION.VISIBILITY)
                 .from(EDITION).join(NOVEL).on(NOVEL.ID.eq(EDITION.NOVEL_ID))
                 .where(EDITION.ID.eq(editionId))
                 .fetchOne();
@@ -180,7 +181,7 @@ class CatalogService implements Catalog {
                 row.get(EDITION.CHAPTER_COUNT), ownNovel(novelId, row.get(NOVEL.SOURCE)), row.get(EDITION.PAUSED_UNTIL),
                 row.get(NOVEL.SOURCE), new NovelFacts(row.get(NOVEL.TITLE_ORIGINAL), row.get(NOVEL.TITLE_ENGLISH),
                         List.of(row.get(NOVEL.ALT_TITLES)), row.get(NOVEL.SOURCE_STATUS), row.get(NOVEL.SOURCE_CHAPTER_COUNT)),
-                row.get(EDITION.DOWNLOAD_ALLOWED)));
+                row.get(EDITION.DOWNLOAD_ALLOWED), row.get(EDITION.VISIBILITY)));
     }
 
     private static final java.util.Set<String> SOURCE_STATUSES = java.util.Set.of("ongoing", "completed", "paused");
@@ -291,6 +292,12 @@ class CatalogService implements Catalog {
         }
         if (changes.downloadAllowed() != null) {
             edition.put(EDITION.DOWNLOAD_ALLOWED, changes.downloadAllowed());
+        }
+        if (changes.visibility() != null) {
+            if (!List.of("public", "private").contains(changes.visibility())) {
+                throw UserFacingException.badRequest("Видимість — public або private.");
+            }
+            edition.put(EDITION.VISIBILITY, changes.visibility());
         }
         if (!edition.isEmpty()) {
             db.update(EDITION).set(edition).where(EDITION.ID.eq(editionId)).execute();

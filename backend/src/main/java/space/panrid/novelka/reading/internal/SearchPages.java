@@ -82,7 +82,8 @@ class SearchPages {
 
     /** An address the novel had before: search engines and old links move to the new one for good. */
     private Optional<ResponseEntity<String>> moved(String slug, String rest, String team) {
-        return queries.novel(slug).filter(novel -> !novel.slug().equals(slug)).map(novel -> ResponseEntity.status(HttpStatus.MOVED_PERMANENTLY)
+        // A private novel's new address is not told either (етап 24.1).
+        return queries.novel(slug).filter(novel -> !novel.slug().equals(slug)).filter(novel -> !visible(novel.id()).isEmpty()).map(novel -> ResponseEntity.status(HttpStatus.MOVED_PERMANENTLY)
                 .header("Location", "/n/" + novel.slug() + rest + (team == null || team.isBlank() ? "" : "?t=" + encode(team)))
                 .<String>body(null));
     }
@@ -303,7 +304,7 @@ class SearchPages {
 
     /** Translations readers can open: not hidden, with chapters; the most popular first. */
     private List<EditionRow> visible(long novelId) {
-        return queries.editions(novelId).stream().filter(edition -> !edition.hidden() && edition.chapterCount() > 0).toList();
+        return queries.editions(novelId, null).stream().filter(edition -> !edition.hidden() && edition.chapterCount() > 0).toList();
     }
 
     private String chapterPath(Found it, int number) {

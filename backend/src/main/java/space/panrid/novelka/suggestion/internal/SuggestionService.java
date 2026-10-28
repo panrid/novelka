@@ -21,6 +21,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import space.panrid.novelka.access.Visibility;
 import space.panrid.novelka.account.Viewer;
 import space.panrid.novelka.jooq.tables.records.SuggestionRecord;
 import space.panrid.novelka.platform.text.Block;
@@ -485,7 +486,8 @@ class SuggestionService implements space.panrid.novelka.suggestion.Suggestions {
 
     /** The published text of a chapter the viewer may read. */
     CurrentText readable(Viewer viewer, long editionId, int number) {
-        var edition = EDITION.ID.eq(editionId).and(EDITION.HIDDEN_AT.isNull());
+        var edition = EDITION.ID.eq(editionId).and(EDITION.HIDDEN_AT.isNull())
+                .and(Visibility.readableBy(viewer.accountId(), null));
         if (!db.fetchExists(EDITION, viewer.adultConfirmed() ? edition : edition.and(EDITION.ADULT.isFalse()))) {
             throw UserFacingException.notFound("Такої новели немає.");
         }

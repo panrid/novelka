@@ -161,7 +161,8 @@ class CommunityController {
     @PutMapping("/editions/{editionId}/rating")
     RatingSummary rate(@PathVariable long editionId, @RequestBody Rating body) {
         Viewer viewer = currentUser.requireSignedIn();
-        if (!db.fetchExists(EDITION, EDITION.ID.eq(editionId).and(EDITION.HIDDEN_AT.isNull()))) {
+        if (!db.fetchExists(EDITION, EDITION.ID.eq(editionId).and(EDITION.HIDDEN_AT.isNull())
+                .and(space.panrid.novelka.access.Visibility.readableNow(viewer.accountId())))) {
             throw UserFacingException.notFound("Такої новели немає.");
         }
         if (body.score() == null) {

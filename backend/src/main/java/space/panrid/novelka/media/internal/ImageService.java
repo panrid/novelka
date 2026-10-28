@@ -116,6 +116,13 @@ class ImageService implements Images {
                 .set(IMAGE.SHA256, sha256(content))
                 .returning(IMAGE.ID)
                 .fetchOne(IMAGE.ID);
+        // Every file's key leads back to its picture: /media/ checks private ones (етап 24.1).
+        for (String key : keys.values()) {
+            db.insertInto(space.panrid.novelka.jooq.Tables.IMAGE_FILE)
+                    .set(space.panrid.novelka.jooq.Tables.IMAGE_FILE.KEY, key)
+                    .set(space.panrid.novelka.jooq.Tables.IMAGE_FILE.IMAGE_ID, id)
+                    .onConflictDoNothing().execute();
+        }
         return new StoredImage(id, urls(keys));
     }
 

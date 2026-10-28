@@ -12,5 +12,10 @@ import space.panrid.novelka.platform.text.Block;
  * @param downloadAllowed readers may download the translation as EPUB
  */
 public record EditionChanges(String title, String author, List<Block> description, List<String> tags, String status,
-        Boolean adult, String pausedUntil, NovelFacts facts, Boolean downloadAllowed) {
+        Boolean adult, String pausedUntil, NovelFacts facts, Boolean downloadAllowed, String visibility) {
+
+    public EditionChanges(String title, String author, List<Block> description, List<String> tags, String status,
+            Boolean adult, String pausedUntil, NovelFacts facts, Boolean downloadAllowed) {
+        this(title, author, description, tags, status, adult, pausedUntil, facts, downloadAllowed, null);
+    }
 }
