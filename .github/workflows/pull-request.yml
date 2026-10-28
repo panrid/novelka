@@ -102,6 +102,10 @@ jobs:
                   cache-dependency-path: frontend/package-lock.json
             - run: npm ci --no-audit --no-fund
               working-directory: frontend
+            - name: Check local k3s deployment scripts
+              run: |
+                  bash -n infra/deploy.sh infra/deploy-entrypoint.sh infra/setup-deploy.sh
+                  sudo python3 infra/tests/deploy.py
             - name: Build JAR with the site inside
               run: ./gradlew :backend:bootJar --no-daemon
             # The server puts each page's title and text into these two places (SearchPages); backend tests use a stand-in.

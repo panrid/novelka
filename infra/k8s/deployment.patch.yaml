@@ -1,0 +1,42 @@
+# Strategic merge patch: retain existing environment, secrets, media PVC and service.
+metadata:
+  annotations:
+    kubernetes.io/change-cause: "Git commit @REVISION@"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  minReadySeconds: 10
+  progressDeadlineSeconds: 300
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      annotations:
+        novelka.in.ua/revision: "@REVISION@"
+    spec:
+      terminationGracePeriodSeconds: 180
+      containers:
+        - name: novelka
+          image: "@IMAGE@"
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 2
+            timeoutSeconds: 3
+            failureThreshold: 90
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 2
+          # No liveness probe tied to PostgreSQL availability.

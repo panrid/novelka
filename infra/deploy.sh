@@ -1,61 +1,102 @@
-#!/bin/sh
-# A deploy without a pause for readers: the new version starts beside the old one, and the old
-# one stops only once the new one answers. Caddy sends every new connection to whichever copy
-# listens («app» resolves to both while both run). The old copy then finishes a model's answer
-# already on its way (up to 180 s) and leaves; a run goes on in the new one.
-#
-# If the new version never becomes healthy, it is removed and the old one keeps the site.
-#
-# Run on the server from /opt/novelka (the deploy workflow does it).
-set -eu
+#!/usr/bin/env bash
+# Run on the single-node k3s server as root. CI supplies a tested JAR.
+set -Eeuo pipefail
+umask 077
 
-cd /opt/novelka
-compose="docker compose --env-file .env.production -f infra/production.compose.yaml"
+usage() {
+    echo "Usage: $0 RELEASE_DIRECTORY COMMIT_SHA [--check|--build-only]" >&2
+    exit 2
+}
+[[ $# -ge 2 && $# -le 3 ]] || usage
+release=$(realpath "$1")
+revision=$2
+mode=${3:-deploy}
+[[ $revision =~ ^[0-9a-f]{40}$ ]] || usage
+[[ $mode == deploy || $mode == --check || $mode == --build-only ]] || usage
+[[ $EUID == 0 ]] || { echo 'Run as root (or through sudo -n).' >&2; exit 1; }
+for executable in k3s kubectl python3 curl flock tar; do command -v "$executable" >/dev/null; done
+for file in novelka.jar Dockerfile infra/k8s/buildkit.yaml infra/k8s/deployment.patch.yaml; do
+    [[ -s "$release/$file" ]] || { echo "Missing release file: $file" >&2; exit 1; }
+done
 
-# The first version of the site ran as the Compose project «infra»; it gives way once.
-docker rm -f infra-app-1 infra-caddy-1 infra-postgres-1 2>/dev/null || true
-
-$compose build app
-$compose up -d --no-deps --remove-orphans postgres backup mail caddy
-
-old=$($compose ps -q app)
-if [ -z "$old" ]; then
-    $compose up -d --no-deps app
-    old=""
-else
-    count=$(echo "$old" | wc -l)
-    $compose up -d --no-deps --no-recreate --scale app=$((count + 1)) app
-fi
-new=$($compose ps -q app | grep -v -x -F "${old:-none}" || true)
-if [ -z "$new" ]; then
-    echo "The new version did not start." >&2
-    exit 1
-fi
-
-ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$new")
-echo "New version: $new at $ip, waiting until it answers…"
-healthy=""
-for _ in $(seq 1 90); do
-    if $compose exec -T caddy wget -qO- "http://$ip:8080/api/health" 2>/dev/null | grep -q '"status":"ok"'; then
-        healthy=yes
-        break
+# Also serialize manual deployments with GitHub Actions.
+exec 9>/run/lock/novelka-deploy.lock
+flock -n 9 || { echo 'Another deployment is running.' >&2; exit 1; }
+namespace=novelka-prod
+image="docker.io/library/novelka:$revision"
+builder="novelka-build-${revision:0:12}"
+work=$(mktemp -d)
+builder_created=false
+cleanup() {
+    if [[ $builder_created == true ]]; then
+        kubectl -n "$namespace" delete pod "$builder" --ignore-not-found --wait=false >/dev/null || true
     fi
-    sleep 2
-done
-if [ -z "$healthy" ]; then
-    echo "The new version did not become healthy; the old one stays." >&2
-    docker logs --tail 80 "$new" >&2 || true
-    docker rm -f "$new" >/dev/null
-    exit 1
+    rm -rf "$work"
+}
+trap cleanup EXIT
+
+# Local images and the shared RWO media volume require this single-node installation.
+[[ $(kubectl get nodes -o json | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["items"]))') == 1 ]] \
+    || { echo 'This deployment supports a single-node k3s cluster only.' >&2; exit 1; }
+kubectl wait node --all --for=condition=Ready --timeout=30s
+kubectl -n "$namespace" get deployment novelka -o json > "$work/current.json"
+kubectl -n "$namespace" get pvc novelka-media -o json | python3 -c '
+import json,sys
+assert json.load(sys.stdin)["status"]["phase"] == "Bound", "Media volume is not bound"
+'
+# Check existence, without reading secret values.
+kubectl -n "$namespace" get secret postgres-auth novelka-config -o name >/dev/null
+old_revision=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["metadata"]["annotations"]["deployment.kubernetes.io/revision"])' "$work/current.json")
+sed -e "s|@IMAGE@|$image|g" -e "s|@REVISION@|$revision|g" \
+    "$release/infra/k8s/deployment.patch.yaml" > "$work/patch.yaml"
+sed "s|@BUILDER@|$builder|g" "$release/infra/k8s/buildkit.yaml" > "$work/builder.yaml"
+kubectl -n "$namespace" patch deployment novelka --type=strategic --patch-file "$work/patch.yaml" \
+    --dry-run=server -o name
+kubectl create --dry-run=server -f "$work/builder.yaml" -o name
+if [[ $mode == --check ]]; then
+    echo 'Preflight passed; no resources changed.'
+    exit 0
 fi
 
-# Caddy may have a changed Caddyfile.
-$compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null
+# A rerun of the same commit reuses its image instead of changing an existing tag.
+if k3s ctr -n k8s.io images ls -q | grep -Fx "$image" >/dev/null; then
+    echo "Reusing local image $image."
+else
+    # BuildKit has no service-account token and never mounts production data.
+    kubectl create -f "$work/builder.yaml"
+    builder_created=true
+    kubectl -n "$namespace" wait --for=condition=Ready "pod/$builder" --timeout=180s
+    kubectl -n "$namespace" exec "$builder" -- mkdir -p /work/context
+    tar -C "$release" -cf - Dockerfile novelka.jar | kubectl -n "$namespace" exec -i "$builder" -- tar -xf - -C /work/context
+    kubectl -n "$namespace" exec "$builder" -- buildctl-daemonless.sh build \
+        --frontend dockerfile.v0 --local context=/work/context --local dockerfile=/work/context \
+        --output "type=oci,name=$image,dest=/work/image.tar"
+    kubectl -n "$namespace" exec "$builder" -- cat /work/image.tar > "$work/image.tar"
+    k3s ctr -n k8s.io images import "$work/image.tar"
+    k3s ctr -n k8s.io images ls -q | grep -Fx "$image" >/dev/null
+    kubectl -n "$namespace" delete pod "$builder" --wait=true --timeout=60s
+    builder_created=false
+fi
+if [[ $mode == --build-only ]]; then
+    echo "Built and imported $image; production is unchanged."
+    exit 0
+fi
 
-for container in $old; do
-    echo "Stopping the old version $container (it finishes a model's answer on its way)…"
-    docker stop -t 180 "$container" >/dev/null
-    docker rm "$container" >/dev/null
-done
-
-$compose ps
+rollback() {
+    trap - ERR INT TERM
+    echo "Deployment failed; restoring Kubernetes revision $old_revision." >&2
+    kubectl -n "$namespace" get pods -l app=novelka -o wide >&2 || true
+    kubectl -n "$namespace" rollout undo deployment/novelka --to-revision="$old_revision" \
+        && kubectl -n "$namespace" rollout status deployment/novelka --timeout=480s \
+        || echo 'Rollback did not complete; check the cluster.' >&2
+    exit 1
+}
+trap rollback ERR INT TERM
+kubectl -n "$namespace" patch deployment novelka --type=strategic --patch-file "$work/patch.yaml"
+kubectl -n "$namespace" rollout status deployment/novelka --timeout=480s
+curl --fail --silent --show-error --max-time 15 --retry 5 --retry-delay 5 --retry-all-errors \
+    https://novelka.in.ua/api/health | python3 -c 'import json,sys; assert json.load(sys.stdin)["status"] == "ok"'
+curl --fail --silent --show-error --max-time 15 --retry 5 --retry-delay 5 --retry-all-errors \
+    -o /dev/null https://novelka.in.ua/
+trap - ERR INT TERM
+echo "Deployed $image."
