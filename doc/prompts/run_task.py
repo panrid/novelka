@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -61,6 +62,18 @@ def locks(state, number):
             handle.close()
 
 
+def engine_executable(engine):
+    if engine not in ('claude', 'codex'):
+        raise RuntimeError('Невідомий engine у конфігурації.')
+    found = shutil.which(engine)
+    if found:
+        return found
+    npm_binary = Path.home() / '.npm-global/bin' / engine
+    if npm_binary.is_file() and os.access(npm_binary, os.X_OK):
+        return str(npm_binary)
+    raise RuntimeError(f'CLI {engine} не встановлений або недоступний.')
+
+
 def engine_command(engine, model, effort, phase, cwd):
     if engine == 'claude':
         args = ['claude', '--print', '--model', model, '--effort', effort,
@@ -76,9 +89,12 @@ def engine_command(engine, model, effort, phase, cwd):
                         'Bash(bash -n *)', 'Bash(bash doc/prompts/test-run-task.sh)']
         return args + ['--tools', ','.join(tools), '--allowedTools', ','.join(allowed)]
     if engine == 'codex':
-        return ['codex', '--ask-for-approval', 'never', 'exec', '--model', model,
+        args = ['codex', '--ask-for-approval', 'never', '--no-daemon', 'exec', '--ephemeral',
                 '-c', f'model_reasoning_effort="{effort}"', '--sandbox',
-                'read-only' if phase == 'plan' else 'workspace-write', '--cd', str(cwd), '-']
+                'read-only' if phase == 'plan' else 'workspace-write', '--cd', str(cwd)]
+        if model != 'default':
+            args += ['--model', model]
+        return args + ['-']
     raise RuntimeError('Невідомий engine у конфігурації.')
 
 
@@ -87,6 +103,8 @@ def main():
     parser.add_argument('number', type=int)
     parser.add_argument('phase', choices=['plan', 'execute'])
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--config', type=Path, default=HERE / 'engines.conf',
+                        help='INI engine configuration')
     parser.add_argument('--issue-file', type=Path, help='JSON fixture; only with --dry-run')
     parser.add_argument('--approved-hash', help='Диспетчер передає лише після «так» власника')
     parser.add_argument('--push-main', action='store_true')
@@ -95,7 +113,8 @@ def main():
         parser.error('Потрібен додатний номер; --issue-file дозволений лише з --dry-run.')
     root = Path(command(['git', 'rev-parse', '--show-toplevel']).strip()).resolve()
     config = configparser.ConfigParser(interpolation=None)
-    config.read(HERE / 'engines.conf', encoding='utf-8')
+    if not config.read(args.config, encoding='utf-8'):
+        raise RuntimeError('Не вдалося прочитати engines.conf.')
     issue = json.loads(args.issue_file.read_text() if args.issue_file else command(
         ['gh', 'issue', 'view', str(args.number), '-R', REPO, '--json', 'title,body,labels']))
     text = safe_text(issue['title'] + '\n\n' + (issue.get('body') or ''))
@@ -107,8 +126,9 @@ def main():
     level = levels[0]
     if level == 'архітектурна':
         raise RuntimeError('Архітектурну задачу роблять вручну в окремій сесії; launcher її не запускає.')
-    profile = config[level]
-    engine, model, effort = (profile[key] for key in ('engine', 'model', 'effort'))
+    engine = config['launcher']['engine']
+    profile = config[f'{engine}.{level}']
+    model, effort = (profile[key] for key in ('model', 'effort'))
     if not re.fullmatch(r'[a-zA-Z0-9_.-]+', model) or effort not in ('medium', 'high'):
         raise RuntimeError('Некоректний model alias або effort.')
     state = Path(os.environ.get('NOVELKA_TASK_STATE',
@@ -144,13 +164,15 @@ def main():
                 print('DRY-RUN: модель, worktree, коментар, commit, push і PR не запускались.')
                 print('CLI: ' + ' '.join(cli))
                 return
-            if engine == 'codex' and config[engine]['status'] != 'VERIFIED':
-                raise RuntimeError('Codex adapter UNTESTED: перевірте CLI і адаптер перед увімкненням.')
-            help_text = command([engine, '--help'])
+            if config[engine]['status'] not in ('CLI_VERIFIED_RUNTIME_UNTESTED', 'VERIFIED'):
+                raise RuntimeError('Адаптер UNTESTED: спершу перевірте його CLI.')
+            cli[0] = engine_executable(engine)
+            help_text = command([cli[0], '--help'])
             flags = ('--effort', '--model', '--permission-mode', '--no-session-persistence', '--strict-mcp-config')
             if engine == 'codex':
-                help_text += command(['codex', 'exec', '--help'])
-                flags = ('--model', '--sandbox', '--cd', '--config', '--ask-for-approval')
+                help_text += command([cli[0], 'exec', '--help'])
+                flags = ('--model', '--sandbox', '--cd', '--config', '--ask-for-approval',
+                         '--ephemeral', '--no-daemon')
             for flag in flags:
                 if flag not in help_text:
                     raise RuntimeError('Версія CLI не підтримує потрібні параметри.')

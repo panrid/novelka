@@ -38,11 +38,16 @@ Launcher сам позначок не створює й не змінює. Як�
 
 ## Запуск
 
-Потрібні Bash, Python 3 (Linux `flock`), Git, налаштований `gh`, Claude Code з доступом
+Потрібні Bash, Python 3 (Linux `flock`), Git, налаштований `gh`, вибраний CLI (Claude Code або Codex) з доступом
 до моделей. Запускай із кореня репозиторію. `engines.conf` — INI, не shell script.
+`[launcher] engine = claude | codex` перемикає engine і його профілі лише конфігурацією.
 За замовчуванням Claude: мала `sonnet/medium`, середня `sonnet/high`;
-архітектурна `opus/high` — лише вручну в окремій сесії. Launcher відмовляє для неї
-в обох фазах, навіть у dry-run. Реальний запуск Claude ще не перевірений:
+архітектурна `opus/high` — лише вручну в окремій сесії.
+Codex: `default/medium` для малої, `default/high` для середньої. `default` — псевдонім
+launcher: параметр `--model` пропускається, модель вибирає налаштований Codex CLI.
+Це не гарантія середньої чи найсильнішої моделі. За потреби вкажи доступний псевдонім
+у `[codex.мала]` / `[codex.середня]`. `sonnet` і `opus` Codex не передаються. Launcher відмовляє для неї
+в обох фазах, навіть у dry-run. Реальний запуск обох engine ще не перевірений:
 `CLI_VERIFIED_RUNTIME_UNTESTED` означає лише перевірений help.
 
 Мала задача виконується одразу в погодженому обсязі:
@@ -130,13 +135,27 @@ stderr і вивід тестів не журналюються. План і PR-
 закриття issue та деплой. Для самих документів перевір пропуск деплою в Actions.
 Лише після цього й погодження власника переведи задачу в «Готово».
 
-Codex-адаптер **UNTESTED** і реальні запуски заблоковані до перевірки на машині з CLI.
-Його argv можна оглянути через dry-run, змінивши engine/model alias у конфігурації.
-Для майбутнього перемикання на перевірений адаптер змінюються лише engine/model/effort
-та його status у `engines.conf`. Не вгадуй сумісний model alias. Параметри звірені з
-[офіційним CLI reference](https://learn.chatgpt.com/docs/cli/reference) та
-[configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference);
-локально `codex --help` / `codex exec --help` недоступні.
+Codex CLI 0.165.0 встановлено й локально перевірено через `codex --help`,
+`codex exec --help`; вхід перевіряється командою `codex login status` без читання ключів.
+`CLI_VERIFIED_RUNTIME_UNTESTED` дозволяє запуск, але не означає перевіреної генерації.
+Статус `UNTESTED` блокує реальний запуск будь-якого адаптера; dry-run доступний.
+Launcher шукає CLI в PATH, потім у `~/.npm-global/bin`, де npm може встановити його.
+Встановлення в одному середовищі не встановлює CLI на іншому VPS.
+
+Для Codex planner працює з `--sandbox read-only`, executor — `workspace-write`;
+`--ask-for-approval never` відхиляє запити поза дозволами. `--ephemeral` вимикає
+збереження файлів сесії, `--no-daemon` не використовує спільний сервер сесій.
+Effort передається через `-c model_reasoning_effort="medium|high"`, prompt — через stdin.
+Звичайний stdout `exec` містить фінальну відповідь; stderr не журналюється.
+Sandbox Codex не тотожний обмеженням tools Claude: executor має shell у sandbox,
+а planner не може писати у файлову систему. Перевір локальні налаштування MCP/hooks
+перед першим реальним запуском; не використовуй режими bypass/danger-full-access.
+Якщо sandbox або потрібні перевірки недоступні, зупинись, не послаблюй захист.
+
+Для перевірки іншого engine без редагування спільного конфігу можна передати
+`--config /tmp/engines.conf`. Формат однаковий для реального запуску й dry-run.
+Перемикання не змінює locks, погодження за хешем, worktree чи правила PR.
+Параметри також описано в [офіційному CLI reference](https://learn.chatgpt.com/docs/cli/reference).
 
 ## Шаблон промпту для виконавця
 

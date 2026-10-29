@@ -3,6 +3,7 @@ set -euo pipefail
 export PYTHONDONTWRITEBYTECODE=1
 python3 - "$(dirname -- "${BASH_SOURCE[0]}")" <<'PY'
 import importlib.util
+import configparser
 import json
 import multiprocessing
 import os
@@ -53,6 +54,29 @@ with tempfile.TemporaryDirectory(prefix='novelka-launcher-test-') as tmp:
     assert not list(state.rglob('worktree'))
     assert sentinel not in result.stdout + result.stderr
     assert all(sentinel not in p.read_text() for p in state.rglob('*') if p.is_file())
+    # Switch engines in an external config; never edit the checkout or call a model.
+    codex_config = configparser.ConfigParser()
+    codex_config.read(scripts / 'engines.conf')
+    codex_config['launcher']['engine'] = 'codex'
+    config_path = base / 'engines.conf'
+    with config_path.open('w') as stream:
+        codex_config.write(stream)
+    for level, phase, effort in [('мала', 'execute', 'medium'), ('середня', 'plan', 'high')]:
+        fixture.write_text(json.dumps(dict(title='Фіктивна задача Codex', body='Лише dry-run.',
+                                          labels=[dict(name=f'складність: {level}')])))
+        codex_result = subprocess.run(
+            ['bash', str(scripts / 'run-task.sh'), '999997', phase, '--dry-run',
+             '--issue-file', str(fixture), '--config', str(config_path)],
+            env=env, capture_output=True, text=True)
+        assert codex_result.returncode == 0, codex_result.stderr
+        assert 'codex' in codex_result.stdout and '--ephemeral' in codex_result.stdout
+        assert f'model_reasoning_effort="{effort}"' in codex_result.stdout
+        assert '--model' not in codex_result.stdout  # launcher alias default
+        sandbox = 'read-only' if phase == 'plan' else 'workspace-write'
+        assert f'--sandbox {sandbox}' in codex_result.stdout
+        assert sentinel not in codex_result.stdout + codex_result.stderr
+    assert all(sentinel not in p.read_text() for p in state.rglob('*') if p.is_file())
+    print('OK: Codex plan/execute dry-run і перемикання лише конфігурацією')
     # Secret-looking issue text is rejected before logs/prompt creation.
     fixture.write_text(json.dumps(dict(title='Фіктивна задача', body='api_key=PRIVATE_TEST_VALUE_982761',
                                       labels=[dict(name='складність: мала')])))
