@@ -5,7 +5,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Lightbulb, List, MessageCircle, P
 import { createPortal } from 'react-dom';
 import { useWide } from '../../lib/useWide';
 import { hintsRemembered, rememberHints, useGlossaryHints } from '../../reading/useGlossaryHints';
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { useMe } from '../../auth/me';
 import { Discussion, useCommentCount } from '../../community/Discussion';
 import { Blocks } from '../../reading/Blocks';
@@ -96,6 +96,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     // The place is taken from scroll events, never read at exit: by then the router may
     // already have scrolled the next page to the top, and 0 would overwrite the real place.
     const place = useRef(0);
+    const textRef = useRef<HTMLElement>(null);
     const search = team ? { t: team } : {};
     const routerState = useRouterState();
 
@@ -104,16 +105,32 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     const [opened] = useState(chapter);
     const lookOnly = useRef(Boolean(find) || look);
 
-    // Came here reading on from the chapter before (безшовне читання): the same paragraph stays where it was.
+    // Came here reading on from a neighbouring chapter (безшовне читання): the same paragraph stays where it was.
     const [arrived] = useState(() => routerState.location.state.seamless);
+    // The chapter before is shown above only once the reader stands where they began: it would push the place away.
+    const [placed, setPlaced] = useState(false);
+    const alignTo = useCallback((target: { anchor: string | null; offset: number }) => {
+        const anchor = target.anchor ? textRef.current?.querySelector(`[data-block-id="${CSS.escape(target.anchor)}"]`) : null;
+        window.scrollTo(0, anchor ? anchor.getBoundingClientRect().top + window.scrollY - target.offset : 0);
+        place.current = currentPosition();
+    }, []);
+    // Before the first paint, so that going back up does not flash the chapter's start first.
+    useLayoutEffect(() => {
+        if (arrived?.anchor) alignTo(arrived);
+    }, [arrived, alignTo]);
 
     // Start where the reader stopped: from the server (any device), else from this browser.
     useEffect(() => {
         if (arrived) {
+            if (arrived.end) {
+                // Turned back a page from the chapter's first: this one opens on its last page.
+                place.current = 1;
+                requestAnimationFrame(() => setPlaced(true));
+                return;
+            }
             requestAnimationFrame(() => {
-                const anchor = arrived.anchor ? document.querySelector(`[data-block-id="${CSS.escape(arrived.anchor)}"]`) : null;
-                window.scrollTo(0, anchor ? anchor.getBoundingClientRect().top + window.scrollY - arrived.offset : 0);
-                place.current = currentPosition();
+                alignTo(arrived);
+                setPlaced(true);
             });
             return;
         }
@@ -127,11 +144,15 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
         const position = opened.savedPosition ?? (local?.number === opened.number ? local.position : 0);
         place.current = position;
         if (position > 0.02) {
-            requestAnimationFrame(() => window.scrollTo(0, position * scrollable()));
+            requestAnimationFrame(() => {
+                window.scrollTo(0, position * scrollable());
+                setPlaced(true);
+            });
         } else {
             window.scrollTo(0, 0);
+            requestAnimationFrame(() => setPlaced(true));
         }
-    }, [opened, find, arrived]);
+    }, [opened, find, arrived, alignTo]);
 
     const save = useCallback((force: boolean) => {
         // Opened to show a word or to review suggestions: a look, not reading — the place stays.
@@ -266,6 +287,14 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
     // Pages like a book (етап 18); while making or checking suggestions the chapter scrolls as usual.
     // A paragraph being rewritten needs the text to scroll: pages wait until it is saved or left.
     const paged = view.mode === 'pages' && !editMode && !reviewing && !find && !editing;
+    // Безшовне читання: in a scroll the neighbours follow the text only while it is just read (no review, edit or look-up).
+    const seamlessScroll = !paged && view.seamless && !reviewing && !editMode && !find && !look;
+    // The next chapter opens by itself, so the big «Наступна глава» button is not needed.
+    const seamlessNext = paged ? view.seamless : seamlessScroll;
+    const sideStyle: React.CSSProperties = {
+        fontSize: view.size, fontFamily: FONT_STACKS[view.font], lineHeight: view.lineHeight, textAlign: view.align,
+        hyphens: view.align === 'justify' ? 'auto' : 'manual', maxWidth: READER_WIDTHS[view.width], paddingInline: view.margin,
+    };
     // A book does not scroll: without this a phone moves the page a little up and down before turning it.
     useEffect(() => {
         if (!paged) return;
@@ -280,7 +309,6 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
         };
     }, [paged]);
     const frame = useRef<HTMLDivElement>(null);
-    const textRef = useRef<HTMLElement>(null);
     const hints = useGlossaryHints({
         enabled: hintsOn, slug: chapter.novelSlug, team, chapter: chapter.number,
         layoutKey: [chapter.number, paged, editMode, chapter.blocks.length, mine.drafts, review.items.length, Object.keys(mine.overlay).length].join(':'),
@@ -295,7 +323,10 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
             save(false);
             if (hideBars.current) setBarsVisible(false);
         },
-        onBeforeStart: () => { if (chapter.previous) void navigate(chapterLink(chapter.previous)); },
+        // Безшовне читання: back from the first page the previous chapter opens on its last page.
+        onBeforeStart: () => {
+            if (chapter.previous) void navigate({ ...chapterLink(chapter.previous), ...(view.seamless ? { state: { seamless: { anchor: null, offset: 0, end: true } } } : {}) });
+        },
         // Безшовне читання: past the last page the next chapter opens at its first page.
         onAfterEnd: () => {
             if (chapter.next) void navigate({ ...chapterLink(chapter.next), ...(view.seamless ? { state: { seamless: { anchor: null, offset: 0 } } } : {}) });
@@ -345,7 +376,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
             {paged ? (
                 <div className={styles.pages} style={{ maxWidth: READER_WIDTHS[view.width], paddingInline: view.margin }}>
                     <div ref={frame} className={styles.pageWindow}>
-            <article ref={textRef} className={`${styles.text} ${paged ? styles.pagedText : ''}`} lang="uk" data-paragraphs={view.paragraphs}
+            <article ref={textRef} data-chapter-start className={`${styles.text} ${paged ? styles.pagedText : ''}`} lang="uk" data-paragraphs={view.paragraphs}
                 onClick={toggleBars} style={{
                 fontSize: view.size, fontFamily: FONT_STACKS[view.font], lineHeight: view.lineHeight, textAlign: view.align,
                 hyphens: view.align === 'justify' ? 'auto' : 'manual',
@@ -398,7 +429,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                         </Link>
                     </p>
                 )}
-                <nav className={styles.end} aria-label="Інші глави">
+                {!(seamlessNext && chapter.next) && <nav className={styles.end} aria-label="Інші глави">
                     {chapter.next ? (
                         <Link {...chapterLink(chapter.next)} className={styles.nextButton}>Наступна глава →</Link>
                     ) : chapter.continuation ? (
@@ -409,13 +440,21 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                     ) : (
                         <p className={styles.finished}>Це остання перекладена глава. Нові зʼявляться на головній і у «Вхідних».</p>
                     )}
-                </nav>
+                </nav>}
                 {!chapter.teamRole && <ReportEdition editionId={chapter.edition.editionId} chapterLabel={chapter.label ?? String(chapter.number)} chapterNumber={chapter.number} />}
             </article>
                     </div>
                 </div>
             ) : (
-            <article ref={textRef} className={`${styles.text} ${paged ? styles.pagedText : ''}`} lang="uk" data-paragraphs={view.paragraphs}
+            <>
+            {seamlessScroll && chapter.previous && placed && (
+                <PreviousChapter slug={chapter.novelSlug} team={team} number={chapter.previous} label={chapter.label ?? chapter.number}
+                    style={sideStyle} paragraphs={view.paragraphs} onReached={(anchor, offset) => {
+                        // The router must not take the page to the top first: the reader is deep in the chapter they come to.
+                        void navigate({ ...chapterLink(chapter.previous!), state: { seamless: { anchor, offset } }, resetScroll: false });
+                    }} />
+            )}
+            <article ref={textRef} data-chapter-start className={`${styles.text} ${paged ? styles.pagedText : ''}`} lang="uk" data-paragraphs={view.paragraphs}
                 onClick={toggleBars} style={{
                 fontSize: view.size, fontFamily: FONT_STACKS[view.font], lineHeight: view.lineHeight, textAlign: view.align,
                 hyphens: view.align === 'justify' ? 'auto' : 'manual',
@@ -468,7 +507,7 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                         </Link>
                     </p>
                 )}
-                <nav className={styles.end} aria-label="Інші глави">
+                {!(seamlessNext && chapter.next) && <nav className={styles.end} aria-label="Інші глави">
                     {chapter.next ? (
                         <Link {...chapterLink(chapter.next)} className={styles.nextButton}>Наступна глава →</Link>
                     ) : chapter.continuation ? (
@@ -479,15 +518,13 @@ function Reader({ chapter, team, find, look = false }: { chapter: ReaderChapter;
                     ) : (
                         <p className={styles.finished}>Це остання перекладена глава. Нові зʼявляться на головній і у «Вхідних».</p>
                     )}
-                </nav>
+                </nav>}
                 {!chapter.teamRole && <ReportEdition editionId={chapter.edition.editionId} chapterLabel={chapter.label ?? String(chapter.number)} chapterNumber={chapter.number} />}
             </article>
+            </>
             )}
-            {!paged && view.seamless && chapter.next && !reviewing && !editMode && !find && !look && (
-                <NextChapter slug={chapter.novelSlug} team={team} number={chapter.next} style={{
-                    fontSize: view.size, fontFamily: FONT_STACKS[view.font], lineHeight: view.lineHeight, textAlign: view.align,
-                    hyphens: view.align === 'justify' ? 'auto' : 'manual', maxWidth: READER_WIDTHS[view.width], paddingInline: view.margin,
-                }} paragraphs={view.paragraphs} onReached={(anchor, offset) => {
+            {seamlessScroll && chapter.next && (
+                <NextChapter slug={chapter.novelSlug} team={team} number={chapter.next} style={sideStyle} paragraphs={view.paragraphs} onReached={(anchor, offset) => {
                     // The chapter is read to its end: that is saved (and marks it read) before the next one opens.
                     place.current = 1;
                     save(true);
@@ -736,16 +773,28 @@ function useWakeLock(on: boolean) {
     }, [on]);
 }
 
-/** How far the chapter scrolls: to its end, not into the next chapter shown after it (безшовне читання). */
+/** Where the open chapter begins on the page: the chapter before it may be shown above (безшовне читання). */
+function chapterStart() {
+    const rect = document.querySelector('[data-chapter-start]')?.getBoundingClientRect();
+    return rect && rect.width > 0 ? rect.top + window.scrollY : 0;
+}
+
+/** How far the chapter scrolls: from its start to its end, not into the next chapter shown after it (безшовне читання). */
 function scrollable() {
     const rect = document.querySelector('[data-chapter-end]')?.getBoundingClientRect();
     // Without layout (a box with no size) the marker says nothing: the whole page counts, as before.
     const bottom = rect && rect.width > 0 ? rect.top + window.scrollY : document.documentElement.scrollHeight;
-    return Math.max(1, bottom - window.innerHeight);
+    return Math.max(1, bottom - window.innerHeight - chapterStart());
 }
 
 function currentPosition() {
-    return Math.min(1, Math.max(0, window.scrollY / scrollable()));
+    return Math.min(1, Math.max(0, (window.scrollY - chapterStart()) / scrollable()));
+}
+
+/** The first paragraph of {@code body} still on screen, and how far from the top it stands: the place to keep. */
+function paragraphOnScreen(body: HTMLElement | null): [string | null, number] {
+    const first = Array.from(body?.querySelectorAll('[data-block-id]') ?? []).find((element) => element.getBoundingClientRect().bottom > 0);
+    return [first?.getAttribute('data-block-id') ?? null, first ? first.getBoundingClientRect().top : 0];
 }
 
 /** Scrolls to a paragraph and lights it up for a moment (a quote's «До місця в главі»). */
@@ -832,8 +881,7 @@ function NextChapter({ slug, team, number, style, paragraphs, onReached }: {
             const top = divider.current?.getBoundingClientRect().top;
             if (gone.current || top === undefined || top > 0) return;
             gone.current = true;
-            const first = Array.from(body.current?.querySelectorAll('[data-block-id]') ?? []).find((element) => element.getBoundingClientRect().bottom > 0);
-            onReached(first?.getAttribute('data-block-id') ?? null, first ? first.getBoundingClientRect().top : 0);
+            onReached(...paragraphOnScreen(body.current));
         };
         window.addEventListener('scroll', onScroll, { passive: true });
         return () => window.removeEventListener('scroll', onScroll);
@@ -847,5 +895,71 @@ function NextChapter({ slug, team, number, style, paragraphs, onReached }: {
                 <Blocks blocks={next.data.blocks} />
             </article>
         </section>
+    );
+}
+
+/** The previous chapter is loaded when this many screens are left above the start of the open one. */
+const PREVIOUS_SCREENS = 3;
+
+/**
+ * Безшовне читання вгору (етап 20, рішення 7): the end of the chapter before lies above this one, under
+ * the divider that opens this chapter. It is fetched when a few screens are left to the start, and put in
+ * without moving the text. When the screen is wholly within it, the reader moves on to it, keeping the
+ * paragraph in view where it is, so the chapter below becomes the next one and the address and header follow.
+ */
+function PreviousChapter({ slug, team, number, label, style, paragraphs, onReached }: {
+    slug: string; team: string | undefined; number: number; label: string | number; style: React.CSSProperties; paragraphs: string;
+    onReached: (anchor: string | null, offset: number) => void;
+}) {
+    const [near, setNear] = useState(false);
+    const previous = useQuery({ ...chapterQuery(slug, number, team), retry: false, enabled: near });
+    const wrap = useRef<HTMLDivElement>(null);
+    const body = useRef<HTMLElement>(null);
+    const gone = useRef(false);
+    useEffect(() => {
+        if (near) return;
+        const check = () => {
+            if (window.scrollY - chapterStart() < PREVIOUS_SCREENS * window.innerHeight) setNear(true);
+        };
+        check();
+        window.addEventListener('scroll', check, { passive: true });
+        return () => window.removeEventListener('scroll', check);
+    }, [near]);
+    // Put in above the text: everything on screen moves down by its height, so the page moves with it.
+    const loaded = Boolean(previous.data);
+    const shifted = useRef(0);
+    useLayoutEffect(() => {
+        if (!loaded) return;
+        // Only what was not moved yet: an effect run twice (StrictMode) must not move the page twice.
+        const height = wrap.current?.getBoundingClientRect().height ?? 0;
+        window.scrollBy(0, height - shifted.current);
+        shifted.current = height;
+    }, [loaded]);
+    useEffect(() => {
+        if (!previous.data) return;
+        const onScroll = () => {
+            if (gone.current) return;
+            const blocks = body.current?.querySelectorAll('[data-block-id]');
+            const last = blocks?.item(blocks.length - 1);
+            // The screen is above the end of its text, or the top of the page is reached: nothing else is left to see.
+            if (last ? last.getBoundingClientRect().bottom < window.innerHeight && window.scrollY > 0 : window.scrollY > 0) return;
+            gone.current = true;
+            onReached(...paragraphOnScreen(body.current));
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, [previous.data, onReached]);
+    return (
+        <div ref={wrap} className={styles.previous}>
+            {previous.data && (
+                <section aria-label={`Раніше: ${chapterHeading(previous.data)}`}>
+                    <article ref={body} className={`${styles.text} ${styles.textAbove}`} lang="uk" data-paragraphs={paragraphs} style={style}>
+                        <h2 className={styles.chapterTitle}>{chapterHeading(previous.data)}</h2>
+                        <Blocks blocks={previous.data.blocks} />
+                    </article>
+                    <div className={styles.chapterDivider} role="separator">Глава {label}</div>
+                </section>
+            )}
+        </div>
     );
 }

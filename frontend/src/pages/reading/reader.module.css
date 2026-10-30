@@ -1,6 +1,8 @@
 .reader {
     min-height: 100dvh;
     background: var(--bg);
+    /* The chapter before is put in above the text and the page is moved by hand (PreviousChapter): the browser must not do it twice. */
+    overflow-anchor: none;
 }
 
 .status {
@@ -365,6 +367,15 @@
     height: 1px;
     background: var(--line);
     content: '';
+}
+
+/* The chapter before, above the open one (безшовне читання вгору); its text ends right at the divider. */
+.previous {
+    display: flow-root;
+}
+
+.textAbove {
+    padding-bottom: 0;
 }
 
 /* The pencil left of the paragraph under the mouse (етап 20, рішення 3). */
