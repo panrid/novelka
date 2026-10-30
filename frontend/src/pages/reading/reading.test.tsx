@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderAt } from '../../test/render';
+import { setReader } from '../../appearance/store';
 
 const CARD = {
     editionId: 7, novelSlug: 'mah-vody', teamHandle: 'panrid', teamName: 'panrid', title: 'Маг води',
@@ -31,6 +32,7 @@ const CHAPTER = {
 afterEach(() => {
     vi.unstubAllGlobals();
     localStorage.clear();
+    setReader({ mode: 'scroll', seamless: true });
 });
 
 describe('home', () => {
@@ -205,6 +207,149 @@ describe('seamless reading (етап 20)', () => {
         expect(await screen.findByText('На ринку було людно.')).toBeInTheDocument();
         expect(screen.getByRole('region', { name: /Далі: .*Ринок/ })).toBeInTheDocument();
         expect(screen.getByText('Глава 13')).toBeInTheDocument();
+    });
+
+    it('has no big «Наступна глава» button while the next chapter follows the text', async () => {
+        const NEXT = { ...CHAPTER, number: 13, title: 'Ринок', previous: 12, next: null };
+        await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { status: 204 },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'GET /api/novels/mah-vody/chapters/13': { body: NEXT },
+        });
+        await screen.findByRole('region', { name: /Далі: .*Ринок/ });
+        expect(screen.queryByRole('link', { name: 'Наступна глава →' })).not.toBeInTheDocument();
+    });
+
+    it('keeps the button when seamless reading is off', async () => {
+        setReader({ seamless: false });
+        await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { status: 204 },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+        });
+        expect(await screen.findByRole('link', { name: 'Наступна глава →' })).toBeInTheDocument();
+        expect(screen.queryByRole('region', { name: /Далі:/ })).not.toBeInTheDocument();
+    });
+});
+
+describe('seamless reading upwards (#348)', () => {
+    const BEFORE = { ...CHAPTER, number: 11, title: 'Дорога', previous: 10, next: 12,
+        blocks: [
+            { id: 'p1', type: 'paragraph', content: [{ text: 'Дорога почалась.', marks: [] }], imageUrl: null },
+            { id: 'p2', type: 'paragraph', content: [{ text: 'Кінець дороги.', marks: [] }], imageUrl: null },
+        ] };
+    const NEXT = { ...CHAPTER, number: 13, title: 'Ринок', previous: 12, next: null };
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+        Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+    });
+
+    it('shows the end of the previous chapter above this one, under the divider of this chapter', async () => {
+        await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { status: 204 },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'GET /api/novels/mah-vody/chapters/11': { body: BEFORE },
+            'GET /api/novels/mah-vody/chapters/13': { body: NEXT },
+        });
+        const before = await screen.findByRole('region', { name: /Раніше: .*Дорога/ });
+        expect(within(before).getByText('Кінець дороги.')).toBeInTheDocument();
+        // The divider closes the previous chapter's text and opens this one's.
+        const divider = within(before).getByRole('separator');
+        expect(divider).toHaveTextContent('Глава 12');
+        expect(before.compareDocumentPosition(screen.getByRole('heading', { name: '12. Спокійне життя' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('loads nothing before the first chapter', async () => {
+        const { calls } = await renderAt('/n/mah-vody/1', {
+            'GET /api/me': { status: 204 },
+            'GET /api/novels/mah-vody/chapters/1': { body: { ...CHAPTER, number: 1, previous: null, next: 2 } },
+            'GET /api/novels/mah-vody/chapters/2': { body: { ...CHAPTER, number: 2, previous: 1, next: null } },
+        });
+        await screen.findByRole('region', { name: /Далі:/ });
+        expect(screen.queryByRole('region', { name: /Раніше:/ })).not.toBeInTheDocument();
+        expect(new Set(calls.filter((call) => call.path.includes('/chapters/')).map((call) => call.path.split('/').pop()))).toEqual(new Set(['1', '2']));
+    });
+
+    it('loads nothing upwards when seamless reading is off', async () => {
+        setReader({ seamless: false });
+        const { calls } = await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { status: 204 },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'GET /api/novels/mah-vody/chapters/11': { body: BEFORE },
+        });
+        await screen.findByRole('heading', { name: '12. Спокійне життя' });
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(screen.queryByRole('region', { name: /Раніше:/ })).not.toBeInTheDocument();
+        expect(calls.some((call) => call.path.endsWith('/chapters/11'))).toBe(false);
+    });
+
+    it('waits until a few screens are left to the start of the chapter', async () => {
+        Object.defineProperty(window, 'scrollY', { value: 20000, configurable: true });
+        const { calls } = await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { status: 204 },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'GET /api/novels/mah-vody/chapters/11': { body: BEFORE },
+            'GET /api/novels/mah-vody/chapters/13': { body: NEXT },
+        });
+        await screen.findByRole('region', { name: /Далі:/ });
+        expect(calls.some((call) => call.path.endsWith('/chapters/11'))).toBe(false);
+
+        scrollTo(100);
+        expect(await screen.findByRole('region', { name: /Раніше:/ })).toBeInTheDocument();
+    });
+
+    it('moves on to the previous chapter, keeping the paragraph on screen, once the screen is within it', async () => {
+        const rect = (top: number, bottom: number) => ({ top, bottom, left: 0, right: 100, width: 100, height: bottom - top, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+        const { router } = await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { status: 204 },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'GET /api/novels/mah-vody/chapters/11': { body: BEFORE },
+        });
+        await screen.findByRole('region', { name: /Раніше:/ });
+        // Still reading this chapter: its start is at the top, the previous one's end is above the screen.
+        scrollTo(900);
+        expect(router.state.location.pathname).toBe('/n/mah-vody/12');
+
+        // Scrolled up: «Дорога почалась.» is on screen 120px below the top, the end of the chapter is far below.
+        vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+            const id = this.getAttribute('data-block-id');
+            return id === 'p1' ? rect(120, 220) : id === 'p2' ? rect(2400, 2500) : rect(0, 0);
+        });
+        scrollTo(300);
+
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody/11'));
+        expect(router.state.location.state.seamless).toEqual({ anchor: 'p1', offset: 120 });
+        expect(await screen.findByRole('heading', { name: '11. Дорога' })).toBeInTheDocument();
+    });
+
+    it('turns back from the first page onto the last page of the previous chapter', async () => {
+        setReader({ mode: 'pages' });
+        const { router } = await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { status: 204 },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'GET /api/novels/mah-vody/chapters/11': { body: BEFORE },
+        });
+        await screen.findByRole('heading', { name: '12. Спокійне життя' });
+
+        await userEvent.keyboard('{ArrowLeft}');
+
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody/11'));
+        expect(router.state.location.state.seamless).toEqual({ anchor: null, offset: 0, end: true });
+    });
+
+    it('opens the previous chapter at its saved place when turning back with seamless reading off', async () => {
+        setReader({ mode: 'pages', seamless: false });
+        const { router } = await renderAt('/n/mah-vody/12', {
+            'GET /api/me': { status: 204 },
+            'GET /api/novels/mah-vody/chapters/12': { body: CHAPTER },
+            'GET /api/novels/mah-vody/chapters/11': { body: BEFORE },
+        });
+        await screen.findByRole('heading', { name: '12. Спокійне життя' });
+
+        await userEvent.keyboard('{ArrowLeft}');
+
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody/11'));
+        expect(router.state.location.state.seamless).toBeUndefined();
     });
 });
 

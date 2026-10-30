@@ -271,7 +271,10 @@ declare module '@tanstack/react-router' {
 
 declare module '@tanstack/react-router' {
     interface HistoryState {
-        /** Безшовне читання: the paragraph on screen when the reader moved on, and how far from the top it stood. */
-        seamless?: { anchor: string | null; offset: number };
+        /**
+         * Безшовне читання: the paragraph on screen when the reader moved on, and how far from the top it stood.
+         * `end`: turned back a page from the first one, so the chapter opens on its last page.
+         */
+        seamless?: { anchor: string | null; offset: number; end?: boolean };
     }
 }
