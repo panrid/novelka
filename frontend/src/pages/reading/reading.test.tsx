@@ -361,6 +361,196 @@ describe('library', () => {
     });
 });
 
+describe('seamless reading between chapters (#350)', () => {
+    const chapterAt = (number: number, savedPosition: number | null = null) => ({
+        ...CHAPTER, number, title: `Назва ${number}`, previous: number > 1 ? number - 1 : null, next: number < 5 ? number + 1 : null, savedPosition,
+        blocks: [{ id: `c${number}-p1`, type: 'paragraph', content: [{ text: `Глава ${number}.`, marks: [] }], imageUrl: null }],
+    });
+    const chapters = (saved: Record<number, number> = {}) => Object.fromEntries([1, 2, 3, 4, 5].map((number) => (
+        [`GET /api/novels/mah-vody/chapters/${number}`, { body: chapterAt(number, saved[number] ?? null) }])));
+    const rect = (top: number, bottom = top + 100) => ({ top, bottom, left: 0, right: 100, width: 100, height: bottom - top, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+    /** Every address the reader goes through, in order. */
+    const addresses = (router: Awaited<ReturnType<typeof renderAt>>['router']) => {
+        const seen: string[] = [router.state.location.pathname.split('/').pop()!];
+        router.history.subscribe(() => seen.push(router.history.location.pathname.split('/').pop()!));
+        return seen;
+    };
+    /** The divider of the next chapter at this height, the paragraphs at another. */
+    const lay = (dividerTop: number, blockTop = 300, previousEnd = 100) => vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+        if (this.getAttribute('role') === 'separator') return rect(dividerTop);
+        if (this.closest('[aria-label^="Раніше"]') && this.hasAttribute('data-block-id')) return rect(previousEnd - 100, previousEnd);
+        return this.hasAttribute('data-block-id') ? rect(blockTop) : rect(0, 0);
+    });
+    const settled = () => new Promise((resolve) => setTimeout(resolve, 60));
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+        Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+    });
+
+    it('moves on exactly once however many scroll events come', async () => {
+        const { router } = await renderAt('/n/mah-vody/2', chapters());
+        const seen = addresses(router);
+        await screen.findByRole('region', { name: /Далі:/ });
+        await act(settled);
+        lay(-10);
+        for (const y of [100, 200, 300]) scrollTo(y);
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody/3'));
+        expect(router.state.location.state.seamless).toEqual({ anchor: 'c3-p1', offset: 300 });
+        expect(seen).toEqual(['2', '3']);
+    });
+
+    it('does not take the page to the top when moving on', async () => {
+        const { router } = await renderAt('/n/mah-vody/2', chapters());
+        await screen.findByRole('region', { name: /Далі:/ });
+        await act(settled);
+        lay(-10);
+        const navigate = vi.spyOn(router, 'navigate');
+        scrollTo(100);
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody/3'));
+        expect(navigate.mock.calls[0]?.[0]).toMatchObject({ resetScroll: false });
+    });
+
+    it('stands on the paragraph once, not again a frame later when the reader has scrolled on', async () => {
+        const { router } = await renderAt('/n/mah-vody/2', chapters());
+        await screen.findByRole('region', { name: /Далі:/ });
+        await act(settled);
+        lay(-10);
+        const place = vi.spyOn(window, 'scrollTo');
+        scrollTo(100);
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody/3'));
+        await act(settled);
+        expect(place.mock.calls.filter(([, top]) => top === 100 + 300 - 300)).toHaveLength(1);
+    });
+
+    it('ignores a scroll that comes before the chapter has placed the reader: «Назад» restoring the old position', async () => {
+        const frames: FrameRequestCallback[] = [];
+        vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback));
+        const { router } = await renderAt('/n/mah-vody/2', chapters());
+        const seen = addresses(router);
+        await screen.findByRole('region', { name: /Далі:/ });
+        lay(-10);
+        scrollTo(9000);
+        await act(settled);
+        expect(seen).toEqual(['2']);
+
+        act(() => frames.splice(0).forEach((frame) => frame(0)));
+        scrollTo(9100);
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody/3'));
+    });
+
+    it('goes forward, back and forward again through every chapter, one at a time', async () => {
+        const { router } = await renderAt('/n/mah-vody/2', chapters());
+        const seen = addresses(router);
+        const until = async (number: number) => {
+            await waitFor(() => expect(router.state.location.pathname).toBe(`/n/mah-vody/${number}`));
+            await act(settled);
+            vi.restoreAllMocks();
+        };
+        await screen.findByRole('region', { name: /Далі:/ });
+        await act(settled);
+
+        lay(-10); scrollTo(100); await until(3);
+        await screen.findByRole('region', { name: /Раніше:/ });
+        lay(500, 300, 5000); scrollTo(200); await until(2);
+        await screen.findByRole('region', { name: /Далі:/ });
+        lay(-10, 300, 100); scrollTo(300); await until(3);
+
+        expect(seen).toEqual(['2', '3', '2', '3']);
+    });
+
+    it('opens the previous chapter at its start from the button, not at the place saved in it', async () => {
+        const { router } = await renderAt('/n/mah-vody/3', chapters({ 2: 1 }));
+        await screen.findByRole('heading', { name: '3. Назва 3', level: 1 });
+        const place = vi.spyOn(window, 'scrollTo');
+        Object.defineProperty(document.documentElement, 'scrollHeight', { value: 5000, configurable: true });
+
+        await userEvent.click(screen.getByRole('link', { name: 'Попередня глава' }));
+
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody/2'));
+        await screen.findByRole('heading', { name: '2. Назва 2', level: 1 });
+        await act(settled);
+        expect(router.state.location.state.seamless).toEqual({ anchor: null, offset: 0 });
+        expect(place).toHaveBeenCalledWith(0, 0);
+        expect(place.mock.calls.some(([, top]) => typeof top === 'number' && top > 0)).toBe(false);
+    });
+
+    it.each([['ArrowLeft', 2], ['ArrowRight', 4]])('opens the neighbour at its start with %s', async (key, target) => {
+        const { router } = await renderAt('/n/mah-vody/3', chapters({ 2: 1, 4: 0.5 }));
+        await screen.findByRole('heading', { name: '3. Назва 3', level: 1 });
+        await userEvent.keyboard(`{${key}}`);
+        await waitFor(() => expect(router.state.location.pathname).toBe(`/n/mah-vody/${target}`));
+        expect(router.state.location.state.seamless).toEqual({ anchor: null, offset: 0 });
+    });
+
+    it('opens the next chapter at its start from «Далі»', async () => {
+        const { router } = await renderAt('/n/mah-vody/3', chapters({ 4: 0.5 }));
+        await screen.findByRole('heading', { name: '3. Назва 3', level: 1 });
+        await userEvent.click(screen.getByRole('link', { name: 'Наступна глава' }));
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody/4'));
+        expect(router.state.location.state.seamless).toEqual({ anchor: null, offset: 0 });
+    });
+
+    it('opens the previous chapter at its start with seamless reading off too, and nothing moves by itself', async () => {
+        setReader({ seamless: false });
+        const { router } = await renderAt('/n/mah-vody/3', chapters({ 2: 1 }));
+        const seen = addresses(router);
+        await screen.findByRole('heading', { name: '3. Назва 3', level: 1 });
+        await act(settled);
+        lay(-10);
+        scrollTo(9000);
+        await act(settled);
+        expect(seen).toEqual(['3']);
+        vi.restoreAllMocks();
+
+        await userEvent.click(screen.getByRole('link', { name: 'Попередня глава' }));
+        await waitFor(() => expect(router.state.location.pathname).toBe('/n/mah-vody/2'));
+        expect(router.state.location.state.seamless).toEqual({ anchor: null, offset: 0 });
+    });
+
+    it('goes by the saved place, not by an old history state: a reload or «Назад»', async () => {
+        const { router } = await renderAt('/n/mah-vody/3', chapters({ 2: 0.5 }));
+        await screen.findByRole('heading', { name: '3. Назва 3', level: 1 });
+        Object.defineProperty(document.documentElement, 'scrollHeight', { value: 5000, configurable: true });
+        const place = vi.spyOn(window, 'scrollTo');
+        // An entry whose state nobody has just announced.
+        await act(() => router.navigate({ to: '/n/$slug/$number', params: { slug: 'mah-vody', number: '2' }, state: { seamless: { anchor: 'c2-p1', offset: 7 } } }));
+        await screen.findByRole('heading', { name: '2. Назва 2', level: 1 });
+        await act(settled);
+        expect(place.mock.calls.some(([, top]) => top === -7)).toBe(false);
+        expect(place.mock.calls.some(([, top]) => typeof top === 'number' && top > 0)).toBe(true);
+    });
+
+    it('has the last word over the position the router restores after a reload', async () => {
+        const { router } = await renderAt('/n/mah-vody/2', chapters({ 2: 0.5 }));
+        await screen.findByRole('heading', { name: '2. Назва 2', level: 1 });
+        Object.defineProperty(document.documentElement, 'scrollHeight', { value: 5000, configurable: true });
+        const place = vi.spyOn(window, 'scrollTo');
+
+        const location = router.state.location;
+        act(() => router.emit({ type: 'onRendered', fromLocation: location, toLocation: location, pathChanged: false, hrefChanged: false, hashChanged: false }));
+
+        expect(place.mock.calls.at(-1)?.[1]).toBeGreaterThan(0);
+    });
+
+    it('shows the first chapter nothing above and the last nothing below', async () => {
+        const { router } = await renderAt('/n/mah-vody/1', chapters());
+        await screen.findByRole('region', { name: /Далі:/ });
+        expect(screen.queryByRole('region', { name: /Раніше:/ })).not.toBeInTheDocument();
+        await act(() => router.navigate({ to: '/n/$slug/$number', params: { slug: 'mah-vody', number: '5' } }));
+        await screen.findByRole('heading', { name: '5. Назва 5', level: 1 });
+        expect(screen.queryByRole('region', { name: /Далі:/ })).not.toBeInTheDocument();
+        expect(screen.getByText(/остання перекладена глава/)).toBeInTheDocument();
+    });
+
+    it('shows a neighbour with the line of its volume, as it will look once opened', async () => {
+        const volume = { firstNumber: 1, title: 'Подорож', kind: 'volume', index: 2 };
+        await renderAt('/n/mah-vody/3', { ...chapters(), 'GET /api/novels/mah-vody/chapters/4': { body: { ...chapterAt(4), volume } } });
+        const next = await screen.findByRole('region', { name: /Далі:/ });
+        expect(within(next).getByText('Том 2. Подорож')).toBeInTheDocument();
+    });
+});
+
 function scrollTo(y: number) {
     act(() => {
         Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
