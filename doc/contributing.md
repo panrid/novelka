@@ -17,7 +17,7 @@
 
 Перевірка: `java -version` (25), `node -v` (≥ 22.12), `docker info` (без помилок).
 
-## 2. Забрати код
+## 2. Отримати код
 
 ```sh
 gh repo fork panrid/novelka --clone      # або: git clone https://github.com/<ваш-нік>/novelka.git
