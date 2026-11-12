@@ -59,7 +59,7 @@ jobs:
               run: bash .github/scripts/uptime.sh
             - name: Remember the new state
               if: steps.check.outputs.changed == 'true'
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: uptime-state
                   path: state/uptime-state
