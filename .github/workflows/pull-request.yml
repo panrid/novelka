@@ -29,7 +29,7 @@ jobs:
             frontend: ${{ steps.changes.outputs.frontend }}
         steps:
             # Blobless: history and trees only, enough to list changed paths.
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
                   filter: blob:none
@@ -46,7 +46,7 @@ jobs:
         runs-on: ubuntu-latest
         timeout-minutes: 25
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v7
             - uses: actions/setup-java@v5
               with:
                   distribution: temurin
@@ -66,7 +66,7 @@ jobs:
             run:
                 working-directory: frontend
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v7
             - uses: actions/setup-node@v5
               with:
                   node-version: '22.13.1'
@@ -84,7 +84,7 @@ jobs:
         outputs:
             tree: ${{ steps.tree.outputs.tree }}
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v7
             # The checkout is main with this pull request merged in: the same tree main gets after the merge
             # (for a merge commit, squash and rebase alike) unless main moves in between.
             - name: Tree hash of the merged code
